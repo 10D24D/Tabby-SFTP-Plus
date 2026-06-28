@@ -193,3 +193,8 @@ SFTP+ 自定义颜色 (--sftp-*)
 ## License
 
 MIT — 作者 DD1024z
+
+## 说明
+
+> 本插件的功能想法由作者（DD1024z）提供，主要实现代码使用 AI 自动编码生成。
+> 如果你遇到任何问题或有功能建议，欢迎提交 [Issue](https://github.com/10D24D/Tabby-SFTP-Plus/issues) 或 Pull Request。
