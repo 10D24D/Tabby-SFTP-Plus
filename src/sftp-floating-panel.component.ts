@@ -26,6 +26,7 @@ import * as path from 'path'
 import * as fs from 'fs/promises'
 import * as fsSync from 'fs'
 import * as os from 'os'
+import { exec } from 'child_process'
 
 import { Component, OnInit, OnDestroy, AfterViewInit, HostListener, ChangeDetectorRef, ElementRef, NgZone, Injector } from '@angular/core'
 import { ThemesService, NotificationsService } from 'tabby-core'
@@ -746,6 +747,8 @@ type BookmarkScope = 'connection' | 'global' | 'all'
         <div class="ctx-item ctx-danger"
              *ngIf="contextMenuPane === 'local' ? selectedLocal.length > 0 : selectedRemote.length > 0"
              (click)="ctxDelete()">{{ i18n.t('app.delete') }}</div>
+        <div class="ctx-item" (click)="ctxOpenLocalFile()" *ngIf="contextMenuPane === 'local' && selectedLocal.length === 1 && contextMenuEntry && !contextMenuEntry.isDirectory">{{ effectiveLang === 'zh-CN' ? '打开文件' : 'Open File' }}</div>
+        <div class="ctx-item" (click)="ctxRevealInExplorer()" *ngIf="contextMenuPane === 'local' && selectedLocal.length === 1 && contextMenuEntry">{{ effectiveLang === 'zh-CN' ? '在文件管理器中显示' : 'Show in Explorer' }}</div>
         <div class="ctx-item" (click)="ctxChmod()" *ngIf="contextMenuPane === 'remote' && selectedRemote.length === 1">{{ i18n.t('permission.title') }}</div>
         <div class="ctx-sep"></div>
         <div class="ctx-item" (click)="ctxRefresh()">{{ i18n.t('app.refresh') }}</div>
@@ -3298,12 +3301,16 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
 
       const sftp = this.sftpSession
       // 用 Promise.race 实现 4 秒超时
+      let timeoutId: ReturnType<typeof setTimeout> | undefined
       const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('heartbeat-timeout')), 4000)
+        timeoutId = setTimeout(() => reject(new Error('heartbeat-timeout')), 4000)
       })
 
       Promise.race([
-        sftp.readdir('.').then(() => {}),
+        sftp.readdir('.').then(() => {
+          // 心跳成功，清除超时定时器（防止悬空定时器累积）
+          if (timeoutId !== undefined) clearTimeout(timeoutId)
+        }),
         timeoutPromise,
       ]).catch(async () => {
         // 避免并发恢复
@@ -4857,10 +4864,12 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
   pauseTransfer(entry: any): void {
     if (entry.paused) return
     try {
-      const offset = entry.transfer.pause?.()
+      const offset = entry.transfer.pause?.() ?? 0
       entry.paused = true
-      // 暂停后取消 SFTP 操作（transfer 会标记为 paused）
-      try { entry.transfer.cancel?.() } catch {}
+      // 保存实际暂停偏移量，供 resume 使用（pause() 返回的是 completedBytes）
+      entry._pauseOffset = offset
+      // 注意：不调用 cancel()，避免将 transfer 标记为 cancelled=true
+      // 底层 SFTP 操作会因 adapter 的 fd 已关闭而自然终止
       console.log(`[SFTP+] Transfer paused: ${entry.name} at offset ${offset}`)
     } catch (e) {
       console.error('[SFTP+] Pause failed', e)
@@ -4872,7 +4881,8 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     if (!entry.paused) return
     try {
       entry.paused = false
-      const offset = entry.transfer.getCompletedBytes?.() || 0
+      // 优先使用 pause() 时保存的偏移量，回退到 getCompletedBytes()
+      const offset = entry._pauseOffset ?? entry.transfer.getCompletedBytes?.() ?? 0
       const direction = entry.direction as 'upload' | 'download'
       const remotePath = entry.remotePath as string
       const localPath = entry.localPath as string
@@ -4880,6 +4890,7 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
       // 将新的 transfer 对象存入条目
       entry.transfer = info.transfer
       entry.percent = info.percent
+      delete entry._pauseOffset
       console.log(`[SFTP+] Transfer resumed: ${entry.name} from offset ${offset}`)
     } catch (e) {
       console.error('[SFTP+] Resume failed', e)
@@ -4980,6 +4991,8 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
       if (offset > 0) fsSync.ftruncateSync(localFd, offset)
     } catch (e) {
       console.error('[SFTP+] Raw download open error', e)
+      // 标记传输完成，防止进度计时器无限运行
+      try { (dl as any)._markComplete?.() } catch {}
       return
     }
     const readStream = rawSftp.createReadStream(remotePath, { start: offset })
@@ -5051,9 +5064,9 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
   }
 
   confirmPermDialog(): void {
-    if (!this.permTargetPath) return
+    if (!this.permTargetPath || !this.sftpSession) return
     const m = parseInt(this.permModePreview, 8)
-    this.sftpSession!.chmod(this.permTargetPath, m)
+    this.sftpSession.chmod(this.permTargetPath, m)
       .then(() => this.refreshRemote())
       .catch(e => console.error('[SFTP+] chmod failed', e))
     this.showPermDialog = false
@@ -5192,18 +5205,22 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
         case 'local-rename':
           await fs.rename(tp, path.join(this.localPath, val)); await this.refreshLocal(); break
         case 'remote-mkdir':
-          await this.sftpSession!.mkdir(path.posix.join(tp, val)); await this.refreshRemote(); break
+          if (!this.sftpSession) return
+          await this.sftpSession.mkdir(path.posix.join(tp, val)); await this.refreshRemote(); break
         case 'local-touch':
           await fs.writeFile(path.join(tp, val), ''); await this.refreshLocal(); break
         case 'remote-touch':
+          if (!this.sftpSession) return
           // 上传空文件来创建新文件
           const emptyUp = { getName: () => val, getSize: () => 0, getCompletedBytes: () => 0, read: () => Promise.resolve(Buffer.alloc(0)), isComplete: () => true, isCancelled: () => false }
-          await this.sftpSession!.upload(path.posix.join(tp, val), emptyUp as any); await this.refreshRemote(); break
+          await this.sftpSession.upload(path.posix.join(tp, val), emptyUp as any); await this.refreshRemote(); break
         case 'remote-rename':
-          await this.sftpSession!.rename(rp!, path.posix.join(this.remotePath, val)); await this.refreshRemote(); break
+          if (!this.sftpSession) return
+          await this.sftpSession.rename(rp!, path.posix.join(this.remotePath, val)); await this.refreshRemote(); break
         case 'remote-chmod':
+          if (!this.sftpSession) return
           const m = parseInt(val, 8)
-          if (!isNaN(m)) { await this.sftpSession!.chmod(rp!, m); await this.refreshRemote() }
+          if (!isNaN(m)) { await this.sftpSession.chmod(rp!, m); await this.refreshRemote() }
           break
       }
     } catch (e) { console.error('[SFTP+] Operation failed', e) }
@@ -5584,6 +5601,58 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     this.closeContextMenu()
     if (this.selectedRemote.length === 1) {
       this.openPermDialog(this.selectedRemote[0])
+    }
+  }
+
+  /** 右键菜单 → 打开本地文件（用系统默认程序） */
+  ctxOpenLocalFile(): void {
+    const filePath = (this.contextMenuEntry as LocalEntry)?.fullPath
+    this.closeContextMenu()
+    if (!filePath) return
+    console.log('[SFTP+] Open file:', filePath)
+    try {
+      const platform = os.platform()
+      if (platform === 'win32') {
+        exec(`start "" "${filePath}"`, (err) => {
+          if (err) console.error('[SFTP+] Open file failed:', err)
+        })
+      } else if (platform === 'darwin') {
+        const { shell } = require('electron')
+        shell.openPath(filePath)
+      } else {
+        exec(`xdg-open "${filePath}"`, (err) => {
+          if (err) console.error('[SFTP+] Open file failed:', err)
+        })
+      }
+    } catch (e) {
+      console.error('[SFTP+] Open file failed:', e)
+    }
+  }
+
+  /** 右键菜单 → 在文件管理器中显示 */
+  ctxRevealInExplorer(): void {
+    const filePath = (this.contextMenuEntry as LocalEntry)?.fullPath
+    this.closeContextMenu()
+    if (!filePath) return
+    console.log('[SFTP+] Reveal in explorer:', filePath)
+    try {
+      const platform = os.platform()
+      if (platform === 'win32') {
+        // Windows: 用 start /B 让资源管理器窗口置前
+        exec(`explorer /select,"${filePath}"`, (err) => {
+          if (err) console.error('[SFTP+] Reveal failed:', err)
+        })
+      } else if (platform === 'darwin') {
+        const { shell } = require('electron')
+        shell.showItemInFolder(filePath)
+      } else {
+        // Linux: 打开父目录
+        exec(`xdg-open "${path.dirname(filePath)}"`, (err) => {
+          if (err) console.error('[SFTP+] Reveal failed:', err)
+        })
+      }
+    } catch (e) {
+      console.error('[SFTP+] Reveal in explorer failed:', e)
     }
   }
 
