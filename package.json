@@ -1,0 +1,49 @@
+{
+  "name": "tabby-sftp-plus",
+  "version": "1.0.0",
+  "description": "SFTP+ 文件管理插件 - 双栏 SFTP 文件管理器，支持书签、传输日志、多语言",
+  "keywords": ["tabby-plugin"],
+  "main": "dist/index.js",
+  "typings": "dist/index.d.ts",
+  "scripts": {
+    "build": "webpack --progress --color",
+    "watch": "webpack --progress --color --watch",
+    "prepare": "npm run build",
+    "prepublishOnly": "npm run build"
+  },
+  "files": ["dist"],
+  "author": "DD1024z",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/10D24D/Tabby-SFTP-Plus.git"
+  },
+  "homepage": "https://github.com/10D24D/Tabby-SFTP-Plus#readme",
+  "bugs": {
+    "url": "https://github.com/10D24D/Tabby-SFTP-Plus/issues"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@angular/animations": "^9.1.13",
+    "@angular/common": "^9.1.13",
+    "@angular/core": "^9.1.13",
+    "@angular/forms": "^9.1.13",
+    "@angular/platform-browser": "^9.1.13",
+    "@angular/platform-browser-dynamic": "^9.1.13",
+    "@types/node": "^22.13.10",
+    "@types/webpack-env": "^1.18.8",
+    "apply-loader": "^2.0.0",
+    "css-loader": "^7.1.2",
+    "rxjs": "^6.6.7",
+    "sass": "^1.86.0",
+    "sass-loader": "^16.0.5",
+    "style-loader": "^4.0.0",
+    "tabby-core": "^1.0.163",
+    "tabby-settings": "^1.0.163",
+    "tabby-terminal": "^1.0.163",
+    "ts-loader": "^9.5.2",
+    "typescript": "^5.8.2",
+    "webpack": "^5.98.0",
+    "webpack-cli": "^6.0.1"
+  }
+}
