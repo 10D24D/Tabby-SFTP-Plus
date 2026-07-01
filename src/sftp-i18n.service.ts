@@ -7,6 +7,7 @@
  * 修改时间：2026-06-23
  */
 import { Injectable, Optional } from '@angular/core'
+import { detectTabbyLanguage } from '@common/utils'
 
 export type Locale = 'zh-CN' | 'en-US'
 
@@ -21,6 +22,44 @@ const TRANSLATIONS: Record<Locale, Record<string, string>> = {
     'app.deleteFile': '删除文件',
     'app.deleteFolder': '删除文件夹',
     'app.deleteMultiple': '删除多个项目',
+    'conflict.title': '文件冲突',
+    'conflict.sourceFile': '源文件',
+    'conflict.localFile': '本地文件',
+    'conflict.remoteFile': '远程文件',
+    'conflict.size': '大小',
+    'conflict.modified': '修改时间',
+    'conflict.path': '路径',
+    'conflict.cancel': '取消',
+    'conflict.skip': '跳过',
+    'conflict.rename': '重命名',
+    'conflict.overwrite': '覆盖',
+    'conflict.batch': '批量操作：',
+    'conflict.skipAll': '全部跳过',
+    'conflict.renameAll': '全部重命名',
+    'conflict.overwriteAll': '全部覆盖',
+    'conflict.existsLocal': '已存在于本地目录',
+    'conflict.existsRemote': '已存在于远程目录',
+    'log.onlySuccess': '仅成功',
+    'fileType.txt': '文本文档',
+    'fileType.log': '日志文件',
+    'fileType.md': 'Markdown 文件',
+    'fileType.json': 'JSON 文件',
+    'fileType.xml': 'XML 文件',
+    'fileType.html': 'HTML 文件',
+    'fileType.css': 'CSS 文件',
+    'fileType.js': 'JavaScript 文件',
+    'fileType.ts': 'TypeScript 文件',
+    'fileType.image': '图片文件',
+    'fileType.video': '视频文件',
+    'fileType.audio': '音频文件',
+    'fileType.archive': '压缩文件',
+    'fileType.doc': '文档文件',
+    'fileType.code': '代码文件',
+    'fileType.data': '数据文件',
+    'fileType.config': '配置文件',
+    'fileType.cert': '证书文件',
+    'fileType.executable': '可执行文件',
+    'fileType.unknown': '文件',
     'app.deleteConfirmFile': '确实要删除此文件吗？',
     'app.deleteConfirmFolder': '确实要删除此文件夹吗？',
     'app.deleteConfirmMultiple': '确实要删除这 {count} 个项目吗？',
@@ -54,6 +93,9 @@ const TRANSLATIONS: Record<Locale, Record<string, string>> = {
     'pane.filter': '过滤...',
     'pane.filterBtn': '文件过滤',
     'pane.showHidden': '显示隐藏文件',
+    'view.panelBorder': '面板边框',
+    'view.colBorder': '显示边框',
+    'view.zebra': '显示斑马纹',
     'pane.hideHidden': '不显示隐藏文件',
     'pane.sortByName': '按名称排序',
     'pane.sortBySize': '按大小排序',
@@ -65,6 +107,7 @@ const TRANSLATIONS: Record<Locale, Record<string, string>> = {
     'pane.openFolder': '打开文件夹',
     'pane.noMatch': '无匹配文件',
     'pane.empty': '空文件夹',
+    'pane.errorAccess': '无法访问（权限不足或路径不存在）',
     'pane.loading': '加载中…',
 
     'file.name': '名称',
@@ -105,8 +148,13 @@ const TRANSLATIONS: Record<Locale, Record<string, string>> = {
     'transfer.closePanel': '关闭传输面板',
     'transfer.pause': '暂停',
     'transfer.resume': '继续',
+    'transfer.cancelAll': '取消整个文件夹',
+    'transfer.cancelCurrent': '取消当前文件',
     'transfer.paused': '已暂停',
     'transfer.inProgress': '传输中',
+    'transfer.minimizePanel': '最小化',
+    'transfer.hidePanel': '隐藏面板',
+    'transfer.noActiveTransfers': '暂无传输任务',
     'transfer.clearCompleted': '清除已完成',
     'transfer.queue': '传输队列',
     'transfer.log': '传输记录',
@@ -158,6 +206,44 @@ const TRANSLATIONS: Record<Locale, Record<string, string>> = {
     'app.deleteFile': 'Delete File',
     'app.deleteFolder': 'Delete Folder',
     'app.deleteMultiple': 'Delete Multiple Items',
+    'conflict.title': 'File Conflict',
+    'conflict.sourceFile': 'Source File',
+    'conflict.localFile': 'Local File',
+    'conflict.remoteFile': 'Remote File',
+    'conflict.size': 'Size',
+    'conflict.modified': 'Modified',
+    'conflict.path': 'Path',
+    'conflict.cancel': 'Cancel',
+    'conflict.skip': 'Skip',
+    'conflict.rename': 'Rename',
+    'conflict.overwrite': 'Overwrite',
+    'conflict.batch': 'Batch:',
+    'conflict.skipAll': 'Skip All',
+    'conflict.renameAll': 'Rename All',
+    'conflict.overwriteAll': 'Overwrite All',
+    'conflict.existsLocal': 'Already exists locally',
+    'conflict.existsRemote': 'Already exists remotely',
+    'log.onlySuccess': 'Only Success',
+    'fileType.txt': 'Text File',
+    'fileType.log': 'Log File',
+    'fileType.md': 'Markdown File',
+    'fileType.json': 'JSON File',
+    'fileType.xml': 'XML File',
+    'fileType.html': 'HTML File',
+    'fileType.css': 'CSS File',
+    'fileType.js': 'JavaScript File',
+    'fileType.ts': 'TypeScript File',
+    'fileType.image': 'Image File',
+    'fileType.video': 'Video File',
+    'fileType.audio': 'Audio File',
+    'fileType.archive': 'Archive File',
+    'fileType.doc': 'Document File',
+    'fileType.code': 'Code File',
+    'fileType.data': 'Data File',
+    'fileType.config': 'Config File',
+    'fileType.cert': 'Certificate File',
+    'fileType.executable': 'Executable File',
+    'fileType.unknown': 'File',
     'app.deleteConfirmFile': 'Are you sure you want to delete this file?',
     'app.deleteConfirmFolder': 'Are you sure you want to delete this folder?',
     'app.deleteConfirmMultiple': 'Are you sure you want to delete these {count} items?',
@@ -191,6 +277,9 @@ const TRANSLATIONS: Record<Locale, Record<string, string>> = {
     'pane.filter': 'Filter...',
     'pane.filterBtn': 'File Filter',
     'pane.showHidden': 'Show Hidden Files',
+    'view.panelBorder': 'Panel border',
+    'view.colBorder': 'Show border',
+    'view.zebra': 'Show zebra stripes',
     'pane.hideHidden': 'Hide Hidden Files',
     'pane.sortByName': 'Sort by Name',
     'pane.sortBySize': 'Sort by Size',
@@ -202,6 +291,7 @@ const TRANSLATIONS: Record<Locale, Record<string, string>> = {
     'pane.openFolder': 'Open Folder',
     'pane.noMatch': 'No matching files',
     'pane.empty': 'Empty folder',
+    'pane.errorAccess': 'Cannot access (permission denied or path not found)',
     'pane.loading': 'Loading…',
 
     'file.name': 'Name',
@@ -242,8 +332,13 @@ const TRANSLATIONS: Record<Locale, Record<string, string>> = {
     'transfer.closePanel': 'Close transfer panel',
     'transfer.pause': 'Pause',
     'transfer.resume': 'Resume',
+    'transfer.cancelAll': 'Cancel folder',
+    'transfer.cancelCurrent': 'Cancel current',
     'transfer.paused': 'Paused',
     'transfer.inProgress': 'In Progress',
+    'transfer.minimizePanel': 'Minimize',
+    'transfer.hidePanel': 'Hide',
+    'transfer.noActiveTransfers': 'No active transfers',
     'transfer.clearCompleted': 'Clear Completed',
     'transfer.queue': 'Transfer Queue',
     'transfer.log': 'Transfer History',
@@ -296,19 +391,32 @@ function isZhLike(lang: string): boolean {
 
 @Injectable()
 export class SftpI18nService {
-  private locale: Locale = 'zh-CN'
+  private locale: Locale = 'en-US'
 
   constructor(@Optional() configService?: any) {
     // 策略0: SFTP+ 设置页手动选择的语言（最高优先级）
+    // 优先从 Tabby 配置读取
+    let sftpLocale: Locale | null = null
     try {
-      const sftpLocale = localStorage.getItem('sftp-plus-locale')
-      if (sftpLocale === 'zh-CN' || sftpLocale === 'en-US') {
-        this.locale = sftpLocale
-        return
+      const cfg = configService?.store?.['tabby-sftp-plus']
+      if (cfg?.lang === 'zh-CN' || cfg?.lang === 'en-US') {
+        sftpLocale = cfg.lang as Locale
       }
     } catch {}
+    // 回退：从 localStorage 读取（旧版兼容）
+    if (!sftpLocale) {
+      try {
+        const raw = localStorage.getItem('sftp-plus-locale')
+        if (raw === 'zh-CN' || raw === 'en-US') sftpLocale = raw as Locale
+      } catch {}
+    }
+    if (sftpLocale) { this.locale = sftpLocale; return }
 
-    // 策略1: Tabby ConfigService（仅 Angular DI 场景）
+    // 策略1: 直接读取 Tabby config.yaml 文件
+    const tabbyLang = detectTabbyLanguage()
+    if (tabbyLang) { this.locale = tabbyLang; return }
+
+    // 策略2: Tabby ConfigService（仅 Angular DI 场景）
     if (configService) {
       try {
         const cfg = configService.get()
@@ -320,7 +428,16 @@ export class SftpI18nService {
       } catch {}
     }
 
-    // 策略2: Tabby localStorage（多种可能的 key）
+    // 策略2: document.documentElement.lang（Tabby 可能设置此属性）
+    try {
+      const dl = document.documentElement?.lang || ''
+      if (dl) {
+        this.locale = isZhLike(dl) ? 'zh-CN' : 'en-US'
+        return
+      }
+    } catch {}
+
+    // 策略3: Tabby localStorage（多种可能的 key）
     try {
       const keys = ['locale', 'language', 'tabby-language', 'tabby-locale',
         'config', 'tabby-config', 'settings', 'tabby-settings']
@@ -347,7 +464,16 @@ export class SftpI18nService {
       }
     } catch {}
 
-    // 策略3: navigator.languages 数组（Electron 中更多语言选项）
+    // 策略4: Electron process.env 环境变量（覆盖 navigator，避免 OS 中文覆盖 Tabby 英文）
+    try {
+      if (typeof process !== 'undefined' && process.env) {
+        const lc = process.env.LC_ALL || process.env.LANG || process.env.LANGUAGE || ''
+        if (/^zh/i.test(lc)) { this.locale = 'zh-CN'; return }
+        if (/^en/i.test(lc)) { this.locale = 'en-US'; return }
+      }
+    } catch {}
+
+    // 策略5: navigator.languages 数组（Electron 中更多语言选项）
     try {
       const langs = navigator.languages || [navigator.language]
       const zhLang = langs.find(l => /^zh/i.test(l))
@@ -366,8 +492,8 @@ export class SftpI18nService {
       }
     } catch {}
 
-    // 最终回退：中文（用户区域为中国）
-    this.locale = 'zh-CN'
+    // 最终回退：英文（默认）
+    this.locale = 'en-US'
   }
 
   getLocale(): Locale {

@@ -24,6 +24,9 @@ module.exports = {
   resolve: {
     modules: ['.', 'src', 'node_modules'].map(x => path.join(__dirname, x)),
     extensions: ['.ts', '.js', '.json'],
+    alias: {
+      '@common': path.resolve(__dirname, 'tabby-plugin-common/src'),
+    },
   },
   module: {
     rules: [

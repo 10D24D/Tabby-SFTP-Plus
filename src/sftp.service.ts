@@ -36,6 +36,8 @@ export type SSHSessionLike = {
 @Injectable({ providedIn: 'root' })
 export class SftpConnectionService {
   private sessions: Map<SSHSessionLike, SFTPSessionLike> = new Map()
+  /** 防止同一 SSH session 并发 openSFTP 导致泄漏 */
+  private pending: Map<SSHSessionLike, Promise<SFTPSessionLike>> = new Map()
 
   /**
    * 从 SSH Session 打开 SFTP 连接
@@ -47,9 +49,18 @@ export class SftpConnectionService {
     if (this.sessions.has(sshSession)) {
       return this.sessions.get(sshSession)!
     }
-    const sftpSession = await sshSession.openSFTP()
-    this.sessions.set(sshSession, sftpSession)
-    return sftpSession
+    if (this.pending.has(sshSession)) {
+      return this.pending.get(sshSession)!
+    }
+    const promise = sshSession.openSFTP()
+    this.pending.set(sshSession, promise)
+    try {
+      const sftpSession = await promise
+      this.sessions.set(sshSession, sftpSession)
+      return sftpSession
+    } finally {
+      this.pending.delete(sshSession)
+    }
   }
 
   /**

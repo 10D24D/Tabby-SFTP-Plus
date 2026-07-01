@@ -112,6 +112,34 @@ declare module 'tabby-core' {
     applyTheme(theme: Theme): void
     get themeChanged$(): import('rxjs').Observable<Theme>
   }
+
+  /**
+   * ConfigService — Tabby 配置读写核心服务
+   * 用法：注入 ConfigService，通过 store['yourKey'] 读写插件配置
+   */
+  export class ConfigService {
+    /** 配置存储代理（支持嵌套读写） */
+    store: any
+    /** 配置就绪后触发一次 */
+    readonly ready$: import('rxjs').Observable<boolean>
+    /** 配置变更时触发（含跨窗口 IPC 广播） */
+    readonly changed$: import('rxjs').Observable<void>
+    /** 持久化配置到 config.yaml */
+    save(): Promise<void>
+    /** 从文件加载配置 */
+    load(): Promise<void>
+  }
+
+  /**
+   * ConfigProvider — 插件声明默认配置的基类
+   * 用法：继承此类，设置 defaults 属性，在 NgModule 中注册为 multi provider
+   */
+  export abstract class ConfigProvider {
+    /** 默认配置值（嵌套对象，顶级键即为 config.yaml 中的段名） */
+    defaults: any
+    /** 平台特定默认值 */
+    platformDefaults: Record<string, any>
+  }
 }
 
 // tabby-terminal 导出声明
@@ -138,9 +166,5 @@ declare module 'tabby-settings' {
       weight?: number
       component: any
     }>>
-  }
-  export class ConfigService {
-    get(): any
-    changed$: any
   }
 }

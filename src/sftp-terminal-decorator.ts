@@ -7,23 +7,44 @@
  * 修改人：DD1024z + Deepseek-V4-Flash
  * 修改时间：2026-06-25
  *   新增 SSH 断开检测：终端关闭后禁用 SFTP+ 入口按钮
+ * 修改人：DD1024z + Deepseek-V4-Flash
+ * 修改时间：2026-06-29
+ *   - 替换 emoji 图标为 SVG 图标
+ *   - 注入 CSS 规则隐藏原生 SFTP 按钮（设置项: hideNativeSFTPButton）
+ * 修改人：DD1024z + Deepseek-V4-Flash
+ * 修改时间：2026-06-29
+ *   - 替换文件夹图标为 Bootstrap Icons folder2-open
+ *   - 修复隐藏原生SFTP按钮：扩大选择器匹配范围（title通配 + data属性 + 文本内容）
+ *     + 取消隐藏时恢复被隐藏的原生按钮
+ * 修改人：DD1024z + Deepseek-V4-Flash
+ * 修改时间：2026-06-29
+ *   - 替换文件夹图标为新的 SVG 图标
+ *   - 隐藏原生SFTP按钮改为精确匹配 button[title="SFTP" i]
  */
 import { Injectable, Injector, ComponentFactoryResolver, ApplicationRef, NgZone } from '@angular/core'
 import { TerminalDecorator } from 'tabby-terminal'
-import { NotificationsService } from 'tabby-core'
+import { NotificationsService, ConfigService } from 'tabby-core'
 import { SftpFloatingPanel } from './sftp-floating-panel.component'
+
+/** SVG 文件夹图标 */
+const FOLDER_SVG = '<svg viewBox="0 0 1024 1024" width="14" height="14" fill="currentColor" style="vertical-align:middle"><path d="M120 344h291.6l112-112H736v224h56V176H500.4l-112 112H64v560l56-130.6z"/><path d="M792 456H232L120 717.4 64 848h728l168-392z"/></svg>'
 
 @Injectable()
 export class SftpTerminalDecorator extends TerminalDecorator {
+  private _hideStyleEl: HTMLStyleElement | null = null
+  private _hideObserver: MutationObserver | null = null
+
   constructor(
     private notifications: NotificationsService,
     private resolver: ComponentFactoryResolver,
     private appRef: ApplicationRef,
     private zone: NgZone,
     private injector: Injector,
+    private config?: ConfigService,
   ) {
     super()
     console.log('[SFTP+] Decorator ready')
+    this._applyNativeBtnHideRule()
   }
 
   override attach(terminal: any): void {
@@ -31,27 +52,28 @@ export class SftpTerminalDecorator extends TerminalDecorator {
     console.log('[SFTP+] attach called')
 
     // Best-effort DOM injection: place button near the existing Reconnect button if present.
-    const tryInsert = (): boolean => {
+    /** 查找终端工具栏容器 */
+    const findToolbar = (): HTMLElement | null => {
       try {
-        // 非 SSH 连接的 tab 不显示 SFTP+ 入口
-        const hasSSH = !!(terminal?.sshSession ?? (terminal as any)?._sshSession ?? terminal?._session ?? null)
-        if (!hasSSH) {
-          // 还没检测到 SSH 会话，继续重试
-          return false
-        }
-
         const host = terminal.element?.nativeElement ?? null
-        if (!host) {
-          return false
-        }
-
-        // Find a likely toolbar area in the tab UI
+        if (!host) return null
         const toolbar =
           host.querySelector('.terminal-toolbar') ??
           host.querySelector('terminal-toolbar') ??
           host.querySelector('.btn-toolbar')
+        return (toolbar as HTMLElement) ?? host
+      } catch { return null }
+    }
 
-        const container = toolbar ?? host
+    const tryInsert = (): boolean => {
+      try {
+        // 仅 SSH 连接的 tab 显示 SFTP+ 按钮（检查 profile 而非 session 状态，避免断开后消失）
+        const profile = terminal?.profile ?? (terminal as any)?._profile ?? null
+        const isSSH = !!(profile?.options?.host) || profile?.type === 'ssh'
+        if (!isSSH) return false
+
+        const container = findToolbar()
+        if (!container) return false
 
         // Already injected?
         if (container.querySelector('[data-tabby-sftp-plus-button="1"]')) {
@@ -64,7 +86,7 @@ export class SftpTerminalDecorator extends TerminalDecorator {
         btn.className = 'btn btn-sm btn-link me-2'
         btn.setAttribute('data-tabby-sftp-plus-button', '1')
         btn.title = 'SFTP+'
-        btn.textContent = '📂 SFTP+'
+        btn.innerHTML = FOLDER_SVG + ' SFTP+'
         btn.style.pointerEvents = 'auto'
         btn.style.zIndex = '10'
         btn.style.position = 'relative'
@@ -84,6 +106,13 @@ export class SftpTerminalDecorator extends TerminalDecorator {
           if (ssh.closed$ && typeof ssh.closed$.subscribe === 'function' && ssh.open === false) {
             this.notifications.error('SFTP+', 'SSH 连接已断开，请先重新连接终端')
             return
+          }
+          // SSH 正常连接中，确保按钮恢复可用状态（处理 reconnect 后 _session 已恢复但按钮仍 disabled 的场景）
+          if (btn.disabled) {
+            btn.disabled = false
+            btn.style.opacity = ''
+            btn.style.cursor = ''
+            btn.title = 'SFTP+'
           }
           this.openFloatingPanel(terminal)
         })
@@ -141,17 +170,122 @@ export class SftpTerminalDecorator extends TerminalDecorator {
 
     // try a few times while the view is settling and SSH session establishes
     let attempts = 0
+    let btnInjected = false
     const timer = setInterval(() => {
       attempts++
-      if (tryInsert() || attempts > 20) {
+      if (tryInsert()) {
+        btnInjected = true
         clearInterval(timer)
-        if (attempts > 20) {
-          console.log('[SFTP+] No SSH session found on this tab after 20 attempts, hiding SFTP+ button')
+        // 注入成功后，监听工具栏 DOM 变化：按钮被移除时自动重新注入（如 reconnect 重建工具栏）
+        const container = findToolbar()
+        if (container) {
+          const obs = new MutationObserver(() => {
+            if (!container.querySelector('[data-tabby-sftp-plus-button="1"]')) {
+              console.log('[SFTP+] Button removed from toolbar, re-injecting...')
+              tryInsert()
+            }
+          })
+          obs.observe(container, { childList: true, subtree: true })
+          this.subscribeUntilDetached(terminal, { unsubscribe: () => obs.disconnect() })
         }
+        return
+      }
+      if (attempts > 20) {
+        clearInterval(timer)
+        console.log('[SFTP+] No SSH session found on this tab after 20 attempts, hiding SFTP+ button')
       }
     }, 500)
 
     this.subscribeUntilDetached(terminal, { unsubscribe: () => clearInterval(timer) })
+
+    // 监听设置变更 → 重新应用隐藏规则
+    const handler = () => this._applyNativeBtnHideRule()
+    window.addEventListener('sftp-plus-settings-changed', handler)
+    this.subscribeUntilDetached(terminal, { unsubscribe: () => window.removeEventListener('sftp-plus-settings-changed', handler) })
+  }
+
+  /**
+   * 读取配置，注入/移除隐藏原生 SFTP 按钮的 CSS 规则
+   * 目标：button[title="SFTP"]（精确匹配，不区分大小写）或 data 属性匹配
+   */
+  private _applyNativeBtnHideRule(): void {
+    let hide = false
+    let fromConfig = false
+    // 优先从 Tabby 配置读取
+    if (this.config?.store) {
+      try {
+        const cfgVal = this.config.store['tabby-sftp-plus']?.hideNativeSFTPButton
+        if (cfgVal !== undefined) { hide = cfgVal; fromConfig = true }
+      } catch {}
+    }
+    // 回退：仅当配置未提供值时，才从 localStorage 读取（旧版兼容）
+    if (!fromConfig) {
+      try {
+        const raw = localStorage.getItem('sftp-plus-settings.hideNativeBtn')
+        if (raw) hide = JSON.parse(raw)
+      } catch {}
+    }
+
+    /** 查找原生 SFTP 按钮（title 精确匹配 "SFTP"，不含插件自己的 SFTP+ 按钮） */
+    const findNativeSFTPBtns = (): HTMLElement[] => {
+      const all: HTMLElement[] = []
+      try {
+        document.querySelectorAll<HTMLElement>('button').forEach(el => {
+          // 跳过插件自己的按钮
+          if (el.getAttribute('data-tabby-sftp-plus-button') === '1') return
+          const title = (el.title || '').toLowerCase()
+          const text = (el.textContent || '').trim().toLowerCase()
+          const attr = (el.getAttribute('data-tabby-sftp-ui-button') || '').toLowerCase()
+          if (attr === '1' || attr === 'true' || title === 'sftp' || text === 'sftp') {
+            all.push(el)
+          }
+        })
+      } catch {}
+      return all
+    }
+
+    if (hide) {
+      if (!this._hideStyleEl || !document.head.contains(this._hideStyleEl)) {
+        this._hideStyleEl = document.createElement('style')
+        this._hideStyleEl.setAttribute('data-sftp-plus-hide-native', '1')
+        this._hideStyleEl.textContent = `
+          button[data-tabby-sftp-ui-button="1"] { display: none !important; }
+          button[data-tabby-sftp-ui-button="true"] { display: none !important; }
+          button[title="SFTP" i] { display: none !important; }
+        `
+        document.head.appendChild(this._hideStyleEl)
+      }
+      // 兜底：直接隐藏已存在的 SFTP 按钮
+      findNativeSFTPBtns().forEach(el => { el.style.display = 'none' })
+      // MutationObserver 监听新注入的 SFTP 按钮并实时隐藏
+      if (!this._hideObserver) {
+        this._hideObserver = new MutationObserver(() => {
+          findNativeSFTPBtns().forEach(el => {
+            if (el.style.display !== 'none') el.style.display = 'none'
+          })
+        })
+        this._hideObserver.observe(document.body, { childList: true, subtree: true })
+      }
+    } else {
+      if (this._hideStyleEl && document.head.contains(this._hideStyleEl)) {
+        this._hideStyleEl.remove()
+      }
+      this._hideStyleEl = null
+      if (this._hideObserver) {
+        this._hideObserver.disconnect()
+        this._hideObserver = null
+      }
+      // 恢复被隐藏的原生按钮
+      try {
+        document.querySelectorAll<HTMLElement>('button[style*="display: none"]').forEach(el => {
+          const title = (el.title || '').toLowerCase()
+          const text = (el.textContent || '').trim().toLowerCase()
+          if (title === 'sftp' || text === 'sftp') {
+            if (el.style.display === 'none') el.style.display = ''
+          }
+        })
+      } catch {}
+    }
   }
 
   /**

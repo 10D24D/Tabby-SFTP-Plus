@@ -5,9 +5,7 @@
     "lib": ["es2018", "dom"],
     "sourceMap": true,
     "outDir": "./dist",
-    "rootDir": "./src",
-    "declaration": true,
-    "declarationMap": true,
+    "declaration": false,
     "moduleResolution": "node",
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
@@ -18,6 +16,9 @@
     "noImplicitAny": false,
     "allowJs": true,
     "baseUrl": ".",
+    "paths": {
+      "@common/*": ["tabby-plugin-common/src/*"]
+    },
     "types": ["node"]
   },
   "include": ["src/**/*", "src/**/*.d.ts"],

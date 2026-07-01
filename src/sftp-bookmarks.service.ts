@@ -4,10 +4,14 @@
  *   采用 electerm 风格：全局书签所有连接可见，连接书签仅对应连接可见
  * 创建人：DD1024z + Claude
  * 创建时间：2026-06-21
- * 修改人：DD1024z + Claude
+ * 修改人：DD1024z + Deepseek-V4-Flash
  * 修改时间：2026-06-22
+ *   修改人：DD1024z + Deepseek-V4-Flash
+ *   修改时间：2026-06-29
+ *   同步写入 Tabby 配置（config.yaml），确保多窗口数据一致性
  */
-import { Injectable } from '@angular/core'
+import { Injectable, Optional } from '@angular/core'
+import { ConfigService } from 'tabby-core'
 
 export type Bookmark = {
   id: string
@@ -28,12 +32,26 @@ function generateId(): string {
 @Injectable()
 export class SftpBookmarksService {
   private bookmarks: Bookmark[] = []
+  private _loaded = false
 
-  constructor() {
+  constructor(@Optional() private configService?: ConfigService) {
     this.load()
   }
 
   private load(): void {
+    if (this._loaded) return
+    this._loaded = true
+    // 优先从 Tabby 配置加载
+    if (this.configService?.store) {
+      try {
+        const cfg = this.configService.store['tabby-sftp-plus']
+        if (cfg && 'bookmarks' in cfg) {
+          this.bookmarks = [...cfg.bookmarks]
+          return
+        }
+      } catch {}
+    }
+    // 回退：从 localStorage 加载（旧版兼容）
     try {
       const raw = localStorage.getItem(STORAGE_KEY)
       if (raw) {
@@ -45,6 +63,18 @@ export class SftpBookmarksService {
   }
 
   private save(): void {
+    // 写入 Tabby 配置（主存储）
+    if (this.configService?.store) {
+      try {
+        const target = this.configService.store['tabby-sftp-plus']
+        if (target) {
+          target.bookmarks = this.bookmarks
+          this.configService.save()
+          return
+        }
+      } catch (e) { console.warn('[SFTP+ Bookmarks] config save failed', e) }
+    }
+    // 回退：写入 localStorage
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(this.bookmarks))
     } catch {}

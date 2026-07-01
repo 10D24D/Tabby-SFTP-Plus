@@ -1,14 +1,22 @@
 /**
  * 传输日志服务
  * 功能描述：记录所有文件传输操作（上传/下载/删除等），支持查看和导出
+ *   存储到 localStorage，避免污染 Tabby 配置文件
  * 创建人：DD1024z + Claude
  * 创建时间：2026-06-21
  * 修改人：DD1024z + Deepseek-V4-Flash
  * 修改时间：2026-06-25
  *   添加日志限制（上限1000条）、按类型/状态筛选、JSON导出功能
  *   传输日志按连接配置隔离（clearProfile）
+ * 修改人：DD1024z + Deepseek-V4-Flash
+ * 修改时间：2026-06-29
+ *   改为 localStorage 存储，不再写入 Tabby config.yaml
+ * 修改人：DD1024z + Deepseek-V4-Pro
+ * 修改时间：2026-07-01
+ *   添加 startTime / endTime 字段
  */
-import { Injectable } from '@angular/core'
+import { Injectable, Optional } from '@angular/core'
+import { ConfigService } from 'tabby-core'
 
 export type TransferLogEntry = {
   id: string
@@ -21,9 +29,12 @@ export type TransferLogEntry = {
   error?: string
   size?: number
   duration?: number  // milliseconds
+  startTime?: number  // 传输开始时间 (ms timestamp)
+  endTime?: number    // 传输结束时间 (ms timestamp)
+  failReason?: 'interrupted' | 'cancelled' | 'error'  // 失败原因分类
 }
 
-const STORAGE_KEY = 'sftp-plus-transfer-log'
+const STORAGE_KEY = 'sftp-plus-transfer-logs'
 const MAX_LOGS = 1000
 
 function generateId(): string {
@@ -33,20 +44,40 @@ function generateId(): string {
 @Injectable()
 export class SftpTransferLogService {
   private logs: TransferLogEntry[] = []
+  private _loaded = false
 
-  constructor() {
+  constructor(@Optional() private configService?: ConfigService) {
     this.load()
   }
 
   private load(): void {
+    if (this._loaded) return
+    this._loaded = true
+    // 从 localStorage 加载
     try {
       const raw = localStorage.getItem(STORAGE_KEY)
       if (raw) {
         this.logs = JSON.parse(raw)
+        return
       }
-    } catch {
-      this.logs = []
+    } catch { /* fall through */ }
+    // 迁移：从旧版 Tabby 配置加载（仅首次）
+    if (this.configService?.store) {
+      try {
+        const cfg = this.configService.store['tabby-sftp-plus']
+        if (cfg && 'transferLogs' in cfg && Array.isArray(cfg.transferLogs)) {
+          this.logs = [...cfg.transferLogs]
+          // 迁移后清除 config 中的旧数据
+          if (cfg.transferLogs.length > 0) {
+            cfg.transferLogs = []
+            try { this.configService.save() } catch {}
+          }
+          this.save()
+          return
+        }
+      } catch {}
     }
+    this.logs = []
   }
 
   private save(): void {
@@ -54,7 +85,10 @@ export class SftpTransferLogService {
     if (this.logs.length > MAX_LOGS) {
       this.logs = this.logs.slice(-MAX_LOGS)
     }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(this.logs))
+    // 写入 localStorage
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(this.logs))
+    } catch (e) { console.warn('[SFTP+ TransferLog] localStorage save failed', e) }
   }
 
   /**
