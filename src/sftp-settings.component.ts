@@ -20,7 +20,7 @@
  * 修改时间：2026-06-29
  *   - 添加双存储模式（Tabby 配置 / 浏览器缓存），默认使用 Tabby 配置
  */
-import { Component, Injectable, Optional } from '@angular/core'
+import { Component, Injectable, Optional, ChangeDetectorRef } from '@angular/core'
 import { SettingsTabProvider } from 'tabby-settings'
 import { ConfigService } from 'tabby-core'
 import { defaultSftpPlusConfig } from './sftp-config-provider'
@@ -242,6 +242,17 @@ function saveTableSetting(_key: string, _value: boolean): void {}
             <span class="ss-layout-text">{{ effectiveLang === 'zh-CN' ? '上下布局' : 'Vertical' }}</span>
             <span class="ss-layout-sub">{{ effectiveLang === 'zh-CN' ? '两个面板垂直堆叠' : 'Panes stacked' }}</span>
           </div>
+          <!-- 单栏布局（仅远程） -->
+          <div class="ss-layout-card" [class.ss-layout-active]="layoutMode === 'single'" (click)="setLayoutMode('single')">
+            <div class="ss-layout-icon">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <rect x="2" y="2" width="20" height="20" rx="1.5"/>
+                <circle cx="16" cy="12" r="2.5" fill="currentColor" stroke="none"/>
+              </svg>
+            </div>
+            <span class="ss-layout-text">{{ effectiveLang === 'zh-CN' ? '单栏布局' : 'Single' }}</span>
+            <span class="ss-layout-sub">{{ effectiveLang === 'zh-CN' ? '仅显示远程面板' : 'Remote only' }}</span>
+          </div>
         </div>
 
         <!-- 表格样式（属于布局的子选项） -->
@@ -283,6 +294,12 @@ function saveTableSetting(_key: string, _value: boolean): void {}
           <label class="ss-toggle-row">
             <span class="ss-toggle-label">{{ t('隐藏原生 SFTP 按钮', 'Hide native SFTP button') }}</span>
             <span class="ss-toggle-track" [class.active]="hideNativeBtn" (click)="toggleHideNativeBtn()">
+              <span class="ss-toggle-thumb"></span>
+            </span>
+          </label>
+          <label class="ss-toggle-row">
+            <span class="ss-toggle-label">{{ t('连接时跟随终端路径', 'Follow terminal path on connect') }}</span>
+            <span class="ss-toggle-track" [class.active]="followTerminalPath" (click)="toggleFollowTerminalPath()">
               <span class="ss-toggle-thumb"></span>
             </span>
           </label>
@@ -348,7 +365,7 @@ function saveTableSetting(_key: string, _value: boolean): void {}
     </div>
   `,
   styles: [`
-    .sftp-settings-page { padding:20px; max-width:600px; }
+    .sftp-settings-page { padding:20px; max-width:600px; pointer-events:auto; }
     .ss-title { color:var(--primary-color,#3b82f6); font-size:18px; margin-bottom:6px; }
     .ss-desc { opacity:.7; font-size:13px; line-height:1.6; margin-bottom:24px; }
     .ss-section { border-top:1px solid rgba(128,128,128,0.2); padding-top:16px; margin-bottom:16px; }
@@ -487,11 +504,12 @@ function saveTableSetting(_key: string, _value: boolean): void {}
     .ss-layout-row { display:flex; gap:8px; flex-wrap:wrap; }
     .ss-layout-card {
       display:flex; flex-direction:column; align-items:center; gap:4px;
-      flex:1; min-width:100px; padding:10px 8px;
+      flex:1; min-width:85px; padding:10px 8px;
       border-radius:8px; border:2px solid rgba(128,128,128,0.2);
       background: rgba(128,128,128,0.04);
       cursor:pointer; transition:border-color .15s, background .15s;
       text-align:center;
+      position:relative; z-index:1; pointer-events:auto;
     }
     .ss-layout-card:hover {
       border-color: rgba(128,128,128,0.35);
@@ -709,6 +727,9 @@ export class SftpSettingsTabComponent {
   /** 隐藏原生 SFTP 按钮 */
   hideNativeBtn = load('hideNativeBtn', false)
 
+  /** 跟随终端路径 */
+  followTerminalPath = load('followTerminalPath', false)
+
   /** 主题颜色修改确认弹窗 */
   showThemeColorConfirm = false
   /** 待提交的颜色修改 */
@@ -720,8 +741,8 @@ export class SftpSettingsTabComponent {
   /** 存储模式：仅使用 Tabby 配置存储 */
   storageMode = 'config'
 
-  constructor(@Optional() public configService?: ConfigService) {
-    // ConfigService 是可选的，如果注入失败（开发环境/Tabby 版本不支持），回退到 localStorage
+  constructor(@Optional() public configService?: ConfigService,
+              @Optional() private cdr?: ChangeDetectorRef) {
   }
 
   ngOnInit(): void {
@@ -758,7 +779,8 @@ export class SftpSettingsTabComponent {
 
     // 监听面板上的布局切换 → 同步更新设置页显示
     window.addEventListener('sftp-plus-settings-changed', () => {
-      this.layoutMode = load('layoutMode', 'auto')
+      this._readFromConfig()
+      this.cdr?.markForCheck?.()
     })
   }
 
@@ -777,6 +799,7 @@ export class SftpSettingsTabComponent {
       if (cfg.tableColBorders !== undefined) this.showColBorders = cfg.tableColBorders as boolean
       if (cfg.tableZebra !== undefined) this.showZebra = cfg.tableZebra as boolean
       if (cfg.hideNativeSFTPButton !== undefined) this.hideNativeBtn = cfg.hideNativeSFTPButton as boolean
+      if (cfg.followTerminalPath !== undefined) this.followTerminalPath = cfg.followTerminalPath as boolean
     } catch { /* ignore */ }
   }
 
@@ -798,6 +821,7 @@ export class SftpSettingsTabComponent {
       target.tableColBorders = this.showColBorders
       target.tableZebra = this.showZebra
       target.hideNativeSFTPButton = this.hideNativeBtn
+      target.followTerminalPath = this.followTerminalPath
       this.configService.save()
     } catch (e) {
       console.error('[SFTP+] Failed to save to config', e)
@@ -930,6 +954,14 @@ export class SftpSettingsTabComponent {
     this.notifyPanels()
   }
 
+  /** 切换跟随终端路径 */
+  toggleFollowTerminalPath(): void {
+    this.followTerminalPath = !this.followTerminalPath
+    save('followTerminalPath', this.followTerminalPath)
+    this._saveToConfig()
+    this.notifyPanels()
+  }
+
   /** 确认：将自动/预设配色复制到自定义并应用修改 */
   confirmThemeColorOverwrite(): void {
     // 加载原始主题的预设色值
@@ -1035,6 +1067,7 @@ export class SftpSettingsTabComponent {
           data.tableColBorders = cfg.tableColBorders ?? true
           data.tableZebra = cfg.tableZebra ?? true
           data.hideNativeSFTPButton = cfg.hideNativeSFTPButton ?? false
+          data.followTerminalPath = cfg.followTerminalPath ?? false
           // 导出书签、传输记录、路径记忆
           if (cfg.bookmarks?.length) data.bookmarks = cfg.bookmarks
           if (cfg.transferLogs?.length) data.transferLogs = cfg.transferLogs
@@ -1055,6 +1088,7 @@ export class SftpSettingsTabComponent {
     data.tableColBorders = loadTableSetting('colBorders', false)
     data.tableZebra = loadTableSetting('zebra', true)
     data.hideNativeSFTPButton = load('hideNativeBtn', false)
+    data.followTerminalPath = load('followTerminalPath', false)
     // 尝试从 localStorage 读取书签和传输日志
     try {
       const bkm = localStorage.getItem('sftp-plus-bookmarks-v2')
@@ -1125,6 +1159,7 @@ export class SftpSettingsTabComponent {
           if (data.tableColBorders !== undefined) target.tableColBorders = data.tableColBorders
           if (data.tableZebra !== undefined) target.tableZebra = data.tableZebra
           if (data.hideNativeSFTPButton !== undefined) target.hideNativeSFTPButton = data.hideNativeSFTPButton
+          if (data.followTerminalPath !== undefined) target.followTerminalPath = data.followTerminalPath
           // 导入书签、传输记录、路径记忆
           if (data.bookmarks !== undefined) target.bookmarks = data.bookmarks
           if (data.transferLogs !== undefined) target.transferLogs = data.transferLogs

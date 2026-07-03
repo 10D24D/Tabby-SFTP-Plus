@@ -130,6 +130,11 @@ type BookmarkScope = 'connection' | 'global' | 'all'
               <rect x="1" y="1" width="14" height="6" rx="1"/>
               <rect x="1" y="9" width="14" height="6" rx="1"/>
             </svg>
+            <!-- 单栏布局图标（仅远程） -->
+            <svg *ngIf="_layoutMode === 'single'" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+              <rect x="1" y="1" width="14" height="14" rx="1"/>
+              <circle cx="11" cy="8" r="1.5" fill="currentColor" stroke="none"/>
+            </svg>
           </button>
           <button class="btn-link" (click)="showTransferLog = !showTransferLog" title="{{ i18n.t('transfer.log') }}">
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -196,6 +201,14 @@ type BookmarkScope = 'connection' | 'global' | 'all'
                 title="{{ i18n.t('pane.filterBtn') }}" class="icon-btn toggle-btn" [class.active]="localFilterVisible || localFilter">
                 <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                   <path d="M2 3h12l-4.5 5.5v4l-3 1.5v-5.5L2 3z"/>
+                </svg>
+              </button>
+              <!-- 显示隐藏文件 -->
+              <button (click)="toggleShowHidden('local')"
+                title="{{ i18n.t('pane.showHidden') }}" class="icon-btn toggle-btn" [class.active]="showHiddenLocal">
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <path d="M8 3C4.5 3 1.5 5.5 0.5 8c1 2.5 4 5 7.5 5s6.5-2.5 7.5-5c-1-2.5-4-5-7.5-5z"/>
+                  <circle cx="8" cy="8" r="2"/>
                 </svg>
               </button>
               <!-- 书签 -->
@@ -276,8 +289,8 @@ type BookmarkScope = 'connection' | 'global' | 'all'
           </div>
         </div>
 
-        <!-- 拖拽分割线（窄屏上下布局/宽屏左右布局均显示） -->
-        <div class="pane-splitter"
+        <!-- 拖拽分割线（窄屏上下布局/宽屏左右布局均显示，单栏模式隐藏） -->
+        <div class="pane-splitter" *ngIf="_layoutMode !== 'single'"
              (mousedown)="onSplitterDown($event)"
              (dblclick)="resetSplitter()"></div>
 
@@ -331,6 +344,14 @@ type BookmarkScope = 'connection' | 'global' | 'all'
                 title="{{ i18n.t('pane.filterBtn') }}" class="icon-btn toggle-btn" [class.active]="remoteFilterVisible || remoteFilter">
                 <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                   <path d="M2 3h12l-4.5 5.5v4l-3 1.5v-5.5L2 3z"/>
+                </svg>
+              </button>
+              <!-- 显示隐藏文件 -->
+              <button (click)="toggleShowHidden('remote')"
+                title="{{ i18n.t('pane.showHidden') }}" class="icon-btn toggle-btn" [class.active]="showHiddenRemote">
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <path d="M8 3C4.5 3 1.5 5.5 0.5 8c1 2.5 4 5 7.5 5s6.5-2.5 7.5-5c-1-2.5-4-5-7.5-5z"/>
+                  <circle cx="8" cy="8" r="2"/>
                 </svg>
               </button>
               <!-- 书签 -->
@@ -788,6 +809,7 @@ type BookmarkScope = 'connection' | 'global' | 'all'
         <div class="ctx-item" (click)="ctxOpenLocalFile()" *ngIf="contextMenuPane === 'local' && selectedLocal.length === 1 && contextMenuEntry && !contextMenuEntry.isDirectory">{{ effectiveLang === 'zh-CN' ? '打开文件' : 'Open File' }}</div>
         <div class="ctx-item" (click)="ctxRevealInExplorer()" *ngIf="contextMenuPane === 'local' && selectedLocal.length === 1 && contextMenuEntry">{{ effectiveLang === 'zh-CN' ? '在文件管理器中显示' : 'Show in Explorer' }}</div>
         <div class="ctx-item" (click)="ctxChmod()" *ngIf="contextMenuPane === 'remote' && selectedRemote.length === 1">{{ i18n.t('permission.title') }}</div>
+        <div class="ctx-item" (click)="ctxDownload()" *ngIf="contextMenuPane === 'remote' && hasContextSelection()">{{ i18n.t('app.download') }}</div>
         <div class="ctx-item" (click)="ctxDetails()" *ngIf="contextMenuEntry">{{ i18n.t('file.properties') }}</div>
         <div class="ctx-sep" *ngIf="hasContextSelection() || clipboardEntries.length > 0"></div>
         <div class="ctx-item" (click)="ctxClipboardCopy()" *ngIf="hasContextSelection()">{{ i18n.t('file.copy') }}<span class="ctx-shortcut">{{ modKey }}C</span></div>
@@ -2850,10 +2872,13 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     } catch {}
   }
 
-  // ========== 路径记忆 ==========
+  // ========== 路径记忆 & 跟随终端路径 ==========
   /** 路径记忆开关 */
   rememberPath = false
+  /** 跟随终端路径开关 */
+  followTerminalPath = false
   private static REMEMBER_PATH_KEY = 'sftp-plus-path-mem'
+  private static FOLLOW_TERM_PATH_KEY = 'sftp-plus-follow-term-path'
   private static SAVED_LOCAL_PATH_KEY = 'sftp-plus-saved-local-path'
   private static SAVED_REMOTE_PATH_KEY = 'sftp-plus-saved-remote-path'
 
@@ -2873,6 +2898,14 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
       const raw = this._paneGet(this._profileKey(SftpFloatingPanel.REMEMBER_PATH_KEY))
       if (raw !== null) this.rememberPath = raw === 'true'
     } catch { /* 使用默认值 */ }
+    try {
+      const cfgFollow = this.configService?.store?.['tabby-sftp-plus']?.followTerminalPath
+      if (cfgFollow !== undefined) this.followTerminalPath = cfgFollow as boolean
+    } catch {}
+    try {
+      const raw2 = this._paneGet(SftpFloatingPanel.FOLLOW_TERM_PATH_KEY)
+      if (raw2 !== null) this.followTerminalPath = raw2 === 'true'
+    } catch {}
   }
 
   private saveRememberPath(): void {
@@ -2907,17 +2940,35 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-  /** 循环切换布局模式：auto → horizontal → vertical → auto */
+  /** 通过终端 session 获取终端当前工作目录 */
+  private async _getTerminalCwd(): Promise<string | null> {
+    try {
+      const session = this.terminalRef?.session
+      if (session && typeof session.getWorkingDirectory === 'function') {
+        const cwd = await session.getWorkingDirectory()
+        if (cwd && typeof cwd === 'string' && cwd.startsWith('/')) {
+          return cwd
+        }
+      }
+    } catch { /* ignore */ }
+    return null
+  }
+
+  /** 循环切换布局模式：auto → horizontal → vertical → single → auto */
   cycleLayoutMode(): void {
-    const order: Array<'auto' | 'horizontal' | 'vertical'> = ['auto', 'horizontal', 'vertical']
+    const order: Array<'auto' | 'horizontal' | 'vertical' | 'single'> = ['auto', 'horizontal', 'vertical', 'single']
     const idx = order.indexOf(this._layoutMode)
     this._layoutMode = order[(idx + 1) % order.length]
     try {
       this._paneSet('sftp-plus-layout-mode', this._layoutMode)
       this._paneSet('sftp-plus-settings.layoutMode', JSON.stringify(this._layoutMode))
+      // 同步写入 config，使设置页能正确读取
+      const cfg = this.configService?.store?.['tabby-sftp-plus']
+      if (cfg) { cfg.layoutMode = this._layoutMode; this.configService.save() }
     } catch {}
     if (this._layoutMode === 'horizontal') this._isNarrowLayout = false
     else if (this._layoutMode === 'vertical') this._isNarrowLayout = true
+    else if (this._layoutMode === 'single') { this._isNarrowLayout = false; this.activePane = 'remote' }
     else this._updateAutoLayout()
     setTimeout(() => this._applyPaneSplit(), 50)
     // 通知设置页等外部监听者
@@ -2937,8 +2988,8 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
 
   /** 布局模式按钮悬浮提示 */
   layoutModeTitle(): string {
-    const zh = { auto: '自适应布局', horizontal: '左右布局', vertical: '上下布局' }
-    const en = { auto: 'Auto Layout', horizontal: 'Horizontal Layout', vertical: 'Vertical Layout' }
+    const zh = { auto: '自适应布局', horizontal: '左右布局', vertical: '上下布局', single: '单栏布局（仅远程）' }
+    const en = { auto: 'Auto Layout', horizontal: 'Horizontal Layout', vertical: 'Vertical Layout', single: 'Single Pane (Remote Only)' }
     const map = this.effectiveLang === 'zh-CN' ? zh : en
     return (map as any)[this._layoutMode] || 'Auto Layout'
   }
@@ -3010,8 +3061,8 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
 
   // ========== 面板分割线（上下/左右布局共用） ==========
   _isNarrowLayout = false
-  /** 布局模式: 'auto' | 'horizontal' | 'vertical' */
-  _layoutMode: 'auto' | 'horizontal' | 'vertical' = 'auto'
+  /** 布局模式: 'auto' | 'horizontal' | 'vertical' | 'single' */
+  _layoutMode: 'auto' | 'horizontal' | 'vertical' | 'single' = 'auto'
   _verticalSplitRatio = 0.5   // 上下布局比例（本地面板占比，默认50%）
   _horizontalSplitRatio = 0.5 // 左右布局比例
   private _splitDragStartX = 0
@@ -3133,12 +3184,18 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
       if (vsaved) this._verticalSplitRatio = Math.max(0.15, Math.min(0.85, parseFloat(vsaved) || 0.5))
       const hsaved = this._paneGet('sftp-plus-horizontal-split-ratio')
       if (hsaved) this._horizontalSplitRatio = Math.max(0.15, Math.min(0.85, parseFloat(hsaved) || 0.5))
-      const lmode = this._paneGet('sftp-plus-layout-mode')
-      if (lmode === 'horizontal' || lmode === 'vertical') this._layoutMode = lmode
+      // 优先从 config 读取布局模式，paneState 作为 fallback
+      let lmode: string | null = null
+      try {
+        lmode = this.configService?.store?.['tabby-sftp-plus']?.layoutMode ?? null
+      } catch {}
+      if (!lmode) lmode = this._paneGet('sftp-plus-layout-mode')
+      if (lmode === 'horizontal' || lmode === 'vertical' || lmode === 'single') this._layoutMode = lmode
 
       const ro = new ResizeObserver(() => {
         if (this._layoutMode === 'horizontal') this._isNarrowLayout = false
         else if (this._layoutMode === 'vertical') this._isNarrowLayout = true
+        else if (this._layoutMode === 'single') this._isNarrowLayout = false
         else this._updateAutoLayout()
         this._applyPaneSplit()
         this.cdr.detectChanges()
@@ -3164,12 +3221,23 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     this.loadRemoteColWidths()
       // 重建 i18n service 以应用语言设置变更
       this.i18n = new SftpI18nService(this.configService)
+      // 重新读取 followTerminalPath
+      try {
+        const cfgFollow = this.configService?.store?.['tabby-sftp-plus']?.followTerminalPath
+        if (cfgFollow !== undefined) this.followTerminalPath = cfgFollow as boolean
+      } catch {}
       // 重新读取布局模式并立即应用（同步窄屏判断 + 面板分割）
-      const lmode = this._paneGet('sftp-plus-layout-mode')
-      if (lmode === 'horizontal' || lmode === 'vertical') this._layoutMode = lmode
+      // 优先从 config 读取（设置页写入），paneState 作为 fallback
+      let lmode: string | null = null
+      try {
+        lmode = this.configService?.store?.['tabby-sftp-plus']?.layoutMode ?? null
+      } catch {}
+      if (!lmode) lmode = this._paneGet('sftp-plus-layout-mode')
+      if (lmode === 'horizontal' || lmode === 'vertical' || lmode === 'single') this._layoutMode = lmode
       else this._layoutMode = 'auto'
       if (this._layoutMode === 'horizontal') this._isNarrowLayout = false
       else if (this._layoutMode === 'vertical') this._isNarrowLayout = true
+      else if (this._layoutMode === 'single') this._isNarrowLayout = false
       else {
         const h = this.elRef?.nativeElement as HTMLElement | undefined
         if (h) this._isNarrowLayout = h.clientWidth <= 960
@@ -3494,15 +3562,28 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
       this.sftpSession = await this.sftpService.openFromSSHSession(this.sshSession)
       this.connected = true
       this._startHeartbeat()
-      this.remotePath = this.getDefaultRemotePath()
-      this.remotePathInput = this.remotePath
-      // 如果开启了路径记忆，尝试恢复保存的远程路径
+      // 确定初始远程路径优先级：路径记忆 > 跟随终端路径 > 用户主目录 > /
+      let initialPath = this.getDefaultRemotePath()
       if (this.rememberPath) {
         this._restoreSavedRemotePath()
+        if (this.remotePath && this.remotePath !== '/') initialPath = this.remotePath
       }
+      // 路径记忆未恢复有效路径时，尝试跟随终端或获取主目录
+      if (initialPath === '/') {
+        if (this.followTerminalPath) {
+          const termPath = await this._getTerminalCwd()
+          if (termPath) initialPath = termPath
+        }
+        if (initialPath === '/') {
+          const home = await this._getRemoteHome()
+          if (home) initialPath = home
+        }
+      }
+      this.remotePath = initialPath
+      this.remotePathInput = this.remotePath
       const ok = await this.refreshRemote()
       if (!ok && this.remotePath !== '/') {
-        console.warn('[SFTP+] Saved remote path invalid, falling back to /')
+        console.warn('[SFTP+] Initial remote path invalid, falling back to /')
         this.remotePath = '/'
         this.remotePathInput = '/'
         await this.refreshRemote()
@@ -3734,11 +3815,24 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
 
       this.sftpSession = await this.sftpService.openFromSSHSession(this.sshSession)
       this.connected = true
-      this.remotePath = this.getDefaultRemotePath()
-      this.remotePathInput = this.remotePath
+      // 确定初始远程路径优先级：路径记忆 > 跟随终端路径 > 用户主目录 > /
+      let initialPath = this.getDefaultRemotePath()
       if (this.rememberPath) {
         this._restoreSavedRemotePath()
+        if (this.remotePath && this.remotePath !== '/') initialPath = this.remotePath
       }
+      if (initialPath === '/') {
+        if (this.followTerminalPath) {
+          const termPath = await this._getTerminalCwd()
+          if (termPath) initialPath = termPath
+        }
+        if (initialPath === '/') {
+          const home = await this._getRemoteHome()
+          if (home) initialPath = home
+        }
+      }
+      this.remotePath = initialPath
+      this.remotePathInput = this.remotePath
       const ok = await this.refreshRemote()
       if (!ok && this.remotePath !== '/') {
         console.warn('[SFTP+] Reconnect: saved remote path invalid, falling back to /')
@@ -3765,6 +3859,44 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
 
   private getDefaultRemotePath(): string {
     return '/'
+  }
+
+  /** 尝试获取远程用户主目录（通过 SFTP readlink 或 stat） */
+  private async _getRemoteHome(): Promise<string | null> {
+    if (!this.sftpSession) return null
+    // 方式1: SFTP readlink('.') — Tabby 封装有 readlink 方法
+    try {
+      const rl = (this.sftpSession as any).readlink
+      if (typeof rl === 'function') {
+        const resolved = await rl.call(this.sftpSession, '.')
+        if (resolved && typeof resolved === 'string' && resolved.startsWith('/')) {
+          return resolved
+        }
+      }
+    } catch { /* fallthrough */ }
+    // 方式2: 通过 SSH 环境变量 — 使用 openSFTP 底层的 SSH channel
+    // russh 没有直接 exec，尝试通过 SFTP stat 猜测常见路径
+    const commonHomes = ['/root', '/home']
+    for (const base of commonHomes) {
+      try {
+        const entries = await this.sftpSession.readdir(base)
+        if (entries?.length > 0) {
+          // 获取连接用户名，尝试拼接 home 路径
+          const user = this.profile?.options?.username
+            || this.profile?.options?.user
+            || ''
+          if (user && user !== 'root') {
+            const candidate = `/home/${user}`
+            try {
+              await this.sftpSession.readdir(candidate)
+              return candidate
+            } catch { /* 路径不存在 */ }
+          }
+          return user === 'root' ? '/root' : '/home'
+        }
+      } catch { /* base 不存在 */ }
+    }
+    return null
   }
 
   // ========== 本地文件 ==========
@@ -4245,6 +4377,22 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     if (!body) return
     const panes: HTMLElement[] = Array.from(body.querySelectorAll(':scope > .pane'))
     if (panes.length < 2) return
+
+    // 单栏模式：隐藏本地面板，远程面板全宽
+    if (this._layoutMode === 'single') {
+      body.style.flexDirection = 'row'
+      body.classList.remove('narrow-layout')
+      panes.forEach(p => { p.style.flex = ''; p.style.width = ''; p.style.height = '' })
+      panes[0].style.display = 'none'
+      panes[1].style.display = ''
+      panes[1].style.flex = '1'
+      panes[1].style.width = 'auto'
+      panes[1].style.minWidth = '0'
+      return
+    }
+
+    // 非单栏模式：确保两个面板都可见
+    panes.forEach(p => { p.style.display = '' })
 
     // 设置 flex-direction：用 JS 控制，避免 CSS @media 使用视口宽度与元素宽度不同步
     // （panelHost width:96% 导致元素宽度 < 视口宽度，阈值区 961-1000px 时会错位）
@@ -6448,6 +6596,73 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     if (this.selectedRemote.length === 1) {
       this.openPermDialog(this.selectedRemote[0])
     }
+  }
+
+  /** 右键菜单 → 下载远程文件/文件夹（弹出目录选择对话框） */
+  async ctxDownload(): Promise<void> {
+    const entries = this.selectedRemote.length > 0 ? [...this.selectedRemote] : (this.contextMenuEntry ? [this.contextMenuEntry as SFTPFile] : [])
+    this.closeContextMenu()
+    if (entries.length === 0) return
+
+    // 使用 Electron dialog 选择本地下载目录
+    let targetDir = ''
+    try {
+      // Tabby 插件环境中 Electron remote dialog 的获取方式
+      let dialog: any = null
+      try {
+        const electron = (window as any).require('electron')
+        dialog = electron.remote?.dialog ?? electron.dialog
+      } catch {}
+      if (!dialog) {
+        try {
+          const remote = (window as any).require('@electron/remote')
+          dialog = remote.dialog
+        } catch {}
+      }
+      if (!dialog) {
+        // 兜底：使用 IPC 方式
+        try {
+          const { ipcRenderer } = require('electron')
+          const result = await ipcRenderer.invoke('select-download-directory')
+          if (result) targetDir = result
+        } catch {}
+        if (!targetDir) {
+          targetDir = this.localPath
+        }
+      } else {
+        // 根据传入的 BrowserWindow 或直接用当前窗口
+        const win = (window as any).require('electron').remote?.getCurrentWindow?.()
+          ?? (window as any).require('@electron/remote')?.getCurrentWindow?.()
+        const result = win
+          ? await dialog.showOpenDialog(win, {
+              title: this.effectiveLang === 'zh-CN' ? '选择下载目录' : 'Select download directory',
+              properties: ['openDirectory'],
+            })
+          : await dialog.showOpenDialog({
+              title: this.effectiveLang === 'zh-CN' ? '选择下载目录' : 'Select download directory',
+              properties: ['openDirectory'],
+            })
+        if (result.canceled || !result.filePaths?.length) return
+        targetDir = result.filePaths[0]
+      }
+    } catch (e) {
+      console.error('[SFTP+] Failed to open directory dialog', e)
+      targetDir = this.localPath
+    }
+
+    if (!targetDir) return
+
+    console.log('[SFTP+] Download to:', targetDir, 'entries:', entries.length)
+
+    for (const entry of entries) {
+      if (entry.isDirectory) {
+        await this.downloadRemoteDir(entry.fullPath, targetDir, 'local')
+      } else {
+        await this._doDownload(entry.fullPath, path.join(targetDir, entry.name), entry.mode, entry.size)
+      }
+    }
+    // 刷新本地面板以反映新文件
+    await this.refreshLocal()
   }
 
   /** 右键菜单 → 打开本地文件（用系统默认程序） */

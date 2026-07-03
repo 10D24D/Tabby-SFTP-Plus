@@ -23,6 +23,7 @@ export interface SftpPlusPluginConfig {
   tableColBorders: boolean
   tableZebra: boolean
   hideNativeSFTPButton: boolean
+  followTerminalPath: boolean
   bookmarks: any[]
   pathMemory: Record<string, any>
   transferLogs: any[]
@@ -44,6 +45,7 @@ export function defaultSftpPlusConfig(): SftpPlusPluginConfig {
     tableColBorders: true,
     tableZebra: true,
     hideNativeSFTPButton: false,
+    followTerminalPath: false,
     bookmarks: [],
     pathMemory: {},
     transferLogs: [],
