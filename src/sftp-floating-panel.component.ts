@@ -83,8 +83,7 @@ type BookmarkScope = 'connection' | 'global' | 'all'
   template: `
     <div class="sftp-root" tabindex="0"
       [class.has-zebra]="showZebra"
-      [class.has-col-borders]="showColBorders"
-      [class.has-panel-border]="showPanelBorder">
+      [class.has-col-borders]="showColBorders">
       <!-- 顶部标题栏 -->
       <div class="top-bar">
         <span class="title">SFTP+</span>
@@ -255,8 +254,8 @@ type BookmarkScope = 'connection' | 'global' | 'all'
               (dragstart)="onDragStartLocal($event, e)"
               [style.gridTemplateColumns]="getLocalColWidths()">
               <span class="icon">{{ e.isDirectory ? '📁' : '📄' }}</span>
-              <span class="name">{{ e.inaccessible ? '* ' : '' }}{{ e.name }}</span>
-              <span *ngFor="let col of localVisibleCols" class="{{col}}" [attr.title]="col === 'path' ? e.fullPath : null">{{ colValue(col, e) }}</span>
+              <span class="name" [attr.title]="e.name">{{ e.inaccessible ? '* ' : '' }}{{ e.name }}</span>
+              <span *ngFor="let col of localVisibleCols" class="{{col}}" [attr.title]="colValue(col, e)">{{ colValue(col, e) }}</span>
             </div>
             <div class="rubber-band-rect" *ngIf="rubberBand.active && rubberBand.pane === 'local'"
               [style.left]="rubberBand.rectLeft + 'px'" [style.top]="rubberBand.rectTop + 'px'"
@@ -392,8 +391,8 @@ type BookmarkScope = 'connection' | 'global' | 'all'
               (dragstart)="onDragStartRemote($event, e)"
               [style.gridTemplateColumns]="getRemoteColWidths()">
               <span class="icon">{{ e.isDirectory ? '📁' : '📄' }}</span>
-              <span class="name">{{ e.name }}</span>
-              <span *ngFor="let col of remoteVisibleCols" class="{{col}}" [attr.title]="col === 'path' ? e.fullPath : null">{{ colValue(col, e) }}</span>
+              <span class="name" [attr.title]="e.name">{{ e.name }}</span>
+              <span *ngFor="let col of remoteVisibleCols" class="{{col}}" [attr.title]="colValue(col, e)">{{ colValue(col, e) }}</span>
             </div>
             <div class="rubber-band-rect" *ngIf="rubberBand.active && rubberBand.pane === 'remote'"
               [style.left]="rubberBand.rectLeft + 'px'" [style.top]="rubberBand.rectTop + 'px'"
@@ -620,14 +619,21 @@ type BookmarkScope = 'connection' | 'global' | 'all'
       <!-- 传输日志 -->
       <div class="overlay" *ngIf="showTransferLog">
         <div class="dialog log-dialog">
-          <div class="dialog-title">{{ i18n.t('transfer.log') }}</div>
+          <div class="dialog-title">
+            <span>{{ i18n.t('transfer.log') }}</span>
+            <button class="btn-link dialog-close" (click)="showTransferLog = false">×</button>
+          </div>
           <div class="log-toolbar">
             <select [(ngModel)]="logFilterOp">
-              <option value="">{{ i18n.t('app.all') }}</option>
+              <option value="">{{ i18n.t('filter.allOps') }}</option>
               <option value="upload">{{ i18n.t('transfer.upload') }}</option>
               <option value="download">{{ i18n.t('transfer.download') }}</option>
             </select>
-            <label><input type="checkbox" [(ngModel)]="logFilterSuccess" /> {{ i18n.t('log.onlySuccess') }}</label>
+            <select [(ngModel)]="logFilterStatus">
+              <option value="">{{ i18n.t('filter.allStatus') }}</option>
+              <option value="success">{{ i18n.t('log.success') }}</option>
+              <option value="failed">{{ i18n.t('log.failed') }}</option>
+            </select>
             <button *ngIf="transfers.length" (click)="transfersHidden = false; transfersMinimized = false" class="btn-transfers-toggle">
               {{ (transfersHidden || transfersMinimized) ? '▸' : '▾' }} {{ i18n.t('transfer.inProgress') }} ({{ transfers.length }})
             </button>
@@ -636,48 +642,39 @@ type BookmarkScope = 'connection' | 'global' | 'all'
           </div>
           <div class="log-list">
             <div class="log-entry" *ngFor="let entry of getFilteredLogs()">
-              <!-- 左侧：时间 + 操作类型徽标 -->
-              <div class="log-left">
-                <span class="log-time">{{ formatLogTime(entry.timestamp) }}</span>
+              <!-- 第一行：徽标 + 文件名 | 大小 · 速度 · 耗时 | 状态 -->
+              <div class="log-row-main">
                 <span class="log-op-badge" [class.op-upload]="entry.operation === 'upload'"
                       [class.op-download]="entry.operation === 'download'"
                       [class.op-other]="entry.operation !== 'upload' && entry.operation !== 'download'">
                   {{ i18n.t('transfer.' + entry.operation) || entry.operation }}
                 </span>
-              </div>
-              <!-- 中间：文件名 + 路径（截断），上传先本地后远程，下载先远程后本地 -->
-              <div class="log-body">
                 <span class="log-filename" [title]="entry.operation === 'upload' ? entry.localPath + ' → ' + entry.remotePath : entry.remotePath + ' → ' + entry.localPath">
                   {{ getLogFileName(entry) }}
                 </span>
-                <ng-container *ngIf="entry.operation === 'upload'; else downloadPaths">
-                  <span class="log-path-line" [title]="entry.localPath">
-                    📁 {{ entry.localPath }}
-                  </span>
-                  <span class="log-path-line" [title]="entry.remotePath">
-                    ☁️ {{ entry.remotePath }}
-                  </span>
-                </ng-container>
-                <ng-template #downloadPaths>
-                  <span class="log-path-line" [title]="entry.remotePath">
-                    ☁️ {{ entry.remotePath }}
-                  </span>
-                  <span class="log-path-line" [title]="entry.localPath">
-                    📁 {{ entry.localPath }}
-                  </span>
-                </ng-template>
-              </div>
-              <!-- 右侧：耗时 + 文件大小 + 状态 -->
-              <div class="log-right">
-                <span class="log-time-range" *ngIf="entry.startTime">{{ formatLogTimeRange(entry) }}</span>
-                <span class="log-size" *ngIf="entry.size != null">{{ formatSize(entry.size) }}</span>
-                <span class="log-speed" *ngIf="entry.size && entry.duration">{{ formatSpeedFromSize(entry.size, entry.duration) }}</span>
-                <span class="log-duration" *ngIf="entry.duration != null">{{ formatDuration(entry.duration) }}</span>
+                <span class="log-meta">
+                  <span *ngIf="entry.size != null" class="log-size">{{ formatSize(entry.size) }}</span>
+                  <span *ngIf="entry.size && entry.duration" class="log-speed">{{ formatSpeedFromSize(entry.size, entry.duration) }}</span>
+                  <span *ngIf="entry.duration != null" class="log-duration">{{ formatDuration(entry.duration) }}</span>
+                </span>
                 <span class="log-status-icon" [class.success]="entry.success" [class.failed]="!entry.success"
                       [title]="entry.success ? 'Success' : formatFailReason(entry)">
                   {{ entry.success ? '✓' : '✗' }}
                 </span>
-                <span class="log-fail-reason" *ngIf="!entry.success">{{ formatFailReason(entry) }}</span>
+              </div>
+              <!-- 第二行：路径 -->
+              <div class="log-row-paths">
+                <ng-container *ngIf="entry.operation === 'upload'; else downloadPaths">
+                  <span class="log-path-line" [title]="entry.localPath">📁 {{ entry.localPath }}</span>
+                  <span class="log-path-arrow">→</span>
+                  <span class="log-path-line" [title]="entry.remotePath">☁️ {{ entry.remotePath }}</span>
+                </ng-container>
+                <ng-template #downloadPaths>
+                  <span class="log-path-line" [title]="entry.remotePath">☁️ {{ entry.remotePath }}</span>
+                  <span class="log-path-arrow">→</span>
+                  <span class="log-path-line" [title]="entry.localPath">📁 {{ entry.localPath }}</span>
+                </ng-template>
+                <span class="log-time" *ngIf="entry.startTime">{{ formatLogTime(entry.timestamp) }}</span>
               </div>
             </div>
           </div>
@@ -839,9 +836,6 @@ type BookmarkScope = 'connection' | 'global' | 'all'
         <div class="ctx-sep"></div>
         <div class="ctx-item" (click)="toggleShowHidden(contextMenuPane)">
           <span class="ctx-check" *ngIf="(contextMenuPane === 'local' ? showHiddenLocal : showHiddenRemote)">✓</span><span class="ctx-check" *ngIf="!(contextMenuPane === 'local' ? showHiddenLocal : showHiddenRemote)"></span> {{ i18n.t('pane.showHidden') }}
-        </div>
-        <div class="ctx-item" (click)="togglePanelBorder()">
-          <span class="ctx-check" *ngIf="showPanelBorder">✓</span><span class="ctx-check" *ngIf="!showPanelBorder"></span> {{ i18n.t('view.panelBorder') }}
         </div>
         <div class="ctx-item" (click)="toggleColBorders()">
           <span class="ctx-check" *ngIf="showColBorders">✓</span><span class="ctx-check" *ngIf="!showColBorders"></span> {{ i18n.t('view.colBorder') }}
@@ -1453,7 +1447,9 @@ type BookmarkScope = 'connection' | 'global' | 'all'
       box-shadow: 0 8px 32px rgba(0,0,0,0.15);
     }
     .dialog-text { margin-bottom: 12px; }
-    .dialog-title { font-weight: 700; margin-bottom: 12px; color: var(--_primary); }
+    .dialog-title { display:flex; align-items:center; justify-content:space-between; font-weight: 700; margin-bottom: 12px; color: var(--_primary); }
+    .dialog-close { font-size:18px; line-height:1; padding:0 2px; opacity:.6; }
+    .dialog-close:hover { opacity:1; }
     .dialog-input {
       width: 100%; padding: 6px 8px; border-radius: 6px;
       border: 1px solid var(--_border);
@@ -1672,10 +1668,14 @@ type BookmarkScope = 'connection' | 'global' | 'all'
     }
     .bookmark-add-form input {
       width: 100%; padding: 6px 8px; border-radius: 4px;
-      border: 1px solid var(--_primary);
+      border: 1px solid var(--_border);
       background: var(--_input-bg);
       color: var(--_text); font-size: 12px;
-      box-sizing: border-box;
+      box-sizing: border-box; outline: none;
+    }
+    .bookmark-add-form input:focus {
+      border-color: var(--_primary);
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--_primary) 25%, transparent);
     }
     .bookmark-add-form .btn-confirm {
       align-self: flex-end;
@@ -1747,7 +1747,10 @@ type BookmarkScope = 'connection' | 'global' | 'all'
       padding: 4px 8px; border-radius: 4px;
       border: 1px solid var(--_border);
       background: var(--_content);
-      color: var(--_text); font-size: 12px;
+      color: var(--_text); font-size: 12px; outline: none;
+    }
+    .log-toolbar select:focus {
+      border-color: var(--_primary);
     }
     .log-toolbar label { display: flex; align-items: center; gap: 4px; font-size: 12px; cursor: pointer; }
     .log-toolbar input[type="checkbox"] { margin: 0; }
@@ -1767,30 +1770,22 @@ type BookmarkScope = 'connection' | 'global' | 'all'
       display: flex; flex-direction: column; gap: 2px;
     }
     .log-entry {
-      display: grid;
-      grid-template-columns: 150px 1fr auto;
-      gap: 10px;
-      padding: 7px 10px;
+      padding: 6px 10px;
       border-radius: 6px;
       font-size: 12px;
-      align-items: start;
       position: relative;
       transition: background 0.12s;
     }
     .log-entry:hover { background: var(--_hover, rgba(128,128,128,0.06)); }
     .log-entry:not(:last-child) { border-bottom: 1px solid var(--_border); }
 
-    /* 左侧：时间 + 操作徽标 */
-    .log-left {
-      display: flex; flex-direction: column; gap: 4px; align-items: flex-start;
-    }
-    .log-time {
-      font-size: 11px; color: var(--_text); opacity: 0.6;
-      font-family: 'SFMono-Regular', Consolas, monospace;
-      white-space: nowrap;
+    /* 第一行：徽标 + 文件名 | 元数据 | 状态 */
+    .log-row-main {
+      display: flex; align-items: center; gap: 8px;
+      min-width: 0;
     }
     .log-op-badge {
-      display: inline-block;
+      display: inline-block; flex-shrink: 0;
       font-size: 10px; font-weight: 600; letter-spacing: 0.3px;
       padding: 1px 7px; border-radius: 3px; line-height: 1.5;
       text-transform: uppercase;
@@ -1799,31 +1794,39 @@ type BookmarkScope = 'connection' | 'global' | 'all'
     .log-op-badge.op-download { background: rgba(33,150,243,0.15); color: #2196f3; }
     .log-op-badge.op-other { background: rgba(158,158,158,0.15); color: #9e9e9e; }
 
-    /* 中间：文件名 + 路径两行 */
-    .log-body {
-      min-width: 0;
-      display: flex; flex-direction: column; gap: 2px;
-    }
     .log-filename {
+      flex: 1; min-width: 60px;
       font-size: 13px; font-weight: 500; color: var(--_text);
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
-    .log-path-line {
-      font-size: 10px; color: var(--_text); opacity: 0.4;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    }
 
-    /* 右侧：大小 + 耗时 + 状态 */
-    .log-right {
-      display: flex; flex-direction: column; gap: 2px; align-items: flex-end;
-      min-width: 120px; white-space: nowrap;
+    .log-meta {
+      display: inline-flex; gap: 10px; align-items: center; flex-shrink: 0;
+      white-space: nowrap;
     }
-    .log-size { font-size: 11px; color: var(--_text); opacity: 0.6; }
-    .log-speed { font-size: 10px; color: var(--_primary); opacity: 0.8; }
-    .log-duration { font-size: 10px; color: var(--_text); opacity: 0.5; }
-    .log-status-icon { font-size: 16px; line-height: 1; }
+    .log-size { font-size: 11px; color: var(--_text); opacity: 0.55; }
+    .log-speed { font-size: 10px; color: var(--_primary); opacity: 0.75; }
+    .log-duration { font-size: 10px; color: var(--_text); opacity: 0.45; }
+
+    .log-status-icon { font-size: 14px; line-height: 1; flex-shrink: 0; margin-left: 4px; }
     .log-status-icon.success { color: #4caf50; }
     .log-status-icon.failed { color: #f44336; }
+
+    /* 第二行：路径（单行，紧凑） */
+    .log-row-paths {
+      display: flex; align-items: center; gap: 6px;
+      padding-left: 4px; margin-top: 2px;
+    }
+    .log-path-line {
+      font-size: 10px; color: var(--_text); opacity: 0.35;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px;
+    }
+    .log-path-arrow { font-size: 9px; opacity: 0.25; flex-shrink: 0; }
+    .log-time {
+      margin-left: auto; flex-shrink: 0;
+      font-size: 10px; color: var(--_text); opacity: 0.3;
+      font-family: 'SFMono-Regular', Consolas, monospace;
+    }
 
     .context-menu {
       position: fixed;
@@ -2235,7 +2238,6 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
   // ========== 表格样式设置（从设置页读取）==========
   static readonly TABLE_SETTINGS_KEY = 'sftp-plus-table'
   showColBorders = false  // 显示边框（默认关闭）
-  showPanelBorder = true  // 显示面板边框
   showZebra = false       // 显示斑马纹（默认关闭）
 
   private loadTableSettings(): void {
@@ -2244,10 +2246,8 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
       // 避免因 _paneFlushToConfig 导致的配置覆盖问题
       const keyPrefix = SftpFloatingPanel.TABLE_SETTINGS_KEY
       const borders = localStorage.getItem(`${keyPrefix}.colBorders`)
-      const panelBorder = localStorage.getItem(`${keyPrefix}.panelBorder`)
       const zebra = localStorage.getItem(`${keyPrefix}.zebra`)
       if (borders !== null) this.showColBorders = JSON.parse(borders)
-      if (panelBorder !== null) this.showPanelBorder = JSON.parse(panelBorder)
       if (zebra !== null) this.showZebra = JSON.parse(zebra)
     } catch { /* 使用默认值 */ }
   }
@@ -2507,12 +2507,6 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     }
     this.headerMenuVisible = false
     this.headerMenuCol = null
-  }
-
-  togglePanelBorder(): void {
-    this.showPanelBorder = !this.showPanelBorder
-    try { localStorage.setItem(`${SftpFloatingPanel.TABLE_SETTINGS_KEY}.panelBorder`, JSON.stringify(this.showPanelBorder)) } catch {}
-    this.headerMenuVisible = false
   }
 
   toggleColBorders(): void {
@@ -2977,7 +2971,7 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
   transfersMinimized = false  // 传输面板是否最小化（显示小指示器）
   transfersHidden = false     // 传输面板是否完全隐藏（不影响传输继续）
   logFilterOp: '' | 'upload' | 'download' = ''
-  logFilterSuccess = false
+  logFilterStatus: '' | 'success' | 'failed' = ''
 
   // ========== 文件冲突对话框 ==========
   showConflictDialog = false
@@ -4328,6 +4322,10 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     this._verticalSplitRatio = 0.5
     this._horizontalSplitRatio = 0.5
     this._applyPaneSplit()
+    // 持久化恢复后的比例（拖拽时有保存，双击恢复也需同步写入）
+    const key = this._isNarrowLayout ? 'sftp-plus-vertical-split-ratio' : 'sftp-plus-horizontal-split-ratio'
+    const val = this._isNarrowLayout ? this._verticalSplitRatio : this._horizontalSplitRatio
+    try { this._paneSet(key, String(val)) } catch {}
   }
 
   /** 选中与当前框选矩形相交的所有条目 */
@@ -6244,11 +6242,13 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
 
   // ========== 传输日志 ==========
   getFilteredLogs(): TransferLogEntry[] {
-    return this.transferLog.filter({
+    const filter: any = {
       operation: this.logFilterOp as any || undefined,
-      success: this.logFilterSuccess || undefined,
       profileName: this.profile?.name || undefined,
-    })
+    }
+    if (this.logFilterStatus === 'success') filter.success = true
+    else if (this.logFilterStatus === 'failed') filter.success = false
+    return this.transferLog.filter(filter)
   }
 
   exportLog(): void {

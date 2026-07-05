@@ -1,24 +1,11 @@
 /**
  * SFTP+ 设置面板
- * 功能描述：在 Tabby 设置左侧栏注册 SFTP+ 配置入口（语言、主题、布局、数据、关于）
+ * 功能描述：在 Tabby 设置左侧栏注册 SFTP+ 配置入口（语言、主题、布局、兼容性、数据、关于）
  *   支持双存储模式：Tabby 配置（config.yaml）或 浏览器缓存（localStorage）
  * 创建人：DD1024z + Hy3 preview
  * 创建时间：2026-06-21
  * 修改人：DD1024z + Deepseek-V4-Flash
- * 修改时间：2026-06-26
- *
- * 修复项（2026-06-26）：
- * - 面板布局选择器从下拉框改为卡片式图标+文字选择器
- * - 增加数据导出导入功能
- * 修改人：DD1024z + Deepseek-V4-Flash
- * 修改时间：2026-06-28
- *   - 精简标签：界面语言→语言, 主题颜色→主题, 面板布局→布局, 数据备份→数据
- *   - 表格样式归入布局子选项
- *   - 移除多余提示文案
- *   - 新增「关于」区块
- * 修改人：DD1024z + Deepseek-V4-Flash
  * 修改时间：2026-06-29
- *   - 添加双存储模式（Tabby 配置 / 浏览器缓存），默认使用 Tabby 配置
  */
 import { Component, Injectable, Optional } from '@angular/core'
 import { SettingsTabProvider } from 'tabby-settings'
@@ -124,7 +111,7 @@ function saveTableSetting(_key: string, _value: boolean): void {}
   template: `
     <div class="sftp-settings-page">
       <h3 class="ss-title">SFTP+</h3>
-      <p class="ss-desc">{{ t('SFTP+ 双栏文件管理器，管理远程和本地文件。', 'SFTP+ dual-pane file manager. Manage remote and local files.') }}</p>
+      <p class="ss-desc">{{ t('美观易用的文件管理插件。支持拖拽操作、书签功能、路径记忆、表头排序、传输记录、多语言', 'Beautiful and easy-to-use file management plugin. Supports drag-and-drop, bookmarks, path memory, column sorting, transfer logs, multilingual.') }}</p>
 
       <!-- 语言 -->
       <div class="ss-section">
@@ -262,6 +249,19 @@ function saveTableSetting(_key: string, _value: boolean): void {}
         </div>
       </div>
 
+      <!-- 兼容性 -->
+      <div class="ss-section">
+        <label class="ss-label">{{ t('兼容性', 'Compatibility') }}</label>
+        <div class="ss-toggle-wrap">
+          <label class="ss-toggle-row">
+            <span class="ss-toggle-label">{{ t('隐藏原生 SFTP 按钮', 'Hide native SFTP button') }}</span>
+            <span class="ss-toggle-track" [class.active]="hideNativeBtn" (click)="toggleHideNativeBtn()">
+              <span class="ss-toggle-thumb"></span>
+            </span>
+          </label>
+        </div>
+      </div>
+
       <!-- 数据 -->
       <div class="ss-section">
         <label class="ss-label">{{ t('数据', 'Data') }}</label>
@@ -273,19 +273,6 @@ function saveTableSetting(_key: string, _value: boolean): void {}
             <input type="file" accept=".json" (change)="importData($event)" style="display:none" />
           </label>
           <button class="ss-btn ss-btn-danger" (click)="openClearConfirm()">[&times;] {{ t('清空数据', 'Clear All') }}</button>
-        </div>
-      </div>
-
-      <!-- 兼容性 -->
-      <div class="ss-section">
-        <label class="ss-label">{{ t('兼容性', 'Compatibility') }}</label>
-        <div class="ss-toggle-wrap">
-          <label class="ss-toggle-row">
-            <span class="ss-toggle-label">{{ t('隐藏原生 SFTP 按钮', 'Hide native SFTP button') }}</span>
-            <span class="ss-toggle-track" [class.active]="hideNativeBtn" (click)="toggleHideNativeBtn()">
-              <span class="ss-toggle-thumb"></span>
-            </span>
-          </label>
         </div>
       </div>
 
