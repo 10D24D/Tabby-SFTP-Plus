@@ -2,11 +2,15 @@
 
 | [中文](README.md) | [English](README.en.md) |
 
-SFTP+ is a plugin for [Tabby Terminal](https://tabby.sh/) that adds a **dual-pane SFTP file manager** right inside your SSH terminal tabs. Features include bookmarks, transfer logs, file conflict handling, permission editing, and more — all without leaving the terminal.
+[![Version](https://img.shields.io/github/package-json/v/10D24D/Tabby-SFTP-Plus?style=for-the-badge&label=Version&color=7B68EE)](https://github.com/10D24D/Tabby-SFTP-Plus)
+[![Stars](https://img.shields.io/github/stars/10D24D/Tabby-SFTP-Plus?style=for-the-badge&label=Stars&logo=github&color=orange)](https://github.com/10D24D/Tabby-SFTP-Plus)
+[![License](https://img.shields.io/github/license/10D24D/Tabby-SFTP-Plus?style=for-the-badge&label=License&color=green)](https://github.com/10D24D/Tabby-SFTP-Plus)
+
+SFTP+ is a plugin for [Tabby Terminal](https://tabby.sh/) that adds a **dual-pane SFTP file manager** right inside your SSH terminal tabs. Features include **drag-and-drop transfers**, **bookmark system**, **path memory**, transfer logs, file conflict handling, permission editing, and more — all without leaving the terminal.
 
 ---
 
-## Features at a Glance
+## 📋 Features at a Glance
 
 | Category | Description |
 |----------|-------------|
@@ -26,28 +30,10 @@ SFTP+ is a plugin for [Tabby Terminal](https://tabby.sh/) that adds a **dual-pan
 
 ---
 
-## Installation
+## 🖥️ Interface Guide
 
-1. Make sure [Tabby Terminal](https://tabby.sh/) is installed
-2. Configure the plugin directory in Tabby settings
-3. Place the built plugin (see "Development" section) into the plugin directory, then restart Tabby
-4. Open any SSH terminal tab — the **SFTP+** button should appear in the toolbar
-
----
-
-## Quick Start
-
-1. **Open** — Click the `SFTP+` button in the toolbar of an SSH terminal tab
-2. **Browse** — Navigate local files on the left and remote SFTP directories on the right; double-click to enter a directory
-3. **Transfer** — Drag files from left to right = upload, right to left = download
-
----
-
-## Interface Guide
-
-![SFTP+ Panel](assets/SFTP-Plus_UI_Panel.png)
-
-![SFTP+ Settings](assets/SFTP-Plus_UI_Config.png)
+| ![SFTP+ Panel](assets/SFTP-Plus_UI_Panel.png) | ![SFTP+ Settings](assets/SFTP-Plus_UI_Config.png) |
+| :------------------------------------------: | :---------------------------------------------: |
 
 ### Interface Zones
 
@@ -64,7 +50,24 @@ SFTP+ is a plugin for [Tabby Terminal](https://tabby.sh/) that adds a **dual-pan
 
 ---
 
-## Settings Panel
+## ⚙️ Installation
+
+1. Make sure [Tabby Terminal](https://tabby.sh/) is installed
+2. Configure the plugin directory in Tabby settings
+3. Place the built plugin (see "Development" section) into the plugin directory, then restart Tabby
+4. Open any SSH terminal tab — the **SFTP+** button should appear in the toolbar
+
+---
+
+## 🚀 Quick Start
+
+1. **Open** — Click the `SFTP+` button in the toolbar of an SSH terminal tab
+2. **Browse** — Navigate local files on the left and remote SFTP directories on the right; double-click to enter a directory
+3. **Transfer** — Drag files from left to right = upload, right to left = download
+
+---
+
+## ⚙️ Settings Panel
 
 Navigate to Tabby Settings → "SFTP+" in the left sidebar:
 
@@ -80,7 +83,7 @@ Navigate to Tabby Settings → "SFTP+" in the left sidebar:
 
 ---
 
-## Data Backup
+## 💾 Data Backup
 
 All data (bookmarks, transfer logs, path memory, settings) can be exported to or imported from a single JSON file.
 
@@ -88,7 +91,13 @@ Path: Settings → Data Backup → Export / Import
 
 ---
 
-## Development
+## 📜 Changelog
+
+Latest: **v1.0.4** (2026-07-05) — [Full changelog](CHANGELOG.md)
+
+---
+
+## 🛠️ Development
 
 ### Tech Stack
 
@@ -140,15 +149,18 @@ tabby-FTPS+/
 
 ---
 
-## License
+## 🤝 How to Contribute
 
-MIT — Author DD1024z
+Contributions are always welcome! The plugin was conceived by the author (DD1024z), with the majority of implementation code generated using AI assistance.
 
-## Notes
+- Report bugs or request features: [GitHub Issues](https://github.com/10D24D/Tabby-SFTP-Plus/issues) 📝
+- Contribute code: Fork the project and submit a Pull Request 🚀
+- Like SFTP+? Give it a [⭐ Star](https://github.com/10D24D/Tabby-SFTP-Plus) to show your support!
 
-> The concept for this plugin was conceived by the author (DD1024z), and the majority of the implementation code was generated with AI assistance.
-> If you encounter any issues or have feature suggestions, feel free to submit an [Issue](https://github.com/10D24D/Tabby-SFTP-Plus/issues) or Pull Request.
+## 📝 License
 
-## Disclaimer
+SFTP+ is licensed under the [MIT](LICENSE) license. Feel free to use, modify, and share it — just comply with the terms.
 
-> SFTP+ is a free and open-source project. The author makes no guarantees regarding its completeness, reliability, or suitability for any purpose. By using this plugin, you agree to assume all associated risks. The developer shall not be held liable for any problems or losses arising from the use of this software. Please assess the risks before use.
+## ⚠️ Disclaimer
+
+SFTP+ is a free and open-source project. By using this plugin, you agree to assume all associated risks. The developer shall not be held liable for any problems or losses arising from its use.

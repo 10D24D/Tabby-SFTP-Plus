@@ -2,11 +2,14 @@
 
 | [中文](README.md) | [English](README.en.md) |
 
-SFTP+ 是 [Tabby Terminal](https://tabby.sh/) 的插件，为 SSH 终端标签页提供**双栏 SFTP 文件管理**功能，支持书签、传输日志、文件冲突处理、权限编辑等，无需离开终端即可完成文件操作。
+[![Version](https://img.shields.io/github/package-json/v/10D24D/Tabby-SFTP-Plus?style=for-the-badge&label=版本&color=7B68EE)](https://github.com/10D24D/Tabby-SFTP-Plus)
+[![Stars](https://img.shields.io/github/stars/10D24D/Tabby-SFTP-Plus?style=for-the-badge&label=Stars&logo=undertale&logoColor=red&color=orange)](https://github.com/10D24D/Tabby-SFTP-Plus) 
+
+SFTP+ 是 [Tabby Terminal](https://tabby.sh/) 的插件，为 SSH 终端标签页提供**双栏 SFTP 文件管理**功能，支持**书签系统**、**路径记忆**、**拖拽上传下载**、传输日志、文件冲突处理、权限编辑等，无需离开终端即可完成文件操作。
 
 ---
 
-## 功能一览
+## 📋 功能一览
 
 | 类别 | 功能 |
 |------|------|
@@ -26,7 +29,15 @@ SFTP+ 是 [Tabby Terminal](https://tabby.sh/) 的插件，为 SSH 终端标签�
 
 ---
 
-## 安装
+## 🖥️ 界面导览
+
+![SFTP+ 操作面板](assets/SFTP-Plus_UI_Panel.png) 
+
+![SFTP+ 设置界面](assets/SFTP-Plus_UI_Config.png) 
+
+---
+
+## ⚙️ 安装
 
 1. 确保已安装 [Tabby Terminal](https://tabby.sh/)
 2. 在 Tabby 设置中配置插件目录
@@ -35,52 +46,16 @@ SFTP+ 是 [Tabby Terminal](https://tabby.sh/) 的插件，为 SSH 终端标签�
 
 ---
 
-## 快速上手
+## 🚀 快速上手
 
 1. **打开** — 在 SSH 终端标签页的工具栏点击 `SFTP+` 按钮
 2. **浏览** — 左侧本地文件系统、右侧远程 SFTP 目录，双击进入目录
 3. **传输** — 从左侧拖拽文件到右侧 = 上传，反向 = 下载
----
-
-## 界面导览
-
-![SFTP+ 操作面板](assets/SFTP-Plus_UI_Panel.png)
-
-![SFTP+ 设置界面](assets/SFTP-Plus_UI_Config.png)
-
-
-### 界面分区
-
-| 区域 | 说明 |
-|------|------|
-| **标题栏** | 插件名称、当前 SSH 连接信息、布局切换、传输日志入口、最小化/关闭 |
-| **左/右面板** | 各自独立浏览，支持路径输入、导航按钮、书签、过滤 |
-| **文件列表** | 显示文件和目录，支持多列排序、列宽拖拽、列顺序调整 |
-| **底部操作栏** | 显示选中项数量和总大小 |
-| **传输队列** | 实时展示上传/下载进度、速度、剩余时间，支持暂停/继续/取消 |
-| **书签弹窗** | 按「连接书签」和「全局书签」分组，支持拖拽排序和快速跳转 |
-| **右键菜单** | 文件/表头右键弹出，提供完整文件操作和列配置入口 |
-| **传输日志** | 历史记录弹窗，支持类型筛选、成功/失败过滤、JSON 导出 |
 
 ---
 
-## 设置面板
 
-在 Tabby 设置 → 左侧「SFTP+」进入配置页：
-
-| 设置项 | 说明 |
-|--------|------|
-| **语言** | 跟随系统 / 中文 / English |
-| **主题** | Auto / Dark / Light / Blue / Green / Purple / Red / Custom |
-| **自定义配色** | 独立设置主色、背景、文字、边框颜色 |
-| **布局** | 自适应（按窗口宽度自动切换）/ 水平并排 / 垂直堆叠 |
-| **表格样式** | 显示边框、显示斑马纹 |
-| **数据备份** | 导出/导入全部数据（JSON）、清空数据（需输入 `DELETE` 确认） |
-| **兼容性** | 隐藏 Tabby 原生 SFTP 按钮（避免冲突） |
-
----
-
-## 数据备份
+## 💾 数据备份
 
 所有数据（书签、传输日志、路径记忆、设置）可一键导出为 JSON 文件，也支持导入恢复。
 
@@ -88,7 +63,13 @@ SFTP+ 是 [Tabby Terminal](https://tabby.sh/) 的插件，为 SSH 终端标签�
 
 ---
 
-## 开发
+## 📜 版本历史
+
+最新版本 **v1.0.4**（2026-07-05）— [完整更新日志](CHANGELOG.md)
+
+---
+
+## 🛠️ 开发
 
 ### 技术栈
 
@@ -140,15 +121,18 @@ tabby-FTPS+/
 
 ---
 
-## License
+## 🤝 如何贡献
 
-MIT — 作者 DD1024z
+欢迎为 SFTP+ 贡献代码或建议！本插件功能想法由作者（DD1024z）提供，主要实现代码使用 AI 辅助生成。
 
-## 说明
+- 提交 Bug 或功能请求：[GitHub Issues](https://github.com/10D24D/Tabby-SFTP-Plus/issues) 📝
+- 贡献代码：Fork 项目并提交 Pull Request 🚀
+- 喜欢 SFTP+？可以帮忙点个 [⭐ Star](https://github.com/10D24D/Tabby-SFTP-Plus) 支持一下！
 
-> 本插件的功能想法由作者（DD1024z）提供，主要实现代码使用 AI 自动编码生成。
-> 如果你遇到任何问题或有功能建议，欢迎提交 [Issue](https://github.com/10D24D/Tabby-SFTP-Plus/issues) 或 Pull Request。
+## 📝 许可协议
 
-## 免责声明
+SFTP+ 遵循 [MIT](LICENSE) 开源协议。欢迎使用、修改和分享，但请遵守协议条款。
 
-> SFTP+ 是一个免费的开源项目。作者不对插件的完整性、可靠性或适用性作任何保证。使用本插件即表示你同意承担相关风险，开发者不对因使用脚本导致的任何问题或损失负责，使用前请自行评估风险。
+## ⚠️ 免责声明
+
+SFTP+ 是一个免费的开源项目。使用本插件即表示你同意承担相关风险。开发者不对因使用插件导致的任何问题或损失负责。

@@ -2,6 +2,17 @@
 
 All notable changes to **tabby-sftp-plus** will be documented in this file.
 
+## [1.0.4] — 2026-07-05
+
+### 📄 文档
+
+- **README 全面重写** — 结构重组为用户引导优先（功能→界面导览→快速上手→设置），新增 badge 行（含 GitHub 链接）、UI 截图双列表格排版、简化版权声明
+- **英文文档** — 新增 `README.en.md`，与中文版间双向跳转链接
+- **CHANGELOG** — 新增版本发布历史文档
+- **开发文档更新** — `DEVELOPMENT.md` 移除已废弃的 scripts/ 目录引用
+
+---
+
 ## [1.0.1] — 2026-07-05
 
 ### ✨ 新增
@@ -14,8 +25,11 @@ All notable changes to **tabby-sftp-plus** will be documented in this file.
 
 ### 🎨 改进
 
-- **README 全面重写** — 结构重组为用户引导优先（功能→快速上手→界面导览→设置），开发者内容后置，移除冗余源码说明
+- **README 全面重写** — 结构重组为用户引导优先（功能→界面导览→快速上手→设置），新增 badge 行、UI 截图双列表格排版、简化版权声明
 - **新增「关于」区域** — 设置页 About 区添加 GitHub Star 链接、意见反馈入口
+- **英文文档** — 新增 `README.en.md`，与中文版间双向跳转链接
+- **CHANGELOG** — 新增版本发布历史文档
+- **开发文档更新** — `DEVELOPMENT.md` 移除已废弃的 scripts/ 目录引用
 - **设置页 UI 调整** — 主题选择改为卡片式、颜色编辑器优化
 
 ### 🔧 技术
