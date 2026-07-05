@@ -7,19 +7,13 @@
  * 修改人：DD1024z + Deepseek-V4-Flash
  * 修改时间：2026-06-25
  *   新增 SSH 断开检测：终端关闭后禁用 SFTP+ 入口按钮
- * 修改人：DD1024z + Deepseek-V4-Flash
- * 修改时间：2026-06-29
- *   - 替换 emoji 图标为 SVG 图标
- *   - 注入 CSS 规则隐藏原生 SFTP 按钮（设置项: hideNativeSFTPButton）
- * 修改人：DD1024z + Deepseek-V4-Flash
- * 修改时间：2026-06-29
- *   - 替换文件夹图标为 Bootstrap Icons folder2-open
- *   - 修复隐藏原生SFTP按钮：扩大选择器匹配范围（title通配 + data属性 + 文本内容）
- *     + 取消隐藏时恢复被隐藏的原生按钮
- * 修改人：DD1024z + Deepseek-V4-Flash
- * 修改时间：2026-06-29
- *   - 替换文件夹图标为新的 SVG 图标
- *   - 隐藏原生SFTP按钮改为精确匹配 button[title="SFTP" i]
+ *   替换 emoji 图标为 SVG 图标
+ *   注入 CSS 规则隐藏原生 SFTP 按钮（设置项: hideNativeSFTPButton）
+ *   替换文件夹图标为 Bootstrap Icons folder2-open
+ *   修复隐藏原生SFTP按钮：扩大选择器匹配范围（title通配 + data属性 + 文本内容）
+ *     取消隐藏时恢复被隐藏的原生按钮
+ *   替换文件夹图标为新的 SVG 图标
+ *   隐藏原生SFTP按钮改为精确匹配 button[title="SFTP" i]
  */
 import { Injectable, Injector, ComponentFactoryResolver, ApplicationRef, NgZone } from '@angular/core'
 import { TerminalDecorator } from 'tabby-terminal'

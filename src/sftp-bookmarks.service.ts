@@ -5,9 +5,7 @@
  * 创建人：DD1024z + Claude
  * 创建时间：2026-06-21
  * 修改人：DD1024z + Deepseek-V4-Flash
- * 修改时间：2026-06-22
- *   修改人：DD1024z + Deepseek-V4-Flash
- *   修改时间：2026-06-29
+ * 修改时间：2026-06-29
  *   同步写入 Tabby 配置（config.yaml），确保多窗口数据一致性
  */
 import { Injectable, Optional } from '@angular/core'

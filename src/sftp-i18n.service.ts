@@ -3,8 +3,10 @@
  * 功能描述：提供多语言支持，自动跟随 Tabby 系统语言设置
  * 创建人：DD1024z + Claude
  * 创建时间：2026-06-21
- * 修改人：DD1024z + Claude
- * 修改时间：2026-06-23
+ * 修改人：DD1024z + Deepseek-V4-Flash
+ * 修改时间：2026-07-05
+ *   新增 setLocale() 方法支持动态切换语言
+ *   新增 settings.* 翻译 key（统一设置面板 i18n）
  */
 import { Injectable, Optional } from '@angular/core'
 import { detectTabbyLanguage } from '@common/utils'

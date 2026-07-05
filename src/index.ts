@@ -4,8 +4,6 @@
  *   参考：tabby-command-workbench 的模块结构
  * 创建人：DD1024z + Claude
  * 创建时间：2026-06-21
- * 修改人：DD1024z + Claude
- * 修改时间：2026-06-21
  * 修改人：DD1024z + Deepseek-V4-Flash
  * 修改时间：2026-06-29
  *   - 注册 SftpPlusConfigProvider（Tabby config.yaml 持久化）
