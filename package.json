@@ -2,7 +2,7 @@
   "name": "tabby-sftp-plus",
   "version": "1.0.0",
   "description": "SFTP+ 文件管理插件 - 双栏 SFTP 文件管理器，支持书签、传输日志、多语言",
-  "keywords": ["tabby-plugin"],
+  "keywords": ["tabby-plugin", "sftp", "file-manager", "ssh", "tabby"],
   "main": "dist/index.js",
   "typings": "dist/index.d.ts",
   "scripts": {
