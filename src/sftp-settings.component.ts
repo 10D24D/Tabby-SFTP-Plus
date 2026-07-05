@@ -11,6 +11,7 @@ import { Component, Injectable, Optional } from '@angular/core'
 import { SettingsTabProvider } from 'tabby-settings'
 import { ConfigService } from 'tabby-core'
 import { defaultSftpPlusConfig } from './sftp-config-provider'
+import { SftpI18nService } from './sftp-i18n.service'
 
 /**
  * 检测 Tabby 实际使用的系统语言（优先读取 Tabby config.yaml）
@@ -111,13 +112,13 @@ function saveTableSetting(_key: string, _value: boolean): void {}
   template: `
     <div class="sftp-settings-page">
       <h3 class="ss-title">SFTP+</h3>
-      <p class="ss-desc">{{ t('美观易用的文件管理插件。支持拖拽操作、书签功能、路径记忆、表头排序、传输记录、多语言', 'Beautiful and easy-to-use file management plugin. Supports drag-and-drop, bookmarks, path memory, column sorting, transfer logs, multilingual.') }}</p>
+      <p class="ss-desc">{{ i18n.t('settings.desc') }}</p>
 
       <!-- 语言 -->
       <div class="ss-section">
-        <label class="ss-label">{{ effectiveLang === 'zh-CN' ? '语言' : 'Language' }}</label>
+        <label class="ss-label">{{ i18n.t('settings.language') }}</label>
         <select [(ngModel)]="lang" (ngModelChange)="saveLang()" class="ss-select">
-          <option value="">{{ effectiveLang === 'zh-CN' ? '跟随Tabby' : 'Follow Tabby' }}</option>
+          <option value="">{{ i18n.t('settings.followTabby') }}</option>
           <option value="zh-CN">中文</option>
           <option value="en-US">English</option>
         </select>
@@ -125,7 +126,7 @@ function saveTableSetting(_key: string, _value: boolean): void {}
 
       <!-- 主题 -->
       <div class="ss-section">
-        <label class="ss-label">{{ t('主题', 'Theme') }}</label>
+        <label class="ss-label">{{ i18n.t('settings.theme') }}</label>
         <div class="ss-color-row">
           <label *ngFor="let c of colorThemes"
             [class.ss-color-active]="theme === c.value"
@@ -166,22 +167,22 @@ function saveTableSetting(_key: string, _value: boolean): void {}
         <div class="ss-scheme-preview" *ngFor="let c of colorThemes" [hidden]="theme !== c.value">
           <div class="ss-color-fields">
             <div class="ss-color-field">
-              <label>{{ t('主色调', 'Primary') }}</label>
+              <label>{{ i18n.t('settings.primary') }}</label>
               <input type="color" [ngModel]="themePrimary" (change)="onColorChange('primary', $event.target.value)" class="ss-color-input" />
               <span class="ss-color-val">{{ themePrimary }}</span>
             </div>
             <div class="ss-color-field">
-              <label>{{ t('背景', 'Bg') }}</label>
+              <label>{{ i18n.t('settings.bg') }}</label>
               <input type="color" [ngModel]="themeBg" (change)="onColorChange('bg', $event.target.value)" class="ss-color-input" />
               <span class="ss-color-val">{{ themeBg }}</span>
             </div>
             <div class="ss-color-field">
-              <label>{{ t('文字', 'Text') }}</label>
+              <label>{{ i18n.t('settings.text') }}</label>
               <input type="color" [ngModel]="themeText" (change)="onColorChange('text', $event.target.value)" class="ss-color-input" />
               <span class="ss-color-val">{{ themeText }}</span>
             </div>
             <div class="ss-color-field">
-              <label>{{ t('边框', 'Border') }}</label>
+              <label>{{ i18n.t('settings.border') }}</label>
               <input type="color" [ngModel]="themeBorder" (change)="onColorChange('border', $event.target.value)" class="ss-color-input" />
               <span class="ss-color-val">{{ themeBorder }}</span>
             </div>
@@ -191,7 +192,7 @@ function saveTableSetting(_key: string, _value: boolean): void {}
 
       <!-- 布局 -->
       <div class="ss-section">
-        <label class="ss-label">{{ effectiveLang === 'zh-CN' ? '布局' : 'Layout' }}</label>
+        <label class="ss-label">{{ i18n.t('settings.layout') }}</label>
         <!-- 面板布局 -->
         <div class="ss-layout-row">
           <!-- 自适应 -->
@@ -204,8 +205,8 @@ function saveTableSetting(_key: string, _value: boolean): void {}
                 <rect x="13" y="13" width="9" height="9" rx="1.5"/>
               </svg>
             </div>
-            <span class="ss-layout-text">{{ effectiveLang === 'zh-CN' ? '自适应' : 'Adaptive' }}</span>
-            <span class="ss-layout-sub">{{ effectiveLang === 'zh-CN' ? '根据窗口宽度自动切换' : 'Auto switch by width' }}</span>
+            <span class="ss-layout-text">{{ i18n.t('settings.layoutAdaptive') }}</span>
+            <span class="ss-layout-sub">{{ i18n.t('settings.layoutAdaptiveSub') }}</span>
           </div>
           <!-- 左右布局 -->
           <div class="ss-layout-card" [class.ss-layout-active]="layoutMode === 'horizontal'" (click)="setLayoutMode('horizontal')">
@@ -215,8 +216,8 @@ function saveTableSetting(_key: string, _value: boolean): void {}
                 <rect x="13" y="2" width="9" height="20" rx="1.5"/>
               </svg>
             </div>
-            <span class="ss-layout-text">{{ effectiveLang === 'zh-CN' ? '左右布局' : 'Horizontal' }}</span>
-            <span class="ss-layout-sub">{{ effectiveLang === 'zh-CN' ? '两个面板水平并排' : 'Panes side by side' }}</span>
+            <span class="ss-layout-text">{{ i18n.t('settings.layoutHorizontal') }}</span>
+            <span class="ss-layout-sub">{{ i18n.t('settings.layoutHorizontalSub') }}</span>
           </div>
           <!-- 上下布局 -->
           <div class="ss-layout-card" [class.ss-layout-active]="layoutMode === 'vertical'" (click)="setLayoutMode('vertical')">
@@ -226,35 +227,36 @@ function saveTableSetting(_key: string, _value: boolean): void {}
                 <rect x="2" y="13" width="20" height="9" rx="1.5"/>
               </svg>
             </div>
-            <span class="ss-layout-text">{{ effectiveLang === 'zh-CN' ? '上下布局' : 'Vertical' }}</span>
-            <span class="ss-layout-sub">{{ effectiveLang === 'zh-CN' ? '两个面板垂直堆叠' : 'Panes stacked' }}</span>
+            <span class="ss-layout-text">{{ i18n.t('settings.layoutVertical') }}</span>
+            <span class="ss-layout-sub">{{ i18n.t('settings.layoutVerticalSub') }}</span>
           </div>
         </div>
 
         <!-- 表格样式（属于布局的子选项） -->
-        <div class="ss-sub-label" style="margin-top:16px;">{{ effectiveLang === 'zh-CN' ? '表格样式' : 'Table Style' }}</div>
+        <div class="ss-sub-label" style="margin-top:16px;">{{ i18n.t('settings.tableStyle') }}</div>
         <div class="ss-toggle-wrap">
           <label class="ss-toggle-row">
-            <span class="ss-toggle-label">{{ effectiveLang === 'zh-CN' ? '显示边框' : 'Show border' }}</span>
+            <span class="ss-toggle-label">{{ i18n.t('view.colBorder') }}</span>
             <span class="ss-toggle-track" [class.active]="showColBorders" (click)="showColBorders=!showColBorders; saveTableSettings()">
               <span class="ss-toggle-thumb"></span>
             </span>
           </label>
           <label class="ss-toggle-row">
-            <span class="ss-toggle-label">{{ effectiveLang === 'zh-CN' ? '显示斑马纹' : 'Show zebra stripes' }}</span>
+            <span class="ss-toggle-label">{{ i18n.t('view.zebra') }}</span>
             <span class="ss-toggle-track" [class.active]="showZebra" (click)="showZebra=!showZebra; saveTableSettings()">
               <span class="ss-toggle-thumb"></span>
             </span>
           </label>
         </div>
+        <div class="ss-hint">{{ i18n.t('settings.tableStyleHint') }}</div>
       </div>
 
       <!-- 兼容性 -->
       <div class="ss-section">
-        <label class="ss-label">{{ t('兼容性', 'Compatibility') }}</label>
+        <label class="ss-label">{{ i18n.t('settings.compatibility') }}</label>
         <div class="ss-toggle-wrap">
           <label class="ss-toggle-row">
-            <span class="ss-toggle-label">{{ t('隐藏原生 SFTP 按钮', 'Hide native SFTP button') }}</span>
+            <span class="ss-toggle-label">{{ i18n.t('settings.hideNativeBtn') }}</span>
             <span class="ss-toggle-track" [class.active]="hideNativeBtn" (click)="toggleHideNativeBtn()">
               <span class="ss-toggle-thumb"></span>
             </span>
@@ -264,33 +266,33 @@ function saveTableSetting(_key: string, _value: boolean): void {}
 
       <!-- 数据 -->
       <div class="ss-section">
-        <label class="ss-label">{{ t('数据', 'Data') }}</label>
+        <label class="ss-label">{{ i18n.t('settings.data') }}</label>
 
         <!-- 数据导入导出 -->
         <div class="ss-backup-row">
-          <button class="ss-btn" (click)="exportData()">[&darr;] {{ t('导出数据', 'Export') }}</button>
-          <label class="ss-btn ss-btn-import">[&uarr;] {{ t('导入数据', 'Import') }}
+          <button class="ss-btn" (click)="exportData()">[&darr;] {{ i18n.t('settings.export') }}</button>
+          <label class="ss-btn ss-btn-import">[&uarr;] {{ i18n.t('settings.import') }}
             <input type="file" accept=".json" (change)="importData($event)" style="display:none" />
           </label>
-          <button class="ss-btn ss-btn-danger" (click)="openClearConfirm()">[&times;] {{ t('清空数据', 'Clear All') }}</button>
+          <button class="ss-btn ss-btn-danger" (click)="openClearConfirm()">[&times;] {{ i18n.t('settings.clearAll') }}</button>
         </div>
       </div>
 
       <!-- 关于 -->
       <div class="ss-section">
-        <label class="ss-label">{{ t('关于', 'About') }}</label>
+        <label class="ss-label">{{ i18n.t('settings.about') }}</label>
         <div class="ss-about-row">
-          <span class="ss-about-item">{{ t('版本', 'Version') }}: 1.0.0</span>
-          <span class="ss-about-item">{{ t('作者', 'Author') }}: DD1024z</span>
+          <span class="ss-about-item">{{ i18n.t('settings.version') }}: {{ pkgVersion }}</span>
+          <span class="ss-about-item">{{ i18n.t('settings.author') }}: DD1024z</span>
           <span class="ss-about-link" (click)="openGithub()">
             <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8"/></svg>
-            {{ t('Github源码', 'GitHub Source') }}
+            {{ i18n.t('settings.githubSource') }}
           </span>
           <span class="ss-about-link" (click)="openGithub()">
-            ⭐ {{ t('点赞支持', 'Give a Star') }}
+            ⭐ {{ i18n.t('settings.giveStar') }}
           </span>
           <span class="ss-about-link" (click)="openFeedback()">
-            💬 {{ t('意见反馈', 'Feedback') }}
+            💬 {{ i18n.t('settings.feedback') }}
           </span>
         </div>
       </div>
@@ -299,13 +301,13 @@ function saveTableSetting(_key: string, _value: boolean): void {}
       <div class="ss-overlay" *ngIf="showThemeColorConfirm" (click)="cancelThemeColorOverwrite()"
         [style.background]="isDarkMode ? 'rgba(0,0,0,0.5)' : 'rgba(128,128,128,0.2)'">
         <div class="ss-edit-modal" [class.ss-dark]="isDarkMode" [class.ss-light]="!isDarkMode" (click)="$event.stopPropagation()">
-          <div class="ss-edit-title">{{ t('⚠️ 修改配色', '⚠️ Modify Colors') }}</div>
+          <div class="ss-edit-title">{{ i18n.t('settings.modifyColors') }}</div>
           <div class="ss-edit-field">
-            <p>{{ t('当前为自动/预设模式，修改将覆盖到自定义配色方案中。是否继续？', 'You are in Auto/Preset mode. Changes will overwrite the custom color scheme. Continue?') }}</p>
+            <p>{{ i18n.t('settings.overwriteConfirm') }}</p>
           </div>
           <div class="ss-edit-footer">
-            <button class="ss-btn ss-btn-danger" (click)="confirmThemeColorOverwrite()">{{ t('确认覆盖', 'Overwrite') }}</button>
-            <button class="ss-btn" (click)="cancelThemeColorOverwrite()">{{ t('取消', 'Cancel') }}</button>
+            <button class="ss-btn ss-btn-danger" (click)="confirmThemeColorOverwrite()">{{ i18n.t('settings.overwrite') }}</button>
+            <button class="ss-btn" (click)="cancelThemeColorOverwrite()">{{ i18n.t('app.cancel') }}</button>
           </div>
         </div>
       </div>
@@ -314,20 +316,20 @@ function saveTableSetting(_key: string, _value: boolean): void {}
       <div class="ss-overlay" *ngIf="showClearConfirm" (click)="closeClearConfirm()"
         [style.background]="isDarkMode ? 'rgba(0,0,0,0.5)' : 'rgba(128,128,128,0.2)'">
         <div class="ss-edit-modal" [class.ss-dark]="isDarkMode" [class.ss-light]="!isDarkMode" (click)="$event.stopPropagation()">
-          <div class="ss-edit-title" style="color:var(--primary-color,#e24b4a);">{{ t('⚠️ 清空数据', '⚠️ Clear All Data') }}</div>
+          <div class="ss-edit-title" style="color:var(--primary-color,#e24b4a);">{{ i18n.t('settings.clearAllTitle') }}</div>
           <div class="ss-edit-field">
             <p>
-              {{ t('此操作将删除所有书签、传输记录和设置数据，不可撤销！', 'This will delete all bookmarks, transfer logs, and settings. Cannot be undone!') }}
+              {{ i18n.t('settings.clearAllConfirm') }}
             </p>
-            <label>{{ t('请输入 DELETE 确认：', 'Please type DELETE to confirm:') }}</label>
+            <label>{{ i18n.t('settings.clearAllPrompt') }}</label>
             <input class="ss-edit-input" type="text" [(ngModel)]="clearConfirmInput"
               (keydown.enter)="doClearData()" placeholder="DELETE" />
           </div>
           <div class="ss-edit-footer">
             <button class="ss-btn ss-btn-danger" (click)="doClearData()"
               [style.opacity]="clearConfirmInput !== 'DELETE' ? '0.5' : '1'"
-              [disabled]="clearConfirmInput !== 'DELETE'">{{ t('清空', 'Clear') }}</button>
-            <button class="ss-btn" (click)="closeClearConfirm()">{{ t('取消', 'Cancel') }}</button>
+              [disabled]="clearConfirmInput !== 'DELETE'">{{ i18n.t('settings.clear') }}</button>
+            <button class="ss-btn" (click)="closeClearConfirm()">{{ i18n.t('app.cancel') }}</button>
           </div>
         </div>
       </div>
@@ -418,6 +420,9 @@ function saveTableSetting(_key: string, _value: boolean): void {}
     }
     .ss-toggle-track.active .ss-toggle-thumb { transform:translateX(16px); }
 
+    /* 设置面板提示文字 */
+    .ss-hint { font-size:11px; opacity:.5; margin-top:6px; }
+
     .ss-backup-row {
       display:flex; gap:10px; flex-wrap:wrap; margin-top:4px;
     }
@@ -504,6 +509,13 @@ function saveTableSetting(_key: string, _value: boolean): void {}
   `],
 })
 export class SftpSettingsTabComponent {
+  // @ts-ignore — ts-loader 可能无法正确处理 JSON 模块类型
+  /** 插件版本号（webpack 构建时内联 package.json） */
+  readonly pkgVersion: string = require('../package.json').version
+
+  /** 国际化服务（key-based，支持动态切换语言） */
+  readonly i18n: SftpI18nService
+
   /** 多语言辅助 */
   t(zh: string, en: string): string {
     return this.effectiveLang === 'zh-CN' ? zh : en
@@ -675,8 +687,8 @@ export class SftpSettingsTabComponent {
 
   /** 获取 Auto 映射主题名的显示文本 */
   get autoThemeLabel(): string {
-    if (this.detectedAutoTheme === 'dark') return this.effectiveLang === 'zh-CN' ? '暗色' : 'Dark'
-    if (this.detectedAutoTheme === 'light') return this.effectiveLang === 'zh-CN' ? '亮色' : 'Light'
+    if (this.detectedAutoTheme === 'dark') return this.i18n.t('settings.dark')
+    if (this.detectedAutoTheme === 'light') return this.i18n.t('settings.light')
     return ''
   }
 
@@ -709,6 +721,7 @@ export class SftpSettingsTabComponent {
 
   constructor(@Optional() public configService?: ConfigService) {
     // ConfigService 是可选的，如果注入失败（开发环境/Tabby 版本不支持），回退到 localStorage
+    this.i18n = new SftpI18nService(configService)
   }
 
   ngOnInit(): void {
@@ -796,6 +809,7 @@ export class SftpSettingsTabComponent {
    */
   saveLang(): void {
     this._saveToConfig()
+    this.i18n.setLocale(this.effectiveLang)
   }
 
   private getPreset(value: string): typeof this.colorThemes[0] | undefined {
@@ -1089,7 +1103,7 @@ export class SftpSettingsTabComponent {
         if (!data || typeof data !== 'object') {
           // 拒绝 QuickCmd+ 数据（新格式标识或旧格式前缀）
           if (json['tabby-quick-command-plus'] || json['commands'] || json['groups'] || Object.keys(json).some(k => k.startsWith('qc-plus-'))) {
-            throw new Error(this.t('无效的数据格式。', 'Invalid data format.'))
+            throw new Error(this.i18n.t('settings.invalidFormat'))
           }
           // 旧格式兼容：扁平结构直接使用（含 prefixed localStorage 格式转换）
           if (Object.keys(json).some(k => k.startsWith('sftp-plus-'))) {
@@ -1117,16 +1131,16 @@ export class SftpSettingsTabComponent {
           if (data.transferLogs !== undefined) target.transferLogs = data.transferLogs
           if (data.pathMemory !== undefined) target.pathMemory = data.pathMemory
           this.configService.save()
-          alert(this.t('数据导入完成。', 'Import complete.'))
+          alert(this.i18n.t('settings.importComplete'))
         } else {
-          alert(this.t('无法导入：ConfigService 不可用。', 'Cannot import: ConfigService not available.'))
+          alert(this.i18n.t('settings.importUnavailable'))
         }
 
         // 刷新当前组件属性
         this.ngOnInit()
         this.notifyPanels()
       } catch (e: any) {
-        alert(e?.message || this.t('导入失败：文件格式错误或已损坏。', 'Import failed: invalid or corrupted file.'))
+        alert(e?.message || this.i18n.t('settings.importFailed'))
       }
     }
     reader.readAsText(file)
@@ -1165,7 +1179,7 @@ export class SftpSettingsTabComponent {
       // 重置组件状态到默认值并刷新
       this.ngOnInit()
       this.notifyPanels()
-      const msg = this.t('已清空所有数据', 'All data cleared')
+      const msg = this.i18n.t('settings.dataCleared')
       alert(msg)
     } catch (e) {
       console.error('[SFTP+] Clear data failed', e)

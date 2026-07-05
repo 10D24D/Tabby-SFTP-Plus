@@ -1,6 +1,6 @@
 {
   "name": "tabby-sftp-plus",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "SFTP+ 美观易用的文件管理插件，支持拖拽操作、书签功能、路径记忆、表头排序、传输记录、多语言等等。 Beautiful and easy-to-use file management plugin. Supports drag-and-drop, bookmarks, path memory, column sorting, transfer logs, multilingual.",
   "keywords": ["tabby-plugin", "sftp", "file-manager", "ssh", "tabby"],
   "main": "dist/index.js",
