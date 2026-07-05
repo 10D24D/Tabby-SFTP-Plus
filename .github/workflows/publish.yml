@@ -1,37 +1,50 @@
 # GitHub Actions → npm 自动发布
-# 触发条件：推送 v* 标签（如 v1.0.0）或创建 Release
+# 触发条件：创建 Release 时自动发布到 npm
 # 使用 npm Trusted Publisher（OIDC），无需 Token，绕过 2FA
-name: Publish to npm
+name: Publish npm package
 
 on:
   release:
     types: [published]
-  push:
-    tags:
-      - 'v*'
+
+permissions:
+  contents: read
+  id-token: write  # OIDC 认证需要
 
 jobs:
   publish:
     runs-on: ubuntu-latest
-    permissions:
-      id-token: write  # OIDC 认证需要
-      contents: read
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
         with:
-          node-version: 20
-          registry-url: https://registry.npmjs.org/
+          node-version: 24
+          cache: npm
+          registry-url: https://registry.npmjs.org
 
       - name: Install dependencies
         run: npm ci
 
+      - name: Check whether version already exists
+        id: version
+        shell: bash
+        run: |
+          PACKAGE_NAME=$(node -p "require('./package.json').name")
+          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+          if npm view "${PACKAGE_NAME}@${PACKAGE_VERSION}" version >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Build
+        if: steps.version.outputs.exists != 'true'
         run: npm run build
 
-      - name: Publish to npm
-        run: npm publish --provenance --access public
+      - name: Publish
+        if: steps.version.outputs.exists != 'true'
+        run: npm publish --access public --provenance
