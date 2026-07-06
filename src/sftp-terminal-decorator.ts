@@ -23,8 +23,9 @@
  */
 import { Injectable, Injector, ComponentFactoryResolver, ApplicationRef, NgZone } from '@angular/core'
 import { TerminalDecorator } from 'tabby-terminal'
-import { NotificationsService, ConfigService } from 'tabby-core'
+import { NotificationsService, ConfigService, AppService } from 'tabby-core'
 import { SftpFloatingPanel } from './sftp-floating-panel.component'
+import { SftpWorkspaceTabComponent } from './sftp-workspace-tab.component'
 
 /** SVG 文件夹图标 */
 const FOLDER_SVG = '<svg viewBox="0 0 1024 1024" width="14" height="14" fill="currentColor" style="vertical-align:middle"><path d="M120 344h291.6l112-112H736v224h56V176H500.4l-112 112H64v560l56-130.6z"/><path d="M792 456H232L120 717.4 64 848h728l168-392z"/></svg>'
@@ -40,6 +41,7 @@ export class SftpTerminalDecorator extends TerminalDecorator {
     private appRef: ApplicationRef,
     private zone: NgZone,
     private injector: Injector,
+    private app: AppService,
     private config?: ConfigService,
   ) {
     super()
@@ -364,6 +366,9 @@ export class SftpTerminalDecorator extends TerminalDecorator {
         cmp.sshSession = sshSession
         cmp.terminalRef = terminal
         cmp.profile = profile
+        cmp.onOpenInWorkspaceTab = () => {
+          this.openWorkspaceTab(terminal, cmp)
+        }
         cmp.onClose = () => {
           this.zone.run(() => {
             try { cmpRef.destroy() } catch { /* ignore */ }
@@ -433,5 +438,26 @@ export class SftpTerminalDecorator extends TerminalDecorator {
       }
       console.log('[SFTP+] Panel restored from minimized state')
     }
+  }
+
+  private openWorkspaceTab(terminal: any, panel?: SftpFloatingPanel): void {
+    const sshSession = terminal?.sshSession ?? (terminal as any)?._sshSession ?? terminal?._session ?? null
+    const profile = terminal?.profile ?? terminal?._profile ?? null
+    if (!sshSession) {
+      this.notifications.error('SFTP+', 'No active SSH session found on this tab')
+      return
+    }
+
+    this.zone.run(() => {
+      this.app.openNewTab({
+        type: SftpWorkspaceTabComponent,
+        inputs: {
+          sshSession,
+          profile,
+          terminalRef: terminal,
+        },
+      })
+      try { panel?.minimize() } catch {}
+    })
   }
 }

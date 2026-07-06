@@ -78,13 +78,37 @@ type ConflictFileInfo = {
 /** 书签分组作用域 */
 type BookmarkScope = 'connection' | 'global' | 'all'
 
+type WorkspaceAccessoryTab = {
+  id: string
+  kind: 'text' | 'image'
+  pane: 'local' | 'remote'
+  path: string
+  name: string
+  title: string
+  textValue?: string
+  originalTextValue?: string
+  textError?: string
+  textLoading?: boolean
+  textSaving?: boolean
+  remoteMode?: number
+  imageUrl?: string
+  imageError?: string
+  imageLoading?: boolean
+  imageSize?: number
+  imageWidth?: number
+  imageHeight?: number
+}
+
 @Component({
   selector: 'sftp-plus-panel',
   template: `
     <div class="sftp-root" tabindex="0"
       [class.has-zebra]="showZebra"
       [class.has-col-borders]="showColBorders"
-      [class.has-panel-border]="showPanelBorder">
+      [class.has-panel-border]="showPanelBorder"
+      [class.workspace-mode]="displayMode === 'workspace'"
+      [class.toolbar-nav-left]="toolbarLayoutMode === 'nav-left'"
+      [class.toolbar-nav-right]="toolbarLayoutMode === 'nav-right'">
       <!-- 顶部标题栏 -->
       <div class="top-bar">
         <span class="title">SFTP+</span>
@@ -107,6 +131,16 @@ type BookmarkScope = 'connection' | 'global' | 'all'
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
               <path d="M8 1C5.2 1 3 3.2 3 6c0 3.5 5 9 5 9s5-5.5 5-9c0-2.8-2.2-5-5-5z"/>
               <circle cx="8" cy="6" r="1.5"/>
+            </svg>
+          </button>
+          <button class="btn-link btn-toolbar-layout" (click)="cycleToolbarLayout()" title="{{ toolbarLayoutTitle() }}">
+            <svg *ngIf="toolbarLayoutMode === 'nav-left'" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M2 4h8M2 8h8M2 12h8"/>
+              <rect x="11" y="2.5" width="3" height="11" rx="1.2"/>
+            </svg>
+            <svg *ngIf="toolbarLayoutMode === 'nav-right'" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M6 4h8M6 8h8M6 12h8"/>
+              <rect x="2" y="2.5" width="3" height="11" rx="1.2"/>
             </svg>
           </button>
           <!-- 布局模式切换 -->
@@ -136,6 +170,31 @@ type BookmarkScope = 'connection' | 'global' | 'all'
               <circle cx="11" cy="8" r="1.5" fill="currentColor" stroke="none"/>
             </svg>
           </button>
+          <button *ngIf="displayMode === 'floating' && onOpenInWorkspaceTab" class="btn-link" (click)="openInWorkspaceTab()" title="{{ effectiveLang === 'zh-CN' ? '在新标签页打开' : 'Open in tab' }}">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">
+              <path d="M9 3h4v4"/>
+              <path d="M7 9l6-6"/>
+              <rect x="3" y="5" width="8" height="8" rx="1.4"/>
+            </svg>
+          </button>
+          <button *ngIf="displayMode === 'workspace' && showWorkspaceAccessory" class="btn-link" (click)="cycleWorkspaceAccessoryPosition()" title="{{ workspaceAccessoryPositionTitle() }}">
+            <svg *ngIf="workspaceAccessoryPosition === 'right'" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">
+              <rect x="2" y="2" width="6" height="12" rx="1"/>
+              <rect x="9" y="2" width="5" height="12" rx="1"/>
+            </svg>
+            <svg *ngIf="workspaceAccessoryPosition === 'bottom'" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">
+              <rect x="2" y="2" width="12" height="5" rx="1"/>
+              <rect x="2" y="8" width="12" height="6" rx="1"/>
+            </svg>
+            <svg *ngIf="workspaceAccessoryPosition === 'left'" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">
+              <rect x="2" y="2" width="5" height="12" rx="1"/>
+              <rect x="8" y="2" width="6" height="12" rx="1"/>
+            </svg>
+            <svg *ngIf="workspaceAccessoryPosition === 'top'" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">
+              <rect x="2" y="2" width="12" height="6" rx="1"/>
+              <rect x="2" y="9" width="12" height="5" rx="1"/>
+            </svg>
+          </button>
           <button class="btn-link" (click)="showTransferLog = !showTransferLog" title="{{ i18n.t('transfer.log') }}">
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
               <rect x="3" y="2" width="10" height="12" rx="1"/>
@@ -144,11 +203,16 @@ type BookmarkScope = 'connection' | 'global' | 'all'
               <line x1="5.5" y1="10.5" x2="8.5" y2="10.5"/>
             </svg>
           </button>
-          <button class="btn-minimize" (click)="minimize()" title="{{ minimized ? (effectiveLang==='zh-CN'?'恢复':'Restore') : (effectiveLang==='zh-CN'?'最小化':'Minimize') }}">─</button>
+          <button *ngIf="displayMode !== 'workspace'" class="btn-minimize" (click)="minimize()" title="{{ minimized ? (effectiveLang==='zh-CN'?'恢复':'Restore') : (effectiveLang==='zh-CN'?'最小化':'Minimize') }}">─</button>
           <button class="btn-close" (click)="close()">✕</button>
         </div>
       </div>
 
+      <div class="content-shell" [class.workspace-shell]="displayMode === 'workspace'"
+        [class.accessory-left]="workspaceAccessoryPosition === 'left'"
+        [class.accessory-top]="workspaceAccessoryPosition === 'top'"
+        [class.accessory-bottom]="workspaceAccessoryPosition === 'bottom'">
+        <div class="workspace-primary">
       <!-- 双栏主体 -->
       <div class="sftp-body">
         <!-- ====== 本地面板 ====== -->
@@ -427,6 +491,10 @@ type BookmarkScope = 'connection' | 'global' | 'all'
           </div>
           <div class="pane-actions-bar">
             <span class="selection-info">{{ i18n.t('pane.items', {count: getFilteredRemoteEntries().length}) }}<ng-container *ngIf="selectedRemote.length"> — {{ effectiveLang === 'zh-CN' ? '已选择' : 'Selected' }} {{ selectedRemote.length }} {{ effectiveLang === 'zh-CN' ? '项' : 'items' }} ({{ formatSelectedSizeRemote() }})<span *ngIf="selectedHasDirRemote()" class="size-hint">{{ effectiveLang === 'zh-CN' ? ' 文件夹不计' : ' excl. folders' }}</span></ng-container></span>
+            <div class="workspace-inline-actions" *ngIf="displayMode === 'workspace' && workspaceSelectedRemoteFile">
+              <button *ngIf="canEditWorkspaceSelectedRemote()" (click)="openWorkspaceSelectedRemoteEditor()">{{ i18n.t('file.edit') }}</button>
+              <button *ngIf="canPreviewWorkspaceSelectedRemote()" (click)="openWorkspaceSelectedRemotePreview()">{{ effectiveLang === 'zh-CN' ? '预览' : 'Preview' }}</button>
+            </div>
           </div>
           <!-- 加载遮罩（pane 层级，不受 scroll 影响） -->
           <div class="pane-loading" *ngIf="_remoteLoading">
@@ -479,6 +547,79 @@ type BookmarkScope = 'connection' | 'global' | 'all'
       <div class="sftp-transfers-mini" *ngIf="transfers.length && !transfersHidden && transfersMinimized"
         (click)="transfersMinimized = false" (mousedown)="$event.stopPropagation()">
         <span>📦 {{ i18n.t('transfer.inProgress') }} ({{ transfers.length }})</span>
+      </div>
+
+      </div>
+
+      <div class="workspace-accessory-splitter" *ngIf="showWorkspaceAccessory"
+        [class.vertical]="workspaceAccessoryPosition === 'left' || workspaceAccessoryPosition === 'right'"
+        [class.horizontal]="workspaceAccessoryPosition === 'bottom' || workspaceAccessoryPosition === 'top'"
+        (mousedown)="onWorkspaceAccessorySplitterDown($event)"></div>
+
+      <div class="workspace-accessory" *ngIf="showWorkspaceAccessory" [ngStyle]="workspaceAccessoryStyle()">
+        <div class="workspace-accessory-header">
+          <div class="workspace-accessory-tabs">
+            <button class="workspace-tab"
+              *ngFor="let tab of workspaceAccessoryTabs"
+              [class.active]="tab.id === activeWorkspaceAccessoryTabId"
+              (click)="activateWorkspaceAccessoryTab(tab.id)">
+              <span class="workspace-tab-kind">{{ tab.kind === 'text' ? 'TXT' : 'IMG' }}</span>
+              <span class="workspace-tab-title">{{ tab.title }}</span>
+              <span class="workspace-tab-dirty" *ngIf="isWorkspaceTabDirty(tab)">•</span>
+              <span class="workspace-tab-close" (click)="closeWorkspaceAccessoryTab(tab.id, $event)">✕</span>
+            </button>
+          </div>
+          <div class="workspace-accessory-actions">
+            <button class="btn-link workspace-position-drag"
+              (mousedown)="onWorkspacePositionHandleDown($event)"
+              title="{{ workspaceAccessoryPositionTitle() }}">⋮⋮</button>
+            <button class="btn-link" (click)="closeWorkspaceAccessory()" title="{{ i18n.t('app.close') }}">✕</button>
+          </div>
+        </div>
+
+        <div class="workspace-accessory-meta-bar" *ngIf="activeWorkspaceAccessoryTab as activeTab">
+          <div class="workspace-accessory-title">{{ activeTab.kind === 'text' ? (effectiveLang === 'zh-CN' ? '文本编辑' : 'Text Editor') : (effectiveLang === 'zh-CN' ? '图片预览' : 'Image Preview') }}</div>
+          <div class="workspace-accessory-meta">{{ activeTab.path }}</div>
+        </div>
+
+        <div class="workspace-accessory-body" *ngIf="activeWorkspaceTextTab as textTab">
+          <div class="editor-error" *ngIf="textTab.textError">{{ textTab.textError }}</div>
+          <textarea class="editor-textarea workspace-editor"
+            [ngModel]="textTab.textValue || ''"
+            (ngModelChange)="updateWorkspaceTextValue($event)"
+            [disabled]="!!textTab.textLoading || !!textTab.textSaving || !!textTab.textError"
+            spellcheck="false"
+            (keydown)="onTextEditorKeyDown($event)"></textarea>
+          <div class="editor-footer workspace-editor-footer">
+            <span class="editor-meta">{{ textTab.textLoading ? (effectiveLang === 'zh-CN' ? '加载中…' : 'Loading…') : formatWorkspaceTextStats(textTab) }}</span>
+            <div class="dialog-buttons editor-buttons">
+              <button (click)="saveTextEditor()" [disabled]="!!textTab.textLoading || !!textTab.textSaving || !!textTab.textError || !isWorkspaceTabDirty(textTab)">{{ effectiveLang === 'zh-CN' ? '保存' : 'Save' }}</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="workspace-accessory-body" *ngIf="activeWorkspaceImageTab as imageTab">
+          <div class="preview-stage workspace-preview-stage">
+            <div class="preview-status" *ngIf="imageTab.imageLoading">{{ effectiveLang === 'zh-CN' ? '加载中…' : 'Loading…' }}</div>
+            <div class="preview-status preview-error" *ngIf="!imageTab.imageLoading && imageTab.imageError">{{ imageTab.imageError }}</div>
+            <img *ngIf="!imageTab.imageLoading && !imageTab.imageError && imageTab.imageUrl"
+              class="preview-image"
+              [src]="imageTab.imageUrl"
+              [alt]="imageTab.name"
+              (load)="onWorkspacePreviewImageLoad($event)" />
+          </div>
+          <div class="workspace-accessory-footer">
+            <span class="preview-meta">{{ formatWorkspacePreviewMeta(imageTab) }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="workspace-drop-overlay" *ngIf="workspacePositionDragActive">
+        <div class="workspace-drop-target top" [class.active]="workspacePositionDropTarget === 'top'">{{ effectiveLang === 'zh-CN' ? '顶部' : 'Top' }}</div>
+        <div class="workspace-drop-target left" [class.active]="workspacePositionDropTarget === 'left'">{{ effectiveLang === 'zh-CN' ? '左侧' : 'Left' }}</div>
+        <div class="workspace-drop-target right" [class.active]="workspacePositionDropTarget === 'right'">{{ effectiveLang === 'zh-CN' ? '右侧' : 'Right' }}</div>
+        <div class="workspace-drop-target bottom" [class.active]="workspacePositionDropTarget === 'bottom'">{{ effectiveLang === 'zh-CN' ? '底部' : 'Bottom' }}</div>
+      </div>
       </div>
 
       <!-- 删除确认 -->
@@ -929,7 +1070,7 @@ type BookmarkScope = 'connection' | 'global' | 'all'
         </div>
       </div>
 
-      <div class="overlay" *ngIf="textEditorVisible" (click)="closeTextEditor()">
+      <div class="overlay" *ngIf="textEditorVisible && displayMode !== 'workspace'" (click)="closeTextEditor()">
         <div class="dialog editor-dialog" (click)="$event.stopPropagation()">
           <div class="editor-header">
             <div class="editor-heading">
@@ -958,7 +1099,7 @@ type BookmarkScope = 'connection' | 'global' | 'all'
         </div>
       </div>
 
-      <div class="overlay" *ngIf="imagePreviewVisible" (click)="closeImagePreview()">
+      <div class="overlay" *ngIf="imagePreviewVisible && displayMode !== 'workspace'" (click)="closeImagePreview()">
         <div class="dialog preview-dialog" (click)="$event.stopPropagation()">
           <div class="preview-header">
             <div class="preview-heading">
@@ -1028,6 +1169,37 @@ type BookmarkScope = 'connection' | 'global' | 'all'
       /* 面板立即显示，无任何过渡动效 */
       transition: none !important;
       animation: none !important;
+    }
+    .content-shell {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-width: 0;
+      min-height: 0;
+      gap: 6px;
+      position: relative;
+    }
+    .workspace-shell {
+      flex-direction: row;
+      align-items: stretch;
+      gap: 10px;
+    }
+    .workspace-shell.accessory-left {
+      flex-direction: row-reverse;
+    }
+    .workspace-shell.accessory-top {
+      flex-direction: column-reverse;
+    }
+    .workspace-shell.accessory-bottom {
+      flex-direction: column;
+    }
+    .workspace-primary {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-width: 0;
+      min-height: 0;
+      gap: 6px;
     }
     .top-bar {
       display: flex;
@@ -1182,12 +1354,19 @@ type BookmarkScope = 'connection' | 'global' | 'all'
       transition: none !important;
     }
     .pane-title {
-      display: grid; grid-template-columns: auto minmax(0, 1fr) auto;
+      display: grid; grid-template-columns: auto auto minmax(0, 1fr);
       gap: 6px; align-items: center; padding: 4px 8px;
       background: var(--_content);
       border-bottom: 1px solid var(--_border);
       border-radius: 8px 8px 0 0;
     }
+    .toolbar-nav-left .pane-label { grid-column: 1; }
+    .toolbar-nav-left .pane-actions { grid-column: 2; }
+    .toolbar-nav-left .pane-path { grid-column: 3; }
+    .toolbar-nav-right .pane-title { grid-template-columns: auto minmax(0, 1fr) auto; }
+    .toolbar-nav-right .pane-label { grid-column: 1; }
+    .toolbar-nav-right .pane-path { grid-column: 2; }
+    .toolbar-nav-right .pane-actions { grid-column: 3; }
     .pane-label { font-weight: 600; font-size: 12px; white-space: nowrap; }
     .pane-path { display: flex; gap: 4px; min-width: 0; }
     .path-input {
@@ -1462,11 +1641,24 @@ type BookmarkScope = 'connection' | 'global' | 'all'
 
     .pane-actions-bar {
       display: flex; align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
       padding: 4px 8px; border-top: 1px solid var(--_border);
       background: var(--_content);
     }
     .selection-info { font-size: 12px; opacity: 0.7; min-width: 60px; }
     .size-hint { opacity: 0.5; font-size: 11px; }
+    .workspace-inline-actions { display: flex; gap: 6px; margin-left: auto; }
+    .workspace-inline-actions button {
+      padding: 2px 8px;
+      border-radius: 4px;
+      border: 1px solid var(--_border);
+      background: var(--_content);
+      color: var(--_text);
+      cursor: pointer;
+      font-size: 11px;
+    }
+    .workspace-inline-actions button:hover { background: var(--_hover); }
     .action-buttons { display: flex; gap: 3px; margin-left: auto; }
     .action-buttons button {
       padding: 2px 6px; border-radius: 4px;
@@ -2125,6 +2317,226 @@ type BookmarkScope = 'connection' | 'global' | 'all'
       box-shadow: 0 10px 28px rgba(0,0,0,0.2);
       background: rgba(255,255,255,0.03);
     }
+    .workspace-accessory {
+      display: flex;
+      flex-direction: column;
+      min-width: 320px;
+      width: min(44%, 640px);
+      min-height: 0;
+      border: 1px solid var(--_border);
+      border-radius: 8px;
+      background: var(--_content);
+      overflow: hidden;
+    }
+    .workspace-accessory-splitter {
+      flex-shrink: 0;
+      position: relative;
+      border-radius: 999px;
+      background: transparent;
+    }
+    .workspace-accessory-splitter.vertical {
+      width: 8px;
+      cursor: col-resize;
+    }
+    .workspace-accessory-splitter.horizontal {
+      height: 8px;
+      cursor: row-resize;
+    }
+    .workspace-accessory-splitter::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      margin: auto;
+      background: color-mix(in srgb, var(--_primary) 35%, transparent);
+      border-radius: 999px;
+      opacity: 0.7;
+    }
+    .workspace-accessory-splitter.vertical::after {
+      width: 3px;
+      height: 42px;
+    }
+    .workspace-accessory-splitter.horizontal::after {
+      width: 42px;
+      height: 3px;
+    }
+    .workspace-shell.accessory-bottom .workspace-accessory,
+    .workspace-shell.accessory-top .workspace-accessory {
+      width: auto;
+      min-width: 0;
+      height: min(42%, 380px);
+    }
+    .workspace-accessory-header,
+    .workspace-accessory-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 8px 10px;
+      background: var(--_surface);
+      border-bottom: 1px solid var(--_border);
+    }
+    .workspace-accessory-footer {
+      background: var(--_content);
+      border-bottom: none;
+      border-top: 1px solid var(--_border);
+    }
+    .workspace-accessory-header {
+      gap: 8px;
+      min-height: 42px;
+      padding: 6px 8px;
+    }
+    .workspace-accessory-tabs {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      min-width: 0;
+      overflow-x: auto;
+      padding-bottom: 2px;
+      flex: 1 1 auto;
+    }
+    .workspace-accessory-tabs::-webkit-scrollbar { height: 6px; }
+    .workspace-accessory-tabs::-webkit-scrollbar-thumb {
+      background: var(--_scroll-thumb, rgba(128,128,128,0.35));
+      border-radius: 999px;
+    }
+    .workspace-tab {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      max-width: 240px;
+      min-width: 0;
+      padding: 5px 8px;
+      border: 1px solid var(--_border);
+      border-radius: 6px;
+      background: var(--_content);
+      color: var(--_text);
+      cursor: pointer;
+      font-size: 11px;
+      flex-shrink: 0;
+    }
+    .workspace-tab.active {
+      border-color: color-mix(in srgb, var(--_primary) 45%, var(--_border));
+      background: color-mix(in srgb, var(--_primary) 14%, var(--_content));
+    }
+    .workspace-tab-kind {
+      font-size: 10px;
+      opacity: 0.6;
+      flex-shrink: 0;
+    }
+    .workspace-tab-title {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .workspace-tab-dirty {
+      color: var(--_primary);
+      font-size: 14px;
+      line-height: 1;
+    }
+    .workspace-tab-close {
+      flex-shrink: 0;
+      opacity: 0.55;
+    }
+    .workspace-tab:hover .workspace-tab-close { opacity: 1; }
+    .workspace-accessory-meta-bar {
+      padding: 7px 10px;
+      border-bottom: 1px solid var(--_border);
+      background: var(--_content);
+    }
+    .workspace-accessory-heading {
+      min-width: 0;
+      flex: 1 1 auto;
+    }
+    .workspace-accessory-title {
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .workspace-accessory-meta {
+      color: var(--_text);
+      opacity: 0.68;
+      font-size: 11px;
+      word-break: break-all;
+    }
+    .workspace-accessory-actions {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+    .workspace-position-drag {
+      cursor: grab;
+      font-size: 14px;
+      letter-spacing: 1px;
+    }
+    .workspace-position-drag:active {
+      cursor: grabbing;
+    }
+    .workspace-accessory-body {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
+      gap: 10px;
+      padding: 10px;
+    }
+    .workspace-editor {
+      min-height: 0;
+      height: 100%;
+    }
+    .workspace-editor-footer {
+      padding-top: 0;
+    }
+    .workspace-preview-stage {
+      min-height: 0;
+      max-height: none;
+      flex: 1;
+    }
+    .workspace-drop-overlay {
+      position: absolute;
+      inset: 40px 16px 16px 16px;
+      pointer-events: none;
+      z-index: 25;
+    }
+    .workspace-drop-target {
+      position: absolute;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px dashed color-mix(in srgb, var(--_primary) 40%, var(--_border));
+      border-radius: 10px;
+      background: color-mix(in srgb, var(--_bg) 88%, black 12%);
+      color: var(--_text);
+      font-size: 12px;
+      opacity: 0.82;
+      padding: 8px;
+    }
+    .workspace-drop-target.active {
+      background: color-mix(in srgb, var(--_primary) 20%, var(--_bg));
+      border-style: solid;
+    }
+    .workspace-drop-target.top {
+      top: 0;
+      left: 18%;
+      right: 18%;
+      height: 22%;
+    }
+    .workspace-drop-target.bottom {
+      bottom: 0;
+      left: 18%;
+      right: 18%;
+      height: 22%;
+    }
+    .workspace-drop-target.left {
+      left: 0;
+      top: 24%;
+      bottom: 24%;
+      width: 22%;
+    }
+    .workspace-drop-target.right {
+      right: 0;
+      top: 24%;
+      bottom: 24%;
+      width: 22%;
+    }
     @media (max-width: 1100px) {
       .pane-title {
         grid-template-columns: minmax(0, 1fr) auto;
@@ -2137,6 +2549,16 @@ type BookmarkScope = 'connection' | 'global' | 'all'
       }
       .pane-path {
         grid-column: 1 / -1;
+      }
+      .workspace-shell,
+      .workspace-shell.accessory-left,
+      .workspace-shell.accessory-top {
+        flex-direction: column;
+      }
+      .workspace-accessory {
+        width: auto;
+        min-width: 0;
+        height: 320px;
       }
     }
     @media (max-width: 720px) {
@@ -2155,6 +2577,9 @@ type BookmarkScope = 'connection' | 'global' | 'all'
       .preview-stage {
         min-height: 240px;
       }
+      .workspace-accessory {
+        height: 260px;
+      }
     }
   `],
 })
@@ -2162,8 +2587,17 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
   // ========== 从外部设置（非 DI）==========
   sshSession: SSHSessionLike | null = null
   profile: any = null
+  displayMode: 'floating' | 'workspace' = 'floating'
   onClose: (() => void) | null = null   // 关闭回调（销毁面板）
   onMinimize: (() => void) | null = null // 最小化回调（隐藏面板，不销毁）
+  onOpenInWorkspaceTab: (() => void) | null = null
+  toolbarLayoutMode: 'nav-left' | 'nav-right' = 'nav-left'
+  workspaceAccessoryPosition: 'right' | 'bottom' | 'left' | 'top' = 'right'
+  workspaceAccessoryTabs: WorkspaceAccessoryTab[] = []
+  activeWorkspaceAccessoryTabId = ''
+  workspaceAccessoryRatio = 0.38
+  workspacePositionDragActive = false
+  workspacePositionDropTarget: 'right' | 'bottom' | 'left' | 'top' | null = null
 
   // ========== 服务（直接实例化，非 DI）==========
   private sftpService = new SftpConnectionService()
@@ -3122,6 +3556,9 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
   private static FOLLOW_TERM_PATH_KEY = 'sftp-plus-follow-term-path'
   private static SAVED_LOCAL_PATH_KEY = 'sftp-plus-saved-local-path'
   private static SAVED_REMOTE_PATH_KEY = 'sftp-plus-saved-remote-path'
+  private static TOOLBAR_LAYOUT_KEY = 'sftp-plus-toolbar-layout'
+  private static WORKSPACE_ACCESSORY_POS_KEY = 'sftp-plus-workspace-accessory-position'
+  private static WORKSPACE_ACCESSORY_RATIO_KEY = 'sftp-plus-workspace-accessory-ratio'
 
   /** 获取当前配置的唯一标识，用于 per-profile 独立路径记忆 */
   private get _hostKey(): string {
@@ -3147,6 +3584,26 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
       const raw2 = this._paneGet(SftpFloatingPanel.FOLLOW_TERM_PATH_KEY)
       if (raw2 !== null) this.followTerminalPath = raw2 === 'true'
     } catch {}
+  }
+
+  private loadWorkspaceUiPrefs(): void {
+    try {
+      const raw = this._paneGet(SftpFloatingPanel.TOOLBAR_LAYOUT_KEY)
+      if (raw === 'nav-left' || raw === 'nav-right') this.toolbarLayoutMode = raw
+    } catch {}
+    try {
+      const raw = this._paneGet(SftpFloatingPanel.WORKSPACE_ACCESSORY_POS_KEY)
+      if (raw === 'right' || raw === 'bottom' || raw === 'left' || raw === 'top') this.workspaceAccessoryPosition = raw
+    } catch {}
+    try {
+      const raw = this._paneGet(SftpFloatingPanel.WORKSPACE_ACCESSORY_RATIO_KEY)
+      const parsed = parseFloat(raw)
+      if (!Number.isNaN(parsed)) this.workspaceAccessoryRatio = Math.max(0.22, Math.min(0.7, parsed))
+    } catch {}
+  }
+
+  private get _layoutModeStorageKey(): string {
+    return this.displayMode === 'workspace' ? 'sftp-plus-workspace-layout-mode' : 'sftp-plus-layout-mode'
   }
 
   private saveRememberPath(): void {
@@ -3201,11 +3658,13 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     const idx = order.indexOf(this._layoutMode)
     this._layoutMode = order[(idx + 1) % order.length]
     try {
-      this._paneSet('sftp-plus-layout-mode', this._layoutMode)
-      this._paneSet('sftp-plus-settings.layoutMode', JSON.stringify(this._layoutMode))
-      // 同步写入 config，使设置页能正确读取
-      const cfg = this.configService?.store?.['tabby-sftp-plus']
-      if (cfg) { cfg.layoutMode = this._layoutMode; this.configService.save() }
+      this._paneSet(this._layoutModeStorageKey, this._layoutMode)
+      if (this.displayMode !== 'workspace') {
+        this._paneSet('sftp-plus-settings.layoutMode', JSON.stringify(this._layoutMode))
+        // 同步写入 config，使设置页能正确读取
+        const cfg = this.configService?.store?.['tabby-sftp-plus']
+        if (cfg) { cfg.layoutMode = this._layoutMode; this.configService.save() }
+      }
     } catch {}
     if (this._layoutMode === 'horizontal') this._isNarrowLayout = false
     else if (this._layoutMode === 'vertical') this._isNarrowLayout = true
@@ -3213,7 +3672,37 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     else this._updateAutoLayout()
     setTimeout(() => this._applyPaneSplit(), 50)
     // 通知设置页等外部监听者
-    try { window.dispatchEvent(new CustomEvent('sftp-plus-settings-changed')) } catch {}
+    if (this.displayMode !== 'workspace') {
+      try { window.dispatchEvent(new CustomEvent('sftp-plus-settings-changed')) } catch {}
+    }
+  }
+
+  cycleToolbarLayout(): void {
+    this.toolbarLayoutMode = this.toolbarLayoutMode === 'nav-left' ? 'nav-right' : 'nav-left'
+    try { this._paneSet(SftpFloatingPanel.TOOLBAR_LAYOUT_KEY, this.toolbarLayoutMode) } catch {}
+    this.cdr.detectChanges()
+  }
+
+  toolbarLayoutTitle(): string {
+    if (this.toolbarLayoutMode === 'nav-left') {
+      return this.effectiveLang === 'zh-CN' ? '工具栏：导航靠左' : 'Toolbar: navigation left'
+    }
+    return this.effectiveLang === 'zh-CN' ? '工具栏：导航靠右' : 'Toolbar: navigation right'
+  }
+
+  cycleWorkspaceAccessoryPosition(): void {
+    const order: Array<'right' | 'bottom' | 'left' | 'top'> = ['right', 'bottom', 'left', 'top']
+    const idx = order.indexOf(this.workspaceAccessoryPosition)
+    this.workspaceAccessoryPosition = order[(idx + 1) % order.length]
+    try { this._paneSet(SftpFloatingPanel.WORKSPACE_ACCESSORY_POS_KEY, this.workspaceAccessoryPosition) } catch {}
+    this.cdr.detectChanges()
+  }
+
+  workspaceAccessoryPositionTitle(): string {
+    const zh = { right: '预览区在右侧', bottom: '预览区在底部', left: '预览区在左侧', top: '预览区在顶部' }
+    const en = { right: 'Preview pane on the right', bottom: 'Preview pane at the bottom', left: 'Preview pane on the left', top: 'Preview pane at the top' }
+    const map = this.effectiveLang === 'zh-CN' ? zh : en
+    return (map as any)[this.workspaceAccessoryPosition]
   }
 
   /** 根据容器宽度更新自动布局状态 */
@@ -3311,6 +3800,8 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
   private _splitDragStartRatio = 0.5
   private _splitMoveHandler: ((e: MouseEvent) => void) | null = null
   private _splitUpHandler: ((e: MouseEvent) => void) | null = null
+  private _workspaceSplitMoveHandler: ((e: MouseEvent) => void) | null = null
+  private _workspaceSplitUpHandler: ((e: MouseEvent) => void) | null = null
 
   constructor(
     private cdr: ChangeDetectorRef,
@@ -3404,6 +3895,7 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
   ngOnInit(): void {
     // profile 已就绪，此时加载路径记忆才能正确匹配 per-profile 的 key
     this._loadSavedPaths()
+    this.loadWorkspaceUiPrefs()
     // 本地导航历史：记录初始路径
     this._pushLocalNav(this.localPath)
     // 路径记忆可能更新了 localPath，刷新本地列表显示正确的目录内容
@@ -3425,13 +3917,18 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
       if (vsaved) this._verticalSplitRatio = Math.max(0.15, Math.min(0.85, parseFloat(vsaved) || 0.5))
       const hsaved = this._paneGet('sftp-plus-horizontal-split-ratio')
       if (hsaved) this._horizontalSplitRatio = Math.max(0.15, Math.min(0.85, parseFloat(hsaved) || 0.5))
-      // 优先从 config 读取布局模式，paneState 作为 fallback
       let lmode: string | null = null
-      try {
-        lmode = this.configService?.store?.['tabby-sftp-plus']?.layoutMode ?? null
-      } catch {}
-      if (!lmode) lmode = this._paneGet('sftp-plus-layout-mode')
+      if (this.displayMode === 'workspace') {
+        lmode = this._paneGet(this._layoutModeStorageKey) || 'single'
+      } else {
+        // 优先从 config 读取布局模式，paneState 作为 fallback
+        try {
+          lmode = this.configService?.store?.['tabby-sftp-plus']?.layoutMode ?? null
+        } catch {}
+        if (!lmode) lmode = this._paneGet(this._layoutModeStorageKey)
+      }
       if (lmode === 'horizontal' || lmode === 'vertical' || lmode === 'single') this._layoutMode = lmode
+      else if (this.displayMode === 'workspace') this._layoutMode = 'single'
 
       const ro = new ResizeObserver(() => {
         if (this._layoutMode === 'horizontal') this._isNarrowLayout = false
@@ -3468,14 +3965,18 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
         if (cfgFollow !== undefined) this.followTerminalPath = cfgFollow as boolean
       } catch {}
       // 重新读取布局模式并立即应用（同步窄屏判断 + 面板分割）
-      // 优先从 config 读取（设置页写入），paneState 作为 fallback
       let lmode: string | null = null
-      try {
-        lmode = this.configService?.store?.['tabby-sftp-plus']?.layoutMode ?? null
-      } catch {}
-      if (!lmode) lmode = this._paneGet('sftp-plus-layout-mode')
+      if (this.displayMode === 'workspace') {
+        lmode = this._paneGet(this._layoutModeStorageKey) || 'single'
+      } else {
+        // 优先从 config 读取（设置页写入），paneState 作为 fallback
+        try {
+          lmode = this.configService?.store?.['tabby-sftp-plus']?.layoutMode ?? null
+        } catch {}
+        if (!lmode) lmode = this._paneGet(this._layoutModeStorageKey)
+      }
       if (lmode === 'horizontal' || lmode === 'vertical' || lmode === 'single') this._layoutMode = lmode
-      else this._layoutMode = 'auto'
+      else this._layoutMode = this.displayMode === 'workspace' ? 'single' : 'auto'
       if (this._layoutMode === 'horizontal') this._isNarrowLayout = false
       else if (this._layoutMode === 'vertical') this._isNarrowLayout = true
       else if (this._layoutMode === 'single') this._isNarrowLayout = false
@@ -3551,6 +4052,9 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     this._paneFlushToConfig()  // 面板销毁前持久化所有 UI 状态到 config
     this._stopHeartbeat()
     this._clearImagePreviewUrl()
+    this._disposeAllWorkspaceAccessoryTabs()
+    if (this._workspaceSplitMoveHandler) document.removeEventListener('mousemove', this._workspaceSplitMoveHandler)
+    if (this._workspaceSplitUpHandler) document.removeEventListener('mouseup', this._workspaceSplitUpHandler)
     if (this._docClickCapture) {
       document.removeEventListener('click', this._docClickCapture, true)
       this._docClickCapture = null
@@ -3772,20 +4276,35 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     return 0.299 * r + 0.587 * g + 0.114 * b < 128
   }
 
-  close(): void {
-    if (this.textEditorVisible && this.textEditorDirty && !this._confirmDiscardTextEditor()) return
-    // 有正在进行的传输时，提示用户确认
+  canClosePanel(): boolean {
+    if (this.displayMode === 'workspace' && this.workspaceAccessoryTabs.some(tab => this.isWorkspaceTabDirty(tab))) {
+      const msg = this.effectiveLang === 'zh-CN'
+        ? '有未保存的编辑标签，确定要关闭吗？'
+        : 'There are unsaved editor tabs. Close the panel anyway?'
+      if (!confirm(msg)) return false
+    }
+    if (this.textEditorVisible && this.textEditorDirty && !this._confirmDiscardTextEditor()) return false
     if (this.transfers.length > 0) {
       const msg = this.effectiveLang === 'zh-CN'
         ? `有 ${this.transfers.length} 个传输正在进行中，关闭面板将中断所有传输。是否继续？`
         : `${this.transfers.length} transfer(s) in progress. Close panel will interrupt all transfers. Continue?`
-      if (!confirm(msg)) return
-      // 用户确认关闭 → 取消所有传输
+      if (!confirm(msg)) return false
+    }
+    return true
+  }
+
+  close(): void {
+    if (!this.canClosePanel()) return
+    if (this.transfers.length > 0) {
       this.clearTransfers()
     }
     this.saveCurrentPath()
     this.disconnect()
     this.onClose?.()
+  }
+
+  openInWorkspaceTab(): void {
+    this.onOpenInWorkspaceTab?.()
   }
 
   /** 最小化面板（不销毁，下次点击入口直接恢复） */
@@ -7038,6 +7557,325 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  get showWorkspaceAccessory(): boolean {
+    return this.displayMode === 'workspace' && this.workspaceAccessoryTabs.length > 0
+  }
+
+  get activeWorkspaceAccessoryTab(): WorkspaceAccessoryTab | null {
+    return this.workspaceAccessoryTabs.find(tab => tab.id === this.activeWorkspaceAccessoryTabId) ?? null
+  }
+
+  get activeWorkspaceTextTab(): WorkspaceAccessoryTab | null {
+    const tab = this.activeWorkspaceAccessoryTab
+    return tab?.kind === 'text' ? tab : null
+  }
+
+  get activeWorkspaceImageTab(): WorkspaceAccessoryTab | null {
+    const tab = this.activeWorkspaceAccessoryTab
+    return tab?.kind === 'image' ? tab : null
+  }
+
+  get workspaceSelectedRemoteFile(): SFTPFile | null {
+    if (this.selectedRemote.length !== 1) return null
+    const entry = this.selectedRemote[0]
+    return entry.isDirectory ? null : entry
+  }
+
+  canEditWorkspaceSelectedRemote(): boolean {
+    const entry = this.workspaceSelectedRemoteFile
+    return !!entry && this.isTextEditableName(entry.name)
+  }
+
+  canPreviewWorkspaceSelectedRemote(): boolean {
+    const entry = this.workspaceSelectedRemoteFile
+    return !!entry && this.isPreviewableImageName(entry.name)
+  }
+
+  async openWorkspaceSelectedRemoteEditor(): Promise<void> {
+    const entry = this.workspaceSelectedRemoteFile
+    if (!entry || !this.isTextEditableName(entry.name)) return
+    await this.openTextEditorForRemote(entry)
+  }
+
+  async openWorkspaceSelectedRemotePreview(): Promise<void> {
+    const entry = this.workspaceSelectedRemoteFile
+    if (!entry || !this.isPreviewableImageName(entry.name)) return
+    await this.openImagePreviewForRemote(entry)
+  }
+
+  workspaceAccessoryStyle(): Record<string, string> {
+    const ratio = `${Math.round(this.workspaceAccessoryRatio * 10000) / 100}%`
+    return this.workspaceAccessoryPosition === 'bottom' || this.workspaceAccessoryPosition === 'top'
+      ? { height: ratio }
+      : { width: ratio }
+  }
+
+  activateWorkspaceAccessoryTab(id: string): void {
+    if (!this.workspaceAccessoryTabs.some(tab => tab.id === id)) return
+    this.activeWorkspaceAccessoryTabId = id
+    this._refreshEditorUi()
+  }
+
+  updateWorkspaceTextValue(value: string): void {
+    const tab = this.activeWorkspaceTextTab
+    if (!tab) return
+    tab.textValue = value
+  }
+
+  isWorkspaceTabDirty(tab: WorkspaceAccessoryTab): boolean {
+    return tab.kind === 'text' && (tab.textValue ?? '') !== (tab.originalTextValue ?? '')
+  }
+
+  closeWorkspaceAccessory(): void {
+    if (this.displayMode !== 'workspace') {
+      if (this.textEditorVisible) {
+        this.closeTextEditor()
+        return
+      }
+      if (this.imagePreviewVisible) this.closeImagePreview()
+      return
+    }
+    if (this.activeWorkspaceAccessoryTabId) {
+      this.closeWorkspaceAccessoryTab(this.activeWorkspaceAccessoryTabId)
+    }
+  }
+
+  closeWorkspaceAccessoryTab(id: string, event?: MouseEvent): void {
+    event?.stopPropagation()
+    const idx = this.workspaceAccessoryTabs.findIndex(tab => tab.id === id)
+    if (idx < 0) return
+    const tab = this.workspaceAccessoryTabs[idx]
+    if (this.isWorkspaceTabDirty(tab)) {
+      const msg = this.effectiveLang === 'zh-CN'
+        ? '当前文本有未保存修改，确定要关闭该标签吗？'
+        : 'There are unsaved changes in this tab. Close it anyway?'
+      if (!confirm(msg)) return
+    }
+    this._disposeWorkspaceAccessoryTab(tab)
+    this.workspaceAccessoryTabs.splice(idx, 1)
+    if (this.activeWorkspaceAccessoryTabId === id) {
+      this.activeWorkspaceAccessoryTabId = this.workspaceAccessoryTabs[Math.max(0, idx - 1)]?.id
+        ?? this.workspaceAccessoryTabs[0]?.id
+        ?? ''
+    }
+    this._refreshEditorUi()
+  }
+
+  formatWorkspaceTextStats(tab: WorkspaceAccessoryTab): string {
+    const text = tab.textValue || ''
+    const bytes = Buffer.byteLength(text, 'utf8')
+    const lines = text.length === 0 ? 1 : text.split(/\r\n|\r|\n/).length
+    return `${this.formatSize(bytes)} | ${lines} ${this.effectiveLang === 'zh-CN' ? '行' : 'lines'}`
+  }
+
+  formatWorkspacePreviewMeta(tab: WorkspaceAccessoryTab): string {
+    const parts: string[] = []
+    if (tab.imageSize != null) parts.push(this.formatSize(tab.imageSize))
+    if (tab.imageWidth && tab.imageHeight) parts.push(`${tab.imageWidth} x ${tab.imageHeight}`)
+    return parts.join(' | ')
+  }
+
+  onWorkspacePreviewImageLoad(event: Event): void {
+    const img = event.target as HTMLImageElement | null
+    const tab = this.activeWorkspaceImageTab
+    if (!img || !tab) return
+    tab.imageWidth = img.naturalWidth
+    tab.imageHeight = img.naturalHeight
+  }
+
+  onWorkspacePositionHandleDown(event: MouseEvent): void {
+    event.preventDefault()
+    event.stopPropagation()
+    this.workspacePositionDragActive = true
+    this.workspacePositionDropTarget = null
+    const root = this.elRef.nativeElement.querySelector('.content-shell') as HTMLElement | null
+    if (!root) return
+    const move = (e: MouseEvent): void => {
+      const rect = root.getBoundingClientRect()
+      const distances = {
+        left: e.clientX - rect.left,
+        right: rect.right - e.clientX,
+        top: e.clientY - rect.top,
+        bottom: rect.bottom - e.clientY,
+      }
+      const inside = e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom
+      if (!inside) {
+        this.workspacePositionDropTarget = null
+        this._refreshEditorUi()
+        return
+      }
+      const sorted = Object.entries(distances).sort((a, b) => a[1] - b[1])
+      this.workspacePositionDropTarget = sorted[0][0] as 'right' | 'bottom' | 'left' | 'top'
+      this._refreshEditorUi()
+    }
+    const up = (): void => {
+      if (this.workspacePositionDropTarget) {
+        this.workspaceAccessoryPosition = this.workspacePositionDropTarget
+        try { this._paneSet(SftpFloatingPanel.WORKSPACE_ACCESSORY_POS_KEY, this.workspaceAccessoryPosition) } catch {}
+      }
+      document.removeEventListener('mousemove', move)
+      document.removeEventListener('mouseup', up)
+      this.workspacePositionDragActive = false
+      this.workspacePositionDropTarget = null
+      this._refreshEditorUi()
+    }
+    document.addEventListener('mousemove', move)
+    document.addEventListener('mouseup', up)
+  }
+
+  onWorkspaceAccessorySplitterDown(event: MouseEvent): void {
+    if (!this.showWorkspaceAccessory) return
+    event.preventDefault()
+    event.stopPropagation()
+    const root = this.elRef.nativeElement.querySelector('.content-shell') as HTMLElement | null
+    if (!root) return
+    this._workspaceSplitMoveHandler = (e: MouseEvent): void => {
+      const rect = root.getBoundingClientRect()
+      let ratio = this.workspaceAccessoryRatio
+      if (this.workspaceAccessoryPosition === 'bottom') {
+        ratio = (rect.bottom - e.clientY) / rect.height
+      } else if (this.workspaceAccessoryPosition === 'top') {
+        ratio = (e.clientY - rect.top) / rect.height
+      } else if (this.workspaceAccessoryPosition === 'left') {
+        ratio = (e.clientX - rect.left) / rect.width
+      } else {
+        ratio = (rect.right - e.clientX) / rect.width
+      }
+      this.workspaceAccessoryRatio = Math.max(0.22, Math.min(0.7, ratio))
+      try { this._paneSet(SftpFloatingPanel.WORKSPACE_ACCESSORY_RATIO_KEY, this.workspaceAccessoryRatio.toFixed(4)) } catch {}
+      this._refreshEditorUi()
+    }
+    this._workspaceSplitUpHandler = (): void => {
+      if (this._workspaceSplitMoveHandler) document.removeEventListener('mousemove', this._workspaceSplitMoveHandler)
+      if (this._workspaceSplitUpHandler) document.removeEventListener('mouseup', this._workspaceSplitUpHandler)
+      this._workspaceSplitMoveHandler = null
+      this._workspaceSplitUpHandler = null
+    }
+    document.addEventListener('mousemove', this._workspaceSplitMoveHandler)
+    document.addEventListener('mouseup', this._workspaceSplitUpHandler)
+  }
+
+  private _workspaceAccessoryTabId(kind: 'text' | 'image', pane: 'local' | 'remote', filePath: string): string {
+    return `${pane}:${kind}:${filePath}`
+  }
+
+  private _disposeWorkspaceAccessoryTab(tab: WorkspaceAccessoryTab): void {
+    if (tab.imageUrl) {
+      try { URL.revokeObjectURL(tab.imageUrl) } catch {}
+      tab.imageUrl = undefined
+    }
+  }
+
+  private _disposeAllWorkspaceAccessoryTabs(): void {
+    for (const tab of this.workspaceAccessoryTabs) this._disposeWorkspaceAccessoryTab(tab)
+    this.workspaceAccessoryTabs = []
+    this.activeWorkspaceAccessoryTabId = ''
+  }
+
+  private async _openWorkspaceTextTab(
+    pane: 'local' | 'remote',
+    entry: LocalEntry | SFTPFile,
+    loader: () => Promise<Buffer>,
+    remoteMode?: number,
+  ): Promise<void> {
+    const id = this._workspaceAccessoryTabId('text', pane, entry.fullPath)
+    let tab = this.workspaceAccessoryTabs.find(x => x.id === id)
+    if (tab && !tab.textError && ((tab.textValue != null && tab.originalTextValue != null) || tab.textLoading)) {
+      this.activateWorkspaceAccessoryTab(tab.id)
+      return
+    }
+    if (!tab) {
+      tab = {
+        id,
+        kind: 'text',
+        pane,
+        path: entry.fullPath,
+        name: entry.name,
+        title: entry.name,
+        textValue: '',
+        originalTextValue: '',
+        textLoading: true,
+        textSaving: false,
+        textError: '',
+        remoteMode,
+      }
+      this.workspaceAccessoryTabs.push(tab)
+    } else {
+      tab.textLoading = true
+      tab.textError = ''
+      tab.remoteMode = remoteMode
+    }
+    this.activateWorkspaceAccessoryTab(tab.id)
+    try {
+      const buffer = await loader()
+      if (buffer.includes(0)) {
+        tab.textError = this.effectiveLang === 'zh-CN' ? '该文件看起来不是纯文本，已停止打开' : 'This file does not appear to be plain text'
+        tab.textValue = ''
+        tab.originalTextValue = ''
+      } else {
+        const text = buffer.toString('utf8')
+        tab.textValue = text
+        tab.originalTextValue = text
+      }
+    } catch (e) {
+      console.error('[SFTP+] Failed to open workspace text tab', e)
+      tab.textError = pane === 'local'
+        ? (this.effectiveLang === 'zh-CN' ? '无法读取文件内容' : 'Failed to read file contents')
+        : (this.effectiveLang === 'zh-CN' ? '无法读取远程文件内容' : 'Failed to read remote file contents')
+    } finally {
+      tab.textLoading = false
+      this._refreshEditorUi()
+    }
+  }
+
+  private async _openWorkspaceImageTab(
+    pane: 'local' | 'remote',
+    entry: LocalEntry | SFTPFile,
+    loader: () => Promise<Buffer>,
+  ): Promise<void> {
+    const id = this._workspaceAccessoryTabId('image', pane, entry.fullPath)
+    let tab = this.workspaceAccessoryTabs.find(x => x.id === id)
+    if (tab && !tab.imageError && (tab.imageUrl || tab.imageLoading)) {
+      this.activateWorkspaceAccessoryTab(tab.id)
+      return
+    }
+    if (!tab) {
+      tab = {
+        id,
+        kind: 'image',
+        pane,
+        path: entry.fullPath,
+        name: entry.name,
+        title: entry.name,
+        imageLoading: true,
+        imageError: '',
+        imageSize: this.getEntrySize(entry),
+      }
+      this.workspaceAccessoryTabs.push(tab)
+    } else {
+      this._disposeWorkspaceAccessoryTab(tab)
+      tab.imageLoading = true
+      tab.imageError = ''
+      tab.imageSize = this.getEntrySize(entry)
+    }
+    this.activateWorkspaceAccessoryTab(tab.id)
+    try {
+      const buffer = await loader()
+      const bytes = new Uint8Array(buffer.byteLength)
+      bytes.set(buffer)
+      const blob = new Blob([bytes], { type: this.getImageMimeType(entry.name) })
+      tab.imageUrl = URL.createObjectURL(blob)
+    } catch (e) {
+      console.error('[SFTP+] Failed to open workspace image tab', e)
+      tab.imageError = pane === 'local'
+        ? (this.effectiveLang === 'zh-CN' ? '无法加载图片预览' : 'Failed to load image preview')
+        : (this.effectiveLang === 'zh-CN' ? '无法加载远程图片预览' : 'Failed to load remote image preview')
+    } finally {
+      tab.imageLoading = false
+      this._refreshEditorUi()
+    }
+  }
+
   get textEditorDirty(): boolean {
     return this.textEditorValue !== this._textEditorOriginalValue
   }
@@ -7083,6 +7921,10 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
 
   private async openTextEditorForLocal(entry: LocalEntry): Promise<void> {
     if (!this._checkEntrySize(entry, this.TEXT_EDIT_MAX_BYTES, 'text')) return
+    if (this.displayMode === 'workspace') {
+      await this._openWorkspaceTextTab('local', entry, () => fs.readFile(entry.fullPath))
+      return
+    }
     this.textEditorVisible = true
     this.textEditorLoading = true
     this.textEditorSaving = false
@@ -7106,6 +7948,10 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
 
   private async openTextEditorForRemote(entry: SFTPFile): Promise<void> {
     if (!this._checkEntrySize(entry, this.TEXT_EDIT_MAX_BYTES, 'text')) return
+    if (this.displayMode === 'workspace') {
+      await this._openWorkspaceTextTab('remote', entry, () => this._readRemoteFileBuffer(entry.fullPath), entry.mode)
+      return
+    }
     this.textEditorVisible = true
     this.textEditorLoading = true
     this.textEditorSaving = false
@@ -7138,6 +7984,29 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
   }
 
   async saveTextEditor(): Promise<void> {
+    if (this.displayMode === 'workspace') {
+      const tab = this.activeWorkspaceTextTab
+      if (!tab || tab.textLoading || tab.textSaving || tab.textError) return
+      tab.textSaving = true
+      try {
+        if (tab.pane === 'local') {
+          await fs.writeFile(tab.path, tab.textValue || '', 'utf8')
+          await this.refreshLocal()
+        } else {
+          await this._writeRemoteTextFile(tab.path, tab.textValue || '', tab.remoteMode)
+          await this.refreshRemote()
+        }
+        tab.originalTextValue = tab.textValue || ''
+      } catch (e) {
+        console.error('[SFTP+] Failed to save workspace text tab', e)
+        const msg = this.effectiveLang === 'zh-CN' ? '保存文件失败' : 'Failed to save file'
+        try { this.notifications?.error?.(msg, '') } catch {}
+      } finally {
+        tab.textSaving = false
+        this._refreshEditorUi()
+      }
+      return
+    }
     if (!this.textEditorVisible || this.textEditorSaving || this.textEditorLoading || this.textEditorError) return
     this.textEditorSaving = true
     try {
@@ -7160,6 +8029,11 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
   }
 
   closeTextEditor(): void {
+    if (this.displayMode === 'workspace') {
+      const tab = this.activeWorkspaceTextTab
+      if (tab) this.closeWorkspaceAccessoryTab(tab.id)
+      return
+    }
     if (this.textEditorDirty && !this._confirmDiscardTextEditor()) return
     this.textEditorVisible = false
     this.textEditorLoading = false
@@ -7181,6 +8055,10 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
 
   private async openImagePreviewForLocal(entry: LocalEntry): Promise<void> {
     if (!this._checkEntrySize(entry, this.IMAGE_PREVIEW_MAX_BYTES, 'image')) return
+    if (this.displayMode === 'workspace') {
+      await this._openWorkspaceImageTab('local', entry, () => fs.readFile(entry.fullPath))
+      return
+    }
     this.imagePreviewVisible = true
     this.imagePreviewLoading = true
     this.imagePreviewError = ''
@@ -7204,6 +8082,10 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
 
   private async openImagePreviewForRemote(entry: SFTPFile): Promise<void> {
     if (!this._checkEntrySize(entry, this.IMAGE_PREVIEW_MAX_BYTES, 'image')) return
+    if (this.displayMode === 'workspace') {
+      await this._openWorkspaceImageTab('remote', entry, () => this._readRemoteFileBuffer(entry.fullPath))
+      return
+    }
     this.imagePreviewVisible = true
     this.imagePreviewLoading = true
     this.imagePreviewError = ''
@@ -7226,6 +8108,11 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
   }
 
   closeImagePreview(): void {
+    if (this.displayMode === 'workspace') {
+      const tab = this.activeWorkspaceImageTab
+      if (tab) this.closeWorkspaceAccessoryTab(tab.id)
+      return
+    }
     this.imagePreviewVisible = false
     this.imagePreviewLoading = false
     this.imagePreviewError = ''
@@ -7789,6 +8676,7 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     if (!isMod) {
       // Escape 全局处理
       if (event.key === 'Escape') {
+        if (this.showWorkspaceAccessory) { this.closeWorkspaceAccessory(); return }
         if (this.textEditorVisible) { this.closeTextEditor(); return }
         if (this.imagePreviewVisible) { this.closeImagePreview(); return }
         if (this.inputDialogVisible) { this.cancelInputDialog(); return }
@@ -7854,6 +8742,7 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
       }
     }
     if (event.key === 'Escape') {
+      if (this.showWorkspaceAccessory) { this.closeWorkspaceAccessory(); return }
       if (this.textEditorVisible) { this.closeTextEditor(); return }
       if (this.imagePreviewVisible) { this.closeImagePreview(); return }
       if (this.inputDialogVisible) { this.cancelInputDialog(); return }

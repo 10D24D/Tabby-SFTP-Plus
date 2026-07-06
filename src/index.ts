@@ -19,6 +19,7 @@ import { TerminalDecorator } from 'tabby-terminal'
 
 import { SftpTerminalDecorator } from './sftp-terminal-decorator'
 import { SftpFloatingPanel } from './sftp-floating-panel.component'
+import { SftpWorkspaceTabComponent } from './sftp-workspace-tab.component'
 import { SftpSettingsTabProvider, SftpSettingsTabComponent } from './sftp-settings.component'
 import { SftpPlusConfigProvider } from './sftp-config-provider'
 
@@ -30,6 +31,7 @@ import { SftpPlusConfigProvider } from './sftp-config-provider'
   ],
   declarations: [
     SftpFloatingPanel,
+    SftpWorkspaceTabComponent,
     SftpSettingsTabComponent,
   ],
   providers: [
