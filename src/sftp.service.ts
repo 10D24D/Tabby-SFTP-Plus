@@ -18,8 +18,16 @@ export type SFTPFile = {
   group?: string
 }
 
+export type SFTPFileHandleLike = {
+  read: () => Promise<Uint8Array>
+  close: () => Promise<void>
+}
+
 export type SFTPSessionLike = {
   readdir: (p: string) => Promise<SFTPFile[]>
+  readlink?: (p: string) => Promise<string>
+  stat?: (p: string) => Promise<SFTPFile>
+  open?: (p: string, mode: number) => Promise<SFTPFileHandleLike>
   mkdir: (p: string) => Promise<void>
   rmdir: (p: string) => Promise<void>
   unlink: (p: string) => Promise<void>

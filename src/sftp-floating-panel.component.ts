@@ -807,6 +807,8 @@ type BookmarkScope = 'connection' | 'global' | 'all'
              *ngIf="hasContextSelection()"
              (click)="ctxDelete()">{{ i18n.t('app.delete') }}</div>
         <div class="ctx-item" (click)="ctxOpenLocalFile()" *ngIf="contextMenuPane === 'local' && selectedLocal.length === 1 && contextMenuEntry && !contextMenuEntry.isDirectory">{{ effectiveLang === 'zh-CN' ? '打开文件' : 'Open File' }}</div>
+        <div class="ctx-item" (click)="ctxEditFile()" *ngIf="canEditContextFile()">{{ i18n.t('file.edit') }}</div>
+        <div class="ctx-item" (click)="ctxPreviewImage()" *ngIf="canPreviewContextFile()">{{ effectiveLang === 'zh-CN' ? '预览图片' : 'Preview Image' }}</div>
         <div class="ctx-item" (click)="ctxRevealInExplorer()" *ngIf="contextMenuPane === 'local' && selectedLocal.length === 1 && contextMenuEntry">{{ effectiveLang === 'zh-CN' ? '在文件管理器中显示' : 'Show in Explorer' }}</div>
         <div class="ctx-item" (click)="ctxChmod()" *ngIf="contextMenuPane === 'remote' && selectedRemote.length === 1">{{ i18n.t('permission.title') }}</div>
         <div class="ctx-item" (click)="ctxDownload()" *ngIf="contextMenuPane === 'remote' && hasContextSelection()">{{ i18n.t('app.download') }}</div>
@@ -926,6 +928,59 @@ type BookmarkScope = 'connection' | 'global' | 'all'
           </div>
         </div>
       </div>
+
+      <div class="overlay" *ngIf="textEditorVisible" (click)="closeTextEditor()">
+        <div class="dialog editor-dialog" (click)="$event.stopPropagation()">
+          <div class="editor-header">
+            <div class="editor-heading">
+              <div class="dialog-title">{{ effectiveLang === 'zh-CN' ? '文本编辑' : 'Text Editor' }}</div>
+              <div class="editor-meta">{{ textEditorPath }}</div>
+            </div>
+            <div class="editor-badges">
+              <span class="editor-badge" *ngIf="textEditorLoading">{{ effectiveLang === 'zh-CN' ? '加载中…' : 'Loading…' }}</span>
+              <span class="editor-badge" *ngIf="textEditorSaving">{{ effectiveLang === 'zh-CN' ? '保存中…' : 'Saving…' }}</span>
+              <span class="editor-badge dirty" *ngIf="textEditorDirty && !textEditorSaving">{{ effectiveLang === 'zh-CN' ? '未保存' : 'Unsaved' }}</span>
+            </div>
+          </div>
+          <div class="editor-error" *ngIf="textEditorError">{{ textEditorError }}</div>
+          <textarea class="editor-textarea"
+            [(ngModel)]="textEditorValue"
+            [disabled]="textEditorLoading || textEditorSaving || !!textEditorError"
+            spellcheck="false"
+            (keydown)="onTextEditorKeyDown($event)"></textarea>
+          <div class="editor-footer">
+            <span class="editor-meta">{{ formatTextEditorStats() }}</span>
+            <div class="dialog-buttons editor-buttons">
+              <button (click)="saveTextEditor()" [disabled]="textEditorLoading || textEditorSaving || !!textEditorError || !textEditorDirty">{{ effectiveLang === 'zh-CN' ? '保存' : 'Save' }}</button>
+              <button (click)="closeTextEditor()">{{ i18n.t('app.close') }}</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="overlay" *ngIf="imagePreviewVisible" (click)="closeImagePreview()">
+        <div class="dialog preview-dialog" (click)="$event.stopPropagation()">
+          <div class="preview-header">
+            <div class="preview-heading">
+              <div class="dialog-title">{{ effectiveLang === 'zh-CN' ? '图片预览' : 'Image Preview' }}</div>
+              <div class="preview-meta preview-path">{{ imagePreviewPath }}</div>
+            </div>
+            <div class="preview-meta">{{ formatPreviewMeta() }}</div>
+          </div>
+          <div class="preview-stage">
+            <div class="preview-status" *ngIf="imagePreviewLoading">{{ effectiveLang === 'zh-CN' ? '加载中…' : 'Loading…' }}</div>
+            <div class="preview-status preview-error" *ngIf="!imagePreviewLoading && imagePreviewError">{{ imagePreviewError }}</div>
+            <img *ngIf="!imagePreviewLoading && !imagePreviewError && imagePreviewUrl"
+              class="preview-image"
+              [src]="imagePreviewUrl"
+              [alt]="imagePreviewName"
+              (load)="onPreviewImageLoad($event)" />
+          </div>
+          <div class="dialog-buttons">
+            <button (click)="closeImagePreview()">{{ i18n.t('app.close') }}</button>
+          </div>
+        </div>
+      </div>
     </div>
   `,
   styles: [`
@@ -977,6 +1032,7 @@ type BookmarkScope = 'connection' | 'global' | 'all'
     .top-bar {
       display: flex;
       align-items: center;
+      flex-wrap: wrap;
       gap: 12px;
       padding: 6px 12px;
       background: var(--header-bg, var(--_content));
@@ -985,7 +1041,16 @@ type BookmarkScope = 'connection' | 'global' | 'all'
       border-bottom: 1px solid var(--_border);
     }
     .title { font-weight: 700; color: var(--_primary); font-size: 15px; }
-    .host-info { font-size: 12px; opacity: 0.6; margin-left: 4px; flex-shrink: 0; }
+    .host-info {
+      font-size: 12px;
+      opacity: 0.6;
+      margin-left: 4px;
+      min-width: 0;
+      flex: 1 1 180px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
     /* 断开连接指示器 - 嵌入标题栏 */
     .disconnect-indicator {
       display: inline-flex; align-items: center; gap: 6px;
@@ -1016,7 +1081,15 @@ type BookmarkScope = 'connection' | 'global' | 'all'
     }
     .disconnect-indicator .reconnect-btn:hover { background: rgba(239, 68, 68, 0.15); }
     .disconnect-indicator .reconnect-btn:disabled { opacity: 0.4; cursor: default; }
-    .top-actions { display: flex; gap: 6px; align-items: center; margin-left: auto; }
+    .top-actions {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+      margin-left: auto;
+      min-width: 0;
+    }
     .btn-link {
       background: none; border: none; color: var(--_text);
       cursor: pointer; font-size: 12px; padding: 3px 8px; border-radius: 4px;
@@ -1109,14 +1182,14 @@ type BookmarkScope = 'connection' | 'global' | 'all'
       transition: none !important;
     }
     .pane-title {
-      display: grid; grid-template-columns: auto 1fr auto;
+      display: grid; grid-template-columns: auto minmax(0, 1fr) auto;
       gap: 6px; align-items: center; padding: 4px 8px;
       background: var(--_content);
       border-bottom: 1px solid var(--_border);
       border-radius: 8px 8px 0 0;
     }
     .pane-label { font-weight: 600; font-size: 12px; white-space: nowrap; }
-    .pane-path { display: flex; gap: 4px; }
+    .pane-path { display: flex; gap: 4px; min-width: 0; }
     .path-input {
       flex: 1; min-width: 40px; padding: 3px 6px; border-radius: 4px;
       border: 1px solid var(--_border);
@@ -1131,7 +1204,7 @@ type BookmarkScope = 'connection' | 'global' | 'all'
       border-color: var(--_primary);
       box-shadow: 0 0 0 1px var(--_primary);
     }
-    .pane-actions { display: flex; gap: 3px; }
+    .pane-actions { display: flex; gap: 3px; flex-wrap: wrap; justify-content: flex-end; }
     .pane-actions button {
       padding: 2px 5px; border-radius: 4px;
       border: none;
@@ -1938,6 +2011,151 @@ type BookmarkScope = 'connection' | 'global' | 'all'
       color: var(--_text);
       margin-bottom: 12px;
     }
+    .editor-dialog {
+      width: min(960px, 92vw);
+      min-width: 320px;
+      max-height: 88vh;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .editor-header,
+    .preview-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      min-width: 0;
+    }
+    .editor-heading,
+    .preview-heading {
+      min-width: 0;
+      flex: 1 1 auto;
+    }
+    .editor-badges {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    .editor-badge {
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: var(--_input-bg);
+      border: 1px solid var(--_border);
+      font-size: 11px;
+      white-space: nowrap;
+    }
+    .editor-badge.dirty {
+      color: var(--_primary);
+      border-color: color-mix(in srgb, var(--_primary) 35%, var(--_border));
+    }
+    .editor-meta,
+    .preview-meta {
+      color: var(--_text);
+      opacity: 0.68;
+      font-size: 11px;
+      word-break: break-all;
+    }
+    .editor-error,
+    .preview-error {
+      color: #f87171;
+    }
+    .editor-textarea {
+      width: 100%;
+      min-height: 420px;
+      flex: 1 1 auto;
+      resize: vertical;
+      border-radius: 8px;
+      border: 1px solid var(--_border);
+      background: var(--_input-bg);
+      color: var(--_text);
+      padding: 12px;
+      box-sizing: border-box;
+      font: 12px/1.6 Consolas, 'SFMono-Regular', Monaco, monospace;
+      outline: none;
+    }
+    .editor-textarea:focus {
+      border-color: var(--_primary);
+      box-shadow: 0 0 0 1px var(--_primary);
+    }
+    .editor-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .editor-buttons {
+      padding-top: 0;
+      margin-left: auto;
+    }
+    .preview-dialog {
+      width: min(980px, 92vw);
+      min-width: 320px;
+      max-height: 88vh;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .preview-path {
+      font-family: Consolas, 'SFMono-Regular', Monaco, monospace;
+    }
+    .preview-stage {
+      min-height: 360px;
+      max-height: calc(88vh - 140px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: auto;
+      border-radius: 8px;
+      border: 1px solid var(--_border);
+      background: color-mix(in srgb, var(--_content) 80%, black 20%);
+      padding: 16px;
+    }
+    .preview-status {
+      font-size: 12px;
+      opacity: 0.8;
+    }
+    .preview-image {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      border-radius: 6px;
+      box-shadow: 0 10px 28px rgba(0,0,0,0.2);
+      background: rgba(255,255,255,0.03);
+    }
+    @media (max-width: 1100px) {
+      .pane-title {
+        grid-template-columns: minmax(0, 1fr) auto;
+      }
+      .pane-label {
+        grid-column: 1;
+      }
+      .pane-actions {
+        grid-column: 2;
+      }
+      .pane-path {
+        grid-column: 1 / -1;
+      }
+    }
+    @media (max-width: 720px) {
+      .editor-dialog,
+      .preview-dialog,
+      .details-dialog,
+      .perm-dialog,
+      .conflict-dialog,
+      .log-dialog {
+        min-width: 0;
+        width: calc(100vw - 24px);
+      }
+      .editor-textarea {
+        min-height: 300px;
+      }
+      .preview-stage {
+        min-height: 240px;
+      }
+    }
   `],
 })
 export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
@@ -2148,6 +2366,29 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
   detailsVisible = false
   detailsEntry: LocalEntry | SFTPFile | null = null
   detailsIsLocal = false
+
+  // ========== 文本编辑 / 图片预览 ==========
+  textEditorVisible = false
+  textEditorLoading = false
+  textEditorSaving = false
+  textEditorError = ''
+  textEditorPane: 'local' | 'remote' = 'local'
+  textEditorPath = ''
+  textEditorValue = ''
+  private _textEditorOriginalValue = ''
+  private _textEditorRemoteMode?: number
+  imagePreviewVisible = false
+  imagePreviewLoading = false
+  imagePreviewError = ''
+  imagePreviewName = ''
+  imagePreviewPath = ''
+  imagePreviewUrl = ''
+  imagePreviewSize?: number
+  imagePreviewWidth?: number
+  imagePreviewHeight?: number
+  private readonly TEXT_EDIT_MAX_BYTES = 2 * 1024 * 1024
+  private readonly IMAGE_PREVIEW_MAX_BYTES = 12 * 1024 * 1024
+  private readonly REMOTE_OPEN_READ = 0x00000001
 
   // ========== 列可见性配置 ==========
   static readonly LOCAL_COLS_KEY = 'sftp-plus-local-cols'
@@ -3309,6 +3550,7 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     this.saveCurrentPath()
     this._paneFlushToConfig()  // 面板销毁前持久化所有 UI 状态到 config
     this._stopHeartbeat()
+    this._clearImagePreviewUrl()
     if (this._docClickCapture) {
       document.removeEventListener('click', this._docClickCapture, true)
       this._docClickCapture = null
@@ -3531,6 +3773,7 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
   }
 
   close(): void {
+    if (this.textEditorVisible && this.textEditorDirty && !this._confirmDiscardTextEditor()) return
     // 有正在进行的传输时，提示用户确认
     if (this.transfers.length > 0) {
       const msg = this.effectiveLang === 'zh-CN'
@@ -4736,7 +4979,10 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     if (this.localClickTimer) { clearTimeout(this.localClickTimer); this.localClickTimer = null }
     if ($event) $event.preventDefault()
     // isDirectory 优先，mode 位作为兜底
-    if (!e.isDirectory && !this.isDirByMode(e.mode)) return
+    if (!e.isDirectory && !this.isDirByMode(e.mode)) {
+      void this._openLocalFileEntry(e)
+      return
+    }
     this._pushLocalNav(e.fullPath)
     this.localPath = e.fullPath
     this.localPathInput = e.fullPath
@@ -4749,7 +4995,11 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     if (this.remoteClickTimer) { clearTimeout(this.remoteClickTimer); this.remoteClickTimer = null }
     if ($event) $event.preventDefault()
     // isDirectory 优先，mode 位作为兜底（Windows SFTP 对 junction/reparse point 目录可能误判）
-    if (!this.connected || (!e.isDirectory && !this.isDirByMode(e.mode))) return
+    if (!this.connected) return
+    if (!e.isDirectory && !this.isDirByMode(e.mode)) {
+      void this._openRemoteFileEntry(e)
+      return
+    }
     this._pushRemoteNav(e.fullPath)
     this.remotePath = e.fullPath
     this.remotePathInput = e.fullPath
@@ -6665,20 +6915,28 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     await this.refreshLocal()
   }
 
+  async ctxEditFile(): Promise<void> {
+    const entry = this.getContextSingleFile()
+    this.closeContextMenu()
+    if (!entry || !this.isTextEditableName(entry.name)) return
+    if (this.contextMenuPane === 'local') await this.openTextEditorForLocal(entry as LocalEntry)
+    else await this.openTextEditorForRemote(entry as SFTPFile)
+  }
+
+  async ctxPreviewImage(): Promise<void> {
+    const entry = this.getContextSingleFile()
+    this.closeContextMenu()
+    if (!entry || !this.isPreviewableImageName(entry.name)) return
+    if (this.contextMenuPane === 'local') await this.openImagePreviewForLocal(entry as LocalEntry)
+    else await this.openImagePreviewForRemote(entry as SFTPFile)
+  }
+
   /** 右键菜单 → 打开本地文件（用系统默认程序） */
   ctxOpenLocalFile(): void {
     const filePath = (this.contextMenuEntry as LocalEntry)?.fullPath
     this.closeContextMenu()
     if (!filePath) return
-    console.log('[SFTP+] Open file:', filePath)
-    try {
-      const { shell } = require('electron')
-      shell.openPath(filePath).then((err?: string) => {
-        if (err) console.error('[SFTP+] Open file failed:', err)
-      })
-    } catch (e) {
-      console.error('[SFTP+] Open file failed:', e)
-    }
+    this._openLocalFilePath(filePath)
   }
 
   /** 右键菜单 → 在文件管理器中显示 */
@@ -6692,6 +6950,362 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
       shell.showItemInFolder(filePath)
     } catch (e) {
       console.error('[SFTP+] Reveal in explorer failed:', e)
+    }
+  }
+
+  canEditContextFile(): boolean {
+    const entry = this.getContextSingleFile()
+    return !!entry && this.isTextEditableName(entry.name)
+  }
+
+  canPreviewContextFile(): boolean {
+    const entry = this.getContextSingleFile()
+    return !!entry && this.isPreviewableImageName(entry.name)
+  }
+
+  private getContextSingleFile(): LocalEntry | SFTPFile | null {
+    if (this.contextMenuEntry?.isDirectory) return null
+    const selection = this.getContextSelection()
+    if (selection.length > 1) return null
+    if (selection.length === 1) return selection[0] as LocalEntry | SFTPFile
+    return this.contextMenuEntry
+  }
+
+  private isTextEditableName(fileName: string): boolean {
+    const lower = fileName.toLowerCase()
+    const base = path.posix.basename(lower)
+    if (['dockerfile', 'makefile', '.env', '.gitignore', '.gitattributes', '.editorconfig', 'readme', 'license'].includes(base)) {
+      return true
+    }
+    const ext = lower.includes('.') ? lower.split('.').pop() ?? '' : ''
+    return [
+      'txt', 'log', 'md', 'markdown', 'json', 'jsonc', 'json5', 'xml', 'yml', 'yaml', 'ini', 'cfg', 'conf', 'toml',
+      'sh', 'bash', 'zsh', 'ps1', 'bat', 'cmd', 'env', 'gitignore', 'gitattributes', 'npmrc', 'editorconfig',
+      'js', 'jsx', 'ts', 'tsx', 'mjs', 'cjs', 'css', 'scss', 'less', 'html', 'htm', 'vue', 'svelte', 'astro', 'sql',
+      'py', 'rb', 'php', 'java', 'kt', 'kts', 'go', 'rs', 'c', 'cc', 'cpp', 'h', 'hpp', 'cs', 'swift', 'dart',
+      'properties', 'gradle', 'lock', 'pem', 'key', 'crt', 'csv', 'tsv', 'svg',
+    ].includes(ext)
+  }
+
+  private isPreviewableImageName(fileName: string): boolean {
+    const ext = fileName.toLowerCase().split('.').pop() ?? ''
+    return ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'svg', 'ico'].includes(ext)
+  }
+
+  private getImageMimeType(fileName: string): string {
+    const ext = fileName.toLowerCase().split('.').pop() ?? ''
+    if (ext === 'jpg' || ext === 'jpeg') return 'image/jpeg'
+    if (ext === 'png') return 'image/png'
+    if (ext === 'gif') return 'image/gif'
+    if (ext === 'bmp') return 'image/bmp'
+    if (ext === 'webp') return 'image/webp'
+    if (ext === 'ico') return 'image/x-icon'
+    if (ext === 'svg') return 'image/svg+xml'
+    return 'application/octet-stream'
+  }
+
+  private async _openLocalFileEntry(entry: LocalEntry): Promise<void> {
+    if (this.isPreviewableImageName(entry.name)) {
+      await this.openImagePreviewForLocal(entry)
+      return
+    }
+    if (this.isTextEditableName(entry.name)) {
+      await this.openTextEditorForLocal(entry)
+      return
+    }
+    this._openLocalFilePath(entry.fullPath)
+  }
+
+  private async _openRemoteFileEntry(entry: SFTPFile): Promise<void> {
+    if (this.isPreviewableImageName(entry.name)) {
+      await this.openImagePreviewForRemote(entry)
+      return
+    }
+    if (this.isTextEditableName(entry.name)) {
+      await this.openTextEditorForRemote(entry)
+    }
+  }
+
+  private _openLocalFilePath(filePath: string): void {
+    console.log('[SFTP+] Open file:', filePath)
+    try {
+      const { shell } = require('electron')
+      shell.openPath(filePath).then((err?: string) => {
+        if (err) console.error('[SFTP+] Open file failed:', err)
+      })
+    } catch (e) {
+      console.error('[SFTP+] Open file failed:', e)
+    }
+  }
+
+  get textEditorDirty(): boolean {
+    return this.textEditorValue !== this._textEditorOriginalValue
+  }
+
+  formatTextEditorStats(): string {
+    const bytes = Buffer.byteLength(this.textEditorValue || '', 'utf8')
+    const lines = this.textEditorValue.length === 0 ? 1 : this.textEditorValue.split(/\r\n|\r|\n/).length
+    return `${this.formatSize(bytes)} | ${lines} ${this.effectiveLang === 'zh-CN' ? '行' : 'lines'}`
+  }
+
+  formatPreviewMeta(): string {
+    const parts: string[] = []
+    if (this.imagePreviewSize != null) parts.push(this.formatSize(this.imagePreviewSize))
+    if (this.imagePreviewWidth && this.imagePreviewHeight) parts.push(`${this.imagePreviewWidth} x ${this.imagePreviewHeight}`)
+    return parts.join(' | ')
+  }
+
+  onPreviewImageLoad(event: Event): void {
+    const img = event.target as HTMLImageElement | null
+    if (!img) return
+    this.imagePreviewWidth = img.naturalWidth
+    this.imagePreviewHeight = img.naturalHeight
+  }
+
+  onTextEditorKeyDown(event: KeyboardEvent): void {
+    const isMod = os.platform() === 'darwin' ? event.metaKey : event.ctrlKey
+    if (isMod && (event.key === 's' || event.key === 'S')) {
+      event.preventDefault()
+      void this.saveTextEditor()
+      return
+    }
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      this.closeTextEditor()
+    }
+  }
+
+  private _refreshEditorUi(): void {
+    this.zone.run(() => {
+      this.cdr.detectChanges()
+    })
+  }
+
+  private async openTextEditorForLocal(entry: LocalEntry): Promise<void> {
+    if (!this._checkEntrySize(entry, this.TEXT_EDIT_MAX_BYTES, 'text')) return
+    this.textEditorVisible = true
+    this.textEditorLoading = true
+    this.textEditorSaving = false
+    this.textEditorError = ''
+    this.textEditorPane = 'local'
+    this.textEditorPath = entry.fullPath
+    this.textEditorValue = ''
+    this._textEditorOriginalValue = ''
+    this._textEditorRemoteMode = undefined
+    try {
+      const buffer = await fs.readFile(entry.fullPath)
+      this._loadTextEditorBuffer(buffer)
+    } catch (e) {
+      console.error('[SFTP+] Failed to open local text file', e)
+      this.textEditorError = this.effectiveLang === 'zh-CN' ? '无法读取文件内容' : 'Failed to read file contents'
+    } finally {
+      this.textEditorLoading = false
+      this._refreshEditorUi()
+    }
+  }
+
+  private async openTextEditorForRemote(entry: SFTPFile): Promise<void> {
+    if (!this._checkEntrySize(entry, this.TEXT_EDIT_MAX_BYTES, 'text')) return
+    this.textEditorVisible = true
+    this.textEditorLoading = true
+    this.textEditorSaving = false
+    this.textEditorError = ''
+    this.textEditorPane = 'remote'
+    this.textEditorPath = entry.fullPath
+    this.textEditorValue = ''
+    this._textEditorOriginalValue = ''
+    this._textEditorRemoteMode = entry.mode
+    try {
+      const buffer = await this._readRemoteFileBuffer(entry.fullPath)
+      this._loadTextEditorBuffer(buffer)
+    } catch (e) {
+      console.error('[SFTP+] Failed to open remote text file', e)
+      this.textEditorError = this.effectiveLang === 'zh-CN' ? '无法读取远程文件内容' : 'Failed to read remote file contents'
+    } finally {
+      this.textEditorLoading = false
+      this._refreshEditorUi()
+    }
+  }
+
+  private _loadTextEditorBuffer(buffer: Buffer): void {
+    if (buffer.includes(0)) {
+      this.textEditorError = this.effectiveLang === 'zh-CN' ? '该文件看起来不是纯文本，已停止打开' : 'This file does not appear to be plain text'
+      return
+    }
+    const text = buffer.toString('utf8')
+    this.textEditorValue = text
+    this._textEditorOriginalValue = text
+  }
+
+  async saveTextEditor(): Promise<void> {
+    if (!this.textEditorVisible || this.textEditorSaving || this.textEditorLoading || this.textEditorError) return
+    this.textEditorSaving = true
+    try {
+      if (this.textEditorPane === 'local') {
+        await fs.writeFile(this.textEditorPath, this.textEditorValue, 'utf8')
+        await this.refreshLocal()
+      } else {
+        await this._writeRemoteTextFile(this.textEditorPath, this.textEditorValue, this._textEditorRemoteMode)
+        await this.refreshRemote()
+      }
+      this._textEditorOriginalValue = this.textEditorValue
+    } catch (e) {
+      console.error('[SFTP+] Failed to save text file', e)
+      const msg = this.effectiveLang === 'zh-CN' ? '保存文件失败' : 'Failed to save file'
+      try { this.notifications?.error?.(msg, '') } catch {}
+    } finally {
+      this.textEditorSaving = false
+      this._refreshEditorUi()
+    }
+  }
+
+  closeTextEditor(): void {
+    if (this.textEditorDirty && !this._confirmDiscardTextEditor()) return
+    this.textEditorVisible = false
+    this.textEditorLoading = false
+    this.textEditorSaving = false
+    this.textEditorError = ''
+    this.textEditorPath = ''
+    this.textEditorValue = ''
+    this._textEditorOriginalValue = ''
+    this._textEditorRemoteMode = undefined
+    this._refreshEditorUi()
+  }
+
+  private _confirmDiscardTextEditor(): boolean {
+    const msg = this.effectiveLang === 'zh-CN'
+      ? '当前文本有未保存修改，确定要放弃吗？'
+      : 'There are unsaved changes. Discard them?'
+    return confirm(msg)
+  }
+
+  private async openImagePreviewForLocal(entry: LocalEntry): Promise<void> {
+    if (!this._checkEntrySize(entry, this.IMAGE_PREVIEW_MAX_BYTES, 'image')) return
+    this.imagePreviewVisible = true
+    this.imagePreviewLoading = true
+    this.imagePreviewError = ''
+    this.imagePreviewName = entry.name
+    this.imagePreviewPath = entry.fullPath
+    this.imagePreviewSize = entry.size
+    this.imagePreviewWidth = undefined
+    this.imagePreviewHeight = undefined
+    this._clearImagePreviewUrl()
+    try {
+      const buffer = await fs.readFile(entry.fullPath)
+      this._setImagePreviewBuffer(buffer, entry.name)
+    } catch (e) {
+      console.error('[SFTP+] Failed to preview local image', e)
+      this.imagePreviewError = this.effectiveLang === 'zh-CN' ? '无法加载图片预览' : 'Failed to load image preview'
+    } finally {
+      this.imagePreviewLoading = false
+      this._refreshEditorUi()
+    }
+  }
+
+  private async openImagePreviewForRemote(entry: SFTPFile): Promise<void> {
+    if (!this._checkEntrySize(entry, this.IMAGE_PREVIEW_MAX_BYTES, 'image')) return
+    this.imagePreviewVisible = true
+    this.imagePreviewLoading = true
+    this.imagePreviewError = ''
+    this.imagePreviewName = entry.name
+    this.imagePreviewPath = entry.fullPath
+    this.imagePreviewSize = entry.size
+    this.imagePreviewWidth = undefined
+    this.imagePreviewHeight = undefined
+    this._clearImagePreviewUrl()
+    try {
+      const buffer = await this._readRemoteFileBuffer(entry.fullPath)
+      this._setImagePreviewBuffer(buffer, entry.name)
+    } catch (e) {
+      console.error('[SFTP+] Failed to preview remote image', e)
+      this.imagePreviewError = this.effectiveLang === 'zh-CN' ? '无法加载远程图片预览' : 'Failed to load remote image preview'
+    } finally {
+      this.imagePreviewLoading = false
+      this._refreshEditorUi()
+    }
+  }
+
+  closeImagePreview(): void {
+    this.imagePreviewVisible = false
+    this.imagePreviewLoading = false
+    this.imagePreviewError = ''
+    this.imagePreviewName = ''
+    this.imagePreviewPath = ''
+    this.imagePreviewSize = undefined
+    this.imagePreviewWidth = undefined
+    this.imagePreviewHeight = undefined
+    this._clearImagePreviewUrl()
+    this._refreshEditorUi()
+  }
+
+  private _setImagePreviewBuffer(buffer: Buffer, fileName: string): void {
+    const bytes = new Uint8Array(buffer.byteLength)
+    bytes.set(buffer)
+    const blob = new Blob([bytes], { type: this.getImageMimeType(fileName) })
+    this.imagePreviewUrl = URL.createObjectURL(blob)
+  }
+
+  private _clearImagePreviewUrl(): void {
+    if (!this.imagePreviewUrl) return
+    try { URL.revokeObjectURL(this.imagePreviewUrl) } catch {}
+    this.imagePreviewUrl = ''
+  }
+
+  private _checkEntrySize(entry: LocalEntry | SFTPFile, maxBytes: number, kind: 'text' | 'image'): boolean {
+    const size = this.getEntrySize(entry)
+    if (size != null && size > maxBytes) {
+      const label = kind === 'text'
+        ? (this.effectiveLang === 'zh-CN' ? '文本编辑' : 'text editing')
+        : (this.effectiveLang === 'zh-CN' ? '图片预览' : 'image preview')
+      const msg = this.effectiveLang === 'zh-CN'
+        ? `${label} 仅支持不超过 ${this.formatSize(maxBytes)} 的文件`
+        : `${label} supports files up to ${this.formatSize(maxBytes)}`
+      try { this.notifications?.error?.(msg, '') } catch {}
+      return false
+    }
+    return true
+  }
+
+  private async _readRemoteFileBuffer(remotePath: string): Promise<Buffer> {
+    if (!this.sftpSession) throw new Error('No SFTP session')
+    if (typeof this.sftpSession.open === 'function') {
+      const handle = await this.sftpSession.open(remotePath, this.REMOTE_OPEN_READ)
+      try {
+        const chunks: Uint8Array[] = []
+        let total = 0
+        while (true) {
+          const chunk = await handle.read()
+          if (!chunk.length) break
+          chunks.push(chunk)
+          total += chunk.length
+        }
+        return Buffer.concat(chunks.map(chunk => Buffer.from(chunk)), total)
+      } finally {
+        try { await handle.close() } catch {}
+      }
+    }
+
+    const tmpPath = path.join(os.tmpdir(), `sftp-plus-read-${Date.now()}-${Math.random().toString(36).slice(2)}-${path.basename(remotePath)}`)
+    try {
+      await this._doDownloadRaw(remotePath, tmpPath)
+      return await fs.readFile(tmpPath)
+    } finally {
+      try { await fs.unlink(tmpPath) } catch {}
+    }
+  }
+
+  private async _writeRemoteTextFile(remotePath: string, content: string, mode?: number): Promise<void> {
+    if (!this.sftpSession) throw new Error('No SFTP session')
+    const tmpPath = path.join(os.tmpdir(), `sftp-plus-write-${Date.now()}-${Math.random().toString(36).slice(2)}.tmp`)
+    try {
+      await fs.writeFile(tmpPath, content, 'utf8')
+      const up = new LocalPathFileUpload(tmpPath)
+      await this.sftpSession.upload(remotePath, up as any)
+      if (mode != null) {
+        try { await this.sftpSession.chmod(remotePath, mode & 0o777) } catch {}
+      }
+    } finally {
+      try { await fs.unlink(tmpPath) } catch {}
     }
   }
 
@@ -7175,6 +7789,8 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     if (!isMod) {
       // Escape 全局处理
       if (event.key === 'Escape') {
+        if (this.textEditorVisible) { this.closeTextEditor(); return }
+        if (this.imagePreviewVisible) { this.closeImagePreview(); return }
         if (this.inputDialogVisible) { this.cancelInputDialog(); return }
         if (this.deleteConfirmVisible) { this.cancelDelete(); return }
         if (this.showBookmarks) { this.closeBookmarks(); return }
@@ -7238,6 +7854,8 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
       }
     }
     if (event.key === 'Escape') {
+      if (this.textEditorVisible) { this.closeTextEditor(); return }
+      if (this.imagePreviewVisible) { this.closeImagePreview(); return }
       if (this.inputDialogVisible) { this.cancelInputDialog(); return }
       if (this.deleteConfirmVisible) { this.cancelDelete(); return }
       if (this.showBookmarks) { this.closeBookmarks(); return }
