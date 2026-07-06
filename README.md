@@ -3,7 +3,8 @@
 | [中文](README.md) | [English](README.en.md) |
 
 [![Version](https://img.shields.io/github/package-json/v/10D24D/Tabby-SFTP-Plus?style=for-the-badge&label=版本&color=7B68EE)](https://github.com/10D24D/Tabby-SFTP-Plus)
-[![Stars](https://img.shields.io/github/stars/10D24D/Tabby-SFTP-Plus?style=for-the-badge&label=Stars&logo=undertale&logoColor=red&color=orange)](https://github.com/10D24D/Tabby-SFTP-Plus) 
+[![Stars](https://img.shields.io/github/stars/10D24D/Tabby-SFTP-Plus?style=for-the-badge&label=Stars&logo=github&color=orange)](https://github.com/10D24D/Tabby-SFTP-Plus)
+[![License](https://img.shields.io/github/license/10D24D/Tabby-SFTP-Plus?style=for-the-badge&label=License&color=green)](https://github.com/10D24D/Tabby-SFTP-Plus)
 
 SFTP+ 是 [Tabby Terminal](https://tabby.sh/) 的插件，为 SSH 终端标签页提供**双栏 SFTP 文件管理**功能，支持**书签系统**、**路径记忆**、**拖拽上传下载**、传输日志、文件冲突处理、权限编辑等，无需离开终端即可完成文件操作。
 
@@ -14,7 +15,7 @@ SFTP+ 是 [Tabby Terminal](https://tabby.sh/) 的插件，为 SSH 终端标签�
 | 类别 | 功能 |
 |------|------|
 | **📂 双栏管理** | 左本地 + 右远程，可切换 水平/垂直/自适应 三种布局 |
-| **🔄 拖拽传输** | 跨栏拖拽即上传/下载，支持文件夹递归传输 |
+| **🔄 拖拽传输** | 跨栏拖拽即上传/下载，支持文件夹递归传输；支持从系统资源管理器/桌面拖入到本地或远程面板 |
 | **🔖 书签系统** | 全局书签（所有连接可见）+ 连接书签（仅当前 SSH 可见），拖拽排序 |
 | **📋 传输日志** | 记录所有操作历史，支持筛选、统计、JSON 导出 |
 | **⚡ 传输控制** | 进度条显示、暂停/继续/取消、断点续传、实时速度 |
@@ -65,7 +66,7 @@ SFTP+ 是 [Tabby Terminal](https://tabby.sh/) 的插件，为 SSH 终端标签�
 
 ## 📜 版本历史
 
-最新版本 **v1.0.4**（2026-07-05）— [完整更新日志](CHANGELOG.md)
+最新版本 **v1.0.5**（2026-07-06）— [完整更新日志](CHANGELOG.md)
 
 ---
 

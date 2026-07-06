@@ -184,7 +184,7 @@ export class LocalPathFileDownload {
         } catch { /* ignore */ }
       }
     }
-    fs.writeSync(this.fd, buffer)
+    fs.writeSync(this.fd, buffer, 0, buffer.length, this.completedBytes)
     this.completedBytes += buffer.length
     this.increaseProgress(buffer.length)
     // 检查是否已写完

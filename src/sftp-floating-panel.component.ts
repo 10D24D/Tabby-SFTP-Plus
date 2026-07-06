@@ -6,21 +6,6 @@
  * 创建时间：2026-06-21
  * 修改人：DD1024z + Deepseek-V4-Flash
  * 修改时间：2026-06-25
- *
- * 修复项（2025-06-25）：
- * - SSH 断开后面板未感知断开：修复 BaseSession.closed$ (RxJS Subject) 取代错误的
- *   .closed Promise 检测，新增 sshSession.open 和 terminalRef.session 双重回退检测
- * - up-entry 缺少整行 grid 样式，列宽不匹配
- * - 列表悬浮显示 title="null" 问题
- * - 本地路径记忆刷新时序竞争（构造函数异步回掉覆盖 ngOnInit 记忆恢复）
- * - 本地/远程列显示、排序、列宽独立记忆
- * - 排序箭头可见度提升
- *
- * 修复：NG0202 依赖注入错误 — ConfigService 从构造函数参数注入改为 Injector 手动获取，
- *       避免插件环境中 ConfigService 不可用导致组件创建失败
- *
- * 基线：tabby-sftp-ui (https://github.com/growingupfirst/tabby-sftp-ui)
- * 增强：浮动面板、electerm 风格书签、CSS 变量主题跟随
  */
 import * as path from 'path'
 import * as fs from 'fs/promises'
@@ -73,6 +58,16 @@ type ConflictFileInfo = {
   isSamePane: boolean
   /** 是否为目录冲突 */
   isDirectory?: boolean
+}
+
+/** 文件夹传输进度上下文（uploadLocalDir / uploadPathToRemote / downloadRemoteDir 共用） */
+type FolderTransferCtx = {
+  t: any
+  startTime: number
+  logEntryId: string
+  bytesDone: number
+  itemDone: number
+  hadConflict?: boolean
 }
 
 /** 书签分组作用域 */
@@ -198,7 +193,8 @@ type BookmarkScope = 'connection' | 'global' | 'all'
                 </svg>
               </button>
               <!-- 书签 -->
-              <button (click)="toggleBookmarksForPane('local', $event)" title="{{ i18n.t('bookmark.title') }}" class="icon-btn bm-btn">
+              <button (click)="toggleBookmarksForPane('local', $event)" title="{{ i18n.t('bookmark.title') }}"
+                class="icon-btn bm-btn toggle-btn" [class.active]="showBookmarks && bookmarkPane === 'local'">
                 <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                   <path d="M8 1l1.8 3.7 4.2.6-3 3 .7 4.2L8 10.4l-3.7 2 .7-4.2-3-3 4.2-.6L8 1z"/>
                 </svg>
@@ -221,8 +217,9 @@ type BookmarkScope = 'connection' | 'global' | 'all'
               </svg>
             </button>
           </div>
+          <div class="pane-list-wrap" [class.pane-drag-over]="_localDragOver">
           <div class="pane-list local-pane" [class.pane-flash]="_localFlash"
-            (dragover)="onDragOver($event)" (drop)="onDrop($event, 'local')"
+            (dragover)="onDragOver($event)" (dragenter)="onDragEnter($event, 'local')" (dragleave)="onDragLeave($event, 'local')" (drop)="onDrop($event, 'local')"
             (mousedown)="onPaneMouseDown($event, 'local')"
             (mouseenter)="activePane = 'local'"
             (scroll)="onPaneScroll()"
@@ -245,26 +242,24 @@ type BookmarkScope = 'connection' | 'global' | 'all'
               </span>
             </div>
             <div class="entry"
-              *ngFor="let e of getFilteredLocalEntries(); let i = index"
+              *ngFor="let e of getFilteredLocalEntries(); let i = index; trackBy: trackLocalEntryBy"
               (click)="onLocalClick(e, $event, i)"
               (dblclick)="openLocal(e, $event)"
               (contextmenu)="onLocalContextMenu(e, $event)"
               [class.selected]="isLocalSelected(e)"
-              draggable="true"
+              [draggable]="isLocalSelected(e)"
               (dragstart)="onDragStartLocal($event, e)"
               [style.gridTemplateColumns]="getLocalColWidths()">
               <span class="icon">{{ e.isDirectory ? '📁' : '📄' }}</span>
               <span class="name" [attr.title]="e.name">{{ e.inaccessible ? '* ' : '' }}{{ e.name }}</span>
               <span *ngFor="let col of localVisibleCols" class="{{col}}" [attr.title]="colValue(col, e)">{{ colValue(col, e) }}</span>
             </div>
-            <div class="rubber-band-rect" *ngIf="rubberBand.active && rubberBand.pane === 'local'"
-              [style.left]="rubberBand.rectLeft + 'px'" [style.top]="rubberBand.rectTop + 'px'"
-              [style.width]="rubberBand.rectWidth + 'px'" [style.height]="rubberBand.rectHeight + 'px'">
-            </div>
+            <!-- 框选矩形由 JS 动态创建（避免 *ngIf + detach 导致不显示） -->
             <div class="pane-empty" *ngIf="getFilteredLocalEntries().length === 0 && !_localLoading">
               <ng-container *ngIf="_localError">{{ i18n.t('pane.errorAccess') }}</ng-container>
               <ng-container *ngIf="!_localError">{{ localFilter ? i18n.t('pane.noMatch') : i18n.t('pane.empty') }}</ng-container>
             </div>
+          </div>
           </div>
           <div class="pane-actions-bar">
             <span class="selection-info">{{ i18n.t('pane.items', {count: getFilteredLocalEntries().length}) }}<ng-container *ngIf="selectedLocal.length"> — {{ effectiveLang === 'zh-CN' ? '已选择' : 'Selected' }} {{ selectedLocal.length }} {{ effectiveLang === 'zh-CN' ? '项' : 'items' }} ({{ formatSelectedSizeLocal() }})<span *ngIf="selectedHasDirLocal()" class="size-hint">{{ effectiveLang === 'zh-CN' ? ' 文件夹不计' : ' excl. folders' }}</span></ng-container></span>
@@ -333,7 +328,8 @@ type BookmarkScope = 'connection' | 'global' | 'all'
                 </svg>
               </button>
               <!-- 书签 -->
-              <button (click)="toggleBookmarksForPane('remote', $event)" title="{{ i18n.t('bookmark.title') }}" class="icon-btn bm-btn">
+              <button (click)="toggleBookmarksForPane('remote', $event)" title="{{ i18n.t('bookmark.title') }}"
+                class="icon-btn bm-btn toggle-btn" [class.active]="showBookmarks && bookmarkPane === 'remote'">
                 <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                   <path d="M8 1l1.8 3.7 4.2.6-3 3 .7 4.2L8 10.4l-3.7 2 .7-4.2-3-3 4.2-.6L8 1z"/>
                 </svg>
@@ -356,7 +352,9 @@ type BookmarkScope = 'connection' | 'global' | 'all'
               </svg>
             </button>
           </div>
-          <div class="pane-list remote-pane" [class.pane-flash]="_remoteFlash" (dragover)="onDragOver($event)" (drop)="onDrop($event, 'remote')"
+          <div class="pane-list-wrap" [class.pane-drag-over]="_remoteDragOver">
+          <div class="pane-list remote-pane" [class.pane-flash]="_remoteFlash"
+            (dragover)="onDragOver($event)" (dragenter)="onDragEnter($event, 'remote')" (dragleave)="onDragLeave($event, 'remote')" (drop)="onDrop($event, 'remote')"
             (mousedown)="onPaneMouseDown($event, 'remote')"
             (mouseenter)="activePane = 'remote'"
             (scroll)="onPaneScroll()"
@@ -382,26 +380,24 @@ type BookmarkScope = 'connection' | 'global' | 'all'
               </span>
             </div>
             <div class="entry"
-              *ngFor="let e of getFilteredRemoteEntries(); let i = index"
+              *ngFor="let e of getFilteredRemoteEntries(); let i = index; trackBy: trackRemoteEntryBy"
               (click)="onRemoteClick(e, $event, i)"
               (dblclick)="openRemote(e, $event)"
               (contextmenu)="onRemoteContextMenu(e, $event)"
               [class.selected]="isRemoteSelected(e)"
-              [draggable]="connected"
+              [draggable]="connected && isRemoteSelected(e)"
               (dragstart)="onDragStartRemote($event, e)"
               [style.gridTemplateColumns]="getRemoteColWidths()">
               <span class="icon">{{ e.isDirectory ? '📁' : '📄' }}</span>
               <span class="name" [attr.title]="e.name">{{ e.name }}</span>
               <span *ngFor="let col of remoteVisibleCols" class="{{col}}" [attr.title]="colValue(col, e)">{{ colValue(col, e) }}</span>
             </div>
-            <div class="rubber-band-rect" *ngIf="rubberBand.active && rubberBand.pane === 'remote'"
-              [style.left]="rubberBand.rectLeft + 'px'" [style.top]="rubberBand.rectTop + 'px'"
-              [style.width]="rubberBand.rectWidth + 'px'" [style.height]="rubberBand.rectHeight + 'px'">
-            </div>
+            <!-- 框选矩形由 JS 动态创建 -->
             <div class="pane-empty" *ngIf="connected && getFilteredRemoteEntries().length === 0 && !_remoteLoading">
               <ng-container *ngIf="_remoteError">{{ i18n.t('pane.errorAccess') }}</ng-container>
               <ng-container *ngIf="!_remoteError">{{ remoteFilter ? i18n.t('pane.noMatch') : i18n.t('pane.empty') }}</ng-container>
             </div>
+          </div>
           </div>
           <div class="pane-actions-bar">
             <span class="selection-info">{{ i18n.t('pane.items', {count: getFilteredRemoteEntries().length}) }}<ng-container *ngIf="selectedRemote.length"> — {{ effectiveLang === 'zh-CN' ? '已选择' : 'Selected' }} {{ selectedRemote.length }} {{ effectiveLang === 'zh-CN' ? '项' : 'items' }} ({{ formatSelectedSizeRemote() }})<span *ngIf="selectedHasDirRemote()" class="size-hint">{{ effectiveLang === 'zh-CN' ? ' 文件夹不计' : ' excl. folders' }}</span></ng-container></span>
@@ -522,7 +518,7 @@ type BookmarkScope = 'connection' | 'global' | 'all'
       <div class="overlay" *ngIf="inputDialogVisible">
         <div class="dialog">
           <div class="dialog-title">{{ inputDialogTitle }}</div>
-          <input class="dialog-input" [(ngModel)]="inputDialogValue"
+          <input class="dialog-input" #inputField [(ngModel)]="inputDialogValue"
             [placeholder]="inputDialogPlaceholder"
             (keyup.enter)="confirmInputDialog()" />
           <div class="dialog-buttons">
@@ -538,7 +534,7 @@ type BookmarkScope = 'connection' | 'global' | 'all'
         [style.left.px]="bookmarkPopupX"
         (mousedown)="$event.stopPropagation()"
         (wheel)="$event.stopPropagation()">
-        <div class="popup-arrow"></div>
+        <div class="popup-arrow" [style.left.px]="bookmarkArrowLeft"></div>
         <div class="popup-title">{{ bookmarkPane === 'local' ? i18n.t('pane.local') : i18n.t('pane.remote') }} {{ i18n.t('bookmark.title') }}</div>
         <div class="bookmark-add-btns">
           <!-- 远程/本地面板都显示两个 scope 按钮 -->
@@ -849,6 +845,7 @@ type BookmarkScope = 'connection' | 'global' | 'all'
       <div class="overlay" *ngIf="showPermDialog">
         <div class="dialog perm-dialog">
           <div class="dialog-title">{{ i18n.t('permission.title') }}</div>
+          <div class="perm-target-name">{{ permTargetName }}</div>
           <div class="perm-grid">
             <div class="perm-header"></div>
             <div class="perm-header">{{ i18n.t('permission.read') }}</div>
@@ -1115,6 +1112,7 @@ type BookmarkScope = 'connection' | 'global' | 'all'
     .pane-actions button:disabled { opacity: 0.4; cursor: default; }
     .pane-actions .bm-btn { color: var(--_text-muted, inherit); font-weight: 700; font-size: 14px; }
     .pane-actions .bm-btn:hover { background: var(--_hover); }
+    .pane-actions .bm-btn.active { background: var(--_active); color: var(--_primary); }
     .pane-actions .icon-btn { font-size: 14px; min-width: 26px; text-align: center; display: flex; align-items: center; justify-content: center; }
     .pane-actions .toggle-btn { min-width: 26px; padding: 2px 6px; }
     .pane-actions .toggle-btn.active { background: var(--_active); }
@@ -1161,6 +1159,16 @@ type BookmarkScope = 'connection' | 'global' | 'all'
     .filter-clear { color: #e74c3c; }
     .filter-clear:hover { background: rgba(231, 76, 60, 0.15); }
 
+    /* 列表外层：不参与滚动，用于固定拖拽高亮边框 */
+    .pane-list-wrap {
+      flex: 1 1 0%;
+      min-height: 0;
+      min-width: 0;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+
     /* 列表区域：紧贴 filter 栏，无间隙，圆角裁剪 */
     .pane-list {
       flex: 1 1 0%;
@@ -1169,6 +1177,8 @@ type BookmarkScope = 'connection' | 'global' | 'all'
          配合 .entry { min-width: max-content } 实现整行背景/边框覆盖 */
       min-width: 0;
       padding: 0 10px 10px 10px;
+      /* 滚动条单独占列（仅右侧），不挤占左右 10px 框选空白 */
+      scrollbar-gutter: stable;
       /* 确保列表区有实底背景防止穿透 */
       background: var(--_bg);
       margin: 0;
@@ -1357,6 +1367,21 @@ type BookmarkScope = 'connection' | 'global' | 'all'
       0% { background-color: transparent; }
       30% { background-color: rgba(59,130,246,0.06); }
       100% { background-color: transparent; }
+    }
+
+    /* 桌面文件拖拽悬停高亮（边框画在不滚动的 wrap 上，不随横向滚动偏移） */
+    .pane-list-wrap.pane-drag-over .pane-list {
+      background-color: color-mix(in srgb, var(--primary-color, #3b82f6) 8%, transparent);
+      background-color: rgba(59,130,246,0.08); /* fallback */
+    }
+    .pane-list-wrap.pane-drag-over::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border: 2px solid var(--primary-color, #3b82f6);
+      border-radius: 0;
+      pointer-events: none;
+      z-index: 6;
     }
 
     .pane-actions-bar {
@@ -1622,15 +1647,18 @@ type BookmarkScope = 'connection' | 'global' | 'all'
       border-radius: 10px;
       box-shadow: 0 8px 32px rgba(0,0,0,0.15);
       z-index: 200;
-      overflow: hidden;
+      /* 允许箭头伸出弹窗顶部，列表区域自行滚动 */
+      overflow: visible;
     }
     .popup-arrow {
-      position: absolute; top: -6px; left: 24px;
+      position: absolute; top: -7px;
       width: 12px; height: 12px;
       background: var(--_bg);
-      border-left: 1px solid var(--_primary);
-      border-top: 1px solid var(--_primary);
+      border-left: 1px solid var(--_border);
+      border-top: 1px solid var(--_border);
       transform: rotate(45deg);
+      z-index: 1;
+      pointer-events: none;
     }
     .popup-title {
       padding: 10px 14px 6px;
@@ -1886,11 +1914,21 @@ type BookmarkScope = 'connection' | 'global' | 'all'
     .dt-path { font-family: monospace; font-size: 11px; }
     /* 权限编辑对话框 */
     .perm-dialog { min-width: 360px; }
+    .perm-target-name {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      background: var(--_input-bg);
+      word-break: break-all;
+    }
     .perm-grid {
       display: grid;
       grid-template-columns: 80px repeat(3, auto);
       gap: 8px;
       align-items: center;
+      justify-items: center;
       margin: 12px 0;
     }
     .perm-header {
@@ -1902,6 +1940,7 @@ type BookmarkScope = 'connection' | 'global' | 'all'
     .perm-label {
       font-size: 12px;
       font-weight: 600;
+      justify-self: start;
     }
     .perm-grid input[type="checkbox"] {
       width: 18px;
@@ -1967,12 +2006,21 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
   localSortBy: 'name' | 'size' | 'modified' | 'birthtime' = 'name'
   localSortAsc = true
   localCache: any = null
-  selectedLocal: LocalEntry[] = []
+  /** 本地选中条目（已用 Set 优化 O(1) 模板查找） */
+  private _selectedLocal: LocalEntry[] = []
+  private _localSelectedSet = new Set<LocalEntry>()
+  get selectedLocal(): LocalEntry[] { return this._selectedLocal }
+  set selectedLocal(val: LocalEntry[]) {
+    this._selectedLocal = val
+    this._localSelectedSet = new Set(val)
+  }
   localLastSelectedIndex: number | null = null
   /** 本地面板是否正在加载 */
   _localLoading = false
   /** 本地面板刷新闪烁 */
   _localFlash = false
+  /** 本地面板拖拽悬停（桌面文件拖入时高亮） */
+  _localDragOver = false
   /** 本地面板访问错误（权限不足、路径不存在等） */
   _localError = false
 
@@ -1997,12 +2045,21 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
   remoteSortBy: 'name' | 'size' | 'modified' | 'birthtime' = 'name'
   remoteSortAsc = true
   remoteCache: any = null
-  selectedRemote: SFTPFile[] = []
+  /** 远程选中条目（已用 Set 优化 O(1) 模板查找） */
+  private _selectedRemote: SFTPFile[] = []
+  private _remoteSelectedSet = new Set<SFTPFile>()
+  get selectedRemote(): SFTPFile[] { return this._selectedRemote }
+  set selectedRemote(val: SFTPFile[]) {
+    this._selectedRemote = val
+    this._remoteSelectedSet = new Set(val)
+  }
   remoteLastSelectedIndex: number | null = null
   /** 远程面板是否正在加载 */
   _remoteLoading = false
   /** 远程面板刷新闪烁 */
   _remoteFlash = false
+  /** 远程面板拖拽悬停（桌面文件拖入时高亮） */
+  _remoteDragOver = false
   /** 远程面板访问错误（权限不足、路径不存在等） */
   _remoteError = false
 
@@ -2028,8 +2085,38 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
   private _rbMoved = false
   /** 长按激活框选时临时设为 false，阻止原生 dragstart */
   private _rbSuppressDrag = false
-  /** 右键框选刚结束，阻止接下来的 contextmenu 弹出 */
-  private _rbJustFinishedRightClick = false
+  /** 左键拖拽被 onDragStart 取消后设为 true，告知 _rbOnMouseMove 可以激活框选 */
+  private _rbDragCancelled = false
+  /** mousedown 时是否为左键（左键才有 native dragstart） */
+  private _rbIsLeftClick = false
+  /** 框选期间/结束后短暂阻止 contextmenu（含条目级菜单） */
+  private _rbSuppressContextMenu = false
+  private _rbContextMenuSuppressTimer: ReturnType<typeof setTimeout> | null = null
+  /** 右键框选已程序化弹出菜单，忽略紧随其后的原生 contextmenu */
+  private _rbSkipNextContextMenu = false
+
+  /** 框选性能优化：缓存 entry 元素几何信息，避免 mousemove 时逐个 getBoundingClientRect */
+  private _rbEntryRects: Array<{ top: number; left: number; width: number; height: number }> = []
+  private _rbEntryEls: HTMLElement[] = []
+  private _rbPaneListEl: HTMLElement | null = null
+  private _rbPaneListRect: DOMRect | null = null
+  /** 框选矩形 DOM 引用（mousedown 时动态创建，mouseup 时销毁） */
+  private _rbRectEl: HTMLElement | null = null
+  /** 框选激活时是否按住 Ctrl（决定是否保留旧选中） */
+  private _rbCtrlHeld = false
+  /** 框选是否由右键触发（用于框选结束后弹出菜单） */
+  private _rbRightClick = false
+  /** mousedown 时缓存的条目列表（避免每帧 filter/sort） */
+  private _rbCachedLocalEntries: LocalEntry[] | null = null
+  private _rbCachedRemoteEntries: SFTPFile[] | null = null
+  /** fullPath → 行索引 */
+  private _rbPathToIndex = new Map<string, number>()
+  /** Ctrl/右键追加模式：框选开始时的初始选中索引 */
+  private _rbInitialSelectedIndices: Set<number> | null = null
+  /** 拖拽过程中当前高亮的行索引（用于差量更新 DOM） */
+  private _rbLiveSelectedIndices = new Set<number>()
+  /** rAF 节流：合并矩形与选中刷新 */
+  private _rbFrameId: number | null = null
 
 
   // ========== 传输 ==========
@@ -2103,6 +2190,8 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
   newBookmarkPath = ''
   bookmarkPopupX = 0
   bookmarkPopupY = 0
+  /** 箭头水平位置（相对弹窗左缘，对准触发按钮中心） */
+  bookmarkArrowLeft = 24
   // 拖拽排序状态
   dragSourceIdx = -1
   dragSourceScope: BookmarkScope = 'all'
@@ -2234,6 +2323,8 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
   permOtherExec = false
   permModePreview = '755'
   permTargetPath = ''
+  /** 当前修改权限的文件/文件夹名（供对话框显示） */
+  permTargetName = ''
 
   // ========== 表格样式设置（从设置页读取）==========
   static readonly TABLE_SETTINGS_KEY = 'sftp-plus-table'
@@ -2502,8 +2593,10 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
   toggleShowHidden(pane: 'local' | 'remote'): void {
     if (pane === 'local') {
       this.showHiddenLocal = !this.showHiddenLocal
+      this._invalidateLocalCache()
     } else {
       this.showHiddenRemote = !this.showHiddenRemote
+      this._invalidateRemoteCache()
     }
     this.headerMenuVisible = false
     this.headerMenuCol = null
@@ -2560,6 +2653,9 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     this.cdr.detectChanges()
   }
 
+  /** P2-12: 复用 canvas 测量文本宽度，避免每次创建新 canvas */
+  private _measureCanvas: HTMLCanvasElement | null = null
+
   /** 测量列内容的渲染宽度 */
   private _measureColWidth(col: string, isLocal: boolean): number {
     const root = this.elRef.nativeElement as HTMLElement
@@ -2571,9 +2667,9 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     const style = getComputedStyle(headerSpan)
     const font = `${style.fontSize} ${style.fontFamily}`
 
-    // 临时 canvas 测量文本宽度
-    const canvas = document.createElement('canvas')
-    const ctx = canvas.getContext('2d')
+    // 复用 canvas 测量文本宽度
+    if (!this._measureCanvas) this._measureCanvas = document.createElement('canvas')
+    const ctx = this._measureCanvas.getContext('2d')
     if (!ctx) return 80
     ctx.font = font
 
@@ -2662,7 +2758,7 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     this.headerMenuVisible = false
     this.headerMenuCol = null
     if (this.rubberBand.active) return
-    if (this._rbJustFinishedRightClick) return
+    if (this._rbSuppressContextMenu || this._rbSkipNextContextMenu) return
 
     // 空白区域右键：清除该面板选中，显示面板级上下文菜单
     const target = ev.target as HTMLElement
@@ -3131,11 +3227,16 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
       if (lmode === 'horizontal' || lmode === 'vertical') this._layoutMode = lmode
 
       const ro = new ResizeObserver(() => {
-        if (this._layoutMode === 'horizontal') this._isNarrowLayout = false
-        else if (this._layoutMode === 'vertical') this._isNarrowLayout = true
-        else this._updateAutoLayout()
-        this._applyPaneSplit()
-        this.cdr.detectChanges()
+        // P2-11: 用 rAF 节流，每帧最多执行一次，避免拖拽窗口时频繁触发变更检测
+        if (this._roRafId) return
+        this._roRafId = requestAnimationFrame(() => {
+          this._roRafId = 0
+          if (this._layoutMode === 'horizontal') this._isNarrowLayout = false
+          else if (this._layoutMode === 'vertical') this._isNarrowLayout = true
+          else this._updateAutoLayout()
+          this._applyPaneSplit()
+          this.cdr.detectChanges()
+        })
       })
       ro.observe(this.elRef.nativeElement)
       this._ro = ro
@@ -3158,6 +3259,9 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     this.loadRemoteColWidths()
       // 重建 i18n service 以应用语言设置变更
       this.i18n = new SftpI18nService(this.configService)
+      // 同步书签与传输日志（其他面板或导入后可能已变更）
+      this.bookmarks.reload()
+      this.transferLog.reload()
       // 重新读取布局模式并立即应用（同步窄屏判断 + 面板分割）
       const lmode = this._paneGet('sftp-plus-layout-mode')
       if (lmode === 'horizontal' || lmode === 'vertical') this._layoutMode = lmode
@@ -3232,6 +3336,19 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this._rbCleanup()
+    if (this._rbContextMenuSuppressTimer) {
+      clearTimeout(this._rbContextMenuSuppressTimer)
+      this._rbContextMenuSuppressTimer = null
+    }
+    if (this._splitMoveHandler) {
+      document.removeEventListener('mousemove', this._splitMoveHandler)
+      this._splitMoveHandler = null
+    }
+    if (this._splitUpHandler) {
+      document.removeEventListener('mouseup', this._splitUpHandler)
+      this._splitUpHandler = null
+    }
     this.saveCurrentPath()
     this._paneFlushToConfig()  // 面板销毁前持久化所有 UI 状态到 config
     this._stopHeartbeat()
@@ -3258,7 +3375,13 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
       }
     }
     this.transfers = []
-    // 断开 ResizeObserver
+    this._trackedTransferCount = 0
+    this._stopTransferTimer()
+    // 取消挂起的 rAF 并断开 ResizeObserver
+    if (this._roRafId) {
+      cancelAnimationFrame(this._roRafId)
+      this._roRafId = 0
+    }
     if (this._ro) {
       try { this._ro.disconnect() } catch {}
       this._ro = null
@@ -3270,6 +3393,8 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
   private _docClickCapture: ((ev: MouseEvent) => void) | null = null
   private _docWheelCapture: ((ev: WheelEvent) => void) | null = null
   private _ro: ResizeObserver | null = null
+  /** P2-11: 挂起的 rAF ID，ngOnDestroy 中取消以防止操作已销毁的视图 */
+  private _roRafId = 0
 
   /** 当前 Auto 模式检测到的主题名称（供设置面板显示） */
   autoDetectedThemeName = ''
@@ -3790,10 +3915,10 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
           entries.push({ name, fullPath: fp, isDirectory: true, inaccessible: true })
         }
       }
-      this.zone.run(() => { this.localEntries = entries; this._localError = false })
+      this.zone.run(() => { this.localEntries = entries; this._localError = false; this._invalidateLocalCache() })
     } catch (e) {
       console.error('[SFTP+] Local listing failed', e)
-      this.zone.run(() => { this.localEntries = []; this._localError = true })
+      this.zone.run(() => { this.localEntries = []; this._localError = true; this._invalidateLocalCache() })
     }
     this._localFlash = true
     this.cdr.detectChanges()
@@ -3852,19 +3977,27 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
       this.remotePath = '/'
       this.remotePathInput = '/'
     }
-    this._remoteLoading = true
     this._remoteFlash = false
+
+    // 延迟 150ms 显示 loading 图标：快速加载时不闪烁 spinner，避免"变慢"错觉
+    const loadingTimer = setTimeout(() => {
+      this._remoteLoading = true
+      this.cdr.detectChanges()
+    }, 150)
+
     try {
       const entries = await this.sftpSession.readdir(this.remotePath)
-      this.zone.run(() => { this.remoteEntries = entries; this._remoteError = false })
-    } catch (e) {
-      console.error('[SFTP+] Remote listing failed', e)
-      this.zone.run(() => { this.remoteEntries = []; this._remoteError = true })
+      clearTimeout(loadingTimer)
       this._remoteLoading = false
+      this.zone.run(() => { this.remoteEntries = entries; this._remoteError = false; this._invalidateRemoteCache() })
+    } catch (e) {
+      clearTimeout(loadingTimer)
+      this._remoteLoading = false
+      console.error('[SFTP+] Remote listing failed', e)
+      this.zone.run(() => { this.remoteEntries = []; this._remoteError = true; this._invalidateRemoteCache() })
       this.cdr.detectChanges()
       return false
     }
-    this._remoteLoading = false
     this._remoteFlash = true
     this.cdr.detectChanges()
     setTimeout(() => { this._remoteFlash = false }, 260)
@@ -4045,6 +4178,12 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     // 记录是否点击在 entry 上（非 header）
     this.rubberBand.startedOnEntry = !!target.closest('.entry:not(.header)')
 
+    // 仅空白区域支持框选；条目上左键走拖拽、右键走菜单
+    if (this.rubberBand.startedOnEntry) {
+      if (event.button === 2) event.preventDefault()
+      return
+    }
+
     const listEl = target.closest('.pane-list') as HTMLElement | null
     if (!listEl) return
 
@@ -4062,122 +4201,91 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     this._rbMoved = false
     this._rbLongPress = false
     this._rbSuppressDrag = false
+    this._rbDragCancelled = false
+    this._rbIsLeftClick = event.button === 0
+    this._rbRightClick = event.button === 2
+    this._rbCtrlHeld = event.ctrlKey || event.metaKey
     this._rbStartClientX = event.clientX
     this._rbStartClientY = event.clientY
 
-    // 绑定 document 级 move/up
+    // 仅缓存列表容器引用；条目几何在框选真正激活时再读取（避免大列表 mousedown 卡顿）
+    this._rbPaneListEl = listEl
+    this._rbPaneListRect = rect
+
+    // 绑定 document 级 move/up（Zone 外运行，避免每帧触发变更检测）
     if (!this._rbMoveHandler) {
       this._rbMoveHandler = (e: MouseEvent) => this._rbOnMouseMove(e)
     }
     if (!this._rbUpHandler) {
       this._rbUpHandler = (e: MouseEvent) => this._rbOnMouseUp(e)
     }
-    document.addEventListener('mousemove', this._rbMoveHandler)
-    document.addEventListener('mouseup', this._rbUpHandler)
+    this.zone.runOutsideAngular(() => {
+      document.addEventListener('mousemove', this._rbMoveHandler!)
+      document.addEventListener('mouseup', this._rbUpHandler!)
+    })
 
-    // 在空白区域按下左键：preventDefault 阻止文本选择，启动框选预备
-    // 在条目上按下左键：不 preventDefault，让原生 dragstart 正常触发
-    // 右键（无论在条目上还是空白）：preventDefault 阻止即时 contextmenu
-    if (event.button === 0 && !this.rubberBand.startedOnEntry) {
+    // 左键空白按下：关闭菜单并抑制迟到的 contextmenu（如右键框选刚结束）
+    if (event.button === 0) {
       event.preventDefault()
+      this.closeContextMenu()
+      this._rbArmContextMenuSuppress(400)
     }
     if (event.button === 2) {
       event.preventDefault()
     }
-
-    // 框选计时器启动条件：
-    //   左键在空白区域 或 右键在任何位置 → 立即启动 500ms 计时器
-    //   左键在条目上 → 不启动计时器（让拖拽正常触发；若用户想框选，用右键或 Ctrl+左键）
-    const shouldStartTimer = (event.button === 2) || (event.button === 0 && !this.rubberBand.startedOnEntry)
-    if (shouldStartTimer) {
-      if (this._rbLongPressTimer) clearTimeout(this._rbLongPressTimer)
-      this._rbLongPressTimer = setTimeout(() => {
-        this._rbLongPress = true
-        // 长按触发：强制激活框选
-        if (!this.rubberBand.active) {
-          this.rubberBand.active = true
-          this._rbMoved = true
-          this._rbSuppressDrag = true
-          // 右键长按触发框选：追加模式，不清空已有选择
-        }
-      }, 500)
-    }
   }
 
-  /** 框选 mousemove：更新选择矩形并实时选中条目 */
+  /** 框选期间/结束后短暂屏蔽右键菜单 */
+  private _rbArmContextMenuSuppress(ms = 400): void {
+    this._rbSuppressContextMenu = true
+    if (this._rbContextMenuSuppressTimer) clearTimeout(this._rbContextMenuSuppressTimer)
+    this._rbContextMenuSuppressTimer = setTimeout(() => {
+      this._rbSuppressContextMenu = false
+      this._rbContextMenuSuppressTimer = null
+    }, ms)
+  }
+
+  /** 框选 mousemove：更新选择矩形（仅空白区域开始） */
   private _rbOnMouseMove(event: MouseEvent): void {
     const rb = this.rubberBand
 
-    // —— 长按计时器仍 pending 时，检测是否已移动超过阈值 ——
-    if (this._rbLongPressTimer && !this._rbLongPress) {
-      const moveDx = event.clientX - this._rbStartClientX
-      const moveDy = event.clientY - this._rbStartClientY
-      if (Math.abs(moveDx) > 3 || Math.abs(moveDy) > 3) {
-        // 在条目上按下左键并移动 → 取消计时器，让文件拖拽正常触发
-        if (rb.startedOnEntry && event.buttons === 1) {
-          clearTimeout(this._rbLongPressTimer)
-          this._rbLongPressTimer = null
-          this._rbCleanup()
-          return
-        }
-        // 空白区域按下并移动 → 取消计时器，立即激活框选
-        clearTimeout(this._rbLongPressTimer)
-        this._rbLongPressTimer = null
-        rb.active = true
-        this._rbMoved = true
-        this._rbSuppressDrag = true
-        // 无 Ctrl ⇒ 清空已有选择（替换模式）；有 Ctrl ⇒ 追加模式
-        if (!event.ctrlKey && !event.metaKey) {
-          if (rb.pane === 'local') { this.selectedLocal = []; this.localLastSelectedIndex = null }
-          else { this.selectedRemote = []; this.remoteLastSelectedIndex = null }
-        }
-      }
-      // 未超过阈值 → 继续等待，不处理框选
-      if (!rb.active) return
-    }
-
-    // —— 长按已触发：确保框选激活 ——
-    if (this._rbLongPress && !rb.active) {
-      rb.active = true
-      this._rbMoved = true
-    }
-
-    const paneList = (rb.pane === 'local'
-      ? (this.elRef?.nativeElement as HTMLElement)?.querySelector('.pane-list.local-pane')
-      : (this.elRef?.nativeElement as HTMLElement)?.querySelector('.pane-list.remote-pane')
-    ) as HTMLElement | null
+    const paneList = this._rbPaneListEl
     if (!paneList) return
 
-    const rect = paneList.getBoundingClientRect()
+    const rect = this._rbPaneListRect!
     rb.currentX = Math.max(0, Math.min(event.clientX - rect.left + paneList.scrollLeft, paneList.scrollWidth))
     rb.currentY = Math.max(0, Math.min(event.clientY - rect.top + paneList.scrollTop, paneList.scrollHeight))
 
     const dx = rb.currentX - rb.startX
     const dy = rb.currentY - rb.startY
 
-    // 移动超过 3px 阈值才激活框选（避免单击误触发）
-    // 但在 entry 上移动时不激活框选，让原生拖拽正常触发
-    if (!rb.active && !this.rubberBand.startedOnEntry && (Math.abs(dx) > 3 || Math.abs(dy) > 3)) {
-      rb.active = true
+    if (!rb.active && (Math.abs(dx) > 3 || Math.abs(dy) > 3)) {
+      this._rbCtrlHeld = event.ctrlKey || event.metaKey
+      this._rbClearOppositePane()
+      this._rbActivate()
       this._rbMoved = true
-      this._rbSuppressDrag = true
-      // 无 Ctrl ⇒ 清空已有选择（替换模式）；有 Ctrl ⇒ 追加模式
-      if (!event.ctrlKey && !event.metaKey) {
-        if (rb.pane === 'local') { this.selectedLocal = []; this.localLastSelectedIndex = null }
-        else { this.selectedRemote = []; this.remoteLastSelectedIndex = null }
-      }
     }
 
     if (!rb.active) return
 
-    // 计算矩形（归一化为左上角+宽高）
     rb.rectLeft = dx >= 0 ? rb.startX : rb.currentX
     rb.rectTop = dy >= 0 ? rb.startY : rb.currentY
     rb.rectWidth = Math.abs(dx)
     rb.rectHeight = Math.abs(dy)
 
-    // 实时选中相交的 entry
-    this._rbSelectIntersecting()
+    this._rbScheduleFrameUpdate()
+  }
+
+  /** 每帧更新框选矩形 + 实时选中高亮（rAF 节流，避免 mousemove 卡顿） */
+  private _rbScheduleFrameUpdate(): void {
+    if (this._rbFrameId != null) return
+    this._rbFrameId = requestAnimationFrame(() => {
+      this._rbFrameId = null
+      if (!this.rubberBand.active) return
+      this._rbUpdateRectEl()
+      this._rbApplyLiveSelectionFromRect()
+      this.zone.run(() => { try { this.cdr.detectChanges() } catch {} })
+    })
   }
 
   /** 框选 mouseup：结束框选 */
@@ -4194,23 +4302,57 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     }
     this._rbLongPress = false
     this._rbSuppressDrag = false
-    // 右键框选刚结束：设置标志阻止接下来的 contextmenu
-    if (event.button === 2 && this._rbMoved) {
-      this._rbJustFinishedRightClick = true
-      setTimeout(() => { this._rbJustFinishedRightClick = false }, 300)
+
+    const applied = this._rbMoved && this.rubberBand.active
+    const wasRightBoxSelect = applied && this._rbRightClick
+    let rbMenuHitIndex: number | null = null
+    const rbMenuX = event.clientX
+    const rbMenuY = event.clientY
+
+    if (wasRightBoxSelect) {
+      const hit = document.elementFromPoint(event.clientX, event.clientY) as HTMLElement | null
+      const row = hit?.closest('.entry:not(.header):not(.up-entry):not(.dim)') as HTMLElement | null
+      if (row) rbMenuHitIndex = this._rbEntryEls.indexOf(row)
+      this.closeContextMenu()
+    } else if (applied) {
+      // 左键框选结束：抑制紧随其后的误触 contextmenu
+      this.closeContextMenu()
+      this._rbArmContextMenuSuppress(350)
     }
+
+    // 框选结束：先算选中再清理（cleanup 会清空缓存，不能放在 zone.run 异步之后）
+    if (applied) {
+      if (this._rbFrameId != null) {
+        cancelAnimationFrame(this._rbFrameId)
+        this._rbFrameId = null
+      }
+      this._rbApplySelectionFromRect()
+    }
+    const menuPane = pane
     this._rbCleanup()
+    if (applied) {
+      this.zone.run(() => {
+        try { this.cdr.detectChanges() } catch {}
+        if (wasRightBoxSelect) {
+          this._rbSkipNextContextMenu = true
+          setTimeout(() => { this._rbSkipNextContextMenu = false }, 400)
+          this._rbOpenContextMenuAfterBoxSelect(rbMenuX, rbMenuY, menuPane, rbMenuHitIndex)
+        }
+      })
+    }
 
     // 左键在空白区域点击（无拖拽）= 清除该面板选中
     if (wasClickOnBlank && button === 0) {
-      if (pane === 'local') {
-        this.selectedLocal = []
-        this.localLastSelectedIndex = null
-      } else {
-        this.selectedRemote = []
-        this.remoteLastSelectedIndex = null
-      }
-      try { this.cdr.detectChanges() } catch {}
+      this.zone.run(() => {
+        if (pane === 'local') {
+          this.selectedLocal = []
+          this.localLastSelectedIndex = null
+        } else {
+          this.selectedRemote = []
+          this.remoteLastSelectedIndex = null
+        }
+        try { this.cdr.detectChanges() } catch {}
+      })
     }
   }
 
@@ -4220,14 +4362,307 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
       clearTimeout(this._rbLongPressTimer)
       this._rbLongPressTimer = null
     }
+    if (this._rbFrameId != null) {
+      cancelAnimationFrame(this._rbFrameId)
+      this._rbFrameId = null
+    }
     if (this._rbMoveHandler) document.removeEventListener('mousemove', this._rbMoveHandler)
     if (this._rbUpHandler) document.removeEventListener('mouseup', this._rbUpHandler)
+    this._rbDestroyRectEl()
     this.rubberBand.active = false
     this.rubberBand.startedOnEntry = false
     this._rbLongPress = false
     this._rbSuppressDrag = false
-    // 触发变更检测以移除 DOM 中的框选矩形
-    try { this.cdr.detectChanges() } catch {}
+    this._rbDragCancelled = false
+    this._rbEntryRects = []
+    this._rbEntryEls = []
+    this._rbPaneListEl = null
+    this._rbPaneListRect = null
+    this._rbCtrlHeld = false
+    this._rbRightClick = false
+    this._rbCachedLocalEntries = null
+    this._rbCachedRemoteEntries = null
+    this._rbPathToIndex.clear()
+    this._rbInitialSelectedIndices = null
+    this._rbLiveSelectedIndices = new Set()
+  }
+
+  /** 框选激活时缓存条目几何与索引（延迟到大列表真正开始框选再读 DOM） */
+  private _rbCacheForRubberBand(): void {
+    const pane = this.rubberBand.pane
+    const listEl = this._rbPaneListEl
+    const rect = this._rbPaneListRect
+    if (!listEl || !rect) return
+
+    const selector = pane === 'local'
+      ? '.local-pane .entry:not(.header):not(.up-entry)'
+      : '.remote-pane .entry:not(.header):not(.up-entry)'
+    const entryEls = Array.from(this.elRef?.nativeElement?.querySelectorAll(selector) ?? []) as HTMLElement[]
+    this._rbEntryEls = entryEls
+    const listSL = listEl.scrollLeft, listST = listEl.scrollTop
+    this._rbEntryRects = entryEls.map(el => {
+      const r = el.getBoundingClientRect()
+      return {
+        top: r.top - rect.top + listST,
+        left: r.left - rect.left + listSL,
+        width: r.width,
+        height: r.height,
+      }
+    })
+
+    this._rbPathToIndex.clear()
+    if (pane === 'local') {
+      this._rbCachedLocalEntries = this.getFilteredLocalEntries()
+      this._rbCachedRemoteEntries = null
+      this._rbCachedLocalEntries.forEach((e, i) => this._rbPathToIndex.set(e.fullPath, i))
+    } else {
+      this._rbCachedRemoteEntries = this.getFilteredRemoteEntries()
+      this._rbCachedLocalEntries = null
+      this._rbCachedRemoteEntries.forEach((e, i) => this._rbPathToIndex.set(e.fullPath, i))
+    }
+  }
+
+  /** 不触发变更检测，仅同步 DOM 上的选中样式 */
+  private _rbClearPaneSelectionVisual(pane: 'local' | 'remote'): void {
+    if (pane === 'local') {
+      this.selectedLocal = []
+      this.localLastSelectedIndex = null
+    } else {
+      this.selectedRemote = []
+      this.remoteLastSelectedIndex = null
+    }
+    const listEl = this._rbPaneListEl
+    if (listEl) {
+      listEl.querySelectorAll('.entry.selected').forEach(el => el.classList.remove('selected'))
+    }
+  }
+
+  /** 动态元素无 _ngcontent 属性，组件 CSS 不生效，须写完整 inline style */
+  private _rbApplyRectBaseStyles(el: HTMLElement): void {
+    const s = el.style
+    s.position = 'absolute'
+    s.boxSizing = 'border-box'
+    s.margin = '0'
+    s.padding = '0'
+    s.border = '1px dashed rgba(59, 130, 246, 0.85)'
+    s.background = 'rgba(59, 130, 246, 0.15)'
+    s.pointerEvents = 'none'
+    s.zIndex = '100'
+    s.borderRadius = '2px'
+  }
+
+  /** 激活框选：创建框选矩形 DOM */
+  private _rbActivate(): void {
+    if (this.rubberBand.active) return
+    this.rubberBand.active = true
+    this._rbCacheForRubberBand()
+
+    const rb = this.rubberBand
+    const merge = this._rbCtrlHeld
+    // 空白区域框选：仅 Ctrl 为追加，左键/右键均为替换
+    if (!merge) {
+      this._rbClearPaneSelectionVisual(rb.pane)
+    }
+    // 快照追加模式的初始选中
+    const selected = rb.pane === 'local' ? this.selectedLocal : this.selectedRemote
+    this._rbInitialSelectedIndices = new Set<number>()
+    for (const e of selected) {
+      const idx = this._rbPathToIndex.get(e.fullPath)
+      if (idx !== undefined) this._rbInitialSelectedIndices.add(idx)
+    }
+    this._rbLiveSelectedIndices = merge
+      ? new Set(this._rbInitialSelectedIndices)
+      : new Set()
+    if (this._rbRightClick) {
+      this.closeContextMenu()
+    }
+    this._rbCreateRectEl()
+  }
+
+  /** 右键框选结束后弹出菜单（保留框选结果，不清空选中） */
+  private _rbOpenContextMenuAfterBoxSelect(
+    x: number, y: number, pane: 'local' | 'remote', hitIndex: number | null,
+  ): void {
+    this.closeBookmarks()
+    this.headerMenuVisible = false
+    this.contextMenuX = x
+    this.contextMenuY = y
+    this.contextMenuPane = pane
+
+    if (hitIndex != null && hitIndex >= 0) {
+      if (pane === 'local') {
+        const entry = this.getFilteredLocalEntries()[hitIndex]
+        if (entry) {
+          this.contextMenuEntry = entry
+          this.contextMenuVisible = true
+          this.cdr.detectChanges()
+          this.fixContextMenuPosition(x, y)
+          return
+        }
+      } else {
+        const entry = this.getFilteredRemoteEntries()[hitIndex]
+        if (entry) {
+          this.contextMenuEntry = entry
+          this.contextMenuVisible = true
+          this.cdr.detectChanges()
+          this.fixContextMenuPosition(x, y)
+          return
+        }
+      }
+    }
+
+    this.contextMenuEntry = null
+    this.contextMenuVisible = true
+    this.cdr.detectChanges()
+    this.fixContextMenuPosition(x, y)
+  }
+
+  /** 动态创建框选矩形（不依赖 Angular *ngIf / 组件样式封装） */
+  private _rbCreateRectEl(): void {
+    this._rbDestroyRectEl()
+    const listEl = this._rbPaneListEl
+    if (!listEl) return
+    const el = document.createElement('div')
+    el.className = 'rubber-band-rect'
+    this._rbApplyRectBaseStyles(el)
+    listEl.appendChild(el)
+    this._rbRectEl = el
+  }
+
+  private _rbDestroyRectEl(): void {
+    if (this._rbRectEl) {
+      try { this._rbRectEl.remove() } catch {}
+      this._rbRectEl = null
+    }
+  }
+
+  /** 更新框选矩形位置/大小 */
+  private _rbUpdateRectEl(): void {
+    if (!this._rbRectEl) this._rbCreateRectEl()
+    const rb = this.rubberBand
+    const listEl = this._rbPaneListEl
+    if (!this._rbRectEl || !listEl) return
+    const cs = getComputedStyle(listEl)
+    const padL = parseFloat(cs.paddingLeft) || 0
+    const padT = parseFloat(cs.paddingTop) || 0
+    const s = this._rbRectEl.style
+    // 坐标按 border 盒计算，absolute 子元素相对 padding 盒定位
+    s.left = Math.max(0, rb.rectLeft - padL) + 'px'
+    s.top = Math.max(0, rb.rectTop - padT) + 'px'
+    s.width = Math.max(0, rb.rectWidth) + 'px'
+    s.height = Math.max(0, rb.rectHeight) + 'px'
+    s.display = (rb.rectWidth > 0 || rb.rectHeight > 0) ? 'block' : 'none'
+  }
+
+  /** 根据当前框选矩形计算目标选中索引 */
+  private _rbTargetIndicesFromRect(): Set<number> {
+    const hitIndices = this._rbComputeHitIndices()
+    const merge = this._rbCtrlHeld
+    if (merge && this._rbInitialSelectedIndices) {
+      const target = new Set(this._rbInitialSelectedIndices)
+      for (const i of hitIndices) target.add(i)
+      return target
+    }
+    return hitIndices
+  }
+
+  /** 同步选中模型（不写 DOM） */
+  private _rbSyncSelectionModel(indices: Set<number>): void {
+    const rb = this.rubberBand
+    const sorted = [...indices].sort((a, b) => a - b)
+    if (rb.pane === 'local' && this._rbCachedLocalEntries) {
+      this.selectedLocal = sorted.map(i => this._rbCachedLocalEntries![i]).filter(Boolean)
+    } else if (rb.pane === 'remote' && this._rbCachedRemoteEntries) {
+      this.selectedRemote = sorted.map(i => this._rbCachedRemoteEntries![i]).filter(Boolean)
+    }
+  }
+
+  /** 拖拽过程中实时更新条目高亮与选中模型（差量改 DOM，不整表重绘） */
+  private _rbApplyLiveSelectionFromRect(): void {
+    const target = this._rbTargetIndicesFromRect()
+    const prev = this._rbLiveSelectedIndices
+    if (target.size === prev.size) {
+      let same = true
+      for (const i of target) {
+        if (!prev.has(i)) { same = false; break }
+      }
+      if (same) return
+    }
+    for (const i of prev) {
+      if (!target.has(i)) {
+        const el = this._rbEntryEls[i]
+        if (el) el.classList.remove('selected')
+      }
+    }
+    for (const i of target) {
+      if (!prev.has(i)) {
+        const el = this._rbEntryEls[i]
+        if (el) el.classList.add('selected')
+      }
+    }
+    this._rbLiveSelectedIndices = target
+    this._rbSyncSelectionModel(target)
+  }
+
+  /** mouseup 时最终同步选中集 */
+  private _rbApplySelectionFromRect(): void {
+    this._rbApplyLiveSelectionFromRect()
+  }
+
+  /** 计算与当前框选矩形相交的行索引 */
+  private _rbComputeHitIndices(): Set<number> {
+    const rb = this.rubberBand
+    const rLeft = rb.rectLeft, rTop = rb.rectTop
+    const rRight = rLeft + rb.rectWidth, rBottom = rTop + rb.rectHeight
+    const cachedRects = this._rbEntryRects
+    const hitIndices = new Set<number>()
+    if (cachedRects.length === 0) return hitIndices
+    const [rowStart, rowEnd] = this._rbFindRowRange(cachedRects, rTop, rBottom)
+    for (let i = rowStart; i <= rowEnd; i++) {
+      const cr = cachedRects[i]
+      const eRight = cr.left + cr.width, eBottom = cr.top + cr.height
+      if (!(rRight < cr.left || rBottom < cr.top || rLeft > eRight || rTop > eBottom)) {
+        hitIndices.add(i)
+      }
+    }
+    return hitIndices
+  }
+
+  /**
+   * 二分查找与框选矩形垂直范围可能相交的行区间 [start, end]
+   * rects 按 top 递增排列，将 O(n) 扫描降为 O(log n + k)
+   */
+  private _rbFindRowRange(
+    rects: Array<{ top: number; left: number; width: number; height: number }>,
+    rTop: number, rBottom: number,
+  ): [number, number] {
+    const n = rects.length
+    if (n === 0) return [0, -1]
+    let lo = 0, hi = n
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1
+      if (rects[mid].top + rects[mid].height <= rTop) lo = mid + 1
+      else hi = mid
+    }
+    const start = lo
+    lo = start; hi = n
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1
+      if (rects[mid].top < rBottom) lo = mid + 1
+      else hi = mid
+    }
+    return [start, lo - 1]
+  }
+
+  /** 框选激活时清除对侧面板的选中（仅允许单侧选中，在框选开始即刻执行） */
+  private _rbClearOppositePane(): void {
+    if (this.rubberBand.pane === 'local' && this.selectedRemote.length > 0) {
+      this.selectedRemote = []
+      this.remoteLastSelectedIndex = null
+    } else if (this.rubberBand.pane === 'remote' && this.selectedLocal.length > 0) {
+      this.selectedLocal = []
+      this.localLastSelectedIndex = null
+    }
   }
 
   // ========== 窄屏上下布局分割线 ==========
@@ -4328,87 +4763,6 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     try { this._paneSet(key, String(val)) } catch {}
   }
 
-  /** 选中与当前框选矩形相交的所有条目 */
-  private _rbSelectIntersecting(): void {
-    const rb = this.rubberBand
-    const rLeft = rb.rectLeft, rTop = rb.rectTop,
-          rRight = rLeft + rb.rectWidth, rBottom = rTop + rb.rectHeight
-
-    if (rb.pane === 'local') {
-      const entries = this.getFilteredLocalEntries()
-      const newSel: LocalEntry[] = [...this.selectedLocal]
-      for (const e of entries) {
-        const idx = entries.indexOf(e)
-        // 获取 entry 的 DOM 位置
-        const el = this._getEntryElement(idx, 'local')
-        if (!el) continue
-        const er = el.getBoundingClientRect()
-        const listEl = el.closest('.pane-list') as HTMLElement
-        if (!listEl) continue
-        const lr = listEl.getBoundingClientRect()
-        // 转换到 pane 坐标系（含滚动）
-        const eLeft = er.left - lr.left + listEl.scrollLeft
-        const eTop = er.top - lr.top + listEl.scrollTop
-        const eRight = eLeft + er.width
-        const eBottom = eTop + er.height
-        // 相交检测（允许部分重叠即算）
-        const intersects = !(rRight < eLeft || rBottom < eTop || rLeft > eRight || rTop > eBottom)
-        if (intersects) {
-          if (!newSel.includes(e)) newSel.push(e)
-        } else {
-          // 不相交时从选择中移除（仅本次框选新增的）
-          // 注意：不清除之前已有的选择，只管理本次框选范围内的
-        }
-      }
-      // 用 set 合并：保留之前的选择 + 新框选的
-      if (!rb.startedOnEntry) {
-        this.selectedLocal = newSel
-      } else {
-        // 追加模式：合并新旧
-        const merged = new Set(this.selectedLocal)
-        newSel.forEach(e => merged.add(e))
-        this.selectedLocal = Array.from(merged)
-      }
-    } else {
-      const entries = this.getFilteredRemoteEntries()
-      const newSel: SFTPFile[] = [...this.selectedRemote]
-      for (const e of entries) {
-        const idx = entries.indexOf(e)
-        const el = this._getEntryElement(idx, 'remote')
-        if (!el) continue
-        const er = el.getBoundingClientRect()
-        const listEl = el.closest('.pane-list') as HTMLElement
-        if (!listEl) continue
-        const lr = listEl.getBoundingClientRect()
-        const eLeft = er.left - lr.left + listEl.scrollLeft
-        const eTop = er.top - lr.top + listEl.scrollTop
-        const eRight = eLeft + er.width
-        const eBottom = eTop + er.height
-        const intersects = !(rRight < eLeft || rBottom < eTop || rLeft > eRight || rTop > eBottom)
-        if (intersects) {
-          if (!newSel.includes(e)) newSel.push(e)
-        }
-      }
-      if (!rb.startedOnEntry) {
-        this.selectedRemote = newSel
-      } else {
-        const merged = new Set(this.selectedRemote)
-        newSel.forEach(e => merged.add(e))
-        this.selectedRemote = Array.from(merged)
-      }
-    }
-    try { this.cdr.detectChanges() } catch {}
-  }
-
-  /** 根据 index 获取 entry 的 DOM 元素 */
-  private _getEntryElement(index: number, pane: 'local' | 'remote'): HTMLElement | null {
-    const cls = '.pane-list.' + (pane === 'local' ? 'local-pane' : 'remote-pane') + ' .entry:not(.header):not(.up-entry)'
-    const root = this.elRef?.nativeElement as HTMLElement | null
-    if (!root) return null
-    const entries = root.querySelectorAll(cls)
-    return entries[index] as HTMLElement | null
-  }
-
   // ========== 选择 ==========
   selectLocal(entry: LocalEntry, event: MouseEvent, idx: number): void {
     // 选中本地面板时清除远程面板选中（仅允许单侧选中）
@@ -4434,7 +4788,7 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-  isLocalSelected(e: LocalEntry): boolean { return this.selectedLocal.includes(e) }
+  isLocalSelected(e: LocalEntry): boolean { return this._localSelectedSet.has(e) }
 
   selectRemote(entry: SFTPFile, event: MouseEvent, idx: number): void {
     // 选中远程面板时清除本地面板选中（仅允许单侧选中）
@@ -4460,7 +4814,7 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-  isRemoteSelected(e: SFTPFile): boolean { return this.selectedRemote.includes(e) }
+  isRemoteSelected(e: SFTPFile): boolean { return this._remoteSelectedSet.has(e) }
 
   // ========== 排序 ==========
   setLocalSort(f: 'name' | 'size' | 'modified' | 'birthtime'): void {
@@ -4468,6 +4822,7 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     if (this._colJustResized) return
     this.localSortAsc = this.localSortBy === f ? !this.localSortAsc : true
     this.localSortBy = f
+    this._invalidateLocalCache()
     try { this._paneSet('sftp-plus-local-sort', JSON.stringify({ by: this.localSortBy, asc: this.localSortAsc })) } catch {}
   }
 
@@ -4475,6 +4830,7 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     if (this._colJustResized) return
     this.remoteSortAsc = this.remoteSortBy === f ? !this.remoteSortAsc : true
     this.remoteSortBy = f
+    this._invalidateRemoteCache()
     try { this._paneSet('sftp-plus-remote-sort', JSON.stringify({ by: this.remoteSortBy, asc: this.remoteSortAsc })) } catch {}
   }
 
@@ -4484,6 +4840,7 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
   applyLocalFilter(): void {
     this.localFilter = this.localFilterPending
     this.localFilterVisible = false
+    this._invalidateLocalCache()
   }
 
   /** 清空本地过滤并隐藏输入框 */
@@ -4491,12 +4848,14 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     this.localFilterPending = ''
     this.localFilter = ''
     this.localFilterVisible = false
+    this._invalidateLocalCache()
   }
 
   /** 应用远程过滤（pending → actual）并隐藏输入框 */
   applyRemoteFilter(): void {
     this.remoteFilter = this.remoteFilterPending
     this.remoteFilterVisible = false
+    this._invalidateRemoteCache()
   }
 
   /** 清空远程过滤并隐藏输入框 */
@@ -4504,26 +4863,46 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     this.remoteFilterPending = ''
     this.remoteFilter = ''
     this.remoteFilterVisible = false
+    this._invalidateRemoteCache()
   }
 
+  // ========== 过滤结果缓存（P1-10：避免每次变更检测重复计算） ==========
+  private _localFilteredCache: LocalEntry[] | null = null
+  private _localFilterDirty = true
+  private _remoteFilteredCache: SFTPFile[] | null = null
+  private _remoteFilterDirty = true
+
+  private _invalidateLocalCache(): void { this._localFilterDirty = true }
+  private _invalidateRemoteCache(): void { this._remoteFilterDirty = true }
+
+  /** trackBy 函数：避免 *ngFor 每次变更检测重建所有 DOM 节点 */
+  trackLocalEntryBy(_index: number, item: LocalEntry): string { return item.fullPath }
+  trackRemoteEntryBy(_index: number, item: SFTPFile): string { return item.fullPath }
+
   getFilteredLocalEntries(): LocalEntry[] {
+    if (!this._localFilterDirty && this._localFilteredCache) return this._localFilteredCache
     let entries = [...this.localEntries]
     if (!this.showHiddenLocal) entries = entries.filter(e => !e.name.startsWith('.'))
     if (this.localFilter.trim()) {
       const t = this.localFilter.toLowerCase()
       entries = entries.filter(e => e.name.toLowerCase().includes(t))
     }
-    return this.sortLocal(entries)
+    this._localFilteredCache = this.sortLocal(entries)
+    this._localFilterDirty = false
+    return this._localFilteredCache
   }
 
   getFilteredRemoteEntries(): SFTPFile[] {
+    if (!this._remoteFilterDirty && this._remoteFilteredCache) return this._remoteFilteredCache
     let entries = [...this.remoteEntries]
     if (!this.showHiddenRemote) entries = entries.filter(e => !e.name.startsWith('.'))
     if (this.remoteFilter.trim()) {
       const t = this.remoteFilter.toLowerCase()
       entries = entries.filter(e => e.name.toLowerCase().includes(t))
     }
-    return this.sortRemote(entries)
+    this._remoteFilteredCache = this.sortRemote(entries)
+    this._remoteFilterDirty = false
+    return this._remoteFilteredCache
   }
 
   private sortLocal(entries: LocalEntry[]): LocalEntry[] {
@@ -4560,12 +4939,13 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     this.activePane = 'local'
     // 如果刚完成框选操作，忽略此次点击（避免重复选择）
     if (this._rbMoved) { this._rbMoved = false; return }
-    if (this.localClickTimer) { clearTimeout(this.localClickTimer) }
-    // 延迟 250ms 执行选择逻辑；若触发 dblclick 则取消
+    // 取消延迟选择：直接执行选择，消除点击卡顿感
+    if (this.localClickTimer) { clearTimeout(this.localClickTimer); this.localClickTimer = null }
+    // 重新设置 250ms 定时器仅用于 dblclick 检测（openLocal 会清除此定时器）
     this.localClickTimer = setTimeout(() => {
       this.localClickTimer = null
-      this.selectLocal(entry, event, idx)
     }, 250)
+    this.selectLocal(entry, event, idx)
   }
 
   /**
@@ -4611,11 +4991,12 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
   onRemoteClick(entry: SFTPFile, event: MouseEvent, idx: number): void {
     this.activePane = 'remote'
     if (this._rbMoved) { this._rbMoved = false; return }
-    if (this.remoteClickTimer) { clearTimeout(this.remoteClickTimer) }
+    if (this.remoteClickTimer) { clearTimeout(this.remoteClickTimer); this.remoteClickTimer = null }
+    // 重新设置 250ms 定时器仅用于 dblclick 检测
     this.remoteClickTimer = setTimeout(() => {
       this.remoteClickTimer = null
-      this.selectRemote(entry, event, idx)
     }, 250)
+    this.selectRemote(entry, event, idx)
   }
 
 
@@ -4757,116 +5138,346 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
   }
 
   // ========== 拖拽 ==========
-  onDragOver(ev: DragEvent): void { ev.preventDefault() }
+  onDragOver(ev: DragEvent): void {
+    ev.preventDefault()
+    if (ev.dataTransfer) ev.dataTransfer.dropEffect = 'copy'
+  }
+
+  onDragEnter(ev: DragEvent, targetPane: 'local' | 'remote'): void {
+    ev.preventDefault()
+    if (targetPane === 'remote') {
+      this._remoteDragOver = true
+    } else {
+      this._localDragOver = true
+    }
+    this.cdr.detectChanges()
+  }
+
+  onDragLeave(ev: DragEvent, targetPane: 'local' | 'remote'): void {
+    ev.preventDefault()
+    // 仅当真正离开 pane-list 时才取消高亮（避免鼠标在子元素间移动时误触发 dragleave）
+    const related = ev.relatedTarget as Node | null
+    const paneList = this.elRef.nativeElement.querySelector(`.pane-list.${targetPane}-pane`) as HTMLElement | null
+    if (paneList && related && paneList.contains(related)) return
+    if (targetPane === 'remote') {
+      this._remoteDragOver = false
+    } else {
+      this._localDragOver = false
+    }
+    this.cdr.detectChanges()
+  }
 
   onDragStartLocal(ev: DragEvent, entry: LocalEntry): void {
+    // 如果条目未被选中→取消拖拽，允许从文件条目开始框选（模仿 Windows 行为）
+    // 标记 _rbDragCancelled 告知 _rbOnMouseMove 可以激活框选
+    if (!this.selectedLocal.includes(entry)) {
+      ev.preventDefault()
+      this._rbDragCancelled = true
+      return
+    }
     // 拖拽开始时清理框选状态，避免拖拽结束后框选逻辑被意外触发
     this._rbCleanup()
     const src = this.selectedLocal.includes(entry) && this.selectedLocal.length ? this.selectedLocal : [entry]
     const p: DragPayload = { kind: 'local-paths', paths: src.map(e => ({ fullPath: e.fullPath, name: e.name, isDirectory: e.isDirectory })) }
     ev.dataTransfer?.setData('application/x-sftp-plus', JSON.stringify(p))
+
+    // 本地文件真实存在于磁盘，设置 OS 拖拽数据（FilePath + text/uri-list）以支持拖到桌面/资源管理器
+    const uriList: string[] = []
+    for (const e of src) {
+      try {
+        const file = new File([''], e.name)
+        ;(file as any).path = e.fullPath
+        ev.dataTransfer?.items.add(file)
+        uriList.push(`file:///${e.fullPath.replace(/\\/g, '/')}`)
+      } catch { /* 跳过无法添加的文件 */ }
+    }
+    if (uriList.length) {
+      ev.dataTransfer?.setData('text/uri-list', uriList.join('\r\n'))
+      ev.dataTransfer!.dropEffect = 'copy'
+      ev.dataTransfer!.effectAllowed = 'copy'
+    }
   }
 
   onDragStartRemote(ev: DragEvent, entry: SFTPFile): void {
     if (!this.connected) return
+    // 如果条目未被选中→取消拖拽，允许从文件条目开始框选
+    // 标记 _rbDragCancelled 告知 _rbOnMouseMove 可以激活框选
+    if (!this.selectedRemote.includes(entry)) {
+      ev.preventDefault()
+      this._rbDragCancelled = true
+      return
+    }
     // 拖拽开始时清理框选状态，避免拖拽结束后框选逻辑被意外触发
     this._rbCleanup()
     const src = this.selectedRemote.includes(entry) && this.selectedRemote.length ? this.selectedRemote : [entry]
     const p: DragPayload = { kind: 'remote-paths', paths: src.map(e => ({ remotePath: e.fullPath, name: e.name, isDirectory: e.isDirectory, size: e.size, mode: e.mode, modified: e.modified?.getTime?.() })) }
     ev.dataTransfer?.setData('application/x-sftp-plus', JSON.stringify(p))
+
+    // 同步检查临时缓存：只在实际文件已缓存时设置 OS 拖拽数据，否则不设置
+    // 避免生成无效的 .url 快捷方式文件
+    const tmpDir = path.join(os.tmpdir(), 'sftp-plus-dragout')
+    const uriList: string[] = []
+    for (const e of src) {
+      const tmpPath = path.join(tmpDir, e.name)
+      try {
+        const st = fsSync.statSync(tmpPath)
+        if (e.isDirectory) {
+          if (st.isDirectory() && fsSync.statSync(path.join(tmpPath, '.sftp-cache-done'))) {
+            try { const file = new File([''], e.name); (file as any).path = tmpPath; ev.dataTransfer?.items.add(file) } catch {}
+            uriList.push(`file:///${tmpPath.replace(/\\/g, '/')}`)
+          }
+        } else if (st.size === (e.size ?? 0)) {
+          try { const file = new File([''], e.name); (file as any).path = tmpPath; ev.dataTransfer?.items.add(file) } catch {}
+          uriList.push(`file:///${tmpPath.replace(/\\/g, '/')}`)
+        }
+      } catch { /* 缓存未命中 */ }
+    }
+
+    // 全部缓存命中时通知 OS 这是一次文件拖拽；部分命中时不设置，避免产生不完整的拖拽
+    if (uriList.length > 0 && uriList.length === src.length) {
+      ev.dataTransfer?.setData('text/uri-list', uriList.join('\r\n'))
+      // 设置默认拖拽图标为 copy
+      ev.dataTransfer!.dropEffect = 'copy'
+      ev.dataTransfer!.effectAllowed = 'copy'
+      return
+    }
+
+    // 缓存部分/全部未命中：不设置 OS 拖拽数据，避免生成快捷方式
+    // 保留 application/x-sftp-plus 供面板间内部拖拽（本地↔远程），此功能不受缓存影响
+    // 后台异步预缓存，供下次拖出到桌面/资源管理器使用（不阻塞 dragstart）
+    if (uriList.length < src.length) {
+      void this._cacheRemoteFilesForDrag(src)
+    }
+  }
+
+  /** 异步预缓存远程文件/文件夹到临时目录（供后续拖拽到桌面使用） */
+  private async _cacheRemoteFilesForDrag(entries: SFTPFile[]): Promise<void> {
+    if (!this.sftpSession) return
+    const tmpDir = path.join(os.tmpdir(), 'sftp-plus-dragout')
+    await fs.mkdir(tmpDir, { recursive: true }).catch(() => {})
+    for (const entry of entries) {
+      const tmpPath = path.join(tmpDir, entry.name)
+      if (entry.isDirectory) {
+        await this._cacheRemoteDir(entry, tmpPath)
+      } else {
+        // 文件：只下载缓存未命中的
+        const cached = await fs.stat(tmpPath).then(s => s.size === (entry.size ?? 0)).catch(() => false)
+        if (!cached) {
+          try { await this._doDownloadRaw(entry.fullPath, tmpPath, undefined, entry.size) } catch { /* 跳过 */ }
+        }
+      }
+    }
+  }
+
+  /** 递归缓存远程目录到临时路径 */
+  private async _cacheRemoteDir(entry: SFTPFile, localDir: string): Promise<void> {
+    if (!this.sftpSession) return
+    // 检查缓存是否已完整
+    const doneMarker = path.join(localDir, '.sftp-cache-done')
+    const cached = await fs.stat(doneMarker).then(() => true).catch(() => false)
+    if (cached) return
+
+    await fs.mkdir(localDir, { recursive: true }).catch(() => {})
+    const entries = await this.sftpSession.readdir(entry.fullPath).catch(() => null)
+    if (!entries) return
+    for (const sub of entries) {
+      const remoteP = path.posix.join(entry.fullPath, sub.name)
+      const localP = path.join(localDir, sub.name)
+      if (sub.isDirectory) {
+        await this._cacheRemoteDir({ ...sub, fullPath: remoteP }, localP)
+      } else {
+        try { await this._doDownloadRaw(remoteP, localP, sub.mode, sub.size) } catch { /* 跳过 */ }
+      }
+    }
+    // 写入缓存完成标记
+    try { await fs.writeFile(doneMarker, '') } catch {}
   }
 
   async onDrop(ev: DragEvent, targetPane: 'local' | 'remote'): Promise<void> {
     ev.preventDefault()
-    if (!this.connected || !this.sftpSession) return
+    this._remoteDragOver = false
+    this._localDragOver = false
+
+    // 优先检测是否为内部拖拽（有 application/x-sftp-plus 自定义数据）
+    // 必须在 OS 路径检测之前，避免我们自己添加的 File 对象被误处理
+    // 注意：getData() 在 drop 事件中只能调用一次（浏览器会消费数据），后续调用返回空
+    // 因此将结果缓存到 rawPayload，后续复用
+    const rawPayload = this._parseDragPayload(ev)
+    if (rawPayload) {
+      if (!this.connected || !this.sftpSession) return
+      if (rawPayload.kind === 'remote-paths' && targetPane === 'remote') {
+        // 远程→远程同面板拖拽：不执行任何操作（相同目录下无意义），刷新列表即可
+        await this.refreshRemote()
+        this.selectedRemote = []
+        this.cdr.detectChanges()
+        return
+      }
+      if (rawPayload.kind === 'local-paths' && targetPane === 'local') {
+        // 本地→本地同面板拖拽：不执行任何操作，刷新列表即可
+        await this.refreshLocal()
+        this.selectedLocal = []
+        this.cdr.detectChanges()
+        return
+      }
+      if (rawPayload.kind === 'local-paths' && targetPane === 'remote') {
+        for (const p of rawPayload.paths) {
+          await this.uploadPathToRemote(this.remotePath, p.fullPath)
+        }
+        await this.refreshRemote()
+        this.selectedLocal = []
+        this.cdr.detectChanges()
+        return
+      }
+      if (rawPayload.kind === 'remote-paths' && targetPane === 'local') {
+        for (const p of rawPayload.paths) {
+          if (p.isDirectory) {
+            const localDir = path.join(this.localPath, p.name)
+            // 冲突检测：检查本地是否已存在同名目录
+            const dirExists = await fs.stat(localDir).then(() => true).catch(() => false)
+            if (dirExists) {
+              this._conflictQueue.push({
+                localPath: localDir,
+                remoteDir: path.posix.dirname(p.remotePath),
+                fileName: p.name,
+                remotePath: p.remotePath,
+                localStat: { size: 0, mtimeMs: Date.now() } as fsSync.Stats,
+                direction: 'download',
+                isDirectory: true,
+              })
+              this.conflictOriginalTotal = this._conflictQueue.length
+              this._showConflictDialog()
+              this.selectedRemote = []
+              this.cdr.detectChanges()
+              continue
+            }
+            await this.downloadRemoteDir(p.remotePath, this.localPath, targetPane)
+          } else {
+            const localPath = path.join(this.localPath, p.name)
+            const remoteMtime = p.modified ?? Date.now()
+            // 冲突检测：检查本地是否已存在同名文件
+            const conflict = await this._checkLocalConflict(localPath, p.size ?? 0, remoteMtime)
+            if (conflict) {
+              this._conflictQueue.push({
+                localPath,
+                remoteDir: path.posix.dirname(p.remotePath),
+                fileName: p.name,
+                remotePath: p.remotePath,
+                localStat: { size: conflict.localSize, mtimeMs: conflict.localMtime } as fsSync.Stats,
+                direction: 'download',
+                remoteFileSize: p.size ?? 0,
+                remoteFileMtime: remoteMtime,
+              })
+              this.conflictOriginalTotal = this._conflictQueue.length
+              this._showConflictDialog()
+              // 先清除选中状态，避免对话框关闭后底部还显示"已选择"
+              this.selectedRemote = []
+              this.cdr.detectChanges()
+              // 不阻塞后续文件入队列
+              continue
+            }
+            await this._doDownload(p.remotePath, localPath, p.mode, p.size)
+          }
+        }
+        await this.refreshLocal()
+        this.selectedRemote = []
+        this.cdr.detectChanges()
+        return
+      }
+    }
 
     // OS 文件拖入
-    const osPaths = this.getDroppedOsPaths(ev)
+    const osPaths = await this.getDroppedOsPaths(ev)
     if (osPaths.length && targetPane === 'remote') {
+      if (!this.connected || !this.sftpSession) return
       for (const p of osPaths) {
         await this.uploadPathToRemote(this.remotePath, p)
       }
       await this.refreshRemote()
       return
     }
-
-    // sftp-plus 自定义拖拽
-    const raw = ev.dataTransfer?.getData('application/x-sftp-plus')
-    if (!raw) return
-    let payload: DragPayload
-    try { payload = JSON.parse(raw) } catch { return }
-
-    if (payload.kind === 'local-paths' && targetPane === 'remote') {
-      for (const p of payload.paths) {
-        await this.uploadPathToRemote(this.remotePath, p.fullPath)
-      }
-      await this.refreshRemote()
-      this.selectedLocal = []
-      this.cdr.detectChanges()
-    } else if (payload.kind === 'remote-paths' && targetPane === 'local') {
-      for (const p of payload.paths) {
-        if (p.isDirectory) {
-          const localDir = path.join(this.localPath, p.name)
-          // 冲突检测：检查本地是否已存在同名目录
-          const dirExists = await fs.stat(localDir).then(() => true).catch(() => false)
-          if (dirExists) {
-            this._conflictQueue.push({
-              localPath: localDir,
-              remoteDir: path.posix.dirname(p.remotePath),
-              fileName: p.name,
-              remotePath: p.remotePath,
-              localStat: { size: 0, mtimeMs: Date.now() } as fsSync.Stats,
-              direction: 'download',
-              isDirectory: true,
-            })
-            this.conflictOriginalTotal = this._conflictQueue.length
-            this._showConflictDialog()
-            this.selectedRemote = []
-            this.cdr.detectChanges()
-            continue
-          }
-          await this.downloadRemoteDir(p.remotePath, this.localPath, targetPane)
-        } else {
-          const localPath = path.join(this.localPath, p.name)
-          const remoteMtime = p.modified ?? Date.now()
-          // 冲突检测：检查本地是否已存在同名文件
-          const conflict = await this._checkLocalConflict(localPath, p.size ?? 0, remoteMtime)
-          if (conflict) {
-            this._conflictQueue.push({
-              localPath,
-              remoteDir: path.posix.dirname(p.remotePath),
-              fileName: p.name,
-              remotePath: p.remotePath,
-              localStat: { size: conflict.localSize, mtimeMs: conflict.localMtime } as fsSync.Stats,
-              direction: 'download',
-              remoteFileSize: p.size ?? 0,
-              remoteFileMtime: remoteMtime,
-            })
-            this.conflictOriginalTotal = this._conflictQueue.length
-            this._showConflictDialog()
-            // 先清除选中状态，避免对话框关闭后底部还显示"已选择"
-            this.selectedRemote = []
-            this.cdr.detectChanges()
-            // 不阻塞后续文件入队列
-            continue
-          }
-          await this._doDownload(p.remotePath, localPath, p.mode, p.size)
+    if (osPaths.length && targetPane === 'local') {
+      // OS→本地面板：复制文件/文件夹到本地面板当前目录
+      for (const p of osPaths) {
+        const baseName = path.basename(p)
+        const dest = path.join(this.localPath, baseName)
+        try {
+          await fs.cp(p, dest, { recursive: true, errorOnExist: false, dereference: false })
+        } catch (e) {
+          console.error('[SFTP+] Copy local failed:', p, e)
+          const msg = this.effectiveLang === 'zh-CN'
+            ? `复制失败: ${baseName}`
+            : `Copy failed: ${baseName}`
+          try { this.notifications?.error?.(msg, '') } catch {}
         }
       }
       await this.refreshLocal()
-      this.selectedRemote = []
-      this.cdr.detectChanges()
+      return
     }
   }
 
-  private getDroppedOsPaths(ev: DragEvent): string[] {
+  /** 解析内部拖拽数据（getData 在 drop 事件中只能消费一次，封装为工具方法确保只读一次） */
+  private _parseDragPayload(ev: DragEvent): DragPayload | null {
+    const raw = ev.dataTransfer?.getData('application/x-sftp-plus')
+    if (!raw) return null
+    try { return JSON.parse(raw) } catch { return null }
+  }
+
+  private async getDroppedOsPaths(ev: DragEvent): Promise<string[]> {
     const dt = ev.dataTransfer
     if (!dt) return []
-    const fps = Array.from(dt.files ?? []).map(f => (f as any).path as string | undefined).filter(Boolean) as string[]
-    if (fps.length) return fps
+
+    // 策略1: Electron File.path（最直接，跨平台，带正确原生路径）
+    const files = Array.from(dt.files ?? [])
+    const electronPaths = files.map(f => (f as any).path as string | undefined).filter(Boolean) as string[]
+    if (electronPaths.length) return electronPaths
+
+    // 策略1b: 遍历 dataTransfer.items 用 webUtils.getPathForFile()（Electron 22+，支持文件和文件夹）
+    try {
+      const { webUtils } = require('electron')
+      const items = Array.from(dt.items ?? [])
+      const itemPaths: string[] = []
+      for (const item of items) {
+        if (item.kind === 'file') {
+          const file = item.getAsFile()
+          if (file) {
+            const p = webUtils.getPathForFile(file)
+            if (p) itemPaths.push(p)
+          }
+        }
+      }
+      if (itemPaths.length) return itemPaths
+    } catch { /* Electron 版本不支持 webUtils，或未启用 */ }
+
+    // 策略2: File 对象有内容但没有 .path → 写入临时目录后返回路径（仅单文件，非目录）
+    if (files.length) {
+      const tmpDir = path.join(os.tmpdir(), 'sftp-plus-dragdrop')
+      await fs.mkdir(tmpDir, { recursive: true }).catch(() => {})
+      const tmpPaths: string[] = []
+      for (const file of files) {
+        if (!file.name) continue
+        const tmpPath = path.join(tmpDir, file.name)
+        try {
+          const buf = Buffer.from(await file.arrayBuffer())
+          if (buf.length === 0 && file.size === 0) continue
+          await fs.writeFile(tmpPath, buf)
+          tmpPaths.push(tmpPath)
+        } catch { /* 跳过无法读取的文件（含文件夹占位项） */ }
+      }
+      if (tmpPaths.length) return tmpPaths
+    }
+
+    // 策略3: text/uri-list 回退（处理 Windows file:///C:/path 格式）
     const uriList = dt.getData('text/uri-list') || ''
-    return uriList.split(/\r?\n/g).map(x => x.trim()).filter(x => x && !x.startsWith('#'))
-      .map(x => x.startsWith('file://') ? decodeURIComponent(x.replace(/^file:\/\//, '')) : x)
+    const uris = uriList.split(/\r?\n/g).map(x => x.trim()).filter(x => x && !x.startsWith('#'))
+    return uris.map(x => {
+      if (!x.startsWith('file://')) return x
+      const raw = decodeURIComponent(x.slice('file://'.length))  // 去掉 file://
+      // Windows: file:///C:/path → /C:/path → 去掉开头的 /，保持 Drive letter
+      if (/^\/[a-zA-Z]:/.test(raw)) {
+        return raw.slice(1).replace(/\//g, '\\')
+      }
+      return raw
+    })
   }
 
   // ========== 文件夹传输进度 ==========
@@ -4877,6 +5488,7 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     try {
       for (const item of await fs.readdir(dirPath, { withFileTypes: true })) {
         const p = path.join(dirPath, item.name)
+        if (item.isSymbolicLink()) continue
         if (item.isDirectory()) {
           size += await this._calcLocalDirSize(p)
         } else {
@@ -4893,6 +5505,7 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     let count = 0
     try {
       for (const item of await fs.readdir(dirPath, { withFileTypes: true })) {
+        if (item.isSymbolicLink()) continue
         if (item.isDirectory()) {
           count += await this._countLocalDirItems(path.join(dirPath, item.name))
         } else {
@@ -5013,11 +5626,13 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
    */
   private async uploadPathToRemote(
     remoteDir: string, localPath: string,
-    _top?: { t: typeof this.transfers[0]; startTime: number; logEntryId: string; bytesDone: number; itemDone: number },
+    _top?: FolderTransferCtx,
   ): Promise<void> {
     if (!this.sftpSession) return
-    const st = await fs.stat(localPath).catch(() => null)
+    const st = await fs.lstat(localPath).catch(() => null)
     if (!st) return
+    // 符号链接不上传
+    if (st.isSymbolicLink()) return
     const base = path.basename(localPath)
     const rt = path.posix.join(remoteDir, base)
 
@@ -5033,10 +5648,23 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
         const { transferEntry: t, startTime, logEntryId } = this._startFolderTransfer(
           base, 'upload', rt, localPath, totalSize, itemCount)
         _top = { t, startTime, logEntryId, bytesDone: 0, itemDone: 0 }
+        // 远程已存在同名目录 → 目录冲突
+        if (await this._checkRemotePathExists(rt, true)) {
+          this._conflictQueue.push({
+            localPath, remoteDir, fileName: base, remotePath: rt, localStat: st,
+            direction: 'upload', isDirectory: true,
+          })
+          this.conflictOriginalTotal = this._conflictQueue.length
+          _top.hadConflict = true
+          this._showConflictDialog()
+          this._finishFolderTransfer(_top.t, _top.startTime, _top.logEntryId, false)
+          return
+        }
       }
       try { await this.sftpSession.mkdir(rt) } catch {}
-      const children = await fs.readdir(localPath)
+      const children = await fs.readdir(localPath, { withFileTypes: true })
       for (const c of children) {
+        if (c.isSymbolicLink()) continue
         // 检查是否被用户取消/暂停
         if ((_top?.t as any)?._aborted) break
         while ((_top?.t as any)?._paused) {
@@ -5044,10 +5672,11 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
           if ((_top?.t as any)?._aborted) break
         }
         if ((_top?.t as any)?._aborted) break
-        await this.uploadPathToRemote(rt, path.join(localPath, c), _top)
+        await this.uploadPathToRemote(rt, path.join(localPath, c.name), _top)
       }
       if (isTop) {
-        this._finishFolderTransfer(_top!.t, _top!.startTime, _top!.logEntryId, true)
+        const ok = !_top!.hadConflict && !(_top!.t as any)?._aborted
+        this._finishFolderTransfer(_top!.t, _top!.startTime, _top!.logEntryId, ok)
       }
       return
     }
@@ -5058,8 +5687,8 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
       // 有冲突 → 入队列，弹出对话框
       this._conflictQueue.push({ localPath, remoteDir, fileName: base, remotePath: rt, localStat: st, direction: 'upload' })
       this.conflictOriginalTotal = this._conflictQueue.length
+      if (_top) _top.hadConflict = true
       this._showConflictDialog()
-      // 顶层单文件且无冲突队列中的其他文件时，仍需写一条日志？不——冲突由对话框接管
       return
     }
 
@@ -5089,28 +5718,54 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
    */
   private async _checkConflict(remotePath: string, localSize: number, localMtime: number): Promise<ConflictFileInfo | null> {
     if (!this.sftpSession) return null
+    const parentDir = path.posix.dirname(remotePath)
+    const fileName = path.basename(remotePath)
     try {
-      const parentDir = path.posix.dirname(remotePath)
-      const fileName = path.basename(remotePath)
-      // 使用 readdir 检查远程文件是否存在
+      // P2-14: 优先使用 stat 单文件查询（O(1)），避免 readdir 列出整个目录
+      if (this.sftpSession.stat) {
+        const st = await this.sftpSession.stat(remotePath)
+        return {
+          localPath: remotePath, remotePath, fileName, localSize,
+          remoteSize: st.size ?? 0,
+          localMtime,
+          remoteMtime: st.modified?.getTime?.() ?? (st.mtime ? st.mtime * 1000 : 0),
+          remoteDir: parentDir, direction: 'upload', isSamePane: false,
+        }
+      }
+      // 回退：stat 不可用时使用 readdir + find
       const entries = await this.sftpSession.readdir(parentDir)
       const found = entries.find(e => e.name === fileName)
       if (found) {
         return {
-          localPath: remotePath,
-          remotePath,
-          fileName,
-          localSize,
+          localPath: remotePath, remotePath, fileName, localSize,
           remoteSize: found.size ?? 0,
           localMtime,
           remoteMtime: found.modified?.getTime?.() ?? 0,
-          remoteDir: parentDir,
-          direction: 'upload',
-          isSamePane: false,
+          remoteDir: parentDir, direction: 'upload', isSamePane: false,
         }
       }
     } catch { /* 文件不存在或无权限，不冲突 */ }
     return null
+  }
+
+  /** 检查远程路径是否已存在（目录或文件） */
+  private async _checkRemotePathExists(remotePath: string, expectDir?: boolean): Promise<boolean> {
+    if (!this.sftpSession) return false
+    if (this.sftpSession.stat) {
+      try {
+        await this.sftpSession.stat(remotePath)
+        return true
+      } catch { return false }
+    }
+    const parentDir = path.posix.dirname(remotePath)
+    const name = path.basename(remotePath)
+    try {
+      const entries = await this.sftpSession.readdir(parentDir)
+      const found = entries.find(e => e.name === name)
+      if (!found) return false
+      if (expectDir === undefined) return true
+      return expectDir ? found.isDirectory : !found.isDirectory
+    } catch { return false }
   }
 
   /**
@@ -5480,6 +6135,98 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     this._showConflictDialog()
   }
 
+  // ========== P2-13: 共享传输进度定时器 ==========
+  /** 每个传输的元数据（速度计算用），避免在 transfers 类型上暴露内部字段 */
+  private _transferMeta = new WeakMap<object, { prevBytes: number; prevTime: number; startTime: number }>()
+  /** 唯一的共享定时器，所有传输共用一个 200ms 轮询 */
+  private _transferTimer: ReturnType<typeof setInterval> | null = null
+  /** 当前由共享定时器追踪的传输数量（不含文件夹传输） */
+  private _trackedTransferCount = 0
+
+  /** 启动共享定时器（幂等） */
+  private _startTransferTimer(): void {
+    if (this._transferTimer) return
+    this._transferTimer = setInterval(() => this._tickAllTransfers(), 200)
+  }
+
+  /** 停止共享定时器 */
+  private _stopTransferTimer(): void {
+    if (this._transferTimer) {
+      clearInterval(this._transferTimer)
+      this._transferTimer = null
+    }
+  }
+
+  /** 每 200ms 轮询所有活跃传输的进度 */
+  private _tickAllTransfers(): void {
+    if (this.transfers.length === 0) {
+      this._stopTransferTimer()
+      return
+    }
+    let needsDetect = false
+    const toRemove: typeof this.transfers[number][] = []
+    for (const entry of this.transfers) {
+      const meta = this._transferMeta.get(entry)
+      if (!meta) continue  // 文件夹传输等无元数据的条目由各自逻辑管理，跳过
+      const t = entry.transfer
+      try {
+        // 连接断开：清理非暂停传输
+        if (!this.connected) {
+          if (!t.paused) {
+            toRemove.push(entry)
+            this.transferLog.update(entry.logEntryId!, { success: false, duration: Date.now() - meta.startTime, endTime: Date.now(), failReason: 'interrupted' })
+          }
+          continue
+        }
+        if (t.paused) { entry.speed = ''; continue }
+        const done = t.getCompletedBytes?.() || 0
+        const newPercent = Math.min(100, Math.round((done / entry.bytesTotal) * 100))
+        entry.bytesDone = done
+        const now = Date.now()
+        const elapsed = now - meta.prevTime
+        if (elapsed >= 1000) {
+          const delta = done - meta.prevBytes
+          entry.speed = this._formatSpeed(delta, elapsed)
+          meta.prevBytes = done
+          meta.prevTime = now
+        }
+        if (newPercent !== entry.percent) {
+          entry.percent = newPercent
+          needsDetect = true
+        } else if (elapsed >= 1000) {
+          needsDetect = true
+        }
+        // 30 分钟超时保护
+        if (now - meta.startTime > 1800000) {
+          toRemove.push(entry)
+          this.transferLog.update(entry.logEntryId!, { success: false, duration: now - meta.startTime, endTime: now, failReason: 'error' })
+          continue
+        }
+        // 完成/取消
+        if (t.isComplete?.() || t.isCancelled?.() || entry.percent >= 100) {
+          toRemove.push(entry)
+          const finalSuccess = !t.isCancelled?.()
+          this.transferLog.update(entry.logEntryId!, { success: finalSuccess, duration: now - meta.startTime, endTime: now, failReason: finalSuccess ? undefined : 'error' })
+        }
+      } catch {
+        toRemove.push(entry)
+        this.transferLog.update(entry.logEntryId!, { success: false, duration: Date.now() - meta.startTime, endTime: Date.now(), failReason: 'error' })
+      }
+    }
+    // 清理已完成/错误的传输
+    for (const entry of toRemove) {
+      this._transferMeta.delete(entry)
+      this.transfers = this.transfers.filter(x => x !== entry)
+      this._trackedTransferCount--
+    }
+    if (needsDetect) this.cdr.detectChanges()
+    // 所有单文件传输完成 → 停止定时器
+    if (this._trackedTransferCount <= 0) {
+      this._trackedTransferCount = 0
+      this._stopTransferTimer()
+    }
+  }
+
   private trackTransfer(t: any, direction: 'upload' | 'download', remotePath: string, localPath: string): void {
     const sz = t.getSize?.() || 0
     const profileName = this.profile?.name || ''
@@ -5506,61 +6253,12 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     this.transfers.push(entry)
     this.transfersMinimized = false  // 新传输自动展开面板
     this.transfersHidden = false
-    const startTime = Date.now()
-    let prevBytes = 0
-    let prevTime = startTime
-    const timer = setInterval(() => {
-      try {
-        // 连接断开时：仅清理非暂停的传输，暂停的传输保留以待重连后恢复
-        if (!this.connected) {
-          if (!t.paused) {
-            clearInterval(timer)
-            this.transfers = this.transfers.filter(x => x !== entry)
-            this.transferLog.update(logEntry.id, { success: false, duration: Date.now() - startTime, endTime: Date.now(), failReason: 'interrupted' })
-          }
-          return
-        }
-        if (t.paused) {
-          entry.speed = ''
-          return
-        }
-        const done = t.getCompletedBytes?.() || 0
-        const newPercent = Math.min(100, Math.round((done / sz) * 100))
-        entry.bytesDone = done
-        // 计算速度（每 1s 采样一次，避免短时间波动）
-        const now = Date.now()
-        const elapsed = now - prevTime
-        if (elapsed >= 1000 && !t.paused) {
-          const delta = done - prevBytes
-          entry.speed = this._formatSpeed(delta, elapsed)
-          prevBytes = done
-          prevTime = now
-        }
-        if (newPercent !== entry.percent) {
-          entry.percent = newPercent
-          this.cdr.detectChanges()
-        } else if (elapsed >= 1000) {
-          this.cdr.detectChanges()
-        }
-        // 30 分钟超时保护
-        if (Date.now() - startTime > 1800000) {
-          clearInterval(timer)
-          this.transfers = this.transfers.filter(x => x !== entry)
-          this.transferLog.update(logEntry.id, { success: false, duration: Date.now() - startTime, endTime: Date.now(), failReason: 'error' })
-          return
-        }
-        if (t.isComplete?.() || t.isCancelled?.() || entry.percent >= 100) {
-          clearInterval(timer)
-          this.transfers = this.transfers.filter(x => x !== entry)
-          const finalSuccess = !t.isCancelled?.()
-          this.transferLog.update(logEntry.id, { success: finalSuccess, duration: Date.now() - startTime, endTime: Date.now(), failReason: finalSuccess ? undefined : 'error' })
-        }
-      } catch {
-        clearInterval(timer)
-        this.transfers = this.transfers.filter(x => x !== entry)
-        this.transferLog.update(logEntry.id, { success: false, duration: Date.now() - startTime, endTime: Date.now(), failReason: 'error' })
-      }
-    }, 200)
+
+    // 存储元数据并启动共享定时器
+    const now = Date.now()
+    this._transferMeta.set(entry, { prevBytes: 0, prevTime: now, startTime: now })
+    this._trackedTransferCount++
+    this._startTransferTimer()
   }
 
   cancelTransfer(entry: { transfer: any; logEntryId?: string; paused?: boolean; isFolder?: boolean }): void {
@@ -5575,6 +6273,15 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
       (entry as any)._aborted = true
     }
     this.transfers = this.transfers.filter(x => x !== entry)
+    // 清理共享定时器追踪
+    if (this._transferMeta.has(entry)) {
+      this._transferMeta.delete(entry)
+      this._trackedTransferCount--
+      if (this._trackedTransferCount <= 0) {
+        this._trackedTransferCount = 0
+        this._stopTransferTimer()
+      }
+    }
     // 更新日志：取消操作标记为失败
     if (entry.logEntryId != null) {
       this.transferLog.update(entry.logEntryId, { success: false, endTime: Date.now(), failReason: 'cancelled' })
@@ -5706,6 +6413,9 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
         writeStream.destroy()
       })
     }
+    writeStream.on('finish', () => {
+      try { (up as any)._markComplete?.() } catch {}
+    })
     writeStream.on('error', (err: Error) => {
       if (!up.isCancelled?.()) console.error('[SFTP+] Raw upload stream error', err)
     })
@@ -5739,10 +6449,12 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
       return
     }
     const readStream = rawSftp.createReadStream(remotePath, { start: offset })
+    let writePos = offset
     readStream.on('data', (chunk: Buffer) => {
       try {
         if (fdClosed || localFd === null) { readStream.destroy(); return }
-        fsSync.writeSync(localFd, chunk)
+        fsSync.writeSync(localFd, chunk, 0, chunk.length, writePos)
+        writePos += chunk.length
         dl.increaseProgress(chunk.length)
         if (dl.isCancelled?.()) {
           readStream.destroy()
@@ -5775,11 +6487,14 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
       }
     }
     this.transfers = []
+    this._trackedTransferCount = 0
+    this._stopTransferTimer()
   }
 
   // ========== 权限编辑对话框 ==========
   openPermDialog(entry: SFTPFile): void {
     this.permTargetPath = entry.fullPath
+    this.permTargetName = entry.name
     const m = entry.mode & 0o777
     this.permOwnerRead = (m & 0o400) !== 0
     this.permOwnerWrite = (m & 0o200) !== 0
@@ -5867,6 +6582,11 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     this.inputDialogTargetPath = targetPath
     this.inputDialogRemotePath = remotePath ?? null
     this.inputDialogVisible = true
+    // 等待 Angular 渲染 DOM 后自动聚焦输入框
+    setTimeout(() => {
+      const input = this.elRef.nativeElement.querySelector('.dialog-input') as HTMLInputElement
+      if (input) input.focus()
+    })
   }
 
   cancelInputDialog(): void { this.inputDialogVisible = false; this.inputDialogMode = null; this.inputDialogValue = '' }
@@ -6045,8 +6765,10 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
 
   private async deleteLocalRecursive(p: string, depth = 0): Promise<void> {
     if (depth > 100) { console.warn('[SFTP+] deleteLocalRecursive max depth at', p); return }
-    const st = await fs.stat(p).catch(() => null)
+    const st = await fs.lstat(p).catch(() => null)
     if (!st) return
+    // 符号链接：直接删除链接本身，不跟随目标
+    if (st.isSymbolicLink()) { await fs.unlink(p); return }
     if (!st.isDirectory()) { await fs.unlink(p); return }
     for (const c of await fs.readdir(p)) await this.deleteLocalRecursive(path.join(p, c), depth + 1)
     await fs.rmdir(p)
@@ -6087,7 +6809,17 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
       left = Math.max(0, (rootEl?.clientWidth ?? window.innerWidth) - popupW - 8)
     }
     this.bookmarkPopupX = left
-    this.bookmarkPopupY = btnRect.bottom - rootRect.top + 4
+    // 弹窗顶边对齐 pane-title 底边（约 87px），箭头指向书签按钮
+    const paneTitle = btn.closest('.pane-title') as HTMLElement | null
+    const titleRect = paneTitle?.getBoundingClientRect()
+    if (titleRect) {
+      this.bookmarkPopupY = titleRect.bottom - rootRect.top
+    } else {
+      this.bookmarkPopupY = btnRect.bottom - rootRect.top + 4
+    }
+    const arrowSize = 12
+    const arrowLeft = btnRect.left + btnRect.width / 2 - rootRect.left - left - arrowSize / 2
+    this.bookmarkArrowLeft = Math.max(12, Math.min(popupW - 24, arrowLeft))
     this.showBookmarks = true
   }
 
@@ -6272,8 +7004,7 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
 
   // ========== 右键菜单 ==========
   onLocalContextMenu(entry: LocalEntry, ev: MouseEvent): void {
-    // 正在框选时不显示右键菜单
-    if (this.rubberBand.active) { ev.preventDefault(); return }
+    if (this.rubberBand.active || this._rbSuppressContextMenu || this._rbSkipNextContextMenu) { ev.preventDefault(); return }
     ev.preventDefault()
     ev.stopPropagation()
     // 关闭表头右键菜单
@@ -6284,9 +7015,10 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
       clearTimeout(this.localClickTimer)
       this.localClickTimer = null
     }
-    // 右键时先选中该项（如果未选中）
+    // 右键时先选中该项（如果未选中），并清除对面面板的选中状态
     if (!this.selectedLocal.includes(entry)) {
       this.selectedLocal = [entry]
+      this.selectedRemote = []
       this.localLastSelectedIndex = this.getFilteredLocalEntries().findIndex(e => e === entry)
     }
     this.zone.run(() => {
@@ -6303,8 +7035,7 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
   }
 
   onRemoteContextMenu(entry: SFTPFile, ev: MouseEvent): void {
-    // 正在框选时不显示右键菜单
-    if (this.rubberBand.active) { ev.preventDefault(); return }
+    if (this.rubberBand.active || this._rbSuppressContextMenu || this._rbSkipNextContextMenu) { ev.preventDefault(); return }
     ev.preventDefault()
     ev.stopPropagation()
     // 关闭表头右键菜单
@@ -6315,9 +7046,10 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
       clearTimeout(this.remoteClickTimer)
       this.remoteClickTimer = null
     }
-    // 右键时先选中该项（如果未选中）
+    // 右键时先选中该项（如果未选中），并清除对面面板的选中状态
     if (!this.selectedRemote.includes(entry)) {
       this.selectedRemote = [entry]
+      this.selectedLocal = []
       this.remoteLastSelectedIndex = this.getFilteredRemoteEntries().findIndex(e => e === entry)
     }
     this.zone.run(() => {
@@ -6594,10 +7326,44 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     // 先检查冲突，收集需要确认的项
     const conflictItems: typeof entries = []
     for (const entry of entries) {
-      if (entry.isDirectory) continue  // 目录跳过冲突检测
       const destFilePath = destPane === 'local'
         ? path.join(destPath, entry.name)
         : path.posix.join(destPath, entry.name)
+
+      if (entry.isDirectory) {
+        // 目录冲突：本地→远程上传 / 远程→本地下载
+        if (source === 'local' && destPane === 'remote') {
+          if (await this._checkRemotePathExists(destFilePath, true)) {
+            conflictItems.push(entry)
+            const st = await fs.lstat((entry as LocalEntry).fullPath).catch(() => ({ size: 0, mtimeMs: Date.now() } as fsSync.Stats))
+            this._conflictQueue.push({
+              localPath: (entry as LocalEntry).fullPath,
+              remoteDir: destPath,
+              fileName: entry.name,
+              remotePath: destFilePath,
+              localStat: st,
+              direction: 'upload',
+              isDirectory: true,
+            })
+          }
+        } else if (source === 'remote' && destPane === 'local') {
+          const dirExists = await fs.stat(destFilePath).then(() => true).catch(() => false)
+          if (dirExists) {
+            conflictItems.push(entry)
+            this._conflictQueue.push({
+              localPath: destFilePath,
+              remoteDir: path.posix.dirname((entry as SFTPFile).fullPath),
+              fileName: entry.name,
+              remotePath: (entry as SFTPFile).fullPath,
+              localStat: { size: 0, mtimeMs: Date.now() } as fsSync.Stats,
+              direction: 'download',
+              isDirectory: true,
+            })
+          }
+        }
+        continue
+      }
+
       const exists = await this._checkDestExists(destPane, destFilePath)
       if (exists) {
         conflictItems.push(entry)
@@ -6768,6 +7534,7 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
   private async copyLocalDir(src: string, dest: string): Promise<void> {
     await fs.mkdir(dest, { recursive: true })
     for (const item of await fs.readdir(src, { withFileTypes: true })) {
+      if (item.isSymbolicLink()) continue
       const srcP = path.join(src, item.name)
       const destP = path.join(dest, item.name)
       if (item.isDirectory()) {
@@ -6813,7 +7580,7 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
    */
   private async uploadLocalDir(
     localSrc: string, remoteDest: string, destPane: 'local' | 'remote',
-    _top?: { t: typeof this.transfers[0]; startTime: number; logEntryId: string; bytesDone: number; itemDone: number },
+    _top?: FolderTransferCtx,
   ): Promise<void> {
     if (!this.sftpSession) return
     const base = path.basename(localSrc)
@@ -6829,6 +7596,18 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
       const { transferEntry: t, startTime, logEntryId } = this._startFolderTransfer(
         base, 'upload', remoteDir, localSrc, totalSize, itemCount)
       _top = { t, startTime, logEntryId, bytesDone: 0, itemDone: 0 }
+      if (await this._checkRemotePathExists(remoteDir, true)) {
+        const st = await fs.lstat(localSrc).catch(() => ({ size: 0, mtimeMs: Date.now() } as fsSync.Stats))
+        this._conflictQueue.push({
+          localPath: localSrc, remoteDir: remoteDest, fileName: base, remotePath: remoteDir,
+          localStat: st, direction: 'upload', isDirectory: true,
+        })
+        this.conflictOriginalTotal = this._conflictQueue.length
+        _top.hadConflict = true
+        this._showConflictDialog()
+        this._finishFolderTransfer(_top.t, _top.startTime, _top.logEntryId, false)
+        return
+      }
     }
 
     try { await this.sftpSession.mkdir(remoteDir) } catch {}
@@ -6841,29 +7620,43 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
         if ((_top?.t as any)?._aborted) break
       }
       if ((_top?.t as any)?._aborted) break
+      if (item.isSymbolicLink()) continue
       const localP = path.join(localSrc, item.name)
       const remoteP = path.posix.join(remoteDir, item.name)
       if (item.isDirectory()) {
         await this.uploadLocalDir(localP, remoteDir, destPane, _top)
       } else {
         const st = await fs.stat(localP).catch(() => null)
+        if (!st) continue
+        const conflict = await this._checkConflict(remoteP, st.size, st.mtimeMs)
+        if (conflict) {
+          this._conflictQueue.push({
+            localPath: localP, remoteDir, fileName: item.name, remotePath: remoteP,
+            localStat: st, direction: 'upload',
+          })
+          this.conflictOriginalTotal = this._conflictQueue.length
+          _top!.hadConflict = true
+          this._showConflictDialog()
+          continue
+        }
         await this._doUploadRaw(remoteP, localP)
         // 检查：用户是否取消了当前文件（⏹）
         if ((_top?.t as any)?._abortCurrent) {
           delete (_top?.t as any)._abortCurrent
           continue
         }
-        if (st && st.size > 0) {
+        if (st.size > 0) {
           _top!.bytesDone += st.size
         }
         // 0 字节文件也计入完成数
         _top!.itemDone++
-        this._updateFolderProgress(_top!.t, _top!.bytesDone, item.name, _top!.itemDone, st?.size || 0)
+        this._updateFolderProgress(_top!.t, _top!.bytesDone, item.name, _top!.itemDone, st.size)
       }
     }
 
     if (isTop) {
-      this._finishFolderTransfer(_top.t, _top.startTime, _top.logEntryId, true)
+      const ok = !_top.hadConflict && !(_top.t as any)?._aborted
+      this._finishFolderTransfer(_top.t, _top.startTime, _top.logEntryId, ok)
     }
   }
 
@@ -6874,7 +7667,7 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
    */
   private async downloadRemoteDir(
     remoteSrc: string, localDest: string, destPane: 'local' | 'remote',
-    _top?: { t: typeof this.transfers[0]; startTime: number; logEntryId: string; bytesDone: number; itemDone: number },
+    _top?: FolderTransferCtx,
     _localName?: string,
   ): Promise<void> {
     if (!this.sftpSession) return
@@ -6910,6 +7703,24 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
         await this.downloadRemoteDir(remoteP, localDir, destPane, _top)
       } else {
         const sz = entry.size || 0
+        const remoteMtime = entry.modified?.getTime?.() ?? Date.now()
+        const conflict = await this._checkLocalConflict(localP, sz, remoteMtime)
+        if (conflict) {
+          this._conflictQueue.push({
+            localPath: localP,
+            remoteDir: path.posix.dirname(remoteP),
+            fileName: entry.name,
+            remotePath: remoteP,
+            localStat: { size: conflict.localSize, mtimeMs: conflict.localMtime } as fsSync.Stats,
+            direction: 'download',
+            remoteFileSize: sz,
+            remoteFileMtime: remoteMtime,
+          })
+          this.conflictOriginalTotal = this._conflictQueue.length
+          _top!.hadConflict = true
+          this._showConflictDialog()
+          continue
+        }
         await this._doDownloadRaw(remoteP, localP, entry.mode, entry.size)
         // 检查：用户是否取消了当前文件（⏹）
         if ((_top?.t as any)?._abortCurrent) {
@@ -6926,12 +7737,12 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     }
 
     if (isTop) {
-      this._finishFolderTransfer(_top.t, _top.startTime, _top.logEntryId, true)
+      const ok = !_top.hadConflict && !(_top.t as any)?._aborted
+      this._finishFolderTransfer(_top.t, _top.startTime, _top.logEntryId, ok)
     }
   }
 
   // ========== 全局事件 ==========
-  @HostListener('document:keydown', ['$event'])
   /** 返回当前面板是否处于可见且可交互状态 */
   private get _isPanelActive(): boolean {
     // 面板只读或隐藏时不响应快捷键
@@ -6991,71 +7802,6 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
       event.preventDefault()
       void this.ctxClipboardPaste()
       return
-    }
-  }
-
-  onKeyDown(event: KeyboardEvent): void {
-    const el = event.target as HTMLElement | null
-    if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) return
-    const isMod = os.platform() === 'darwin' ? event.metaKey : event.ctrlKey
-    if (isMod) {
-      // 快捷键使用 activePane 确定作用域
-      this.contextMenuPane = this.activePane
-      if (event.key === 'a' || event.key === 'A') {
-        event.preventDefault()
-        this.ctxSelectAll()
-        return
-      }
-      if (event.key === 'c' || event.key === 'C') {
-        event.preventDefault()
-        this.ctxClipboardCopy()
-        return
-      }
-      if (event.key === 'x' || event.key === 'X') {
-        event.preventDefault()
-        this.ctxClipboardCut()
-        return
-      }
-      if (event.key === 'v' || event.key === 'V') {
-        event.preventDefault()
-        void this.ctxClipboardPaste()
-        return
-      }
-    }
-    if (event.key === 'Escape') {
-      if (this.inputDialogVisible) { this.cancelInputDialog(); return }
-      if (this.deleteConfirmVisible) { this.cancelDelete(); return }
-      if (this.showBookmarks) { this.closeBookmarks(); return }
-      if (this.showTransferLog) { this.showTransferLog = false; return }
-      this.close(); return
-    }
-  }
-
-  @HostListener('document:click', ['$event'])
-  onDocumentClick(event: MouseEvent): void {
-    const target = event.target as HTMLElement | null
-    if (!target) return
-
-    // 如果点击的是 select 元素或其子元素，不执行任何操作（避免下拉框被立刻关闭）
-    if (target.closest('select')) return
-
-    // 关闭书签弹窗
-    if (this.showBookmarks) {
-      if (!target.closest('.bookmark-popup') && !target.closest('.bm-btn')) {
-        this.closeBookmarks()
-      }
-    }
-    // 关闭右键菜单
-    if (this.contextMenuVisible) {
-      if (!target.closest('.context-menu')) {
-        this.contextMenuVisible = false
-      }
-    }
-    // 关闭表头右键菜单
-    if (this.headerMenuVisible) {
-      if (!target.closest('.context-menu')) {
-        this.headerMenuVisible = false
-      }
     }
   }
 }

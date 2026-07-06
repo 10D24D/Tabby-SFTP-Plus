@@ -15,7 +15,7 @@ SFTP+ is a plugin for [Tabby Terminal](https://tabby.sh/) that adds a **dual-pan
 | Category | Description |
 |----------|-------------|
 | **📂 Dual-Pane Manager** | Local (left) + Remote (right), switchable between horizontal / vertical / adaptive layouts |
-| **🔄 Drag & Drop** | Drag across panes to upload/download; recursive folder transfer supported |
+| **🔄 Drag & Drop** | Drag across panes to upload/download; recursive folder transfer supported; supports dragging files/folders from OS Explorer/Desktop into local or remote panes |
 | **🔖 Bookmark System** | Global bookmarks (visible across all connections) + connection bookmarks (per SSH session); drag-to-reorder |
 | **📋 Transfer Log** | Full operation history with filtering, stats, and JSON export |
 | **⚡ Transfer Control** | Progress bars, pause/resume/cancel, resume support, real-time speed |
@@ -93,7 +93,7 @@ Path: Settings → Data Backup → Export / Import
 
 ## 📜 Changelog
 
-Latest: **v1.0.4** (2026-07-05) — [Full changelog](CHANGELOG.md)
+Latest: **v1.0.5** (2026-07-06) — [Full changelog](CHANGELOG.md)
 
 ---
 

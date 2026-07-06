@@ -167,6 +167,19 @@ export class SftpTransferLogService {
     localStorage.removeItem(STORAGE_KEY)
   }
 
+  /** 从备份数据导入日志（覆盖当前记录） */
+  importLogs(logs: TransferLogEntry[]): void {
+    this.logs = Array.isArray(logs) ? logs.slice(-MAX_LOGS) : []
+    this.save()
+  }
+
+  /** 重新从 localStorage 加载（多面板 / 导入后同步） */
+  reload(): void {
+    this._loaded = false
+    this.logs = []
+    this.load()
+  }
+
   /**
    * 清除指定连接的日志
    * 功能描述：只清除某个连接配置的传输日志

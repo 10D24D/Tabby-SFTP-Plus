@@ -27,6 +27,8 @@ export type SFTPSessionLike = {
   upload: (remotePath: string, transfer: import('tabby-core').FileUpload) => Promise<void>
   download: (remotePath: string, transfer: import('tabby-core').FileDownload) => Promise<void>
   chmod: (path: string, mode: number) => Promise<void>
+  /** P2-14: 单文件 stat 查询（避免用 readdir 列出整个目录来检查一个文件） */
+  stat?: (p: string) => Promise<{ size: number; modified?: Date; mtime?: number }>
 }
 
 export type SSHSessionLike = {
@@ -70,6 +72,10 @@ export class SftpConnectionService {
    * 创建时间：2026-06-21
    */
   closeForSSHSession(sshSession: SSHSessionLike): void {
+    const sftp = this.sessions.get(sshSession)
+    if (sftp) {
+      try { (sftp as any).end?.() } catch {}
+    }
     this.sessions.delete(sshSession)
   }
 }

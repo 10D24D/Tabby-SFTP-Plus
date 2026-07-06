@@ -8,6 +8,7 @@
  */
 
 const path = require('path')
+const webpack = require('webpack')
 
 module.exports = {
   target: 'node',
@@ -63,5 +64,11 @@ module.exports = {
     /^rxjs/,
     /^@angular/,
     /^tabby-/,
+  ],
+  plugins: [
+    new webpack.DefinePlugin({
+      // 每次 npm run build 时写入当前时间，供设置页「关于」展示
+      __SFTP_PLUS_BUILD_TIME__: JSON.stringify(new Date().toISOString()),
+    }),
   ],
 }

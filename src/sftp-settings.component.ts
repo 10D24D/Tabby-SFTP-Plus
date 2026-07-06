@@ -7,11 +7,14 @@
  * 修改人：DD1024z + Deepseek-V4-Flash
  * 修改时间：2026-06-29
  */
-import { Component, Injectable, Optional } from '@angular/core'
+import { Component, Injectable, Optional, OnDestroy } from '@angular/core'
 import { SettingsTabProvider } from 'tabby-settings'
 import { ConfigService } from 'tabby-core'
 import { defaultSftpPlusConfig } from './sftp-config-provider'
 import { SftpI18nService } from './sftp-i18n.service'
+
+/** webpack DefinePlugin 在每次 build 时注入的 ISO 时间戳 */
+declare const __SFTP_PLUS_BUILD_TIME__: string
 
 /**
  * 检测 Tabby 实际使用的系统语言（优先读取 Tabby config.yaml）
@@ -283,7 +286,10 @@ function saveTableSetting(_key: string, _value: boolean): void {}
         <label class="ss-label">{{ i18n.t('settings.about') }}</label>
         <div class="ss-about-row">
           <span class="ss-about-item">{{ i18n.t('settings.version') }}: {{ pkgVersion }}</span>
+          <span class="ss-about-item">{{ i18n.t('settings.buildTime') }}: {{ formatBuildTime() }}</span>
           <span class="ss-about-item">{{ i18n.t('settings.author') }}: DD1024z</span>
+        </div>
+        <div class="ss-about-row ss-about-links">
           <span class="ss-about-link" (click)="openGithub()">
             <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8"/></svg>
             {{ i18n.t('settings.githubSource') }}
@@ -441,6 +447,7 @@ function saveTableSetting(_key: string, _value: boolean): void {}
 
     /* 关于 */
     .ss-about-row { display:flex; gap:16px; flex-wrap:wrap; align-items:center; font-size:13px; }
+    .ss-about-links { margin-top:8px; }
     .ss-about-item { opacity:.75; }
     .ss-about-link {
       display:inline-flex; align-items:center; gap:4px;
@@ -508,10 +515,21 @@ function saveTableSetting(_key: string, _value: boolean): void {}
 
   `],
 })
-export class SftpSettingsTabComponent {
+export class SftpSettingsTabComponent implements OnDestroy {
   // @ts-ignore — ts-loader 可能无法正确处理 JSON 模块类型
   /** 插件版本号（webpack 构建时内联 package.json） */
   readonly pkgVersion: string = require('../package.json').version
+  /** 构建时间（webpack 每次 build 时注入，用于确认是否已重新打包） */
+  readonly pkgBuildTime: string = typeof __SFTP_PLUS_BUILD_TIME__ !== 'undefined' ? __SFTP_PLUS_BUILD_TIME__ : ''
+
+  /** 格式化构建时间为本地可读字符串 */
+  formatBuildTime(): string {
+    if (!this.pkgBuildTime) return '—'
+    const d = new Date(this.pkgBuildTime)
+    if (isNaN(d.getTime())) return this.pkgBuildTime
+    const pad = (n: number) => String(n).padStart(2, '0')
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+  }
 
   /** 国际化服务（key-based，支持动态切换语言） */
   readonly i18n: SftpI18nService
@@ -724,7 +742,31 @@ export class SftpSettingsTabComponent {
     this.i18n = new SftpI18nService(configService)
   }
 
+  /** 缓存事件监听引用，便于 ngOnDestroy 清理（P1-7） */
+  private _settingsChangedHandler: (() => void) | null = null
+
   ngOnInit(): void {
+    // 首次加载：刷新配置 + 注册一次性事件监听
+    this._refreshFromConfig()
+
+    // 监听面板上的布局切换 → 同步更新设置页显示（只注册一次）
+    if (!this._settingsChangedHandler) {
+      this._settingsChangedHandler = () => {
+        this.layoutMode = load('layoutMode', 'auto')
+      }
+      window.addEventListener('sftp-plus-settings-changed', this._settingsChangedHandler)
+    }
+  }
+
+  ngOnDestroy(): void {
+    if (this._settingsChangedHandler) {
+      window.removeEventListener('sftp-plus-settings-changed', this._settingsChangedHandler)
+      this._settingsChangedHandler = null
+    }
+  }
+
+  /** 从配置重新加载所有设置并刷新主题（可安全重复调用） */
+  private _refreshFromConfig(): void {
     const root = document.documentElement
 
     // 从 Tabby 配置加载存储的设置
@@ -755,11 +797,6 @@ export class SftpSettingsTabComponent {
       this._restoreCustomColors()
       this.applyColors(root)
     }
-
-    // 监听面板上的布局切换 → 同步更新设置页显示
-    window.addEventListener('sftp-plus-settings-changed', () => {
-      this.layoutMode = load('layoutMode', 'auto')
-    })
   }
 
   /** 从 Tabby 配置加载所有设置 */
@@ -810,6 +847,7 @@ export class SftpSettingsTabComponent {
   saveLang(): void {
     this._saveToConfig()
     this.i18n.setLocale(this.effectiveLang)
+    this.notifyPanels()
   }
 
   private getPreset(value: string): typeof this.colorThemes[0] | undefined {
@@ -1036,10 +1074,14 @@ export class SftpSettingsTabComponent {
           data.tableColBorders = cfg.tableColBorders ?? true
           data.tableZebra = cfg.tableZebra ?? true
           data.hideNativeSFTPButton = cfg.hideNativeSFTPButton ?? false
-          // 导出书签、传输记录、路径记忆
+          // 导出书签、路径记忆（传输日志以 localStorage 为准，见下方）
           if (cfg.bookmarks?.length) data.bookmarks = cfg.bookmarks
-          if (cfg.transferLogs?.length) data.transferLogs = cfg.transferLogs
           if (cfg.pathMemory && Object.keys(cfg.pathMemory).length) data.pathMemory = cfg.pathMemory
+          // 传输日志权威存储在 localStorage，始终合并
+          try {
+            const logs = localStorage.getItem('sftp-plus-transfer-logs')
+            if (logs) data.transferLogs = JSON.parse(logs)
+          } catch {}
           return data
         }
       } catch { /* ignore */ }
@@ -1131,13 +1173,19 @@ export class SftpSettingsTabComponent {
           if (data.transferLogs !== undefined) target.transferLogs = data.transferLogs
           if (data.pathMemory !== undefined) target.pathMemory = data.pathMemory
           this.configService.save()
+          // 传输日志写入 localStorage（服务实际存储位置）
+          if (data.transferLogs !== undefined) {
+            try {
+              localStorage.setItem('sftp-plus-transfer-logs', JSON.stringify(data.transferLogs))
+            } catch (e) { console.warn('[SFTP+] Import transfer logs failed', e) }
+          }
           alert(this.i18n.t('settings.importComplete'))
         } else {
           alert(this.i18n.t('settings.importUnavailable'))
         }
 
         // 刷新当前组件属性
-        this.ngOnInit()
+        this._refreshFromConfig()
         this.notifyPanels()
       } catch (e: any) {
         alert(e?.message || this.i18n.t('settings.importFailed'))
@@ -1176,8 +1224,13 @@ export class SftpSettingsTabComponent {
         }
         this.configService.save()
       }
+      // 清除 localStorage 中的遗留数据（传输日志、旧版书签等）
+      try {
+        localStorage.removeItem('sftp-plus-transfer-logs')
+        localStorage.removeItem('sftp-plus-bookmarks-v2')
+      } catch {}
       // 重置组件状态到默认值并刷新
-      this.ngOnInit()
+      this._refreshFromConfig()
       this.notifyPanels()
       const msg = this.i18n.t('settings.dataCleared')
       alert(msg)
