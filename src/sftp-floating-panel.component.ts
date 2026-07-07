@@ -9220,10 +9220,16 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
       const channel = await client.activateChannel(newCh)
 
       const chunks: Uint8Array[] = []
-      let timeoutId: any = null
+
+      // 先发送 exec 请求，成功后再订阅数据流
+      await channel.requestExec(command)
+      console.log('[SFTP+][remoteGit] requestExec resolved, subscribing to streams')
 
       return new Promise<string>((resolve, reject) => {
         let finished = false
+        let eofReceived = false
+        let timeoutId: any = null
+
         const settle = (fn: () => void): void => {
           if (finished) return
           finished = true
@@ -9232,8 +9238,22 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
           fn()
         }
 
+        const resolveOutput = (): void => {
+          const total = chunks.reduce((s, c) => s + c.length, 0)
+          const merged = new Uint8Array(total)
+          let offset = 0
+          for (const c of chunks) { merged.set(c, offset); offset += c.length }
+          const rawOutput = Buffer.from(merged).toString('utf8')
+          console.log('[SFTP+][remoteGit] raw output:', rawOutput)
+          resolve(rawOutput)
+        }
+
         channel.data$?.subscribe?.({
-          next: (data: Uint8Array) => { console.log('[SFTP+][remoteGit] chunk:', Buffer.from(data).toString('utf8')); chunks.push(data) },
+          next: (data: Uint8Array) => {
+            const text = Buffer.from(data).toString('utf8')
+            console.log('[SFTP+][remoteGit] data chunk:', text)
+            chunks.push(data)
+          },
           error: (error: unknown) => settle(() => reject(error)),
         })
 
@@ -9248,33 +9268,31 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
           error: () => {},
         })
 
-        const resolveOutput = (): void => {
-          const total = chunks.reduce((s, c) => s + c.length, 0)
-          const merged = new Uint8Array(total)
-          let offset = 0
-          for (const c of chunks) { merged.set(c, offset); offset += c.length }
-          const rawOutput = Buffer.from(merged).toString('utf8')
-          console.log('[SFTP+][remoteGit] raw output:', rawOutput)
-          resolve(rawOutput)
-        }
-
         if (channel.eof$) {
-          channel.eof$.subscribe({ next: () => settle(() => resolveOutput()), error: () => settle(() => resolveOutput()) })
+          channel.eof$.subscribe({
+            next: () => {
+              console.log('[SFTP+][remoteGit] EOF received')
+              eofReceived = true
+              // 延迟 200ms 等待缓冲数据到达
+              setTimeout(() => settle(() => resolveOutput()), 200)
+            },
+            error: () => settle(() => resolveOutput()),
+          })
         }
         if (channel.closed$) {
-          channel.closed$.subscribe({ next: () => settle(() => resolveOutput()), error: () => settle(() => resolveOutput()) })
+          channel.closed$.subscribe({
+            next: () => {
+              console.log('[SFTP+][remoteGit] channel closed')
+              settle(() => resolveOutput())
+            },
+            error: () => settle(() => resolveOutput()),
+          })
         }
 
         timeoutId = setTimeout(() => {
-          if (finished) return
-          finished = true
-          try { channel.close() } catch {}
-          resolveOutput()
+          console.log('[SFTP+][remoteGit] timeout (15s), eofReceived=', eofReceived)
+          settle(() => resolveOutput())
         }, 15000)
-
-        channel.requestExec(command).catch((error: unknown) => {
-          settle(() => reject(error))
-        })
       })
     } finally {
       if (typeof sshSession.unref === 'function') sshSession.unref()
