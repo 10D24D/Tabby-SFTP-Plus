@@ -303,6 +303,12 @@ function saveTableSetting(_key: string, _value: boolean): void {}
               <span class="ss-toggle-thumb"></span>
             </span>
           </label>
+          <label class="ss-toggle-row">
+            <span class="ss-toggle-label">{{ t('默认在新标签页打开', 'Open in new tab by default') }}</span>
+            <span class="ss-toggle-track" [class.active]="openInNewTabByDefault" (click)="toggleOpenInNewTabByDefault()">
+              <span class="ss-toggle-thumb"></span>
+            </span>
+          </label>
         </div>
       </div>
 
@@ -730,6 +736,9 @@ export class SftpSettingsTabComponent {
   /** 跟随终端路径 */
   followTerminalPath = load('followTerminalPath', false)
 
+  /** 默认新开一页 */
+  openInNewTabByDefault = load('openInNewTabByDefault', false)
+
   /** 主题颜色修改确认弹窗 */
   showThemeColorConfirm = false
   /** 待提交的颜色修改 */
@@ -800,6 +809,7 @@ export class SftpSettingsTabComponent {
       if (cfg.tableZebra !== undefined) this.showZebra = cfg.tableZebra as boolean
       if (cfg.hideNativeSFTPButton !== undefined) this.hideNativeBtn = cfg.hideNativeSFTPButton as boolean
       if (cfg.followTerminalPath !== undefined) this.followTerminalPath = cfg.followTerminalPath as boolean
+      if (cfg.openInNewTabByDefault !== undefined) this.openInNewTabByDefault = cfg.openInNewTabByDefault as boolean
     } catch { /* ignore */ }
   }
 
@@ -822,6 +832,7 @@ export class SftpSettingsTabComponent {
       target.tableZebra = this.showZebra
       target.hideNativeSFTPButton = this.hideNativeBtn
       target.followTerminalPath = this.followTerminalPath
+      target.openInNewTabByDefault = this.openInNewTabByDefault
       this.configService.save()
     } catch (e) {
       console.error('[SFTP+] Failed to save to config', e)
@@ -962,6 +973,14 @@ export class SftpSettingsTabComponent {
     this.notifyPanels()
   }
 
+  /** 切换默认在新标签页打开 */
+  toggleOpenInNewTabByDefault(): void {
+    this.openInNewTabByDefault = !this.openInNewTabByDefault
+    save('openInNewTabByDefault', this.openInNewTabByDefault)
+    this._saveToConfig()
+    this.notifyPanels()
+  }
+
   /** 确认：将自动/预设配色复制到自定义并应用修改 */
   confirmThemeColorOverwrite(): void {
     // 加载原始主题的预设色值
@@ -1068,6 +1087,7 @@ export class SftpSettingsTabComponent {
           data.tableZebra = cfg.tableZebra ?? true
           data.hideNativeSFTPButton = cfg.hideNativeSFTPButton ?? false
           data.followTerminalPath = cfg.followTerminalPath ?? false
+          data.openInNewTabByDefault = cfg.openInNewTabByDefault ?? false
           // 导出书签、传输记录、路径记忆
           if (cfg.bookmarks?.length) data.bookmarks = cfg.bookmarks
           if (cfg.transferLogs?.length) data.transferLogs = cfg.transferLogs
@@ -1089,6 +1109,7 @@ export class SftpSettingsTabComponent {
     data.tableZebra = loadTableSetting('zebra', true)
     data.hideNativeSFTPButton = load('hideNativeBtn', false)
     data.followTerminalPath = load('followTerminalPath', false)
+    data.openInNewTabByDefault = load('openInNewTabByDefault', false)
     // 尝试从 localStorage 读取书签和传输日志
     try {
       const bkm = localStorage.getItem('sftp-plus-bookmarks-v2')
@@ -1160,6 +1181,7 @@ export class SftpSettingsTabComponent {
           if (data.tableZebra !== undefined) target.tableZebra = data.tableZebra
           if (data.hideNativeSFTPButton !== undefined) target.hideNativeSFTPButton = data.hideNativeSFTPButton
           if (data.followTerminalPath !== undefined) target.followTerminalPath = data.followTerminalPath
+          if (data.openInNewTabByDefault !== undefined) target.openInNewTabByDefault = data.openInNewTabByDefault
           // 导入书签、传输记录、路径记忆
           if (data.bookmarks !== undefined) target.bookmarks = data.bookmarks
           if (data.transferLogs !== undefined) target.transferLogs = data.transferLogs

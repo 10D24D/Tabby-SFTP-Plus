@@ -116,7 +116,11 @@ export class SftpTerminalDecorator extends TerminalDecorator {
             btn.style.cursor = ''
             btn.title = 'SFTP+'
           }
-          this.openFloatingPanel(terminal)
+          if (this._openInNewTabByDefault()) {
+            this.openWorkspaceTab(terminal)
+          } else {
+            this.openFloatingPanel(terminal)
+          }
         })
 
         // If there's a Reconnect button, insert next to it.
@@ -204,6 +208,27 @@ export class SftpTerminalDecorator extends TerminalDecorator {
     const handler = () => this._applyNativeBtnHideRule()
     window.addEventListener('sftp-plus-settings-changed', handler)
     this.subscribeUntilDetached(terminal, { unsubscribe: () => window.removeEventListener('sftp-plus-settings-changed', handler) })
+  }
+
+  private _openInNewTabByDefault(): boolean {
+    let fromConfig = false
+    let value = false
+    if (this.config?.store) {
+      try {
+        const cfgVal = this.config.store['tabby-sftp-plus']?.openInNewTabByDefault
+        if (cfgVal !== undefined) {
+          value = !!cfgVal
+          fromConfig = true
+        }
+      } catch {}
+    }
+    if (!fromConfig) {
+      try {
+        const raw = localStorage.getItem('sftp-plus-settings.openInNewTabByDefault')
+        if (raw) value = JSON.parse(raw)
+      } catch {}
+    }
+    return value
   }
 
   /**
