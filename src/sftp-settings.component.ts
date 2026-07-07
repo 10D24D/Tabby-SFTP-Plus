@@ -13,6 +13,9 @@ import { ConfigService } from 'tabby-core'
 import { defaultSftpPlusConfig } from './sftp-config-provider'
 import { SftpI18nService } from './sftp-i18n.service'
 
+/** Tabby 设置页中 SFTP+ 侧栏项 ID（与 SettingsTabProvider.id 一致） */
+export const SFTP_PLUS_SETTINGS_TAB_ID = 'sftp-settings'
+
 /** webpack DefinePlugin 在每次 build 时注入的 ISO 时间戳 */
 declare const __SFTP_PLUS_BUILD_TIME__: string
 
@@ -233,8 +236,41 @@ function saveTableSetting(_key: string, _value: boolean): void {}
             <span class="ss-layout-text">{{ i18n.t('settings.layoutVertical') }}</span>
             <span class="ss-layout-sub">{{ i18n.t('settings.layoutVerticalSub') }}</span>
           </div>
+          <!-- 单栏布局 -->
+          <div class="ss-layout-card" [class.ss-layout-active]="layoutMode === 'single'" (click)="setLayoutMode('single')">
+            <div class="ss-layout-icon">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <rect x="2" y="2" width="20" height="20" rx="1.5"/>
+                <circle cx="16" cy="12" r="2.5" fill="currentColor" stroke="none"/>
+              </svg>
+            </div>
+            <span class="ss-layout-text">{{ i18n.t('settings.layoutSingle') }}</span>
+            <span class="ss-layout-sub">{{ i18n.t('settings.layoutSingleSub') }}</span>
+          </div>
         </div>
 
+        <div class="ss-sub-head" style="margin-top:16px;">
+          <div class="ss-sub-label" style="margin:0;">{{ i18n.t('settings.customToolbar') }}</div>
+          <button class="ss-reset-icon-btn" (click)="resetPaneLayout()" [title]="i18n.t('settings.resetLayout')">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M13 8a5 5 0 1 1-1.8-3.85"/>
+              <path d="M13 3.5v2.9h-2.9"/>
+            </svg>
+          </button>
+        </div>
+        <div class="ss-layout-preview">
+          <div class="ss-layout-chip"
+            *ngFor="let item of paneCustomOrder"
+            draggable="true"
+            [class.dragging]="draggingCustomItem === item"
+            (dragstart)="onCustomDragStart(item, $event)"
+            (dragover)="onCustomDragOver(item, $event)"
+            (drop)="onCustomDrop(item, $event)"
+            (dragend)="onCustomDragEnd()">
+            <span class="ss-layout-chip-handle">⋮⋮</span>
+            <span>{{ paneCustomItemLabel(item) }}</span>
+          </div>
+        </div>
         <!-- 表格样式（属于布局的子选项） -->
         <div class="ss-sub-label" style="margin-top:16px;">{{ i18n.t('settings.tableStyle') }}</div>
         <div class="ss-toggle-wrap">
@@ -261,6 +297,18 @@ function saveTableSetting(_key: string, _value: boolean): void {}
           <label class="ss-toggle-row">
             <span class="ss-toggle-label">{{ i18n.t('settings.hideNativeBtn') }}</span>
             <span class="ss-toggle-track" [class.active]="hideNativeBtn" (click)="toggleHideNativeBtn()">
+              <span class="ss-toggle-thumb"></span>
+            </span>
+          </label>
+          <label class="ss-toggle-row">
+            <span class="ss-toggle-label">{{ i18n.t('settings.openInNewTab') }}</span>
+            <span class="ss-toggle-track" [class.active]="openInNewTabByDefault" (click)="toggleOpenInNewTabByDefault()">
+              <span class="ss-toggle-thumb"></span>
+            </span>
+          </label>
+          <label class="ss-toggle-row ss-toggle-sub" [class.disabled]="!openInNewTabByDefault">
+            <span class="ss-toggle-label">{{ i18n.t('settings.singleWorkspaceInstance') }}</span>
+            <span class="ss-toggle-track" [class.active]="singleWorkspaceInstance" (click)="toggleSingleWorkspaceInstance()">
               <span class="ss-toggle-thumb"></span>
             </span>
           </label>
@@ -425,6 +473,8 @@ function saveTableSetting(_key: string, _value: boolean): void {}
       background:#fff; transition:transform .2s;
     }
     .ss-toggle-track.active .ss-toggle-thumb { transform:translateX(16px); }
+    .ss-toggle-sub { padding-left: 18px; }
+    .ss-toggle-sub.disabled { opacity: .45; pointer-events: none; }
 
     /* 设置面板提示文字 */
     .ss-hint { font-size:11px; opacity:.5; margin-top:6px; }
@@ -512,6 +562,43 @@ function saveTableSetting(_key: string, _value: boolean): void {}
     }
     .ss-layout-text { font-size:13px; font-weight:600; line-height:1.2; }
     .ss-layout-sub { font-size:10px; opacity:.5; line-height:1.3; }
+    .ss-sub-head { display:flex; align-items:center; justify-content:flex-start; gap:8px; }
+    .ss-reset-icon-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      padding: 0;
+      border: none;
+      border-radius: 6px;
+      background: transparent;
+      color: inherit;
+      cursor: pointer;
+    }
+    .ss-reset-icon-btn svg { width: 13px; height: 13px; }
+    .ss-reset-icon-btn:hover { background: rgba(128,128,128,0.1); }
+    .ss-layout-preview {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+    .ss-layout-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 10px;
+      border-radius: 8px;
+      border: 1px dashed rgba(128,128,128,0.35);
+      background: rgba(128,128,128,0.06);
+      font-size: 12px;
+      cursor: grab;
+      user-select: none;
+    }
+    .ss-layout-chip.dragging { opacity: 0.5; }
+    .ss-layout-chip-handle { opacity: .5; letter-spacing: -1px; }
+    .ss-btn-ghost { padding: 6px 12px; font-size: 12px; }
 
   `],
 })
@@ -726,6 +813,14 @@ export class SftpSettingsTabComponent implements OnDestroy {
   /** 隐藏原生 SFTP 按钮 */
   hideNativeBtn = load('hideNativeBtn', false)
 
+  /** 工具栏入口在新标签页打开 */
+  openInNewTabByDefault = load('openInNewTabByDefault', false)
+
+  /** 新标签页模式：同一 SSH 终端只保留一个 SFTP+ 标签 */
+  singleWorkspaceInstance = load('singleWorkspaceInstance', true)
+  paneCustomOrder: Array<'label' | 'path' | 'back' | 'forward' | 'up' | 'refresh' | 'home' | 'filter' | 'bookmark'> = ['label', 'back', 'forward', 'up', 'refresh', 'home', 'path', 'filter', 'bookmark']
+  draggingCustomItem: 'label' | 'path' | 'back' | 'forward' | 'up' | 'refresh' | 'home' | 'filter' | 'bookmark' | null = null
+
   /** 主题颜色修改确认弹窗 */
   showThemeColorConfirm = false
   /** 待提交的颜色修改 */
@@ -814,6 +909,9 @@ export class SftpSettingsTabComponent implements OnDestroy {
       if (cfg.tableColBorders !== undefined) this.showColBorders = cfg.tableColBorders as boolean
       if (cfg.tableZebra !== undefined) this.showZebra = cfg.tableZebra as boolean
       if (cfg.hideNativeSFTPButton !== undefined) this.hideNativeBtn = cfg.hideNativeSFTPButton as boolean
+      if (cfg.openInNewTabByDefault !== undefined) this.openInNewTabByDefault = cfg.openInNewTabByDefault as boolean
+      if (cfg.singleWorkspaceInstance !== undefined) this.singleWorkspaceInstance = cfg.singleWorkspaceInstance as boolean
+      if (Array.isArray(cfg.paneCustomOrder) && cfg.paneCustomOrder.length) this.paneCustomOrder = cfg.paneCustomOrder as any
     } catch { /* ignore */ }
   }
 
@@ -821,6 +919,7 @@ export class SftpSettingsTabComponent implements OnDestroy {
    * 写入 Tabby config（per-property update 避免 ConfigProxy 覆盖问题）
    */
   private _saveToConfig(): void {
+    try { localStorage.setItem('sftp-plus-pane-custom-order', JSON.stringify(this.paneCustomOrder)) } catch {}
     if (!this.configService) return
     try {
       const target = this.configService.store['tabby-sftp-plus']
@@ -835,6 +934,9 @@ export class SftpSettingsTabComponent implements OnDestroy {
       target.tableColBorders = this.showColBorders
       target.tableZebra = this.showZebra
       target.hideNativeSFTPButton = this.hideNativeBtn
+      target.openInNewTabByDefault = this.openInNewTabByDefault
+      target.singleWorkspaceInstance = this.singleWorkspaceInstance
+      target.paneCustomOrder = this.paneCustomOrder
       this.configService.save()
     } catch (e) {
       console.error('[SFTP+] Failed to save to config', e)
@@ -969,6 +1071,25 @@ export class SftpSettingsTabComponent implements OnDestroy {
     this.notifyPanels()
   }
 
+  /** 切换工具栏入口默认在新标签页打开 */
+  toggleOpenInNewTabByDefault(): void {
+    this.openInNewTabByDefault = !this.openInNewTabByDefault
+    if (this.openInNewTabByDefault) {
+      this.singleWorkspaceInstance = true
+      save('singleWorkspaceInstance', this.singleWorkspaceInstance)
+    }
+    save('openInNewTabByDefault', this.openInNewTabByDefault)
+    this._saveToConfig()
+  }
+
+  /** 切换新标签页模式是否复用已有实例 */
+  toggleSingleWorkspaceInstance(): void {
+    if (!this.openInNewTabByDefault) return
+    this.singleWorkspaceInstance = !this.singleWorkspaceInstance
+    save('singleWorkspaceInstance', this.singleWorkspaceInstance)
+    this._saveToConfig()
+  }
+
   /** 确认：将自动/预设配色复制到自定义并应用修改 */
   confirmThemeColorOverwrite(): void {
     // 加载原始主题的预设色值
@@ -1044,6 +1165,53 @@ export class SftpSettingsTabComponent implements OnDestroy {
     this.notifyPanels()
   }
 
+  paneCustomItemLabel(item: 'label' | 'path' | 'back' | 'forward' | 'up' | 'refresh' | 'home' | 'filter' | 'bookmark'): string {
+    if (item === 'label') return this.i18n.t('settings.paneLabel')
+    if (item === 'path') return this.i18n.t('settings.addressBar')
+    return this.i18n.t(`settings.toolbarItem.${item}`)
+  }
+
+  onCustomDragStart(item: 'label' | 'path' | 'back' | 'forward' | 'up' | 'refresh' | 'home' | 'filter' | 'bookmark', event: DragEvent): void {
+    this.draggingCustomItem = item
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'move'
+      event.dataTransfer.setData('text/plain', item)
+    }
+  }
+
+  onCustomDragOver(_target: 'label' | 'path' | 'back' | 'forward' | 'up' | 'refresh' | 'home' | 'filter' | 'bookmark', event: DragEvent): void {
+    event.preventDefault()
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'
+  }
+
+  onCustomDrop(target: 'label' | 'path' | 'back' | 'forward' | 'up' | 'refresh' | 'home' | 'filter' | 'bookmark', event: DragEvent): void {
+    event.preventDefault()
+    const source = this.draggingCustomItem || (event.dataTransfer?.getData('text/plain') as any)
+    if (!source || source === target) return
+    const next = this.paneCustomOrder.filter(i => i !== source)
+    const targetIndex = next.indexOf(target)
+    if (targetIndex < 0) return
+    let insertIndex = targetIndex
+    const targetEl = event.currentTarget as HTMLElement | null
+    if (targetEl) {
+      const rect = targetEl.getBoundingClientRect()
+      const placeAfter = event.clientX > (rect.left + rect.width / 2)
+      if (placeAfter) insertIndex = targetIndex + 1
+    }
+    next.splice(insertIndex, 0, source)
+    this.paneCustomOrder = next as any
+    this._saveToConfig()
+    this.notifyPanels()
+  }
+
+  onCustomDragEnd(): void { this.draggingCustomItem = null }
+
+  resetPaneLayout(): void {
+    this.paneCustomOrder = ['label', 'back', 'forward', 'up', 'refresh', 'home', 'path', 'filter', 'bookmark']
+    this._saveToConfig()
+    this.notifyPanels()
+  }
+
   /** 通知所有面板重新读取设置 */
   private notifyPanels(): void {
     // 通过 DOM 事件通知（面板在 ngOnInit 中监听）
@@ -1074,6 +1242,9 @@ export class SftpSettingsTabComponent implements OnDestroy {
           data.tableColBorders = cfg.tableColBorders ?? true
           data.tableZebra = cfg.tableZebra ?? true
           data.hideNativeSFTPButton = cfg.hideNativeSFTPButton ?? false
+          data.openInNewTabByDefault = cfg.openInNewTabByDefault ?? false
+          data.singleWorkspaceInstance = cfg.singleWorkspaceInstance ?? true
+          data.paneCustomOrder = cfg.paneCustomOrder ?? ['label', 'back', 'forward', 'up', 'refresh', 'home', 'path', 'filter', 'bookmark']
           // 导出书签、路径记忆（传输日志以 localStorage 为准，见下方）
           if (cfg.bookmarks?.length) data.bookmarks = cfg.bookmarks
           if (cfg.pathMemory && Object.keys(cfg.pathMemory).length) data.pathMemory = cfg.pathMemory
@@ -1098,6 +1269,9 @@ export class SftpSettingsTabComponent implements OnDestroy {
     data.tableColBorders = loadTableSetting('colBorders', false)
     data.tableZebra = loadTableSetting('zebra', true)
     data.hideNativeSFTPButton = load('hideNativeBtn', false)
+    data.openInNewTabByDefault = load('openInNewTabByDefault', false)
+    data.singleWorkspaceInstance = load('singleWorkspaceInstance', true)
+    try { data.paneCustomOrder = JSON.parse(localStorage.getItem('sftp-plus-pane-custom-order') || '["label","back","forward","up","refresh","home","path","filter","bookmark"]') } catch { data.paneCustomOrder = ['label', 'back', 'forward', 'up', 'refresh', 'home', 'path', 'filter', 'bookmark'] }
     // 尝试从 localStorage 读取书签和传输日志
     try {
       const bkm = localStorage.getItem('sftp-plus-bookmarks-v2')
@@ -1168,6 +1342,9 @@ export class SftpSettingsTabComponent implements OnDestroy {
           if (data.tableColBorders !== undefined) target.tableColBorders = data.tableColBorders
           if (data.tableZebra !== undefined) target.tableZebra = data.tableZebra
           if (data.hideNativeSFTPButton !== undefined) target.hideNativeSFTPButton = data.hideNativeSFTPButton
+          if (data.openInNewTabByDefault !== undefined) target.openInNewTabByDefault = data.openInNewTabByDefault
+          if (data.singleWorkspaceInstance !== undefined) target.singleWorkspaceInstance = data.singleWorkspaceInstance
+          if (data.paneCustomOrder !== undefined) target.paneCustomOrder = data.paneCustomOrder
           // 导入书签、传输记录、路径记忆
           if (data.bookmarks !== undefined) target.bookmarks = data.bookmarks
           if (data.transferLogs !== undefined) target.transferLogs = data.transferLogs
@@ -1267,6 +1444,7 @@ export class SftpSettingsTabComponent implements OnDestroy {
       'sftp-plus-settings.primaryColor': 'colorPrimary',
       'sftp-plus-settings.bgColor': 'colorBg',
       'sftp-plus-settings.textColor': 'colorText',
+      'sftp-plus-settings.paneCustomOrder': 'paneCustomOrder',
       'sftp-plus-settings.surfaceColor': 'colorSurface',
       'sftp-plus-settings.borderColor': 'colorBorder',
       'sftp-plus-settings.customPrimaryColor': 'customPrimaryColor',
@@ -1292,7 +1470,7 @@ export class SftpSettingsTabComponent implements OnDestroy {
 
 @Injectable()
 export class SftpSettingsTabProvider extends SettingsTabProvider {
-  id = 'sftp-settings'
+  id = SFTP_PLUS_SETTINGS_TAB_ID
   icon = 'folder-open'
   title = 'SFTP+'
 

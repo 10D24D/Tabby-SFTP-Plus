@@ -15,7 +15,7 @@ module.exports = {
   entry: 'src/index.ts',
   devtool: 'source-map',
   context: __dirname,
-  mode: 'development',
+  mode: process.env.NODE_ENV === 'production' ? 'production' : 'development',
   output: {
     path: path.resolve(__dirname, 'dist'),
     filename: 'index.js',

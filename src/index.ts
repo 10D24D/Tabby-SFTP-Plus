@@ -17,8 +17,22 @@ import { TerminalDecorator } from 'tabby-terminal'
 
 import { SftpTerminalDecorator } from './sftp-terminal-decorator'
 import { SftpFloatingPanel } from './sftp-floating-panel.component'
+import { SftpWorkspaceTabComponent } from './sftp-workspace-tab.component'
 import { SftpSettingsTabProvider, SftpSettingsTabComponent } from './sftp-settings.component'
 import { SftpPlusConfigProvider } from './sftp-config-provider'
+import { SftpConflictDialogComponent } from './panel/sftp-conflict-dialog.component'
+import { SftpTransferQueueComponent } from './panel/sftp-transfer-queue.component'
+import { SftpTransferLogDialogComponent } from './panel/sftp-transfer-log-dialog.component'
+import { SftpFilePaneComponent } from './panel/sftp-file-pane.component'
+import { SftpContextMenuComponent } from './panel/sftp-context-menu.component'
+import { SftpBookmarkPopupComponent } from './panel/sftp-bookmark-popup.component'
+import { SftpDeleteDialogComponent } from './panel/sftp-delete-dialog.component'
+import { SftpInputDialogComponent } from './panel/sftp-input-dialog.component'
+import { SftpPermDialogComponent } from './panel/sftp-perm-dialog.component'
+import { SftpDetailsDialogComponent } from './panel/sftp-details-dialog.component'
+import { SftpViewerDialogComponent } from './panel/sftp-viewer-dialog.component'
+import { SftpEditorDialogComponent } from './panel/sftp-editor-dialog.component'
+
 
 @NgModule({
   imports: [
@@ -28,7 +42,21 @@ import { SftpPlusConfigProvider } from './sftp-config-provider'
   ],
   declarations: [
     SftpFloatingPanel,
+    SftpWorkspaceTabComponent,
     SftpSettingsTabComponent,
+    SftpConflictDialogComponent,
+    SftpTransferQueueComponent,
+    SftpTransferLogDialogComponent,
+    SftpFilePaneComponent,
+    SftpContextMenuComponent,
+    SftpBookmarkPopupComponent,
+    SftpDeleteDialogComponent,
+    SftpInputDialogComponent,
+    SftpPermDialogComponent,
+    SftpDetailsDialogComponent,
+    SftpViewerDialogComponent,
+    SftpEditorDialogComponent,
+
   ],
   providers: [
     { provide: TerminalDecorator, useClass: SftpTerminalDecorator, multi: true },

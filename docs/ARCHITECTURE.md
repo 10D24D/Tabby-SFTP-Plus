@@ -46,8 +46,22 @@ Angular Module 的注册入口。声明组件、提供 Tabby 扩展点。
 
 ```typescript
 @NgModule({
-  declarations: [SftpFloatingPanel, SftpSettingsTabComponent],
-  entryComponents: [SftpFloatingPanel],
+  declarations: [
+    SftpFloatingPanel,
+    SftpSettingsTabComponent,
+    SftpConflictDialogComponent,
+    SftpTransferQueueComponent,
+    SftpTransferLogDialogComponent,
+    SftpFilePaneComponent,
+    SftpContextMenuComponent,
+    SftpBookmarkPopupComponent,
+    SftpDeleteDialogComponent,
+    SftpInputDialogComponent,
+    SftpPermDialogComponent,
+    SftpDetailsDialogComponent,
+    SftpViewerDialogComponent,
+    SftpEditorDialogComponent,
+  ],
   providers: [
     { provide: TerminalDecorator, useClass: SftpTerminalDecorator, multi: true },
     { provide: SettingsTabProvider, useClass: SftpSettingsTabProvider, multi: true },
@@ -80,9 +94,31 @@ export class SftpPlusModule {}
   ```
 - **组件动态挂载**：使用 `ComponentFactoryResolver` + `ApplicationRef.attachView()` 将组件挂在独立的 DOM 容器中，通过 `ngZone.run()` 确保变更检测在 Angular zone 内执行
 
-### 第 3 层 — 面板层 (`sftp-floating-panel.component.ts`)
+### 第 3 层 — 面板层
 
-**插件最核心的文件**（约 2700 行），包含完整的双栏文件管理器 UI 与业务逻辑。
+主面板 `sftp-floating-panel.component.ts` 承载双栏文件管理核心业务逻辑；以下模块已从主文件拆出：
+
+| 模块 | 文件 | 职责 |
+|------|------|------|
+| 共享类型 | `panel/panel-types.ts` | LocalEntry、ConflictFileInfo、PanelTransferItem 等 |
+| 文件类型 | `panel/file-type-utils.ts` | 可查看/可编辑类型判断、大小上限 |
+| 远程读写 | `panel/remote-file-transfer.ts` | 查看/编辑用内存与临时文件读写 |
+| 对话框样式 | `panel/file-dialog-shared-styles.ts` | 查看/编辑对话框共用布局 |
+| 滚轮隔离 | `panel/file-dialog-wheel.ts` | 对话框内滚动不穿透底层面板 |
+| 格式化 | `panel/panel-format.ts` | formatSize、formatDate、日志格式化等纯函数 |
+| 主面板样式 | `panel/panel-main-styles.ts` | 主 overlay CSS（`SFTP_PANEL_STYLES`） |
+| 列表工具 | `panel/panel-list-utils.ts` | 排序、过滤、POSIX mode 目录判断 |
+| 导航历史 | `panel/panel-nav-history.ts` | 本地 / 远程路径后退、前进栈 |
+| 框选 | `panel/panel-rubber-band.ts` | Rubber Band 多选逻辑 |
+| 传输运行时 | `panel/panel-transfer-runtime.ts` | 传输进度轮询、暂停/续传、取消与清理 |
+| 冲突处理 | `panel/panel-conflict-resolver.ts` | 冲突对话框驱动、队列流转、覆盖/重命名策略 |
+| 连接生命周期 | `panel/connection-lifecycle.ts` | connect / disconnect / heartbeat / reconnect |
+| 文件列表面板 | `panel/sftp-file-pane.component.ts` | 本地 / 远程共用 pane（路径栏 + 列表 + 底栏） |
+| 右键菜单 | `panel/sftp-context-menu.component.ts` | 文件右键 + 表头列配置菜单 |
+| 书签弹窗 | `panel/sftp-bookmark-popup.component.ts` | 书签 CRUD UI |
+| 对话框 | `panel/sftp-*-dialog.component.ts` | 删除 / 输入 / 权限 / 详情 / 冲突 / 传输日志 / **查看 / 编辑** |
+| 传输队列 | `panel/sftp-transfer-queue.component.ts` | 进行中传输进度条 |
+| 工作区标签 | `sftp-workspace-tab.component.ts` | 将面板嵌入独立 Tab（`displayMode: workspace`） |
 
 组件内部结构：
 
@@ -91,32 +127,31 @@ SftpFloatingPanel 组件
 ├── 模板（内联 template 字符串）
 │   ├── top-bar（标题栏：插件名 + 主机信息 + 日志入口 + 关闭按钮）
 │   ├── 主内容区
-│   │   ├── 本地 Pane（左栏）
-│   │   │   ├── pane-title（标签 + 路径栏 + 操作按钮）
-│   │   │   ├── pane-filters（过滤栏，默认隐藏）
-│   │   │   ├── pane-list（文件列表，含 sticky 表头）
-│   │   │   └── pane-actions-bar（底部操作栏）
-│   │   └── 远程 Pane（右栏，同上结构）
-│   ├── sftp-transfers（传输进度队列）
-│   ├── bookmark-popup（书签弹窗）
-│   ├── context-menu（右键菜单）
-│   ├── log-dialog（传输日志弹窗）
-│   └── dialog overlay（输入框/确认/权限编辑等模态框）
-├── 样式（内联 CSS）
+│   │   ├── sftp-file-pane（本地 Pane，子组件）
+│   │   ├── 拖拽分割线
+│   │   └── sftp-file-pane（远程 Pane，子组件）
+│   ├── sftp-transfer-queue（传输进度队列，子组件）
+│   ├── sftp-bookmark-popup（书签弹窗，子组件）
+│   ├── sftp-context-menu（右键菜单，子组件）
+│   ├── sftp-transfer-log-dialog（传输日志弹窗，子组件）
+│   ├── sftp-conflict-dialog（冲突对话框，子组件）
+│   ├── sftp-viewer-dialog / sftp-editor-dialog（查看与编辑，子组件）
+│   └── 各 dialog 子组件（删除 / 输入 / 权限 / 详情）
+├── 样式（panel/panel-main-styles.ts → SFTP_PANEL_STYLES）
 │   └── 全部使用 CSS 变量，支持亮/暗主题自适应
-└── 类逻辑
-    ├── 本地文件操作（cd/ls/mkdir/rename/delete/copy/move）
-    ├── 远程 SFTP 操作（通过 SftpConnectionService）
-    ├── 选中与多选管理
-    ├── 拖拽上传/下载
-    ├── 排序与过滤
-    ├── 列配置管理
-    ├── 传输队列管理
-    ├── 书签操作
-    ├── 右键菜单逻辑
-    ├── 键盘快捷键（方向键/回车/Delete/F5...）
-    └── 响应式布局（<=580px 切换上下布局）
+└── 类逻辑（仍留在主组件）
+    ├── 本地 / 远程文件操作（cd / ls / mkdir / rename / delete）
+    ├── 拖拽上传 / 下载与传输队列调度
+    ├── 排序与过滤（计算委托 panel-list-utils）
+    ├── 框选多选（委托 panel-rubber-band）
+    ├── 路径导航历史（委托 panel-nav-history）
+    ├── 列配置与列宽管理
+    ├── 书签 / 右键菜单业务逻辑
+    ├── 键盘快捷键
+    └── 响应式布局（<=960px 切换上下布局）
 ```
+
+> **后续拆分方向**：上传/下载递归流程（`uploadPathToRemote` / `downloadRemoteDir`）可继续抽到独立 transfer-flow 模块。
 
 ### 第 4 层 — 服务层
 
@@ -234,9 +269,10 @@ SftpFloatingPanel
 ### 4. 响应式布局策略
 
 使用 `ResizeObserver` 监听面板宽度：
-- **> 580px**：左右并排布局（默认）
-- **≤ 580px**：上下堆叠布局（窄屏模式）
-- 在上下布局下，用户可通过拖拽分割条调整上下区域比例
+- **> 960px（自适应模式）**：左右并排布局
+- **≤ 960px（自适应模式）**：上下堆叠布局
+- 用户可通过拖拽分割条调整比例；**双击分割条恢复 50:50**；悬停显示操作提示
+- 也可在设置中强制指定水平 / 垂直 / 单栏布局
 
 ### 5. 事件监听策略
 

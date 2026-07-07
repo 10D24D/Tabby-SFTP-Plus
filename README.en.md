@@ -14,14 +14,16 @@ SFTP+ is a plugin for [Tabby Terminal](https://tabby.sh/) that adds a **dual-pan
 
 | Category | Description |
 |----------|-------------|
-| **📂 Dual-Pane Manager** | Local (left) + Remote (right), switchable between horizontal / vertical / adaptive layouts |
-| **🔄 Drag & Drop** | Drag across panes to upload/download; recursive folder transfer supported; supports dragging files/folders from OS Explorer/Desktop into local or remote panes |
+| **📂 Dual-Pane Manager** | Local (left) + Remote (right); horizontal / vertical / adaptive / single-pane layouts; draggable splitter, double-click to reset |
+| **👁️ View / Edit** | Built-in text/image viewer and text editor (local + remote); open or edit in system default app |
+| **🔄 Drag & Drop** | Drag across panes to upload/download; recursive folder transfer; drag from OS Explorer/Desktop into either pane |
+| **⬆️ Context Transfer** | Right-click upload on local pane, download on remote pane (multi-select batch) |
 | **🔖 Bookmark System** | Global bookmarks (visible across all connections) + connection bookmarks (per SSH session); drag-to-reorder |
-| **📋 Transfer Log** | Full operation history with filtering, stats, and JSON export |
+| **📋 Transfer Log** | Full operation history including **Edit Load** / **Edit Save** types; filtering, stats, JSON export |
 | **⚡ Transfer Control** | Progress bars, pause/resume/cancel, resume support, real-time speed |
 | **⚠️ File Conflict** | Visual diff on conflict, with overwrite/skip/rename options and batch processing |
 | **🔐 Permission Editor** | Remote chmod via 3×3 checkbox matrix with octal preview |
-| **📌 Context Menus** | File list right-click: new folder/file, rename, delete, copy/cut/paste, refresh, select all/invert; <br />Table header right-click: show/hide columns, fit column widths, toggle borders & zebra stripes |
+| **📌 Context Menus** | Upload/download, view/edit, new/rename/delete, copy/cut/paste, refresh, select all/invert; <br />Header: column visibility, fit widths, borders & zebra stripes |
 | **🔍 Filter & Sort** | Keyword filter, multi-column sorting (click headers), configurable visible columns |
 | **🧭 Path Memory** | Toggle to restore last browsed paths when reopening the panel |
 | **🎨 Theme System** | 7 presets + custom colors, supports following the Tabby system theme |
@@ -63,7 +65,20 @@ SFTP+ is a plugin for [Tabby Terminal](https://tabby.sh/) that adds a **dual-pan
 
 1. **Open** — Click the `SFTP+` button in the toolbar of an SSH terminal tab
 2. **Browse** — Navigate local files on the left and remote SFTP directories on the right; double-click to enter a directory
-3. **Transfer** — Drag files from left to right = upload, right to left = download
+3. **Transfer** — Drag across panes, or use right-click upload/download
+4. **View/Edit** — Right-click text or image files to view in-app; edit text and save (remote files upload automatically)
+
+---
+
+## 📏 File Size Limits
+
+| Operation | Limit |
+|-----------|-------|
+| Text view | 2 MB |
+| Image view | 15 MB |
+| Text edit | 5 MB |
+
+Exceeding a limit shows a clear dialog and toast with the cap.
 
 ---
 
@@ -93,7 +108,7 @@ Path: Settings → Data Backup → Export / Import
 
 ## 📜 Changelog
 
-Latest: **v1.0.5** (2026-07-06) — [Full changelog](CHANGELOG.md)
+Latest: **v1.1.0** (2026-07-07) — [Full changelog](CHANGELOG.md)
 
 ---
 
@@ -129,23 +144,25 @@ The built plugin bundle is `dist/index.js`.
 
 ```
 tabby-FTPS+/
+├── docs/
 ├── src/
-│   ├── index.ts                         # Plugin entry (Angular Module registration)
-│   ├── sftp-floating-panel.component.ts # Main panel UI (template, styles, all business logic)
-│   ├── sftp-terminal-decorator.ts       # Injects the SFTP+ button into the terminal toolbar
-│   ├── sftp.service.ts                  # SFTP connection wrapper (readdir, upload, download, chmod, etc.)
-│   ├── sftp-config-provider.ts          # Default configuration provider
-│   ├── sftp-bookmarks.service.ts        # Bookmark CRUD + drag reorder + scoped bookmarks
-│   ├── sftp-transfer-log.service.ts     # Transfer log recording, filtering, and export
-│   ├── sftp-i18n.service.ts             # Internationalization (zh-CN/en-US, 5-level fallback)
-│   ├── sftp-settings.component.ts       # Settings UI and interaction
-│   ├── local-transfers.ts               # Local file transfer adapter (resume support, pause/resume)
-│   └── tabby-shims.d.ts                 # Tabby internal type declarations
-├── dist/                                # Build output
-├── package.json
-├── tsconfig.json
-└── webpack.config.js                    # Webpack config
+│   ├── index.ts
+│   ├── sftp-floating-panel.component.ts
+│   ├── sftp-workspace-tab.component.ts
+│   ├── sftp-terminal-decorator.ts
+│   ├── panel/                    # Extracted UI & logic modules
+│   │   ├── sftp-file-pane.component.ts
+│   │   ├── sftp-viewer-dialog.component.ts
+│   │   ├── sftp-editor-dialog.component.ts
+│   │   ├── panel-conflict-resolver.ts
+│   │   └── …
+│   ├── sftp.service.ts
+│   └── …
+├── dist/index.js
+└── package.json
 ```
+
+See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for the full tree.
 
 ---
 

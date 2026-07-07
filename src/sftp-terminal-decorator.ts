@@ -17,8 +17,9 @@
  */
 import { Injectable, Injector, ComponentFactoryResolver, ApplicationRef, NgZone } from '@angular/core'
 import { TerminalDecorator } from 'tabby-terminal'
-import { NotificationsService, ConfigService } from 'tabby-core'
+import { NotificationsService, ConfigService, AppService } from 'tabby-core'
 import { SftpFloatingPanel } from './sftp-floating-panel.component'
+import { SftpWorkspaceTabComponent } from './sftp-workspace-tab.component'
 
 /** SVG 文件夹图标 */
 const FOLDER_SVG = '<svg viewBox="0 0 1024 1024" width="14" height="14" fill="currentColor" style="vertical-align:middle"><path d="M120 344h291.6l112-112H736v224h56V176H500.4l-112 112H64v560l56-130.6z"/><path d="M792 456H232L120 717.4 64 848h728l168-392z"/></svg>'
@@ -34,6 +35,7 @@ export class SftpTerminalDecorator extends TerminalDecorator {
     private appRef: ApplicationRef,
     private zone: NgZone,
     private injector: Injector,
+    private app: AppService,
     private config?: ConfigService,
   ) {
     super()
@@ -108,7 +110,11 @@ export class SftpTerminalDecorator extends TerminalDecorator {
             btn.style.cursor = ''
             btn.title = 'SFTP+'
           }
-          this.openFloatingPanel(terminal)
+          if (this._openInNewTabByDefault()) {
+            this.openWorkspaceTab(terminal)
+          } else {
+            this.openFloatingPanel(terminal)
+          }
         })
 
         // If there's a Reconnect button, insert next to it.
@@ -196,6 +202,35 @@ export class SftpTerminalDecorator extends TerminalDecorator {
     const handler = () => this._applyNativeBtnHideRule()
     window.addEventListener('sftp-plus-settings-changed', handler)
     this.subscribeUntilDetached(terminal, { unsubscribe: () => window.removeEventListener('sftp-plus-settings-changed', handler) })
+  }
+
+  private _openInNewTabByDefault(): boolean {
+    return this._readBoolConfig('openInNewTabByDefault', 'sftp-plus-settings.openInNewTabByDefault', false)
+  }
+
+  private _singleWorkspaceInstance(): boolean {
+    return this._readBoolConfig('singleWorkspaceInstance', 'sftp-plus-settings.singleWorkspaceInstance', true)
+  }
+
+  private _readBoolConfig(cfgKey: string, lsKey: string, fallback: boolean): boolean {
+    let fromConfig = false
+    let value = fallback
+    if (this.config?.store) {
+      try {
+        const cfgVal = this.config.store['tabby-sftp-plus']?.[cfgKey]
+        if (cfgVal !== undefined) {
+          value = !!cfgVal
+          fromConfig = true
+        }
+      } catch {}
+    }
+    if (!fromConfig) {
+      try {
+        const raw = localStorage.getItem(lsKey)
+        if (raw !== null) value = JSON.parse(raw)
+      } catch {}
+    }
+    return value
   }
 
   /**
@@ -427,5 +462,86 @@ export class SftpTerminalDecorator extends TerminalDecorator {
       }
       console.log('[SFTP+] Panel restored from minimized state')
     }
+  }
+
+  private openWorkspaceTab(terminal: any): void {
+    const sshSession = terminal?.sshSession ?? (terminal as any)?._sshSession ?? terminal?._session ?? null
+    const profile = terminal?.profile ?? terminal?._profile ?? null
+    if (!sshSession) {
+      this.notifications.error('SFTP+', 'No active SSH session found on this tab')
+      return
+    }
+
+    this.zone.run(() => {
+      if (this._singleWorkspaceInstance()) {
+        const existing = this._findWorkspaceTabForTerminal(terminal)
+        if (existing) {
+          this._focusWorkspaceTab(existing)
+          return
+        }
+      }
+
+      this.app.openNewTab({
+        type: SftpWorkspaceTabComponent,
+        inputs: {
+          sshSession,
+          profile,
+          terminalRef: terminal,
+          sourceTabKey: this._getTerminalSourceKey(terminal),
+        },
+      })
+    })
+  }
+
+  /** 聚焦已有 SFTP+ 工作区标签（需选中顶层 SplitTab 并 focus 子标签） */
+  private _focusWorkspaceTab(tab: any): void {
+    const parent = this.app.getParentTab(tab)
+    if (parent) {
+      this.app.selectTab(parent)
+      if (typeof parent.focus === 'function') {
+        parent.focus(tab)
+      }
+    } else {
+      this.app.selectTab(tab)
+    }
+    try { tab.emitFocused?.() } catch { /* ignore */ }
+  }
+
+  /** 为 SSH 终端生成稳定来源键，用于单实例匹配 */
+  private _getTerminalSourceKey(terminal: any): string {
+    if (!terminal) return ''
+    if (terminal.__sftpPlusSourceKey) return String(terminal.__sftpPlusSourceKey)
+    const key = `sftp-src-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+    terminal.__sftpPlusSourceKey = key
+    return key
+  }
+
+  /** 查找同一 SSH 终端已打开的工作区标签 */
+  private _findWorkspaceTabForTerminal(terminal: any): any | null {
+    const sourceKey = this._getTerminalSourceKey(terminal)
+    let found: any = null
+    const visit = (tab: any): void => {
+      if (found || !tab) return
+      if (!tab.sftpPlusWorkspace) return
+      if (tab.sourceTabKey && tab.sourceTabKey === sourceKey) {
+        found = tab
+        return
+      }
+      if (tab.terminalRef === terminal) {
+        if (!tab.sourceTabKey) tab.sourceTabKey = sourceKey
+        found = tab
+      }
+    }
+
+    for (const top of this.app.tabs || []) {
+      if (top?.root?.getAllTabs) {
+        for (const child of top.root.getAllTabs()) visit(child)
+      } else if (typeof top?.getAllTabs === 'function') {
+        for (const child of top.getAllTabs()) visit(child)
+      } else {
+        visit(top)
+      }
+    }
+    return found
   }
 }

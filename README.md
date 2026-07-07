@@ -14,14 +14,16 @@ SFTP+ 是 [Tabby Terminal](https://tabby.sh/) 的插件，为 SSH 终端标签�
 
 | 类别 | 功能 |
 |------|------|
-| **📂 双栏管理** | 左本地 + 右远程，可切换 水平/垂直/自适应 三种布局 |
-| **🔄 拖拽传输** | 跨栏拖拽即上传/下载，支持文件夹递归传输；支持从系统资源管理器/桌面拖入到本地或远程面板 |
+| **📂 双栏管理** | 左本地 + 右远程，可切换 水平/垂直/自适应/单栏 四种布局；分割线可拖拽调整，双击恢复默认 |
+| **👁️ 查看 / 编辑** | 内置文本/图片查看器与文本编辑器（本地+远程）；支持「在系统中打开/编辑」 |
+| **🔄 拖拽传输** | 跨栏拖拽即上传/下载，支持文件夹递归传输；<br />支持从系统资源管理器/桌面拖入到本地或远程面板 |
+| **⬆️ 右键传输** | 本地面板右键上传、远程面板右键下载（多选批量） |
 | **🔖 书签系统** | 全局书签（所有连接可见）+ 连接书签（仅当前 SSH 可见），拖拽排序 |
-| **📋 传输日志** | 记录所有操作历史，支持筛选、统计、JSON 导出 |
+| **📋 传输日志** | 记录所有操作历史，含「编辑加载/编辑保存」分类，支持筛选、统计、JSON 导出 |
 | **⚡ 传输控制** | 进度条显示、暂停/继续/取消、断点续传、实时速度 |
 | **⚠️ 冲突处理** | 文件冲突时弹出对比界面，支持覆盖/跳过/重命名，可批量操作 |
 | **🔐 权限编辑** | 远程文件 chmod — 3×3 勾选框 + 八进制预览 |
-| **📌 右键菜单** | 文件列表右键：新建/重命名/删除/复制/剪切/粘贴/刷新/全选/反选；<br />表头右键：列显隐/列宽调整/面板边框与斑马纹切换 |
+| **📌 右键菜单** | 上传/下载、查看/编辑、新建/重命名/删除、复制/剪切/粘贴、刷新、全选/反选；<br />表头右键：列显隐/列宽调整/面板边框与斑马纹切换 |
 | **🔍 过滤排序** | 关键词过滤、多列排序（点击列头）、可配置显示列 |
 | **🧭 路径记忆** | 开关控制，重新打开面板时恢复上次浏览位置 |
 | **🎨 主题系统** | 7 种预设 + 自定义配色，支持跟随 Tabby 系统主题 |
@@ -51,7 +53,21 @@ SFTP+ 是 [Tabby Terminal](https://tabby.sh/) 的插件，为 SSH 终端标签�
 
 1. **打开** — 在 SSH 终端标签页的工具栏点击 `SFTP+` 按钮
 2. **浏览** — 左侧本地文件系统、右侧远程 SFTP 目录，双击进入目录
-3. **传输** — 从左侧拖拽文件到右侧 = 上传，反向 = 下载
+3. **传输** — 拖拽、右键上传/下载，或选中后使用右键菜单
+4. **查看/编辑** — 右键文本或图片文件可内置查看；文本可编辑并保存（远程文件自动上传）
+
+---
+
+
+## 📏 文件大小限制
+
+| 操作 | 上限 |
+|------|------|
+| 文本查看 | 2 MB |
+| 图片查看 | 15 MB |
+| 文本编辑 | 5 MB |
+
+超出上限时仍会提示，并说明具体限制。
 
 ---
 
@@ -66,7 +82,7 @@ SFTP+ 是 [Tabby Terminal](https://tabby.sh/) 的插件，为 SSH 终端标签�
 
 ## 📜 版本历史
 
-最新版本 **v1.0.5**（2026-07-06）— [完整更新日志](CHANGELOG.md)
+最新版本 **v1.1.0**（2026-07-07）— [完整更新日志](CHANGELOG.md)
 
 ---
 
@@ -102,23 +118,29 @@ npm run build
 
 ```
 tabby-FTPS+/
+├── docs/                                # 架构与开发文档
 ├── src/
 │   ├── index.ts                         # 插件入口（Angular Module 注册）
-│   ├── sftp-floating-panel.component.ts # 主面板 UI（模板+样式+全部业务逻辑）
+│   ├── sftp-floating-panel.component.ts # 主面板（业务编排，模板+逻辑）
+│   ├── sftp-workspace-tab.component.ts  # 工作区独立标签页容器
 │   ├── sftp-terminal-decorator.ts       # 终端工具栏注入 SFTP+ 按钮
-│   ├── sftp.service.ts                  # SFTP 连接封装（readdir/upload/download/chmod 等）
-│   ├── sftp-config-provider.ts          # 配置默认值定义
-│   ├── sftp-bookmarks.service.ts        # 书签 CRUD + 拖拽排序 + 三级作用域
-│   ├── sftp-transfer-log.service.ts     # 传输日志记录/筛选/导出
-│   ├── sftp-i18n.service.ts             # 国际化（中/英，五级回退策略）
-│   ├── sftp-settings.component.ts       # 设置页 UI 和交互
-│   ├── local-transfers.ts               # 本地文件传输适配器（断点续传、暂停/继续）
-│   └── tabby-shims.d.ts                 # Tabby 内部类型声明（补全缺失类型）
-├── dist/                                # 构建输出
+│   ├── panel/                           # 从主面板拆出的子模块
+│   │   ├── sftp-file-pane.component.ts  # 本地/远程文件列表面板
+│   │   ├── sftp-context-menu.component.ts
+│   │   ├── sftp-viewer-dialog.component.ts
+│   │   ├── sftp-editor-dialog.component.ts
+│   │   ├── panel-conflict-resolver.ts
+│   │   ├── panel-transfer-runtime.ts
+│   │   └── …                            # 详见 docs/DEVELOPMENT.md
+│   ├── sftp.service.ts                  # SFTP 连接封装
+│   ├── sftp-transfer-log.service.ts     # 传输日志
+│   └── …
+├── dist/                                # 构建输出（index.js）
 ├── package.json
-├── tsconfig.json
-└── webpack.config.js                    # Webpack 配置
+└── webpack.config.js
 ```
+
+更完整的目录说明见 [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)。
 
 ---
 

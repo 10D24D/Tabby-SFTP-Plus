@@ -36,10 +36,38 @@ tabby-FTPS+/
 │   └── index.js                 #   插件打包产物（Tabby 加载入口）
 ├── src/                         # 源码目录
 │   ├── index.ts                 #   入口：NgModule 注册 + 扩展点声明
-│   ├── sftp-floating-panel.component.ts  #   主面板组件（≈2700 行）
-│   ├── sftp-terminal-decorator.ts #   终端装饰器
-│   ├── sftp.service.ts          #   SFTP 连接服务
-│   ├── sftp-bookmarks.service.ts#   书签服务
+│   ├── sftp-floating-panel.component.ts  #   主面板组件（≈5000 行，业务逻辑；UI/部分逻辑已拆至 panel/）
+│   ├── panel/                   #   从主面板拆出的子模块
+│   │   ├── panel-types.ts       #     共享类型（LocalEntry、ConflictFileInfo 等）
+│   │   ├── panel-format.ts      #     纯函数格式化工具
+│   │   ├── panel-main-styles.ts #     主面板 CSS（从组件 styles 提取）
+│   │   ├── panel-list-utils.ts  #     列表排序 / 过滤 / mode 位判断
+│   │   ├── panel-nav-history.ts #     路径导航后退 / 前进栈
+│   │   ├── panel-rubber-band.ts #     框选（Rubber Band Selection）
+│   │   ├── panel-transfer-runtime.ts #  传输进度轮询 / 暂停 / 续传运行时
+│   │   ├── panel-conflict-resolver.ts # 冲突队列处理与覆盖/重命名策略
+│   │   ├── connection-lifecycle.ts      # connect / heartbeat / reconnect
+│   │   ├── sftp-file-pane.component.ts  # 本地 / 远程文件列表面板
+│   │   ├── sftp-context-menu.component.ts # 右键 + 表头列配置菜单
+│   │   ├── sftp-bookmark-popup.component.ts
+│   │   ├── sftp-delete-dialog.component.ts
+│   │   ├── sftp-input-dialog.component.ts
+│   │   ├── sftp-perm-dialog.component.ts
+│   │   ├── sftp-details-dialog.component.ts
+│   │   ├── sftp-conflict-dialog.component.ts
+│   │   ├── sftp-transfer-queue.component.ts
+│   │   ├── sftp-transfer-log-dialog.component.ts
+│   │   ├── sftp-viewer-dialog.component.ts
+│   │   ├── sftp-editor-dialog.component.ts
+│   │   ├── file-type-utils.ts
+│   │   ├── remote-file-transfer.ts
+│   │   ├── file-dialog-shared-styles.ts
+│   │   └── file-dialog-wheel.ts
+│   ├── sftp-workspace-tab.component.ts # 工作区独立标签页
+│   ├── sftp-open-settings.ts        #   从面板跳转设置页
+│   ├── sftp-terminal-decorator.ts   #   终端装饰器
+│   ├── sftp.service.ts              #   SFTP 连接服务
+│   ├── sftp-bookmarks.service.ts    #   书签服务
 │   ├── sftp-transfer-log.service.ts #   传输日志服务
 │   ├── sftp-i18n.service.ts     #   国际化服务
 │   ├── sftp-settings.component.ts #   设置页组件
@@ -172,7 +200,7 @@ npm run watch    # 监听模式，文件变化自动构建
 ### 新增功能
 
 1. **新增服务**：在 `src/` 下创建 `sftp-xxx.service.ts`，使用 `new` 实例化
-2. **新增 UI 组件**：如果功能简单，直接在 `sftp-floating-panel.component.ts` 的内联模板中增加
+2. **新增 UI 组件**：复杂 UI 应放入 `src/panel/` 子组件，并在 `index.ts` 的 `declarations` 中注册；简单改动可直接改主组件模板
 3. **新增 Tabby 扩展点**：在 `index.ts` 的 `providers` 数组中注册
 
 ### 修改数据模型

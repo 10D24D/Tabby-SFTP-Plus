@@ -13,8 +13,12 @@ declare module 'tabby-core' {
   export default TabbyCoreModule
   export class AppService {
     activeTab: any
+    tabs: any[]
     openNewTab(options: any): any
-    closeTab(tab: any): void
+    openNewTabRaw(options: any): any
+    selectTab(tab: any): void
+    getParentTab(tab: any): any
+    closeTab(tab: any, checkCanClose?: boolean): Promise<void>
   }
   export class NotificationsService {
     error(title: string, message: string): void
@@ -52,7 +56,6 @@ declare module 'tabby-core' {
     icon?: string
     _injector: any
     constructor(injector: any)
-    closeTab(): void
     destroy(): void
     getRecoveryToken(): Promise<RecoveryToken | null>
   }
@@ -159,6 +162,9 @@ declare module 'tabby-terminal' {
 
 // tabby-settings 导出声明
 declare module 'tabby-settings' {
+  export class SettingsTabComponent {
+    activeTab: string
+  }
   export abstract class SettingsTabProvider {
     abstract getSettingsTabs(): Promise<Array<{
       title: string

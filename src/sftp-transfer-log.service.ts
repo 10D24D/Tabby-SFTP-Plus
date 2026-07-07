@@ -17,7 +17,7 @@ import { ConfigService } from 'tabby-core'
 export type TransferLogEntry = {
   id: string
   timestamp: number
-  operation: 'upload' | 'download' | 'delete' | 'rename' | 'mkdir' | 'chmod'
+  operation: 'upload' | 'download' | 'edit-upload' | 'edit-download' | 'delete' | 'rename' | 'mkdir' | 'chmod'
   localPath: string
   remotePath: string
   profileName?: string

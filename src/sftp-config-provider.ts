@@ -23,6 +23,9 @@ export interface SftpPlusPluginConfig {
   tableColBorders: boolean
   tableZebra: boolean
   hideNativeSFTPButton: boolean
+  openInNewTabByDefault: boolean
+  singleWorkspaceInstance: boolean
+  paneCustomOrder: Array<'label' | 'path' | 'back' | 'forward' | 'up' | 'refresh' | 'home' | 'filter' | 'bookmark'>
   bookmarks: any[]
   pathMemory: Record<string, any>
   transferLogs: any[]
@@ -44,6 +47,9 @@ export function defaultSftpPlusConfig(): SftpPlusPluginConfig {
     tableColBorders: true,
     tableZebra: true,
     hideNativeSFTPButton: false,
+    openInNewTabByDefault: false,
+    singleWorkspaceInstance: true,
+    paneCustomOrder: ['label', 'back', 'forward', 'up', 'refresh', 'home', 'path', 'filter', 'bookmark'],
     bookmarks: [],
     pathMemory: {},
     transferLogs: [],
