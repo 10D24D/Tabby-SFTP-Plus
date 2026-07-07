@@ -4093,6 +4093,8 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
   rememberPath = false
   /** 跟随终端路径开关 */
   followTerminalPath = false
+  /** 文件打开方式：'double' = 双击打开预览/编辑，'single' = 单击打开（仅 workspace 模式） */
+  openAction: 'single' | 'double' = 'double'
   private static REMEMBER_PATH_KEY = 'sftp-plus-path-mem'
   private static FOLLOW_TERM_PATH_KEY = 'sftp-plus-follow-term-path'
   private static SAVED_LOCAL_PATH_KEY = 'sftp-plus-saved-local-path'
@@ -4124,6 +4126,10 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     try {
       const raw2 = this._paneGet(SftpFloatingPanel.FOLLOW_TERM_PATH_KEY)
       if (raw2 !== null) this.followTerminalPath = raw2 === 'true'
+    } catch {}
+    try {
+      const cfgOpenAction = this.configService?.store?.['tabby-sftp-plus']?.openAction
+      if (cfgOpenAction === 'single' || cfgOpenAction === 'double') this.openAction = cfgOpenAction
     } catch {}
   }
 
@@ -4525,6 +4531,11 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
       try {
         const cfgFollow = this.configService?.store?.['tabby-sftp-plus']?.followTerminalPath
         if (cfgFollow !== undefined) this.followTerminalPath = cfgFollow as boolean
+      } catch {}
+      // 重新读取 openAction
+      try {
+        const cfgOpenAction = this.configService?.store?.['tabby-sftp-plus']?.openAction
+        if (cfgOpenAction === 'single' || cfgOpenAction === 'double') this.openAction = cfgOpenAction
       } catch {}
       // 同步书签与传输日志（其他面板或导入后可能已变更）
       this.bookmarks.reload()
@@ -6368,14 +6379,15 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     this.activePane = 'local'
     // 如果刚完成框选操作，忽略此次点击（避免重复选择）
     if (this._rbMoved) { this._rbMoved = false; return }
-    // 取消延迟选择：直接执行选择，消除点击卡顿感
     if (this.localClickTimer) { clearTimeout(this.localClickTimer); this.localClickTimer = null }
-    // 重新设置 250ms 定时器仅用于 dblclick 检测（openLocal 会清除此定时器）
+    // 定时器仅用于 dblclick 检测 + 单击模式预览（openLocal 会清除此定时器）
     this.localClickTimer = setTimeout(() => {
       this.localClickTimer = null
-      this.selectLocal(entry, event, idx)
-      void this._maybeOpenWorkspaceEntryFromSingleClick('local', entry, event)
+      if (this.openAction === 'single') {
+        void this._maybeOpenWorkspaceEntryFromSingleClick('local', entry, event)
+      }
     }, 250)
+    // 立即执行选择，消除点击卡顿感
     this.selectLocal(entry, event, idx)
   }
 
@@ -6430,12 +6442,14 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     this.activePane = 'remote'
     if (this._rbMoved) { this._rbMoved = false; return }
     if (this.remoteClickTimer) { clearTimeout(this.remoteClickTimer); this.remoteClickTimer = null }
-    // 重新设置 250ms 定时器仅用于 dblclick 检测
+    // 定时器仅用于 dblclick 检测 + 单击模式预览（openRemote 会清除此定时器）
     this.remoteClickTimer = setTimeout(() => {
       this.remoteClickTimer = null
-      this.selectRemote(entry, event, idx)
-      void this._maybeOpenWorkspaceEntryFromSingleClick('remote', entry, event)
+      if (this.openAction === 'single') {
+        void this._maybeOpenWorkspaceEntryFromSingleClick('remote', entry, event)
+      }
     }, 250)
+    // 立即执行选择，消除点击卡顿感
     this.selectRemote(entry, event, idx)
   }
 
@@ -6632,6 +6646,7 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
   }
 
   onDragStartLocal(ev: DragEvent, entry: LocalEntry): void {
+    if (this.localClickTimer) { clearTimeout(this.localClickTimer); this.localClickTimer = null }
     // 如果条目未被选中→取消拖拽，允许从文件条目开始框选（模仿 Windows 行为）
     // 标记 _rbDragCancelled 告知 _rbOnMouseMove 可以激活框选
     if (!this.selectedLocal.includes(entry)) {
@@ -6663,6 +6678,7 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
   }
 
   onDragStartRemote(ev: DragEvent, entry: SFTPFile): void {
+    if (this.remoteClickTimer) { clearTimeout(this.remoteClickTimer); this.remoteClickTimer = null }
     if (!this.connected) return
     // 如果条目未被选中→取消拖拽，允许从文件条目开始框选
     // 标记 _rbDragCancelled 告知 _rbOnMouseMove 可以激活框选
