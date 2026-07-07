@@ -26,9 +26,9 @@ import * as path from 'path'
 import * as fs from 'fs/promises'
 import * as fsSync from 'fs'
 import * as os from 'os'
-import { exec } from 'child_process'
+import { execFile } from 'child_process'
 
-import { Component, OnInit, OnDestroy, AfterViewInit, HostListener, ChangeDetectorRef, ElementRef, NgZone, Injector } from '@angular/core'
+import { Component, OnInit, OnDestroy, AfterViewInit, HostListener, ChangeDetectorRef, ElementRef, NgZone, Injector, ViewChild } from '@angular/core'
 import { ThemesService, NotificationsService, ConfigService } from 'tabby-core'
 
 import { LocalPathFileDownload, LocalPathFileUpload } from './local-transfers'
@@ -78,6 +78,10 @@ type ConflictFileInfo = {
 /** 书签分组作用域 */
 type BookmarkScope = 'connection' | 'global' | 'all'
 
+type TextDocumentFormat = 'plain' | 'markdown'
+
+type TextViewMode = 'edit' | 'preview'
+
 type WorkspaceAccessoryTab = {
   id: string
   kind: 'text' | 'image'
@@ -90,6 +94,9 @@ type WorkspaceAccessoryTab = {
   textError?: string
   textLoading?: boolean
   textSaving?: boolean
+  textFormat?: TextDocumentFormat
+  textViewMode?: TextViewMode
+  renderedMarkdownHtml?: string
   remoteMode?: number
   imageUrl?: string
   imageError?: string
@@ -98,6 +105,19 @@ type WorkspaceAccessoryTab = {
   imageWidth?: number
   imageHeight?: number
 }
+
+type GitStatusEntry = {
+  path: string
+  displayPath: string
+  indexStatus: string
+  workTreeStatus: string
+  staged: boolean
+  unstaged: boolean
+  untracked: boolean
+  deleted: boolean
+}
+
+type GitManagerScope = 'local' | 'remote'
 
 @Component({
   selector: 'sftp-plus-panel',
@@ -111,6 +131,15 @@ type WorkspaceAccessoryTab = {
       [class.toolbar-nav-right]="toolbarLayoutMode === 'nav-right'">
       <!-- 顶部标题栏 -->
       <div class="top-bar">
+        <div *ngIf="displayMode === 'workspace' && workspaceTabRef" class="drag-handle-wrap" cdkDropList cdkAutoDropGroup="app-tabs">
+          <i class="drag-handle" cdkDrag [cdkDragData]="workspaceTabRef" (cdkDragStarted)="onPaneDragStart()" (cdkDragEnded)="onPaneDragEnd()" title="{{ effectiveLang==='zh-CN'?'拖拽重排面板':'Drag to rearrange panes' }}">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+              <circle cx="5" cy="3" r="1.3"/><circle cx="11" cy="3" r="1.3"/>
+              <circle cx="5" cy="8" r="1.3"/><circle cx="11" cy="8" r="1.3"/>
+              <circle cx="5" cy="13" r="1.3"/><circle cx="11" cy="13" r="1.3"/>
+            </svg>
+          </i>
+        </div>
         <span class="title">SFTP+</span>
         <span class="host-info" *ngIf="hostInfo">{{ hostInfo }}</span>
         <!-- 断开连接指示器 -->
@@ -195,6 +224,16 @@ type WorkspaceAccessoryTab = {
               <rect x="2" y="9" width="12" height="5" rx="1"/>
             </svg>
           </button>
+          <button class="btn-link btn-top-git" (click)="openGitManager()" title="{{ effectiveLang === 'zh-CN' ? 'Git 管理' : 'Git tools' }}">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="4" cy="3" r="1.6"/>
+              <circle cx="12" cy="8" r="1.6"/>
+              <circle cx="4" cy="13" r="1.6"/>
+              <path d="M5.4 3.8c1.6 1 2.8 1.9 4.9 3.4"/>
+              <path d="M5.4 12.2c1.6-1 2.8-1.9 4.9-3.4"/>
+            </svg>
+            <span>Git</span>
+          </button>
           <button class="btn-link" (click)="showTransferLog = !showTransferLog" title="{{ i18n.t('transfer.log') }}">
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
               <rect x="3" y="2" width="10" height="12" rx="1"/>
@@ -204,7 +243,7 @@ type WorkspaceAccessoryTab = {
             </svg>
           </button>
           <button *ngIf="displayMode !== 'workspace'" class="btn-minimize" (click)="minimize()" title="{{ minimized ? (effectiveLang==='zh-CN'?'恢复':'Restore') : (effectiveLang==='zh-CN'?'最小化':'Minimize') }}">─</button>
-          <button class="btn-close" (click)="close()">✕</button>
+          <button class="btn-close" #closeBtnRef>✕</button>
         </div>
       </div>
 
@@ -563,7 +602,7 @@ type WorkspaceAccessoryTab = {
               *ngFor="let tab of workspaceAccessoryTabs"
               [class.active]="tab.id === activeWorkspaceAccessoryTabId"
               (click)="activateWorkspaceAccessoryTab(tab.id)">
-              <span class="workspace-tab-kind">{{ tab.kind === 'text' ? 'TXT' : 'IMG' }}</span>
+              <span class="workspace-tab-kind">{{ tab.kind === 'text' ? (tab.textFormat === 'markdown' ? 'MD' : 'TXT') : 'IMG' }}</span>
               <span class="workspace-tab-title">{{ tab.title }}</span>
               <span class="workspace-tab-dirty" *ngIf="isWorkspaceTabDirty(tab)">•</span>
               <span class="workspace-tab-close" (click)="closeWorkspaceAccessoryTab(tab.id, $event)">✕</span>
@@ -578,18 +617,25 @@ type WorkspaceAccessoryTab = {
         </div>
 
         <div class="workspace-accessory-meta-bar" *ngIf="activeWorkspaceAccessoryTab as activeTab">
-          <div class="workspace-accessory-title">{{ activeTab.kind === 'text' ? (effectiveLang === 'zh-CN' ? '文本编辑' : 'Text Editor') : (effectiveLang === 'zh-CN' ? '图片预览' : 'Image Preview') }}</div>
-          <div class="workspace-accessory-meta">{{ activeTab.path }}</div>
+          <div class="workspace-accessory-heading">
+            <div class="workspace-accessory-title">{{ workspaceAccessoryTitle(activeTab) }}</div>
+            <div class="workspace-accessory-meta">{{ activeTab.path }}</div>
+          </div>
+          <div class="view-switch" *ngIf="isMarkdownTextTab(activeTab)">
+            <button [class.active]="activeTab.textViewMode !== 'edit'" (click)="setWorkspaceTextViewMode('preview')">{{ effectiveLang === 'zh-CN' ? '预览' : 'Preview' }}</button>
+            <button [class.active]="activeTab.textViewMode === 'edit'" (click)="setWorkspaceTextViewMode('edit')">{{ effectiveLang === 'zh-CN' ? '编辑' : 'Edit' }}</button>
+          </div>
         </div>
 
         <div class="workspace-accessory-body" *ngIf="activeWorkspaceTextTab as textTab">
           <div class="editor-error" *ngIf="textTab.textError">{{ textTab.textError }}</div>
-          <textarea class="editor-textarea workspace-editor"
+          <textarea *ngIf="!isMarkdownTextTab(textTab) || textTab.textViewMode === 'edit'" class="editor-textarea workspace-editor"
             [ngModel]="textTab.textValue || ''"
             (ngModelChange)="updateWorkspaceTextValue($event)"
             [disabled]="!!textTab.textLoading || !!textTab.textSaving || !!textTab.textError"
             spellcheck="false"
             (keydown)="onTextEditorKeyDown($event)"></textarea>
+          <div *ngIf="isMarkdownTextTab(textTab) && textTab.textViewMode === 'preview'" class="markdown-preview workspace-markdown-preview" [innerHTML]="textTab.renderedMarkdownHtml || ''"></div>
           <div class="editor-footer workspace-editor-footer">
             <span class="editor-meta">{{ textTab.textLoading ? (effectiveLang === 'zh-CN' ? '加载中…' : 'Loading…') : formatWorkspaceTextStats(textTab) }}</span>
             <div class="dialog-buttons editor-buttons">
@@ -1074,21 +1120,29 @@ type WorkspaceAccessoryTab = {
         <div class="dialog editor-dialog" (click)="$event.stopPropagation()">
           <div class="editor-header">
             <div class="editor-heading">
-              <div class="dialog-title">{{ effectiveLang === 'zh-CN' ? '文本编辑' : 'Text Editor' }}</div>
+              <div class="dialog-title">{{ textEditorDialogTitle() }}</div>
               <div class="editor-meta">{{ textEditorPath }}</div>
             </div>
-            <div class="editor-badges">
-              <span class="editor-badge" *ngIf="textEditorLoading">{{ effectiveLang === 'zh-CN' ? '加载中…' : 'Loading…' }}</span>
-              <span class="editor-badge" *ngIf="textEditorSaving">{{ effectiveLang === 'zh-CN' ? '保存中…' : 'Saving…' }}</span>
-              <span class="editor-badge dirty" *ngIf="textEditorDirty && !textEditorSaving">{{ effectiveLang === 'zh-CN' ? '未保存' : 'Unsaved' }}</span>
+            <div class="editor-header-actions">
+              <div class="view-switch" *ngIf="isMarkdownTextEditor()">
+                <button [class.active]="textEditorViewMode !== 'edit'" (click)="setTextEditorViewMode('preview')">{{ effectiveLang === 'zh-CN' ? '预览' : 'Preview' }}</button>
+                <button [class.active]="textEditorViewMode === 'edit'" (click)="setTextEditorViewMode('edit')">{{ effectiveLang === 'zh-CN' ? '编辑' : 'Edit' }}</button>
+              </div>
+              <div class="editor-badges">
+                <span class="editor-badge" *ngIf="textEditorLoading">{{ effectiveLang === 'zh-CN' ? '加载中…' : 'Loading…' }}</span>
+                <span class="editor-badge" *ngIf="textEditorSaving">{{ effectiveLang === 'zh-CN' ? '保存中…' : 'Saving…' }}</span>
+                <span class="editor-badge dirty" *ngIf="textEditorDirty && !textEditorSaving">{{ effectiveLang === 'zh-CN' ? '未保存' : 'Unsaved' }}</span>
+              </div>
             </div>
           </div>
           <div class="editor-error" *ngIf="textEditorError">{{ textEditorError }}</div>
-          <textarea class="editor-textarea"
-            [(ngModel)]="textEditorValue"
+          <textarea *ngIf="!isMarkdownTextEditor() || textEditorViewMode === 'edit'" class="editor-textarea"
+            [ngModel]="textEditorValue"
+            (ngModelChange)="onTextEditorValueChange($event)"
             [disabled]="textEditorLoading || textEditorSaving || !!textEditorError"
             spellcheck="false"
             (keydown)="onTextEditorKeyDown($event)"></textarea>
+          <div *ngIf="isMarkdownTextEditor() && textEditorViewMode === 'preview'" class="markdown-preview" [innerHTML]="textEditorRenderedMarkdownHtml"></div>
           <div class="editor-footer">
             <span class="editor-meta">{{ formatTextEditorStats() }}</span>
             <div class="dialog-buttons editor-buttons">
@@ -1119,6 +1173,76 @@ type WorkspaceAccessoryTab = {
           </div>
           <div class="dialog-buttons">
             <button (click)="closeImagePreview()">{{ i18n.t('app.close') }}</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="overlay" *ngIf="gitManagerVisible" (click)="closeGitManager()">
+        <div class="dialog git-dialog" (click)="$event.stopPropagation()">
+          <div class="git-header">
+            <div class="git-heading">
+              <div class="dialog-title">{{ effectiveLang === 'zh-CN' ? 'Git 管理' : 'Git Tools' }}</div>
+              <div class="git-meta">{{ gitScopeLabel }} · {{ gitRepoRoot || gitManagerCurrentPath }}</div>
+            </div>
+            <div class="git-header-actions">
+              <div class="view-switch">
+                <button [class.active]="gitManagerScope === 'local'" (click)="switchGitManagerScope('local')" [disabled]="gitManagerBusy || gitManagerLoading">{{ effectiveLang === 'zh-CN' ? '本地' : 'Local' }}</button>
+                <button [class.active]="gitManagerScope === 'remote'" (click)="switchGitManagerScope('remote')" [disabled]="gitManagerBusy || gitManagerLoading || !canUseRemoteGit">{{ effectiveLang === 'zh-CN' ? '远程' : 'Remote' }}</button>
+              </div>
+            <div class="git-branch" *ngIf="gitRepoRoot">
+              <span class="git-branch-name">{{ gitBranchName || 'HEAD' }}</span>
+              <span class="git-branch-meta" *ngIf="gitBranchTracking">{{ gitBranchTracking }}</span>
+              <span class="git-branch-meta" *ngIf="gitBranchAheadBehind">{{ gitBranchAheadBehind }}</span>
+            </div>
+            </div>
+          </div>
+
+          <div class="git-toolbar">
+            <button (click)="refreshGitManager()" [disabled]="gitManagerLoading || gitManagerBusy">{{ effectiveLang === 'zh-CN' ? '刷新' : 'Refresh' }}</button>
+            <button (click)="stageAllGitChanges()" [disabled]="gitManagerLoading || gitManagerBusy || !gitStatusEntries.length">{{ effectiveLang === 'zh-CN' ? '全部暂存' : 'Stage all' }}</button>
+            <button (click)="unstageAllGitChanges()" [disabled]="gitManagerLoading || gitManagerBusy || !gitHasStagedChanges">{{ effectiveLang === 'zh-CN' ? '全部取消暂存' : 'Unstage all' }}</button>
+            <button (click)="pullGitChanges()" [disabled]="gitManagerLoading || gitManagerBusy || !gitRepoRoot">{{ effectiveLang === 'zh-CN' ? '拉取' : 'Pull' }}</button>
+            <button (click)="pushGitChanges()" [disabled]="gitManagerLoading || gitManagerBusy || !gitRepoRoot">{{ effectiveLang === 'zh-CN' ? '推送' : 'Push' }}</button>
+          </div>
+
+          <div class="git-state" *ngIf="gitManagerLoading">{{ effectiveLang === 'zh-CN' ? '正在读取 Git 状态…' : 'Loading Git status…' }}</div>
+          <div class="git-state git-error" *ngIf="!gitManagerLoading && gitStatusError">{{ gitStatusError }}</div>
+          <div class="git-state git-message" *ngIf="!gitManagerLoading && !gitStatusError && gitStatusMessage">{{ gitStatusMessage }}</div>
+          <div class="git-state" *ngIf="!gitManagerLoading && !gitRepoRoot && !gitStatusError">{{ gitManagerScope === 'remote' ? (effectiveLang === 'zh-CN' ? '当前远程目录不在 Git 仓库中。' : 'The current remote directory is not inside a Git repository.') : (effectiveLang === 'zh-CN' ? '当前本地目录不在 Git 仓库中。' : 'The current local directory is not inside a Git repository.') }}</div>
+
+          <ng-container *ngIf="!gitManagerLoading && gitRepoRoot">
+            <div class="git-summary">{{ gitStatusSummary }}</div>
+
+            <div class="git-status-list" *ngIf="gitStatusEntries.length; else gitCleanState">
+              <div class="git-status-row" *ngFor="let entry of gitStatusEntries">
+                <div class="git-status-code">{{ formatGitStatus(entry) }}</div>
+                <div class="git-status-path" [attr.title]="entry.path">{{ entry.displayPath }}</div>
+                <div class="git-status-actions">
+                  <button *ngIf="entry.unstaged || entry.untracked" (click)="stageGitEntry(entry)" [disabled]="gitManagerBusy">{{ effectiveLang === 'zh-CN' ? '暂存' : 'Stage' }}</button>
+                  <button *ngIf="entry.staged" (click)="unstageGitEntry(entry)" [disabled]="gitManagerBusy">{{ effectiveLang === 'zh-CN' ? '取消暂存' : 'Unstage' }}</button>
+                </div>
+              </div>
+            </div>
+
+            <ng-template #gitCleanState>
+              <div class="git-state git-clean">{{ effectiveLang === 'zh-CN' ? '工作区干净。' : 'Working tree clean.' }}</div>
+            </ng-template>
+
+            <div class="git-commit-box">
+              <textarea class="git-commit-input"
+                [ngModel]="gitCommitMessage"
+                (ngModelChange)="gitCommitMessage = $event"
+                [placeholder]="effectiveLang === 'zh-CN' ? '输入提交说明' : 'Enter commit message'"
+                [disabled]="gitManagerBusy"></textarea>
+              <div class="dialog-buttons editor-buttons">
+                <button (click)="commitGitChanges()" [disabled]="gitManagerBusy || !gitHasStagedChanges || !gitCommitMessage.trim()">{{ effectiveLang === 'zh-CN' ? '提交' : 'Commit' }}</button>
+                <button (click)="closeGitManager()">{{ i18n.t('app.close') }}</button>
+              </div>
+            </div>
+          </ng-container>
+
+          <div class="dialog-buttons" *ngIf="!gitManagerLoading && !gitRepoRoot">
+            <button (click)="closeGitManager()">{{ i18n.t('app.close') }}</button>
           </div>
         </div>
       </div>
@@ -1268,6 +1392,12 @@ type WorkspaceAccessoryTab = {
       transition: background 0.15s;
     }
     .btn-link:hover { background: var(--_hover); }
+    .btn-top-git {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-weight: 600;
+    }
     .btn-close {
       background: none; border: none; color: var(--_text, var(--text-color, #888));
       cursor: pointer; font-size: 16px; padding: 2px 8px; border-radius: 4px;
@@ -1285,6 +1415,18 @@ type WorkspaceAccessoryTab = {
       line-height: 1; font-weight: bold;
     }
     .btn-minimize:hover { background: var(--_hover); color: var(--_primary); }
+    .drag-handle-wrap {
+      display: flex;
+      align-items: center;
+    }
+    .drag-handle {
+      cursor: move;
+      opacity: 0.3;
+      display: flex;
+      align-items: center;
+      padding: 2px 4px;
+    }
+    .drag-handle:hover { opacity: 0.8; }
 
   .sftp-body {
       display: flex;
@@ -2224,6 +2366,13 @@ type WorkspaceAccessoryTab = {
       min-width: 0;
       flex: 1 1 auto;
     }
+    .editor-header-actions {
+      display: flex;
+      align-items: flex-start;
+      justify-content: flex-end;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
     .editor-badges {
       display: flex;
       gap: 6px;
@@ -2271,6 +2420,90 @@ type WorkspaceAccessoryTab = {
       border-color: var(--_primary);
       box-shadow: 0 0 0 1px var(--_primary);
     }
+    .markdown-preview {
+      min-height: 320px;
+      max-height: calc(88vh - 220px);
+      overflow: auto;
+      border-radius: 8px;
+      border: 1px solid var(--_border);
+      background: var(--_input-bg);
+      color: var(--_text);
+      padding: 14px 16px;
+      box-sizing: border-box;
+      font-size: 13px;
+      line-height: 1.65;
+      word-break: break-word;
+    }
+    .markdown-preview > :first-child { margin-top: 0; }
+    .markdown-preview > :last-child { margin-bottom: 0; }
+    .markdown-preview h1,
+    .markdown-preview h2,
+    .markdown-preview h3,
+    .markdown-preview h4,
+    .markdown-preview h5,
+    .markdown-preview h6 {
+      margin: 1.15em 0 0.55em;
+      line-height: 1.3;
+    }
+    .markdown-preview p,
+    .markdown-preview ul,
+    .markdown-preview ol,
+    .markdown-preview blockquote,
+    .markdown-preview pre {
+      margin: 0 0 0.9em;
+    }
+    .markdown-preview ul,
+    .markdown-preview ol {
+      padding-left: 1.4em;
+    }
+    .markdown-preview li + li {
+      margin-top: 0.25em;
+    }
+    .markdown-preview blockquote {
+      margin-left: 0;
+      padding-left: 12px;
+      border-left: 3px solid color-mix(in srgb, var(--_primary) 35%, var(--_border));
+      opacity: 0.88;
+    }
+    .markdown-preview pre {
+      overflow: auto;
+      padding: 12px;
+      border-radius: 8px;
+      background: color-mix(in srgb, var(--_content) 82%, black 18%);
+      border: 1px solid var(--_border);
+    }
+    .markdown-preview code {
+      font: 12px/1.55 Consolas, 'SFMono-Regular', Monaco, monospace;
+    }
+    .markdown-preview p code,
+    .markdown-preview li code,
+    .markdown-preview blockquote code,
+    .markdown-preview h1 code,
+    .markdown-preview h2 code,
+    .markdown-preview h3 code,
+    .markdown-preview h4 code,
+    .markdown-preview h5 code,
+    .markdown-preview h6 code {
+      padding: 1px 5px;
+      border-radius: 5px;
+      background: color-mix(in srgb, var(--_primary) 12%, var(--_input-bg));
+    }
+    .markdown-preview a {
+      color: var(--_primary);
+      text-decoration: none;
+    }
+    .markdown-preview a:hover {
+      text-decoration: underline;
+    }
+    .markdown-preview img {
+      max-width: 100%;
+      border-radius: 6px;
+    }
+    .markdown-preview hr {
+      border: none;
+      border-top: 1px solid var(--_border);
+      margin: 1.1em 0;
+    }
     .editor-footer {
       display: flex;
       align-items: center;
@@ -2316,6 +2549,162 @@ type WorkspaceAccessoryTab = {
       border-radius: 6px;
       box-shadow: 0 10px 28px rgba(0,0,0,0.2);
       background: rgba(255,255,255,0.03);
+    }
+    .git-dialog {
+      width: min(960px, 92vw);
+      min-width: 360px;
+      max-height: 88vh;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .git-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .git-heading {
+      min-width: 0;
+      flex: 1 1 auto;
+    }
+    .git-header-actions {
+      display: flex;
+      align-items: flex-start;
+      justify-content: flex-end;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .git-meta {
+      color: var(--_text);
+      opacity: 0.68;
+      font-size: 11px;
+      word-break: break-all;
+    }
+    .git-branch {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    .git-branch-name,
+    .git-branch-meta {
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--_border);
+      background: var(--_input-bg);
+      font-size: 11px;
+      white-space: nowrap;
+    }
+    .git-branch-name {
+      color: var(--_primary);
+      border-color: color-mix(in srgb, var(--_primary) 30%, var(--_border));
+    }
+    .git-toolbar {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .git-toolbar button,
+    .git-status-actions button {
+      padding: 4px 10px;
+      border-radius: 6px;
+      border: 1px solid var(--_border);
+      background: var(--_content);
+      color: var(--_text);
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .git-toolbar button:hover,
+    .git-status-actions button:hover {
+      background: var(--_hover);
+    }
+    .git-toolbar button:disabled,
+    .git-status-actions button:disabled {
+      opacity: 0.45;
+      cursor: default;
+    }
+    .git-state,
+    .git-summary {
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--_border);
+      background: var(--_input-bg);
+      font-size: 12px;
+    }
+    .git-summary {
+      opacity: 0.82;
+    }
+    .git-message {
+      border-color: color-mix(in srgb, #22c55e 30%, var(--_border));
+      color: #22c55e;
+    }
+    .git-error {
+      border-color: color-mix(in srgb, #ef4444 30%, var(--_border));
+      color: #f87171;
+    }
+    .git-clean {
+      opacity: 0.75;
+    }
+    .git-status-list {
+      min-height: 120px;
+      max-height: 340px;
+      overflow: auto;
+      border: 1px solid var(--_border);
+      border-radius: 8px;
+      background: var(--_content);
+    }
+    .git-status-row {
+      display: grid;
+      grid-template-columns: 86px minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+      padding: 8px 10px;
+      font-size: 12px;
+    }
+    .git-status-row + .git-status-row {
+      border-top: 1px solid var(--_border);
+    }
+    .git-status-code {
+      font: 11px/1.4 Consolas, 'SFMono-Regular', Monaco, monospace;
+      color: var(--_primary);
+      white-space: nowrap;
+    }
+    .git-status-path {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .git-status-actions {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    .git-commit-box {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .git-commit-input {
+      width: 100%;
+      min-height: 84px;
+      resize: vertical;
+      border-radius: 8px;
+      border: 1px solid var(--_border);
+      background: var(--_input-bg);
+      color: var(--_text);
+      padding: 10px 12px;
+      box-sizing: border-box;
+      font: 12px/1.55 var(--font-family, 'Segoe UI', sans-serif);
+      outline: none;
+    }
+    .git-commit-input:focus {
+      border-color: var(--_primary);
+      box-shadow: 0 0 0 1px var(--_primary);
     }
     .workspace-accessory {
       display: flex;
@@ -2439,6 +2828,10 @@ type WorkspaceAccessoryTab = {
     }
     .workspace-tab:hover .workspace-tab-close { opacity: 1; }
     .workspace-accessory-meta-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
       padding: 7px 10px;
       border-bottom: 1px solid var(--_border);
       background: var(--_content);
@@ -2462,6 +2855,30 @@ type WorkspaceAccessoryTab = {
       gap: 6px;
       align-items: center;
     }
+    .view-switch {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      flex-shrink: 0;
+      padding: 2px;
+      border-radius: 7px;
+      border: 1px solid var(--_border);
+      background: var(--_surface);
+    }
+    .view-switch button {
+      padding: 4px 10px;
+      border: none;
+      border-radius: 5px;
+      background: transparent;
+      color: var(--_text);
+      cursor: pointer;
+      font-size: 11px;
+      white-space: nowrap;
+    }
+    .view-switch button.active {
+      background: color-mix(in srgb, var(--_primary) 16%, var(--_content));
+      color: var(--_primary);
+    }
     .workspace-position-drag {
       cursor: grab;
       font-size: 14px;
@@ -2481,6 +2898,11 @@ type WorkspaceAccessoryTab = {
     .workspace-editor {
       min-height: 0;
       height: 100%;
+    }
+    .workspace-markdown-preview {
+      min-height: 0;
+      max-height: none;
+      flex: 1 1 auto;
     }
     .workspace-editor-footer {
       padding-top: 0;
@@ -2564,6 +2986,7 @@ type WorkspaceAccessoryTab = {
     @media (max-width: 720px) {
       .editor-dialog,
       .preview-dialog,
+      .git-dialog,
       .details-dialog,
       .perm-dialog,
       .conflict-dialog,
@@ -2573,6 +2996,9 @@ type WorkspaceAccessoryTab = {
       }
       .editor-textarea {
         min-height: 300px;
+      }
+      .markdown-preview {
+        min-height: 240px;
       }
       .preview-stage {
         min-height: 240px;
@@ -2584,6 +3010,8 @@ type WorkspaceAccessoryTab = {
   `],
 })
 export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
+  @ViewChild('closeBtnRef', { static: false }) closeBtnRef: ElementRef<HTMLButtonElement> | null = null
+  private _closeBtnHandler: ((ev: MouseEvent) => void) | null = null
   // ========== 从外部设置（非 DI）==========
   sshSession: SSHSessionLike | null = null
   profile: any = null
@@ -2591,6 +3019,7 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
   onClose: (() => void) | null = null   // 关闭回调（销毁面板）
   onMinimize: (() => void) | null = null // 最小化回调（隐藏面板，不销毁）
   onOpenInWorkspaceTab: (() => void) | null = null
+  workspaceTabRef: any = null  // workspace 标签页引用，用于拖拽重排
   toolbarLayoutMode: 'nav-left' | 'nav-right' = 'nav-left'
   workspaceAccessoryPosition: 'right' | 'bottom' | 'left' | 'top' = 'right'
   workspaceAccessoryTabs: WorkspaceAccessoryTab[] = []
@@ -2809,6 +3238,9 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
   textEditorPane: 'local' | 'remote' = 'local'
   textEditorPath = ''
   textEditorValue = ''
+  textEditorFormat: TextDocumentFormat = 'plain'
+  textEditorViewMode: TextViewMode = 'edit'
+  textEditorRenderedMarkdownHtml = ''
   private _textEditorOriginalValue = ''
   private _textEditorRemoteMode?: number
   imagePreviewVisible = false
@@ -2823,6 +3255,24 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
   private readonly TEXT_EDIT_MAX_BYTES = 2 * 1024 * 1024
   private readonly IMAGE_PREVIEW_MAX_BYTES = 12 * 1024 * 1024
   private readonly REMOTE_OPEN_READ = 0x00000001
+
+  // ========== Git 管理 ==========
+  gitManagerVisible = false
+  gitManagerLoading = false
+  gitManagerBusy = false
+  gitManagerScope: GitManagerScope = 'local'
+  gitManagerCurrentPath = ''
+  gitRepoRoot = ''
+  gitRepoName = ''
+  gitBranchName = ''
+  gitBranchTracking = ''
+  gitBranchAheadBehind = ''
+  gitStatusEntries: GitStatusEntry[] = []
+  gitStatusSummary = ''
+  gitStatusMessage = ''
+  gitStatusError = ''
+  gitCommitMessage = ''
+  private _detectedRemoteOs: 'posix' | 'windows' | '' = ''
 
   // ========== 列可见性配置 ==========
   static readonly LOCAL_COLS_KEY = 'sftp-plus-local-cols'
@@ -4061,6 +4511,31 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     // 初始化自动布局检测（视图已渲染，clientWidth 可用）
     this._updateAutoLayout()
     this._applyPaneSplit()
+    // 原生事件监听兜底：绕过 Angular (click) 绑定不生效的问题
+    this._setupCloseBtnNativeListener()
+  }
+
+  private _setupCloseBtnNativeListener(): void {
+    setTimeout(() => {
+      try {
+        const btn = this.closeBtnRef?.nativeElement
+          ?? this.elRef.nativeElement.querySelector('.btn-close') as HTMLButtonElement | null
+        if (!btn) {
+          console.log('[SFTP+][closeBtn] button not found in DOM')
+          return
+        }
+        console.log('[SFTP+][closeBtn] attaching native listener')
+        this._closeBtnHandler = (ev: MouseEvent) => {
+          ev.preventDefault()
+          ev.stopPropagation()
+          console.log('[SFTP+][closeBtn] native click fired')
+          this.onHeaderCloseClick()
+        }
+        btn.addEventListener('click', this._closeBtnHandler)
+      } catch (e) {
+        console.error('[SFTP+][closeBtn] setup error', e)
+      }
+    }, 100)
   }
 
   ngOnDestroy(): void {
@@ -4069,6 +4544,10 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     this._stopHeartbeat()
     this._clearImagePreviewUrl()
     this._disposeAllWorkspaceAccessoryTabs()
+    if (this._closeBtnHandler && this.closeBtnRef?.nativeElement) {
+      try { this.closeBtnRef.nativeElement.removeEventListener('click', this._closeBtnHandler) } catch {}
+      this._closeBtnHandler = null
+    }
     if (this._workspaceSplitMoveHandler) document.removeEventListener('mousemove', this._workspaceSplitMoveHandler)
     if (this._workspaceSplitUpHandler) document.removeEventListener('mouseup', this._workspaceSplitUpHandler)
     if (this._docClickCapture) {
@@ -4309,14 +4788,37 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     return true
   }
 
+  onHeaderCloseClick(): void {
+    this.close()
+  }
+
+  onPaneDragStart(): void {
+    if (this.workspaceTabRef?.app) {
+      this.workspaceTabRef.app.emitTabDragStarted(this.workspaceTabRef)
+    }
+  }
+
+  onPaneDragEnd(): void {
+    if (this.workspaceTabRef?.app) {
+      setTimeout(() => {
+        this.workspaceTabRef.app.emitTabDragEnded()
+        this.workspaceTabRef.app.emitTabsChanged()
+      })
+    }
+  }
+
   close(): void {
     if (!this.canClosePanel()) return
     if (this.transfers.length > 0) {
       this.clearTransfers()
     }
     this.saveCurrentPath()
-    this.disconnect()
-    this.onClose?.()
+    if (this.displayMode === 'workspace') {
+      this.onClose?.()
+    } else {
+      this.onClose?.()
+      this.disconnect()
+    }
   }
 
   openInWorkspaceTab(): void {
@@ -5493,6 +5995,7 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     this.localClickTimer = setTimeout(() => {
       this.localClickTimer = null
       this.selectLocal(entry, event, idx)
+      void this._maybeOpenWorkspaceEntryFromSingleClick('local', entry, event)
     }, 250)
   }
 
@@ -5550,7 +6053,32 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     this.remoteClickTimer = setTimeout(() => {
       this.remoteClickTimer = null
       this.selectRemote(entry, event, idx)
+      void this._maybeOpenWorkspaceEntryFromSingleClick('remote', entry, event)
     }, 250)
+  }
+
+  private async _maybeOpenWorkspaceEntryFromSingleClick(
+    pane: 'local' | 'remote',
+    entry: LocalEntry | SFTPFile,
+    event: MouseEvent,
+  ): Promise<void> {
+    if (this.displayMode !== 'workspace') return
+    if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return
+    if (entry.isDirectory || this.isDirByMode(entry.mode)) return
+    if (pane === 'local') {
+      if (this.selectedLocal.length !== 1 || this.selectedLocal[0] !== entry) return
+    } else {
+      if (this.selectedRemote.length !== 1 || this.selectedRemote[0] !== entry) return
+    }
+    if (this.isPreviewableImageName(entry.name)) {
+      if (pane === 'local') await this.openImagePreviewForLocal(entry as LocalEntry)
+      else await this.openImagePreviewForRemote(entry as SFTPFile)
+      return
+    }
+    if (this.isTextEditableName(entry.name)) {
+      if (pane === 'local') await this.openTextEditorForLocal(entry as LocalEntry)
+      else await this.openTextEditorForRemote(entry as SFTPFile)
+    }
   }
 
 
@@ -7454,8 +7982,8 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     const entry = this.getContextSingleFile()
     this.closeContextMenu()
     if (!entry || !this.isTextEditableName(entry.name)) return
-    if (this.contextMenuPane === 'local') await this.openTextEditorForLocal(entry as LocalEntry)
-    else await this.openTextEditorForRemote(entry as SFTPFile)
+    if (this.contextMenuPane === 'local') await this.openTextEditorForLocal(entry as LocalEntry, 'edit')
+    else await this.openTextEditorForRemote(entry as SFTPFile, 'edit')
   }
 
   async ctxPreviewImage(): Promise<void> {
@@ -7520,6 +8048,20 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
       'py', 'rb', 'php', 'java', 'kt', 'kts', 'go', 'rs', 'c', 'cc', 'cpp', 'h', 'hpp', 'cs', 'swift', 'dart',
       'properties', 'gradle', 'lock', 'pem', 'key', 'crt', 'csv', 'tsv', 'svg',
     ].includes(ext)
+  }
+
+  private isMarkdownName(fileName: string): boolean {
+    const ext = fileName.toLowerCase().split('.').pop() ?? ''
+    return ['md', 'markdown', 'mdown', 'mkd'].includes(ext)
+  }
+
+  private getTextDocumentFormat(fileName: string): TextDocumentFormat {
+    return this.isMarkdownName(fileName) ? 'markdown' : 'plain'
+  }
+
+  private resolveTextViewMode(fileName: string, preferredMode?: TextViewMode): TextViewMode {
+    if (preferredMode) return preferredMode
+    return this.isMarkdownName(fileName) ? 'preview' : 'edit'
   }
 
   private isPreviewableImageName(fileName: string): boolean {
@@ -7591,6 +8133,24 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     return tab?.kind === 'image' ? tab : null
   }
 
+  get gitHasStagedChanges(): boolean {
+    return this.gitStatusEntries.some(entry => entry.staged)
+  }
+
+  get canUseRemoteGit(): boolean {
+    return !!this.sshSession
+  }
+
+  get gitScopePath(): string {
+    return this.gitManagerScope === 'remote' ? this.remotePath : this.localPath
+  }
+
+  get gitScopeLabel(): string {
+    return this.gitManagerScope === 'remote'
+      ? (this.effectiveLang === 'zh-CN' ? '远程' : 'Remote')
+      : (this.effectiveLang === 'zh-CN' ? '本地' : 'Local')
+  }
+
   get workspaceSelectedRemoteFile(): SFTPFile | null {
     if (this.selectedRemote.length !== 1) return null
     const entry = this.selectedRemote[0]
@@ -7607,10 +8167,42 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     return !!entry && this.isPreviewableImageName(entry.name)
   }
 
+  workspaceAccessoryTitle(tab: WorkspaceAccessoryTab): string {
+    if (tab.kind === 'image') return this.effectiveLang === 'zh-CN' ? '图片预览' : 'Image Preview'
+    if (this.isMarkdownTextTab(tab)) return this.effectiveLang === 'zh-CN' ? 'Markdown' : 'Markdown'
+    return this.effectiveLang === 'zh-CN' ? '文本编辑' : 'Text Editor'
+  }
+
+  textEditorDialogTitle(): string {
+    if (this.isMarkdownTextEditor()) return this.effectiveLang === 'zh-CN' ? 'Markdown' : 'Markdown'
+    return this.effectiveLang === 'zh-CN' ? '文本编辑' : 'Text Editor'
+  }
+
+  isMarkdownTextTab(tab: WorkspaceAccessoryTab | null): boolean {
+    return !!tab && tab.kind === 'text' && tab.textFormat === 'markdown'
+  }
+
+  isMarkdownTextEditor(): boolean {
+    return this.textEditorFormat === 'markdown'
+  }
+
+  setWorkspaceTextViewMode(mode: TextViewMode): void {
+    const tab = this.activeWorkspaceTextTab
+    if (!this.isMarkdownTextTab(tab)) return
+    tab.textViewMode = mode
+    this._refreshEditorUi()
+  }
+
+  setTextEditorViewMode(mode: TextViewMode): void {
+    if (!this.isMarkdownTextEditor()) return
+    this.textEditorViewMode = mode
+    this._refreshEditorUi()
+  }
+
   async openWorkspaceSelectedRemoteEditor(): Promise<void> {
     const entry = this.workspaceSelectedRemoteFile
     if (!entry || !this.isTextEditableName(entry.name)) return
-    await this.openTextEditorForRemote(entry)
+    await this.openTextEditorForRemote(entry, 'edit')
   }
 
   async openWorkspaceSelectedRemotePreview(): Promise<void> {
@@ -7636,6 +8228,16 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     const tab = this.activeWorkspaceTextTab
     if (!tab) return
     tab.textValue = value
+    if (tab.textFormat === 'markdown') {
+      tab.renderedMarkdownHtml = this._renderMarkdownHtml(value)
+    }
+  }
+
+  onTextEditorValueChange(value: string): void {
+    this.textEditorValue = value
+    if (this.textEditorFormat === 'markdown') {
+      this.textEditorRenderedMarkdownHtml = this._renderMarkdownHtml(value)
+    }
   }
 
   isWorkspaceTabDirty(tab: WorkspaceAccessoryTab): boolean {
@@ -7793,10 +8395,15 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     entry: LocalEntry | SFTPFile,
     loader: () => Promise<Buffer>,
     remoteMode?: number,
+    preferredMode?: TextViewMode,
   ): Promise<void> {
     const id = this._workspaceAccessoryTabId('text', pane, entry.fullPath)
+    const textFormat = this.getTextDocumentFormat(entry.name)
+    const viewMode = this.resolveTextViewMode(entry.name, preferredMode)
     let tab = this.workspaceAccessoryTabs.find(x => x.id === id)
     if (tab && !tab.textError && ((tab.textValue != null && tab.originalTextValue != null) || tab.textLoading)) {
+      tab.textFormat = textFormat
+      tab.textViewMode = textFormat === 'markdown' ? viewMode : 'edit'
       this.activateWorkspaceAccessoryTab(tab.id)
       return
     }
@@ -7813,12 +8420,17 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
         textLoading: true,
         textSaving: false,
         textError: '',
+        textFormat,
+        textViewMode: textFormat === 'markdown' ? viewMode : 'edit',
+        renderedMarkdownHtml: '',
         remoteMode,
       }
       this.workspaceAccessoryTabs.push(tab)
     } else {
       tab.textLoading = true
       tab.textError = ''
+      tab.textFormat = textFormat
+      tab.textViewMode = textFormat === 'markdown' ? viewMode : 'edit'
       tab.remoteMode = remoteMode
     }
     this.activateWorkspaceAccessoryTab(tab.id)
@@ -7828,10 +8440,12 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
         tab.textError = this.effectiveLang === 'zh-CN' ? '该文件看起来不是纯文本，已停止打开' : 'This file does not appear to be plain text'
         tab.textValue = ''
         tab.originalTextValue = ''
+        tab.renderedMarkdownHtml = ''
       } else {
         const text = buffer.toString('utf8')
         tab.textValue = text
         tab.originalTextValue = text
+        tab.renderedMarkdownHtml = tab.textFormat === 'markdown' ? this._renderMarkdownHtml(text) : ''
       }
     } catch (e) {
       console.error('[SFTP+] Failed to open workspace text tab', e)
@@ -7929,18 +8543,139 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  private _escapeHtml(value: string): string {
+    return value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;')
+  }
+
+  private _escapeHtmlAttr(value: string): string {
+    return this._escapeHtml(value)
+  }
+
+  private _renderMarkdownInline(value: string): string {
+    const codeTokens: string[] = []
+    let text = this._escapeHtml(value)
+    text = text.replace(/`([^`]+)`/g, (_m, code) => {
+      const token = `@@SFTPMDCODE${codeTokens.length}@@`
+      codeTokens.push(`<code>${code}</code>`)
+      return token
+    })
+    text = text.replace(/!\[([^\]]*)\]\((https?:\/\/[^\s)]+)\)/g, (_m, alt, url) => `<img src="${this._escapeHtmlAttr(url)}" alt="${alt}" />`)
+    text = text.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (_m, label, url) => `<a href="${this._escapeHtmlAttr(url)}" target="_blank" rel="noopener noreferrer">${label}</a>`)
+    text = text.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    text = text.replace(/(^|[^*])\*([^*]+)\*(?!\*)/g, '$1<em>$2</em>')
+    return text.replace(/@@SFTPMDCODE(\d+)@@/g, (_m, idx) => codeTokens[Number(idx)] ?? '')
+  }
+
+  private _renderMarkdownHtml(value: string): string {
+    const lines = value.replace(/\r\n?/g, '\n').split('\n')
+    const html: string[] = []
+    let paragraph: string[] = []
+    let listItems: string[] = []
+    let listType: 'ul' | 'ol' | null = null
+    let inCodeBlock = false
+    let codeLines: string[] = []
+
+    const flushParagraph = (): void => {
+      if (!paragraph.length) return
+      html.push(`<p>${paragraph.map(line => this._renderMarkdownInline(line)).join('<br>')}</p>`)
+      paragraph = []
+    }
+
+    const flushList = (): void => {
+      if (!listType || !listItems.length) return
+      html.push(`<${listType}>${listItems.join('')}</${listType}>`)
+      listType = null
+      listItems = []
+    }
+
+    const flushCodeBlock = (): void => {
+      if (!inCodeBlock) return
+      html.push(`<pre><code>${this._escapeHtml(codeLines.join('\n'))}</code></pre>`)
+      inCodeBlock = false
+      codeLines = []
+    }
+
+    for (const line of lines) {
+      if (/^```/.test(line.trim())) {
+        flushParagraph()
+        flushList()
+        if (inCodeBlock) flushCodeBlock()
+        else inCodeBlock = true
+        continue
+      }
+      if (inCodeBlock) {
+        codeLines.push(line)
+        continue
+      }
+      if (!line.trim()) {
+        flushParagraph()
+        flushList()
+        continue
+      }
+      const heading = line.match(/^(#{1,6})\s+(.*)$/)
+      if (heading) {
+        flushParagraph()
+        flushList()
+        const level = heading[1].length
+        html.push(`<h${level}>${this._renderMarkdownInline(heading[2].trim())}</h${level}>`)
+        continue
+      }
+      if (/^[-*_](\s*[-*_]){2,}$/.test(line.trim())) {
+        flushParagraph()
+        flushList()
+        html.push('<hr>')
+        continue
+      }
+      const quote = line.match(/^>\s?(.*)$/)
+      if (quote) {
+        flushParagraph()
+        flushList()
+        html.push(`<blockquote><p>${this._renderMarkdownInline(quote[1])}</p></blockquote>`)
+        continue
+      }
+      const unordered = line.match(/^[-*+]\s+(.*)$/)
+      if (unordered) {
+        flushParagraph()
+        if (listType && listType !== 'ul') flushList()
+        listType = 'ul'
+        listItems.push(`<li>${this._renderMarkdownInline(unordered[1].trim())}</li>`)
+        continue
+      }
+      const ordered = line.match(/^\d+\.\s+(.*)$/)
+      if (ordered) {
+        flushParagraph()
+        if (listType && listType !== 'ol') flushList()
+        listType = 'ol'
+        listItems.push(`<li>${this._renderMarkdownInline(ordered[1].trim())}</li>`)
+        continue
+      }
+      paragraph.push(line.trim())
+    }
+
+    flushParagraph()
+    flushList()
+    flushCodeBlock()
+    return html.join('')
+  }
+
   private _refreshEditorUi(): void {
     this.zone.run(() => {
       this.cdr.detectChanges()
     })
   }
 
-  private async openTextEditorForLocal(entry: LocalEntry): Promise<void> {
+  private async openTextEditorForLocal(entry: LocalEntry, preferredMode?: TextViewMode): Promise<void> {
     if (!this._checkEntrySize(entry, this.TEXT_EDIT_MAX_BYTES, 'text')) return
     if (this.displayMode === 'workspace') {
-      await this._openWorkspaceTextTab('local', entry, () => fs.readFile(entry.fullPath))
+      await this._openWorkspaceTextTab('local', entry, () => fs.readFile(entry.fullPath), undefined, preferredMode)
       return
     }
+    const textFormat = this.getTextDocumentFormat(entry.name)
     this.textEditorVisible = true
     this.textEditorLoading = true
     this.textEditorSaving = false
@@ -7948,6 +8683,9 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     this.textEditorPane = 'local'
     this.textEditorPath = entry.fullPath
     this.textEditorValue = ''
+    this.textEditorFormat = textFormat
+    this.textEditorViewMode = textFormat === 'markdown' ? this.resolveTextViewMode(entry.name, preferredMode) : 'edit'
+    this.textEditorRenderedMarkdownHtml = ''
     this._textEditorOriginalValue = ''
     this._textEditorRemoteMode = undefined
     try {
@@ -7962,12 +8700,13 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-  private async openTextEditorForRemote(entry: SFTPFile): Promise<void> {
+  private async openTextEditorForRemote(entry: SFTPFile, preferredMode?: TextViewMode): Promise<void> {
     if (!this._checkEntrySize(entry, this.TEXT_EDIT_MAX_BYTES, 'text')) return
     if (this.displayMode === 'workspace') {
-      await this._openWorkspaceTextTab('remote', entry, () => this._readRemoteFileBuffer(entry.fullPath), entry.mode)
+      await this._openWorkspaceTextTab('remote', entry, () => this._readRemoteFileBuffer(entry.fullPath), entry.mode, preferredMode)
       return
     }
+    const textFormat = this.getTextDocumentFormat(entry.name)
     this.textEditorVisible = true
     this.textEditorLoading = true
     this.textEditorSaving = false
@@ -7975,6 +8714,9 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     this.textEditorPane = 'remote'
     this.textEditorPath = entry.fullPath
     this.textEditorValue = ''
+    this.textEditorFormat = textFormat
+    this.textEditorViewMode = textFormat === 'markdown' ? this.resolveTextViewMode(entry.name, preferredMode) : 'edit'
+    this.textEditorRenderedMarkdownHtml = ''
     this._textEditorOriginalValue = ''
     this._textEditorRemoteMode = entry.mode
     try {
@@ -7997,6 +8739,7 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     const text = buffer.toString('utf8')
     this.textEditorValue = text
     this._textEditorOriginalValue = text
+    this.textEditorRenderedMarkdownHtml = this.textEditorFormat === 'markdown' ? this._renderMarkdownHtml(text) : ''
   }
 
   async saveTextEditor(): Promise<void> {
@@ -8057,6 +8800,9 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     this.textEditorError = ''
     this.textEditorPath = ''
     this.textEditorValue = ''
+    this.textEditorFormat = 'plain'
+    this.textEditorViewMode = 'edit'
+    this.textEditorRenderedMarkdownHtml = ''
     this._textEditorOriginalValue = ''
     this._textEditorRemoteMode = undefined
     this._refreshEditorUi()
@@ -8210,6 +8956,395 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     } finally {
       try { await fs.unlink(tmpPath) } catch {}
     }
+  }
+
+  openGitManager(): void {
+    this.gitManagerVisible = true
+    this.gitManagerScope = this._defaultGitManagerScope()
+    this.gitManagerCurrentPath = this.gitScopePath
+    this.gitCommitMessage = ''
+    void this.refreshGitManager()
+  }
+
+  switchGitManagerScope(scope: GitManagerScope): void {
+    if (scope === this.gitManagerScope) return
+    if (scope === 'remote' && !this.canUseRemoteGit) return
+    this.gitManagerScope = scope
+    this.gitCommitMessage = ''
+    this.gitStatusMessage = ''
+    void this.refreshGitManager()
+  }
+
+  closeGitManager(): void {
+    if (this.gitManagerBusy) return
+    this.gitManagerVisible = false
+    this.gitStatusError = ''
+    this.gitStatusMessage = ''
+    this._refreshEditorUi()
+  }
+
+  async refreshGitManager(): Promise<void> {
+    const currentPath = this.gitManagerScope === 'remote'
+      ? (this.remotePath || this.gitManagerCurrentPath || '/')
+      : (this.localPath || this.gitManagerCurrentPath || os.homedir())
+    await this._loadGitState(currentPath)
+  }
+
+  formatGitStatus(entry: GitStatusEntry): string {
+    const left = entry.indexStatus === ' ' ? '·' : entry.indexStatus
+    const right = entry.workTreeStatus === ' ' ? '·' : entry.workTreeStatus
+    return `${left}${right}`
+  }
+
+  async stageGitEntry(entry: GitStatusEntry): Promise<void> {
+    if (!this.gitRepoRoot) return
+    await this._runGitManagerAction(
+      () => this._runGitCommand(['add', '--', entry.path], this.gitRepoRoot),
+      this.effectiveLang === 'zh-CN' ? '已暂存改动' : 'Changes staged',
+    )
+  }
+
+  async unstageGitEntry(entry: GitStatusEntry): Promise<void> {
+    if (!this.gitRepoRoot) return
+    await this._runGitManagerAction(
+      () => this._runGitCommand(['restore', '--staged', '--', entry.path], this.gitRepoRoot),
+      this.effectiveLang === 'zh-CN' ? '已取消暂存' : 'Changes unstaged',
+    )
+  }
+
+  async stageAllGitChanges(): Promise<void> {
+    if (!this.gitRepoRoot) return
+    await this._runGitManagerAction(
+      () => this._runGitCommand(['add', '-A'], this.gitRepoRoot),
+      this.effectiveLang === 'zh-CN' ? '已暂存全部改动' : 'All changes staged',
+    )
+  }
+
+  async unstageAllGitChanges(): Promise<void> {
+    if (!this.gitRepoRoot) return
+    await this._runGitManagerAction(
+      () => this._runGitCommand(['restore', '--staged', '--', '.'], this.gitRepoRoot),
+      this.effectiveLang === 'zh-CN' ? '已取消全部暂存' : 'All changes unstaged',
+    )
+  }
+
+  async commitGitChanges(): Promise<void> {
+    if (!this.gitRepoRoot || !this.gitCommitMessage.trim()) return
+    const message = this.gitCommitMessage.trim()
+    await this._runGitManagerAction(
+      () => this._runGitCommand(['commit', '-m', message], this.gitRepoRoot),
+      this.effectiveLang === 'zh-CN' ? '提交完成' : 'Commit created',
+    )
+    this.gitCommitMessage = ''
+  }
+
+  async pullGitChanges(): Promise<void> {
+    if (!this.gitRepoRoot) return
+    await this._runGitManagerAction(
+      () => this._runGitCommand(['pull', '--ff-only'], this.gitRepoRoot),
+      this.effectiveLang === 'zh-CN' ? '拉取完成' : 'Pull completed',
+    )
+  }
+
+  async pushGitChanges(): Promise<void> {
+    if (!this.gitRepoRoot) return
+    await this._runGitManagerAction(
+      () => this._runGitCommand(['push'], this.gitRepoRoot),
+      this.effectiveLang === 'zh-CN' ? '推送完成' : 'Push completed',
+    )
+  }
+
+  private async _runGitManagerAction(action: () => Promise<unknown>, successMessage: string): Promise<void> {
+    if (this.gitManagerBusy) return
+    this.gitManagerBusy = true
+    this.gitStatusError = ''
+    try {
+      await action()
+      this.gitStatusMessage = successMessage
+      await this._loadGitState(this.gitRepoRoot || this.gitManagerCurrentPath, true)
+    } catch (error) {
+      this.gitStatusError = this._formatGitError(error)
+      this._refreshEditorUi()
+    } finally {
+      this.gitManagerBusy = false
+    }
+  }
+
+  private async _loadGitState(targetPath: string, preserveStatusMessage = false): Promise<void> {
+    this.gitManagerLoading = true
+    this.gitManagerCurrentPath = targetPath
+    this.gitStatusError = ''
+    if (!preserveStatusMessage) this.gitStatusMessage = ''
+    try {
+      const repoRoot = (await this._runGitCommand(['rev-parse', '--show-toplevel'], targetPath)).trim()
+      const statusOutput = await this._runGitCommand(['status', '--porcelain=v1', '-b'], repoRoot)
+      this._applyGitStatus(repoRoot, statusOutput)
+    } catch (error) {
+      if (this._isNotGitRepositoryError(error)) {
+        this._resetGitState(targetPath)
+      } else {
+        this._resetGitState(targetPath)
+        this.gitStatusError = this._formatGitError(error)
+      }
+    } finally {
+      this.gitManagerLoading = false
+      this._refreshEditorUi()
+    }
+  }
+
+  private _resetGitState(targetPath: string): void {
+    this.gitRepoRoot = ''
+    this.gitRepoName = ''
+    this.gitBranchName = ''
+    this.gitBranchTracking = ''
+    this.gitBranchAheadBehind = ''
+    this.gitStatusEntries = []
+    this.gitStatusSummary = ''
+    this.gitManagerCurrentPath = targetPath
+  }
+
+  private _applyGitStatus(repoRoot: string, statusOutput: string): void {
+    this.gitRepoRoot = repoRoot
+    this.gitRepoName = this._gitPathBaseName(repoRoot)
+    const lines = statusOutput.replace(/\r/g, '').split('\n').filter(Boolean)
+    const branchLine = lines[0]?.startsWith('## ') ? lines.shift()!.slice(3) : ''
+    this.gitBranchName = branchLine || 'HEAD'
+    this.gitBranchTracking = ''
+    this.gitBranchAheadBehind = ''
+    if (branchLine.includes('...')) {
+      const [localBranch, remotePart] = branchLine.split('...')
+      this.gitBranchName = localBranch || 'HEAD'
+      const aheadMatch = remotePart.match(/^(.*?)(?: \[(.*)\])?$/)
+      this.gitBranchTracking = aheadMatch?.[1]?.trim() || ''
+      this.gitBranchAheadBehind = aheadMatch?.[2]?.trim() || ''
+    }
+    this.gitStatusEntries = lines
+      .map(line => this._parseGitStatusEntry(line))
+      .filter((entry): entry is GitStatusEntry => !!entry)
+    this.gitStatusSummary = this.gitStatusEntries.length
+      ? (this.effectiveLang === 'zh-CN'
+          ? `${this.gitRepoName} 中有 ${this.gitStatusEntries.length} 项改动`
+          : `${this.gitStatusEntries.length} changed item(s) in ${this.gitRepoName}`)
+      : (this.effectiveLang === 'zh-CN'
+          ? `${this.gitRepoName} 工作区干净`
+          : `${this.gitRepoName} is clean`)
+  }
+
+  private _parseGitStatusEntry(line: string): GitStatusEntry | null {
+    if (line.length < 3) return null
+    const indexStatus = line[0]
+    const workTreeStatus = line[1]
+    let entryPath = line.slice(3)
+    const renameArrow = entryPath.indexOf(' -> ')
+    if (renameArrow >= 0) entryPath = entryPath.slice(renameArrow + 4)
+    entryPath = entryPath.trim()
+    if (!entryPath) return null
+    return {
+      path: entryPath,
+      displayPath: entryPath,
+      indexStatus,
+      workTreeStatus,
+      staged: indexStatus !== ' ' && indexStatus !== '?',
+      unstaged: workTreeStatus !== ' ' && workTreeStatus !== '?',
+      untracked: indexStatus === '?' && workTreeStatus === '?',
+      deleted: indexStatus === 'D' || workTreeStatus === 'D',
+    }
+  }
+
+  private _isNotGitRepositoryError(error: unknown): boolean {
+    const message = this._formatGitError(error).toLowerCase()
+    return message.includes('not a git repository') || message.includes('不是 git 仓库')
+  }
+
+  private _formatGitError(error: unknown): string {
+    if (error instanceof Error && error.message) return error.message.trim()
+    return String(error || '')
+  }
+
+  private _defaultGitManagerScope(): GitManagerScope {
+    if (this.activePane === 'remote' && this.canUseRemoteGit) return 'remote'
+    return 'local'
+  }
+
+  private _gitPathBaseName(targetPath: string): string {
+    return this.gitManagerScope === 'remote'
+      ? path.posix.basename(targetPath.replace(/\/$/, '') || '/')
+      : path.basename(targetPath)
+  }
+
+  private _buildPosixGitScript(args: string[], cwd: string, startToken: string, endToken: string): string {
+    const sq = (v: string): string => `'${v.replace(/'/g, `'"'"'`)}'`
+    const gitArgs = args.map(a => sq(a)).join(' ')
+    const script = `start="$1"; end="$2"; printf "%s\\n" "$start"; cd "$3" && shift 3 && TERM=dumb GIT_TERMINAL_PROMPT=0 git "$@"; printf "\\n%s:%s\\n" "$end" "$?"`
+    return `sh -c ${sq(script)} _shim_ ${sq(startToken)} ${sq(endToken)} ${sq(cwd)} ${gitArgs}`
+  }
+
+  private _buildCmdGitScript(args: string[], cwd: string, startToken: string, endToken: string): string {
+    const q = (v: string): string => `"${v.replace(/"/g, '""')}"`
+    const winCwd = cwd.replace(/^\/([A-Za-z]):/, '$1:').replace(/\//g, '\\')
+    return `cmd /d /c "@echo off & echo ${q(startToken)} & cd /d ${q(winCwd)} & set GIT_TERMINAL_PROMPT=0 & git -c color.ui=false -c core.pager=cat ${args.map(a => q(a)).join(' ')} 2>&1 & echo ${endToken}:%errorlevel%"`
+  }
+
+  private _buildPowershellGitScript(args: string[], cwd: string, startToken: string, endToken: string): string {
+    const q = (v: string): string => `'${v.replace(/'/g, "''")}'`
+    const winCwd = cwd.replace(/^\/([A-Za-z]):/, '$1:').replace(/\//g, '\\')
+    const gitArgs = args.map(a => q(a)).join(', ')
+    return `powershell -NoProfile -NonInteractive -Command "\$start=${q(startToken)}; \$end=${q(endToken)}; Write-Output \$start; Set-Location ${q(winCwd)}; \$env:GIT_TERMINAL_PROMPT='0'; \$env:TERM='dumb'; & git -c color.ui=false -c core.pager=cat @(${gitArgs}) 2>&1; Write-Output (\$end + ':' + \$LASTEXITCODE)"`
+  }
+
+  private _parseRemoteGitOutput(rawOutput: string, startToken: string, endToken: string): { exitCode: number, body: string } | null {
+    const normalized = rawOutput.replace(/\r/g, '')
+    const startIndex = normalized.lastIndexOf(startToken)
+    const endIndex = normalized.lastIndexOf(endToken)
+    if (startIndex < 0 || endIndex < 0 || endIndex < startIndex) return null
+    const body = normalized.slice(startIndex + startToken.length, endIndex).replace(/^\s+/, '').replace(/\s+$/, '')
+    const trailer = normalized.slice(endIndex)
+    const exitMatch = trailer.match(new RegExp(`${endToken}:(\\d+)`))
+    if (!exitMatch) return null
+    return {
+      exitCode: Number(exitMatch[1]),
+      body,
+    }
+  }
+
+  private async _execRemoteChannelCommand(command: string): Promise<string> {
+    console.log('[SFTP+][remoteGit] exec command:', command)
+    const sshSession = this.sshSession as any
+    const client = sshSession?.ssh ?? sshSession?.sshClient ?? sshSession?.client ?? null
+    if (!client || typeof client.openSessionChannel !== 'function' || typeof client.activateChannel !== 'function') {
+      throw new Error(this.effectiveLang === 'zh-CN' ? '当前 SSH 会话不支持远程命令执行' : 'Remote command execution is not available for this SSH session')
+    }
+    if (typeof sshSession.ref === 'function') sshSession.ref()
+    try {
+      const newCh = await client.openSessionChannel()
+      const channel = await client.activateChannel(newCh)
+
+      const chunks: Uint8Array[] = []
+      let timeoutId: any = null
+
+      return new Promise<string>((resolve, reject) => {
+        let finished = false
+        const settle = (fn: () => void): void => {
+          if (finished) return
+          finished = true
+          if (timeoutId !== null) { clearTimeout(timeoutId); timeoutId = null }
+          try { channel.close() } catch {}
+          fn()
+        }
+
+        channel.data$?.subscribe?.({
+          next: (data: Uint8Array) => { console.log('[SFTP+][remoteGit] chunk:', Buffer.from(data).toString('utf8')); chunks.push(data) },
+          error: (error: unknown) => settle(() => reject(error)),
+        })
+
+        channel.extendedData$?.subscribe?.({
+          next: (ext: any) => {
+            const raw = Array.isArray(ext) ? ext[1] : (ext?.data ?? ext)
+            if (raw instanceof Uint8Array) {
+              console.log('[SFTP+][remoteGit] ext chunk:', Buffer.from(raw).toString('utf8'))
+              chunks.push(raw)
+            }
+          },
+          error: () => {},
+        })
+
+        const resolveOutput = (): void => {
+          const total = chunks.reduce((s, c) => s + c.length, 0)
+          const merged = new Uint8Array(total)
+          let offset = 0
+          for (const c of chunks) { merged.set(c, offset); offset += c.length }
+          const rawOutput = Buffer.from(merged).toString('utf8')
+          console.log('[SFTP+][remoteGit] raw output:', rawOutput)
+          resolve(rawOutput)
+        }
+
+        if (channel.eof$) {
+          channel.eof$.subscribe({ next: () => settle(() => resolveOutput()), error: () => settle(() => resolveOutput()) })
+        }
+        if (channel.closed$) {
+          channel.closed$.subscribe({ next: () => settle(() => resolveOutput()), error: () => settle(() => resolveOutput()) })
+        }
+
+        timeoutId = setTimeout(() => {
+          if (finished) return
+          finished = true
+          try { channel.close() } catch {}
+          resolveOutput()
+        }, 15000)
+
+        channel.requestExec(command).catch((error: unknown) => {
+          settle(() => reject(error))
+        })
+      })
+    } finally {
+      if (typeof sshSession.unref === 'function') sshSession.unref()
+    }
+  }
+
+  private async _runRemoteGitCommand(args: string[], cwd: string): Promise<string> {
+    const sshSession = this.sshSession as any
+    if (!sshSession) throw new Error(this.effectiveLang === 'zh-CN' ? '没有可用的 SSH 会话' : 'No SSH session available')
+    if (sshSession.open === false) throw new Error(this.effectiveLang === 'zh-CN' ? 'SSH 会话已断开' : 'SSH session is disconnected')
+
+    const startToken = '__TABBY_SFTP_GIT_START__'
+    const endToken = '__TABBY_SFTP_GIT_END__'
+    const isWindows = /^\/[A-Za-z]:\//.test(cwd)
+
+    const candidates: string[] = isWindows
+      ? [
+          this._buildCmdGitScript(args, cwd, startToken, endToken),
+          this._buildPowershellGitScript(args, cwd, startToken, endToken),
+          this._buildPosixGitScript(args, cwd, startToken, endToken),
+        ]
+      : [this._buildPosixGitScript(args, cwd, startToken, endToken)]
+
+    const errors: string[] = []
+    for (const command of candidates) {
+      let rawOutput = ''
+      try {
+        rawOutput = await this._execRemoteChannelCommand(command)
+      } catch (error: unknown) {
+        errors.push(this._formatGitError(error))
+        continue
+      }
+      const parsed = this._parseRemoteGitOutput(rawOutput, startToken, endToken)
+      if (!parsed) {
+        const preview = rawOutput.length > 200
+          ? `${rawOutput.slice(0, 100)} ... ${rawOutput.slice(-100)}`
+          : rawOutput
+        errors.push(`parse_fail: ${preview}`)
+        continue
+      }
+      if (parsed.exitCode !== 0) {
+        throw new Error(parsed.body || (this.effectiveLang === 'zh-CN' ? `远程 Git 命令失败，退出码 ${parsed.exitCode}` : `Remote Git command failed with exit code ${parsed.exitCode}`))
+      }
+      this._detectedRemoteOs = isWindows ? 'windows' : 'posix'
+      return parsed.body
+    }
+
+    throw new Error(this.effectiveLang === 'zh-CN'
+      ? `无法解析远程 Git。已尝试: ${errors.join(' | ')}`
+      : `Failed to run remote Git. Tried: ${errors.join(' | ')}`)
+  }
+
+  private _runGitCommand(args: string[], cwd: string): Promise<string> {
+    if (this.gitManagerScope === 'remote') {
+      return this._runRemoteGitCommand(args, cwd)
+    }
+    return new Promise((resolve, reject) => {
+      execFile('git', args, {
+        cwd,
+        windowsHide: true,
+        maxBuffer: 4 * 1024 * 1024,
+      }, (error, stdout, stderr) => {
+        if (error) {
+          const message = String(stderr || stdout || error.message || '').trim()
+          reject(new Error(message || 'git command failed'))
+          return
+        }
+        resolve(String(stdout || ''))
+      })
+    })
   }
 
   /** 检查当前右键菜单面板是否有选中项 */

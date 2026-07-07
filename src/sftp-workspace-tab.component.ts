@@ -1,5 +1,5 @@
 import { AfterViewInit, Component, ComponentFactoryResolver, ComponentRef, Injector, ViewChild, ViewContainerRef } from '@angular/core'
-import { BaseTabComponent } from 'tabby-core'
+import { BaseTabComponent, AppService } from 'tabby-core'
 import { SftpFloatingPanel } from './sftp-floating-panel.component'
 
 @Component({
@@ -13,6 +13,10 @@ import { SftpFloatingPanel } from './sftp-floating-panel.component'
       min-width: 0;
       min-height: 0;
       background: var(--body-bg, #111827);
+      overflow: hidden;
+    }
+    :host {
+      z-index: 0;
     }
   `],
 })
@@ -26,10 +30,12 @@ export class SftpWorkspaceTabComponent extends BaseTabComponent implements After
 
   private panelRef: ComponentRef<SftpFloatingPanel> | null = null
   private closingFromPanel = false
+  app: AppService
 
   constructor(injector: Injector, private resolver: ComponentFactoryResolver) {
     super(injector)
     this.title = 'SFTP+'
+    this.app = injector.get(AppService)
   }
 
   ngAfterViewInit(): void {
@@ -42,11 +48,12 @@ export class SftpWorkspaceTabComponent extends BaseTabComponent implements After
     panel.sshSession = this.sshSession
     panel.profile = this.profile
     panel.terminalRef = this.terminalRef
+    panel.workspaceTabRef = this
     panel.onOpenInWorkspaceTab = null
     panel.onMinimize = null
     panel.onClose = () => {
       this.closingFromPanel = true
-      this.closeTab()
+      this.destroy()
     }
 
     const host = this.profile?.options?.host || this.profile?.name || 'SFTP+'

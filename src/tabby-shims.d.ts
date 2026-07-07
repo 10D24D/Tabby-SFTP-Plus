@@ -168,3 +168,17 @@ declare module 'tabby-settings' {
     }>>
   }
 }
+
+// @angular/cdk/drag-drop 最小类型声明（运行时由 Tabby 提供）
+declare module '@angular/cdk/drag-drop' {
+  import { ModuleWithProviders } from '@angular/core'
+  export declare class DragDropModule {
+    static ɵinj: any
+    static ɵmod: any
+  }
+  export interface CdkDrag {
+    data: any
+  }
+  export interface CdkDropList {
+  }
+}

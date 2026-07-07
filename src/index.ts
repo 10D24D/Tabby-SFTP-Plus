@@ -13,6 +13,7 @@
 import { CommonModule } from '@angular/common'
 import { FormsModule } from '@angular/forms'
 import { NgModule } from '@angular/core'
+import { DragDropModule } from '@angular/cdk/drag-drop'
 import TabbyCoreModule, { ConfigProvider } from 'tabby-core'
 import { SettingsTabProvider } from 'tabby-settings'
 import { TerminalDecorator } from 'tabby-terminal'
@@ -27,6 +28,7 @@ import { SftpPlusConfigProvider } from './sftp-config-provider'
   imports: [
     CommonModule,
     FormsModule,
+    DragDropModule,
     TabbyCoreModule,
   ],
   declarations: [
