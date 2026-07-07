@@ -4,15 +4,11 @@
  *   存储到 localStorage，避免污染 Tabby 配置文件
  * 创建人：DD1024z + Claude
  * 创建时间：2026-06-21
- * 修改人：DD1024z + Deepseek-V4-Flash
- * 修改时间：2026-06-25
- *   添加日志限制（上限1000条）、按类型/状态筛选、JSON导出功能
- *   传输日志按连接配置隔离（clearProfile）
- * 修改人：DD1024z + Deepseek-V4-Flash
- * 修改时间：2026-06-29
- *   改为 localStorage 存储，不再写入 Tabby config.yaml
  * 修改人：DD1024z + Deepseek-V4-Pro
  * 修改时间：2026-07-01
+ *   添加日志限制（上限1000条）、按类型/状态筛选、JSON导出功能
+ *   传输日志按连接配置隔离（clearProfile）
+ *   改为 localStorage 存储，不再写入 Tabby config.yaml
  *   添加 startTime / endTime 字段
  */
 import { Injectable, Optional } from '@angular/core'
@@ -169,6 +165,19 @@ export class SftpTransferLogService {
   clear(): void {
     this.logs = []
     localStorage.removeItem(STORAGE_KEY)
+  }
+
+  /** 从备份数据导入日志（覆盖当前记录） */
+  importLogs(logs: TransferLogEntry[]): void {
+    this.logs = Array.isArray(logs) ? logs.slice(-MAX_LOGS) : []
+    this.save()
+  }
+
+  /** 重新从 localStorage 加载（多面板 / 导入后同步） */
+  reload(): void {
+    this._loaded = false
+    this.logs = []
+    this.load()
   }
 
   /**

@@ -3,8 +3,10 @@
  * 功能描述：提供多语言支持，自动跟随 Tabby 系统语言设置
  * 创建人：DD1024z + Claude
  * 创建时间：2026-06-21
- * 修改人：DD1024z + Claude
- * 修改时间：2026-06-23
+ * 修改人：DD1024z + Deepseek-V4-Flash
+ * 修改时间：2026-07-05
+ *   新增 setLocale() 方法支持动态切换语言
+ *   新增 settings.* 翻译 key（统一设置面板 i18n）
  */
 import { Injectable, Optional } from '@angular/core'
 import { detectTabbyLanguage } from '@common/utils'
@@ -40,6 +42,8 @@ const TRANSLATIONS: Record<Locale, Record<string, string>> = {
     'conflict.existsLocal': '已存在于本地目录',
     'conflict.existsRemote': '已存在于远程目录',
     'log.onlySuccess': '仅成功',
+    'log.success': '成功',
+    'log.failed': '失败',
     'fileType.txt': '文本文档',
     'fileType.log': '日志文件',
     'fileType.md': 'Markdown 文件',
@@ -82,6 +86,8 @@ const TRANSLATIONS: Record<Locale, Record<string, string>> = {
     'app.modeSwitchSsh': 'SSH',
     'app.modeSwitchSftp': 'SFTP',
     'app.backToTerminal': '返回终端',
+    'filter.allOps': '所有操作',
+    'filter.allStatus': '全部状态',
 
     'pane.local': '本地',
     'pane.remote': '远程',
@@ -195,6 +201,51 @@ const TRANSLATIONS: Record<Locale, Record<string, string>> = {
     'notify.connectionLost': '连接已断开',
     'notify.connected': '已连接到',
     'notify.connecting': '正在连接到',
+
+    'settings.desc': '美观易用的SFTP文件管理器，支持拖拽、书签、排序、传输记录与多语言。',
+    'settings.language': '语言',
+    'settings.followTabby': '跟随Tabby',
+    'settings.theme': '主题',
+    'settings.primary': '主色调',
+    'settings.bg': '背景',
+    'settings.text': '文字',
+    'settings.border': '边框',
+    'settings.layout': '布局',
+    'settings.layoutAdaptive': '自适应',
+    'settings.layoutAdaptiveSub': '根据窗口宽度自动切换',
+    'settings.layoutHorizontal': '左右布局',
+    'settings.layoutHorizontalSub': '两个面板水平并排',
+    'settings.layoutVertical': '上下布局',
+    'settings.layoutVerticalSub': '两个面板垂直堆叠',
+    'settings.tableStyle': '表格样式',
+    'settings.tableStyleHint': '提示：可在文件列表的表头右键菜单中控制',
+    'settings.hideNativeBtn': '隐藏原生 SFTP 按钮',
+    'settings.compatibility': '兼容性',
+    'settings.data': '数据',
+    'settings.export': '导出数据',
+    'settings.import': '导入数据',
+    'settings.clearAll': '清空数据',
+    'settings.about': '关于',
+    'settings.version': '版本',
+    'settings.buildTime': '构建时间',
+    'settings.author': '作者',
+    'settings.githubSource': 'Github源码',
+    'settings.giveStar': '点赞支持',
+    'settings.feedback': '意见反馈',
+    'settings.modifyColors': '⚠️ 修改配色',
+    'settings.overwriteConfirm': '当前为自动/预设模式，修改将覆盖到自定义配色方案中。是否继续？',
+    'settings.overwrite': '确认覆盖',
+    'settings.clearAllTitle': '⚠️ 清空数据',
+    'settings.clearAllConfirm': '此操作将删除所有书签、传输记录和设置数据，不可撤销！',
+    'settings.clearAllPrompt': '请输入 DELETE 确认：',
+    'settings.clear': '清空',
+    'settings.dark': '暗色',
+    'settings.light': '亮色',
+    'settings.invalidFormat': '无效的数据格式。',
+    'settings.importComplete': '数据导入完成。',
+    'settings.importUnavailable': '无法导入：ConfigService 不可用。',
+    'settings.importFailed': '导入失败：文件格式错误或已损坏。',
+    'settings.dataCleared': '已清空所有数据',
   },
   'en-US': {
     'app.title': 'SFTP+ File Manager',
@@ -224,6 +275,8 @@ const TRANSLATIONS: Record<Locale, Record<string, string>> = {
     'conflict.existsLocal': 'Already exists locally',
     'conflict.existsRemote': 'Already exists remotely',
     'log.onlySuccess': 'Only Success',
+    'log.success': 'Success',
+    'log.failed': 'Failed',
     'fileType.txt': 'Text File',
     'fileType.log': 'Log File',
     'fileType.md': 'Markdown File',
@@ -266,6 +319,8 @@ const TRANSLATIONS: Record<Locale, Record<string, string>> = {
     'app.modeSwitchSsh': 'SSH',
     'app.modeSwitchSftp': 'SFTP',
     'app.backToTerminal': 'Back to Terminal',
+    'filter.allOps': 'All Operations',
+    'filter.allStatus': 'All Status',
 
     'pane.local': 'Local',
     'pane.remote': 'Remote',
@@ -379,6 +434,51 @@ const TRANSLATIONS: Record<Locale, Record<string, string>> = {
     'notify.connectionLost': 'Connection Lost',
     'notify.connected': 'Connected to',
     'notify.connecting': 'Connecting to',
+
+    'settings.desc': 'Beautiful SFTP file manager: drag-drop, bookmarks, sort, transfer logs & multilingual.',
+    'settings.language': 'Language',
+    'settings.followTabby': 'Follow Tabby',
+    'settings.theme': 'Theme',
+    'settings.primary': 'Primary',
+    'settings.bg': 'Bg',
+    'settings.text': 'Text',
+    'settings.border': 'Border',
+    'settings.layout': 'Layout',
+    'settings.layoutAdaptive': 'Adaptive',
+    'settings.layoutAdaptiveSub': 'Auto switch by width',
+    'settings.layoutHorizontal': 'Horizontal',
+    'settings.layoutHorizontalSub': 'Panes side by side',
+    'settings.layoutVertical': 'Vertical',
+    'settings.layoutVerticalSub': 'Panes stacked',
+    'settings.tableStyle': 'Table Style',
+    'settings.tableStyleHint': 'Tip: Control via file list header right-click menu',
+    'settings.hideNativeBtn': 'Hide native SFTP button',
+    'settings.compatibility': 'Compatibility',
+    'settings.data': 'Data',
+    'settings.export': 'Export',
+    'settings.import': 'Import',
+    'settings.clearAll': 'Clear All',
+    'settings.about': 'About',
+    'settings.version': 'Version',
+    'settings.buildTime': 'Build time',
+    'settings.author': 'Author',
+    'settings.githubSource': 'GitHub Source',
+    'settings.giveStar': 'Give a Star',
+    'settings.feedback': 'Feedback',
+    'settings.modifyColors': '⚠️ Modify Colors',
+    'settings.overwriteConfirm': 'You are in Auto/Preset mode. Changes will overwrite the custom color scheme. Continue?',
+    'settings.overwrite': 'Overwrite',
+    'settings.clearAllTitle': '⚠️ Clear All Data',
+    'settings.clearAllConfirm': 'This will delete all bookmarks, transfer logs, and settings. Cannot be undone!',
+    'settings.clearAllPrompt': 'Please type DELETE to confirm:',
+    'settings.clear': 'Clear',
+    'settings.dark': 'Dark',
+    'settings.light': 'Light',
+    'settings.invalidFormat': 'Invalid data format.',
+    'settings.importComplete': 'Import complete.',
+    'settings.importUnavailable': 'Cannot import: ConfigService not available.',
+    'settings.importFailed': 'Import failed: invalid or corrupted file.',
+    'settings.dataCleared': 'All data cleared',
   },
 }
 
@@ -498,6 +598,11 @@ export class SftpI18nService {
 
   getLocale(): Locale {
     return this.locale
+  }
+
+  /** 动态切换语言（支持设置面板内实时切换） */
+  setLocale(locale: Locale): void {
+    this.locale = locale
   }
 
   t(key: string, params?: Record<string, string | number>): string {

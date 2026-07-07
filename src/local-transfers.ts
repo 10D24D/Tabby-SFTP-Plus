@@ -4,8 +4,6 @@
  *           支持暂停/继续 + 断点续传
  * 创建人：DD1024z + Claude
  * 创建时间：2026-06-21
- * 修改人：DD1024z + Claude
- * 修改时间：2026-06-22 — 修复空文件传输进度卡0%且日志不记录的问题：添加isComplete()标记
  * 修改人：DD1024z + Deepseek-V4-Flash
  * 修改时间：2026-06-25 — 添加暂停/继续/断点续传支持
  */
@@ -186,7 +184,7 @@ export class LocalPathFileDownload {
         } catch { /* ignore */ }
       }
     }
-    fs.writeSync(this.fd, buffer)
+    fs.writeSync(this.fd, buffer, 0, buffer.length, this.completedBytes)
     this.completedBytes += buffer.length
     this.increaseProgress(buffer.length)
     // 检查是否已写完

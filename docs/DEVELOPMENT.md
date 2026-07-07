@@ -45,11 +45,6 @@ tabby-FTPS+/
 │   ├── sftp-settings.component.ts #   设置页组件
 │   ├── local-transfers.ts       #   本地传输适配器
 │   └── tabby-shims.d.ts         #   Tabby 类型声明
-├── scripts/                     # Python 辅助脚本（迁移/更新工具）
-│   ├── restore_settings.py
-│   ├── split_col_settings.py
-│   ├── update_decorator_minimize.py
-│   └── update_settings_layout.py
 ├── package.json
 ├── tsconfig.json
 ├── webpack.config.js

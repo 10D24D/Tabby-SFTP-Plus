@@ -14,6 +14,7 @@ export type SFTPFile = {
   mode: number
   size: number
   modified: Date
+  mtime?: number
   owner?: string
   group?: string
 }
@@ -26,7 +27,7 @@ export type SFTPFileHandleLike = {
 export type SFTPSessionLike = {
   readdir: (p: string) => Promise<SFTPFile[]>
   readlink?: (p: string) => Promise<string>
-  stat?: (p: string) => Promise<SFTPFile>
+  stat?: (p: string) => Promise<{ size: number; modified?: Date; mtime?: number }>
   open?: (p: string, mode: number) => Promise<SFTPFileHandleLike>
   mkdir: (p: string) => Promise<void>
   rmdir: (p: string) => Promise<void>
@@ -78,6 +79,10 @@ export class SftpConnectionService {
    * 创建时间：2026-06-21
    */
   closeForSSHSession(sshSession: SSHSessionLike): void {
+    const sftp = this.sessions.get(sshSession)
+    if (sftp) {
+      try { (sftp as any).end?.() } catch {}
+    }
     this.sessions.delete(sshSession)
   }
 }

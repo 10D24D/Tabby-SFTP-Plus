@@ -1,13 +1,10 @@
 /**
  * 书签服务
  * 功能描述：管理本地和远程路径的书签，支持全局/按SSH连接/本地三种范围
- *   采用 electerm 风格：全局书签所有连接可见，连接书签仅对应连接可见
  * 创建人：DD1024z + Claude
  * 创建时间：2026-06-21
  * 修改人：DD1024z + Deepseek-V4-Flash
- * 修改时间：2026-06-22
- *   修改人：DD1024z + Deepseek-V4-Flash
- *   修改时间：2026-06-29
+ * 修改时间：2026-06-29
  *   同步写入 Tabby 配置（config.yaml），确保多窗口数据一致性
  */
 import { Injectable, Optional } from '@angular/core'
@@ -142,6 +139,13 @@ export class SftpBookmarksService {
   /** 获取路径对应的书签 */
   getByPath(path: string, type: 'local' | 'remote'): Bookmark | undefined {
     return this.bookmarks.find(b => b.path === path && b.type === type)
+  }
+
+  /** 重新从 config / localStorage 加载（多面板 / 导入后同步） */
+  reload(): void {
+    this._loaded = false
+    this.bookmarks = []
+    this.load()
   }
 
   /** 拖拽重排：将 fromIndex 移动到 toIndex */
