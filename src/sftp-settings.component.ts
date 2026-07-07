@@ -310,6 +310,13 @@ function saveTableSetting(_key: string, _value: boolean): void {}
             </span>
           </label>
         </div>
+        <div class="ss-sub-label" style="margin-top:16px;">{{ t('工作区预览区位置', 'Workspace preview position') }}</div>
+        <select class="ss-select" [ngModel]="workspaceAccessoryPosition" (ngModelChange)="setWorkspaceAccessoryPosition($event)">
+          <option value="right">{{ t('右侧', 'Right') }}</option>
+          <option value="bottom">{{ t('底部', 'Bottom') }}</option>
+          <option value="left">{{ t('左侧', 'Left') }}</option>
+          <option value="top">{{ t('顶部', 'Top') }}</option>
+        </select>
       </div>
 
       <!-- 关于 -->
@@ -739,6 +746,9 @@ export class SftpSettingsTabComponent {
   /** 默认新开一页 */
   openInNewTabByDefault = load('openInNewTabByDefault', false)
 
+  /** 工作区预览区位置 */
+  workspaceAccessoryPosition: 'right' | 'bottom' | 'left' | 'top' = load('workspaceAccessoryPosition', 'right')
+
   /** 主题颜色修改确认弹窗 */
   showThemeColorConfirm = false
   /** 待提交的颜色修改 */
@@ -810,6 +820,7 @@ export class SftpSettingsTabComponent {
       if (cfg.hideNativeSFTPButton !== undefined) this.hideNativeBtn = cfg.hideNativeSFTPButton as boolean
       if (cfg.followTerminalPath !== undefined) this.followTerminalPath = cfg.followTerminalPath as boolean
       if (cfg.openInNewTabByDefault !== undefined) this.openInNewTabByDefault = cfg.openInNewTabByDefault as boolean
+      if (cfg.workspaceAccessoryPosition !== undefined) this.workspaceAccessoryPosition = cfg.workspaceAccessoryPosition as 'right' | 'bottom' | 'left' | 'top'
     } catch { /* ignore */ }
   }
 
@@ -833,6 +844,7 @@ export class SftpSettingsTabComponent {
       target.hideNativeSFTPButton = this.hideNativeBtn
       target.followTerminalPath = this.followTerminalPath
       target.openInNewTabByDefault = this.openInNewTabByDefault
+      target.workspaceAccessoryPosition = this.workspaceAccessoryPosition
       this.configService.save()
     } catch (e) {
       console.error('[SFTP+] Failed to save to config', e)
@@ -981,6 +993,13 @@ export class SftpSettingsTabComponent {
     this.notifyPanels()
   }
 
+  setWorkspaceAccessoryPosition(value: 'right' | 'bottom' | 'left' | 'top'): void {
+    this.workspaceAccessoryPosition = value
+    save('workspaceAccessoryPosition', this.workspaceAccessoryPosition)
+    this._saveToConfig()
+    this.notifyPanels()
+  }
+
   /** 确认：将自动/预设配色复制到自定义并应用修改 */
   confirmThemeColorOverwrite(): void {
     // 加载原始主题的预设色值
@@ -1088,6 +1107,7 @@ export class SftpSettingsTabComponent {
           data.hideNativeSFTPButton = cfg.hideNativeSFTPButton ?? false
           data.followTerminalPath = cfg.followTerminalPath ?? false
           data.openInNewTabByDefault = cfg.openInNewTabByDefault ?? false
+          data.workspaceAccessoryPosition = cfg.workspaceAccessoryPosition ?? 'right'
           // 导出书签、传输记录、路径记忆
           if (cfg.bookmarks?.length) data.bookmarks = cfg.bookmarks
           if (cfg.transferLogs?.length) data.transferLogs = cfg.transferLogs
@@ -1110,6 +1130,7 @@ export class SftpSettingsTabComponent {
     data.hideNativeSFTPButton = load('hideNativeBtn', false)
     data.followTerminalPath = load('followTerminalPath', false)
     data.openInNewTabByDefault = load('openInNewTabByDefault', false)
+    data.workspaceAccessoryPosition = load('workspaceAccessoryPosition', 'right')
     // 尝试从 localStorage 读取书签和传输日志
     try {
       const bkm = localStorage.getItem('sftp-plus-bookmarks-v2')
@@ -1182,6 +1203,7 @@ export class SftpSettingsTabComponent {
           if (data.hideNativeSFTPButton !== undefined) target.hideNativeSFTPButton = data.hideNativeSFTPButton
           if (data.followTerminalPath !== undefined) target.followTerminalPath = data.followTerminalPath
           if (data.openInNewTabByDefault !== undefined) target.openInNewTabByDefault = data.openInNewTabByDefault
+          if (data.workspaceAccessoryPosition !== undefined) target.workspaceAccessoryPosition = data.workspaceAccessoryPosition
           // 导入书签、传输记录、路径记忆
           if (data.bookmarks !== undefined) target.bookmarks = data.bookmarks
           if (data.transferLogs !== undefined) target.transferLogs = data.transferLogs

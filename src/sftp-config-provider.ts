@@ -25,6 +25,7 @@ export interface SftpPlusPluginConfig {
   hideNativeSFTPButton: boolean
   followTerminalPath: boolean
   openInNewTabByDefault: boolean
+  workspaceAccessoryPosition: 'right' | 'bottom' | 'left' | 'top'
   bookmarks: any[]
   pathMemory: Record<string, any>
   transferLogs: any[]
@@ -48,6 +49,7 @@ export function defaultSftpPlusConfig(): SftpPlusPluginConfig {
     hideNativeSFTPButton: false,
     followTerminalPath: false,
     openInNewTabByDefault: false,
+    workspaceAccessoryPosition: 'right',
     bookmarks: [],
     pathMemory: {},
     transferLogs: [],

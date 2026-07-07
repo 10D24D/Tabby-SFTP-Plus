@@ -3592,8 +3592,13 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
       if (raw === 'nav-left' || raw === 'nav-right') this.toolbarLayoutMode = raw
     } catch {}
     try {
-      const raw = this._paneGet(SftpFloatingPanel.WORKSPACE_ACCESSORY_POS_KEY)
-      if (raw === 'right' || raw === 'bottom' || raw === 'left' || raw === 'top') this.workspaceAccessoryPosition = raw
+      const cfgPos = this.configService?.store?.['tabby-sftp-plus']?.workspaceAccessoryPosition
+      if (cfgPos === 'right' || cfgPos === 'bottom' || cfgPos === 'left' || cfgPos === 'top') {
+        this.workspaceAccessoryPosition = cfgPos
+      } else {
+        const raw = this._paneGet(SftpFloatingPanel.WORKSPACE_ACCESSORY_POS_KEY)
+        if (raw === 'right' || raw === 'bottom' || raw === 'left' || raw === 'top') this.workspaceAccessoryPosition = raw
+      }
     } catch {}
     try {
       const raw = this._paneGet(SftpFloatingPanel.WORKSPACE_ACCESSORY_RATIO_KEY)
@@ -3694,8 +3699,19 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     const order: Array<'right' | 'bottom' | 'left' | 'top'> = ['right', 'bottom', 'left', 'top']
     const idx = order.indexOf(this.workspaceAccessoryPosition)
     this.workspaceAccessoryPosition = order[(idx + 1) % order.length]
-    try { this._paneSet(SftpFloatingPanel.WORKSPACE_ACCESSORY_POS_KEY, this.workspaceAccessoryPosition) } catch {}
+    this._saveWorkspaceAccessoryPositionPreference()
     this.cdr.detectChanges()
+  }
+
+  private _saveWorkspaceAccessoryPositionPreference(): void {
+    try { this._paneSet(SftpFloatingPanel.WORKSPACE_ACCESSORY_POS_KEY, this.workspaceAccessoryPosition) } catch {}
+    try {
+      const cfg = this.configService?.store?.['tabby-sftp-plus']
+      if (cfg) {
+        cfg.workspaceAccessoryPosition = this.workspaceAccessoryPosition
+        this.configService?.save()
+      }
+    } catch {}
   }
 
   workspaceAccessoryPositionTitle(): string {
@@ -7711,7 +7727,7 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     const up = (): void => {
       if (this.workspacePositionDropTarget) {
         this.workspaceAccessoryPosition = this.workspacePositionDropTarget
-        try { this._paneSet(SftpFloatingPanel.WORKSPACE_ACCESSORY_POS_KEY, this.workspaceAccessoryPosition) } catch {}
+        this._saveWorkspaceAccessoryPositionPreference()
       }
       document.removeEventListener('mousemove', move)
       document.removeEventListener('mouseup', up)
