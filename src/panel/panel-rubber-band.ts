@@ -140,12 +140,17 @@ export class PanelRubberBand {
     // 记录是否点击在 entry 上（非 header）
     this.rubberBand.startedOnEntry = !!target.closest('.entry:not(.header)')
 
-    // 仅空白区域支持框选；条目上左键走拖拽、右键走菜单
-    if (this.rubberBand.startedOnEntry) {
-      if (event.button === 2) event.preventDefault()
+    // 已选中条目上按下左键：优先交给原生拖拽（移动/复制），不进入框选
+    // 这样不会与多选拖拽冲突
+    const entryEl = target.closest('.entry:not(.header)') as HTMLElement | null
+    const pressedOnSelectedEntry = !!entryEl?.classList.contains('selected')
+    if (pressedOnSelectedEntry && event.button === 0) {
       this.clearClickSuppress()
       return
     }
+
+    // 支持从条目上直接起手框选；不在这里提前 return
+    // （是否进入框选由后续移动阈值决定，纯点击仍走原有 click 选中逻辑）
 
     const listEl = target.closest('.pane-list') as HTMLElement | null
     if (!listEl) return
@@ -209,7 +214,7 @@ export class PanelRubberBand {
     }, ms)
   }
 
-  /** 框选 mousemove：更新选择矩形（仅空白区域开始） */
+  /** 框选 mousemove：更新选择矩形（支持空白或条目起手） */
   private _rbOnMouseMove(event: MouseEvent): void {
     const rb = this.rubberBand
 

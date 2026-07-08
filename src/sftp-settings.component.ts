@@ -529,6 +529,14 @@ function saveTableSetting(_key: string, _value: boolean): void {}
       background:rgba(0,0,0,0.2); color:inherit; font-size:13px; outline:none;
       box-sizing:border-box;
     }
+    .ss-edit-input::placeholder {
+      color: inherit;
+      opacity: .45;
+    }
+    .ss-edit-input::-webkit-input-placeholder {
+      color: inherit;
+      opacity: .45;
+    }
     .ss-edit-input:focus { border-color:var(--primary-color,#3b82f6); }
     .ss-edit-footer { display:flex; gap:8px; justify-content:flex-end; margin-top:10px; }
 

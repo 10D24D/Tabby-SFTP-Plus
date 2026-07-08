@@ -1,7 +1,7 @@
 /**
  * SFTP+ 远程文件查看对话框（文本 / 图片）
  */
-import { Component, EventEmitter, Input, Output } from '@angular/core'
+import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core'
 
 import { SftpI18nService } from '../sftp-i18n.service'
 import { FILE_DIALOG_SHARED_STYLES } from './file-dialog-shared-styles'
@@ -12,11 +12,29 @@ export type ViewerMode = 'text' | 'image'
 @Component({
   selector: 'sftp-viewer-dialog',
   template: `
-    <div class="overlay" *ngIf="visible" (click)="onBackdropClick()" (wheel)="onOverlayWheel($event)">
-      <div class="dialog file-dialog-shell" (click)="$event.stopPropagation()">
+    <div class="overlay" *ngIf="visible" (wheel)="onOverlayWheel($event)">
+      <div class="dialog file-dialog-shell" [class.is-maximized]="maximized">
         <div class="dialog-title">
           <span class="file-dialog-title">{{ i18n.t('file.view') }} — {{ fileName }}</span>
-          <button type="button" class="file-dialog-close" (click)="close.emit()" [title]="i18n.t('app.close')">×</button>
+          <div class="file-dialog-window-btns">
+            <button type="button" class="file-dialog-win-btn"
+              (click)="toggleMaximize()"
+              [title]="maximized ? i18n.t('app.restore') : i18n.t('app.maximize')">
+              <svg *ngIf="!maximized" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4">
+                <rect x="1.5" y="1.5" width="9" height="9" rx="0.5"/>
+              </svg>
+              <svg *ngIf="maximized" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4">
+                <rect x="3.5" y="1.5" width="7" height="7" rx="0.5"/>
+                <path d="M1.5 3.5h6.5v6.5H1.5z"/>
+              </svg>
+            </button>
+            <button type="button" class="file-dialog-win-btn"
+              (click)="close.emit()" [title]="i18n.t('app.close')">
+              <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round">
+                <path d="M2.5 2.5l7 7M9.5 2.5l-7 7"/>
+              </svg>
+            </button>
+          </div>
         </div>
         <div class="file-dialog-path" *ngIf="displayPath">{{ displayPath }}</div>
         <div class="file-dialog-body" (wheel)="onScrollableWheel($event)">
@@ -40,7 +58,9 @@ export type ViewerMode = 'text' | 'image'
   `,
   styles: [FILE_DIALOG_SHARED_STYLES],
 })
-export class SftpViewerDialogComponent {
+export class SftpViewerDialogComponent implements OnChanges {
+  private static readonly MAXIMIZED_KEY = 'sftp-plus-viewer-maximized'
+
   @Input() visible = false
   @Input() loading = false
   @Input() mode: ViewerMode = 'text'
@@ -56,10 +76,33 @@ export class SftpViewerDialogComponent {
 
   @Input() i18n!: SftpI18nService
 
+  maximized = SftpViewerDialogComponent.loadMaximized()
+
   onOverlayWheel = onFileDialogOverlayWheel
   onScrollableWheel = onFileDialogScrollableWheel
 
-  onBackdropClick(): void {
-    if (!this.loading) this.close.emit()
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['visible']?.currentValue === true) {
+      this.maximized = SftpViewerDialogComponent.loadMaximized()
+    }
+  }
+
+  toggleMaximize(): void {
+    this.maximized = !this.maximized
+    SftpViewerDialogComponent.saveMaximized(this.maximized)
+  }
+
+  private static loadMaximized(): boolean {
+    try {
+      return localStorage.getItem(SftpViewerDialogComponent.MAXIMIZED_KEY) === 'true'
+    } catch {
+      return false
+    }
+  }
+
+  private static saveMaximized(value: boolean): void {
+    try {
+      localStorage.setItem(SftpViewerDialogComponent.MAXIMIZED_KEY, value ? 'true' : 'false')
+    } catch { /* ignore */ }
   }
 }

@@ -1,7 +1,7 @@
 /**
  * SFTP+ 文件列表面板（本地/远程共用）
  */
-import { Component, EventEmitter, Input, Output } from '@angular/core'
+import { Component, ElementRef, EventEmitter, Input, Output } from '@angular/core'
 
 import { SftpI18nService } from '../sftp-i18n.service'
 
@@ -34,6 +34,7 @@ export type PaneSortAction = { col: string }
             [title]="toolbarActionTitle(item)"
             class="icon-btn pane-toolbar-btn"
             [class.toggle-btn]="item === 'filter' || item === 'bookmark'"
+            [class.filter-toggle-btn]="item === 'filter'"
             [class.bm-btn]="item === 'bookmark'"
             [class.active]="isToolbarActionActive(item)"
             (mousedown)="blurPathInput(pathInputEl)">
@@ -72,25 +73,31 @@ export type PaneSortAction = { col: string }
           (click)="listClick.emit($event)"
           (contextmenu)="listContextMenu.emit($event)">
           <div class="entry dim" *ngIf="showNoSession">{{ i18n.t('notify.noSSHSession') }}</div>
-          <div class="entry header" *ngIf="showHeader" [style.gridTemplateColumns]="colWidths"
+          <div class="entry header" *ngIf="showHeader" [style.gridTemplateColumns]="headerColWidths || colWidths"
             (contextmenu)="headerContextMenu.emit($event)"
             (dragover)="onHeaderDragOver($event)"
             (drop)="onHeaderDragOver($event)">
             <span class="icon"></span>
-            <span class="name sortable" (click)="sort.emit({ col: 'name' })">
+            <span class="name sortable"
+              [class.header-col-resizing]="resizingCol === 'name'"
+              (click)="sort.emit({ col: 'name' })">
               {{ i18n.t('file.name') }}<span class="sort-arrow" *ngIf="sortBy === 'name'">{{ sortAsc ? '▲' : '▼' }}</span>
               <div class="col-resize-handle"
+                [class.resizing]="resizingCol === 'name'"
                 (mousedown)="onColResizeMouseDown('name', $event)"
                 (dblclick)="onColResizeDblClick('name', $event)"></div>
             </span>
-            <span *ngFor="let col of visibleCols" class="{{col}} sortable" draggable="true"
-              (click)="onSortCol(col)"
-              (dragstart)="onColHeaderDragStart(col, $event)"
-              (dragover)="onColHeaderDragOver($event)"
-              (drop)="onColHeaderDrop(col, $event)"
-              (dragend)="onColHeaderDragEnd()">
+            <span *ngFor="let col of headerColsResolved; trackBy: trackByCol"
+              class="{{col}} sortable"
+              [class.header-col-resizing]="resizingCol === col"
+              [class.header-col-dragging]="draggingCol === col"
+              [class.header-col-drop-before]="dropIndicatorCol === col && !dropIndicatorAfter"
+              [class.header-col-drop-after]="dropIndicatorCol === col && dropIndicatorAfter"
+              (mousedown)="onColHeaderMouseDown(col, $event)"
+              (click)="onSortCol(col)">
               {{ colHeaderLabel(col) }}<span class="sort-arrow" *ngIf="sortArrow(col)">{{ sortArrow(col) }}</span>
               <div class="col-resize-handle"
+                [class.resizing]="resizingCol === col"
                 (mousedown)="onColResizeMouseDown(col, $event)"
                 (dblclick)="onColResizeDblClick(col, $event)"></div>
             </span>
@@ -107,7 +114,7 @@ export type PaneSortAction = { col: string }
             [style.gridTemplateColumns]="colWidths">
             <span class="icon">{{ e.isDirectory ? '📁' : '📄' }}</span>
             <span class="name" [attr.title]="e.name">{{ inaccessiblePrefix(e) }}{{ e.name }}</span>
-            <span *ngFor="let col of visibleCols" class="{{col}}" [attr.title]="colValue(col, e)">{{ colValue(col, e) }}</span>
+            <span *ngFor="let col of visibleCols; trackBy: trackByCol" class="{{col}}" [attr.title]="colValue(col, e)">{{ colValue(col, e) }}</span>
           </div>
           <div class="pane-empty" *ngIf="showEmpty">
             <ng-container *ngIf="hasError">{{ i18n.t('pane.errorAccess') }}</ng-container>
@@ -125,6 +132,8 @@ export type PaneSortAction = { col: string }
   `,
 })
 export class SftpFilePaneComponent {
+  constructor(private hostRef: ElementRef<HTMLElement>) {}
+
   @Input() labelIcon = '🖥'
   @Input() paneLabel = ''
   @Input() listClass = 'local-pane'
@@ -147,7 +156,11 @@ export class SftpFilePaneComponent {
   @Input() showEmpty = false
   @Input() entries: any[] = []
   @Input() visibleCols: string[] = []
+  /** 表头预览列顺序（拖拽中可与数据列不同；空则跟随 visibleCols） */
+  @Input() headerCols: string[] | null = null
   @Input() colWidths = ''
+  /** 表头 grid 列宽（可与数据列不同，用于拖拽预览） */
+  @Input() headerColWidths = ''
   @Input() sortBy = 'name'
   @Input() sortAsc = true
   @Input() draggable = true
@@ -160,6 +173,18 @@ export class SftpFilePaneComponent {
   @Input() isSelectedFn: (e: any) => boolean = () => false
   @Input() sortArrowFn: (col: string) => string = () => ''
   @Input() trackByFn: (index: number, e: any) => any = (i) => i
+  /** 父组件正在拖拽调整的列名（用于高亮表头与分隔线） */
+  @Input() resizingCol: string | null = null
+  /** 正在拖拽排序的列名 */
+  @Input() draggingCol: string | null = null
+  /** 落点指示：目标列名 */
+  @Input() dropIndicatorCol: string | null = null
+  /** 落点指示：是否在目标列右侧 */
+  @Input() dropIndicatorAfter = false
+
+  get headerColsResolved(): string[] {
+    return this.headerCols && this.headerCols.length ? this.headerCols : this.visibleCols
+  }
 
   @Output() pathInputChange = new EventEmitter<string>()
   @Output() pathEnter = new EventEmitter<void>()
@@ -181,10 +206,7 @@ export class SftpFilePaneComponent {
   @Output() sort = new EventEmitter<PaneSortAction>()
   @Output() colResizeStart = new EventEmitter<{ col: string; event: MouseEvent }>()
   @Output() colResizeAutoFit = new EventEmitter<{ col: string }>()
-  @Output() colHeaderDragStart = new EventEmitter<{ col: string; event: DragEvent }>()
-  @Output() colHeaderDragOver = new EventEmitter<DragEvent>()
-  @Output() colHeaderDrop = new EventEmitter<{ col: string; event: DragEvent }>()
-  @Output() colHeaderDragEnd = new EventEmitter<void>()
+  @Output() colHeaderReorderStart = new EventEmitter<{ col: string; event: MouseEvent }>()
   @Output() entryClick = new EventEmitter<{ entry: any; event: MouseEvent; index: number }>()
   @Output() entryDblClick = new EventEmitter<{ entry: any; event: MouseEvent }>()
   @Output() entryContextMenu = new EventEmitter<{ entry: any; event: MouseEvent }>()
@@ -246,8 +268,16 @@ export class SftpFilePaneComponent {
 
   onPaneAreaMouseDown(event: MouseEvent): void {
     if ((event.target as HTMLElement).closest('.path-input')) return
-    const inp = (event.currentTarget as HTMLElement).querySelector('.path-input') as HTMLInputElement | null
-    this.blurPathInput(inp ?? undefined)
+    this.blurAllPathInputs()
+  }
+
+  private blurAllPathInputs(): void {
+    const root = this.hostRef.nativeElement.closest('.sftp-root') ?? this.hostRef.nativeElement
+    root.querySelectorAll('.path-input').forEach(node => {
+      const el = node as HTMLInputElement
+      if (document.activeElement === el) el.blur()
+    })
+    this.pathFocused = false
   }
 
   onColResizeMouseDown(col: string, event: MouseEvent): void {
@@ -267,32 +297,18 @@ export class SftpFilePaneComponent {
     if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'
   }
 
-  onColHeaderDragStart(col: string, event: DragEvent): void {
+  onColHeaderMouseDown(col: string, event: MouseEvent): void {
+    if (event.button !== 0) return
+    if ((event.target as HTMLElement).closest('.col-resize-handle')) return
     event.stopPropagation()
-    this.colHeaderDragStart.emit({ col, event })
+    this.colHeaderReorderStart.emit({ col, event })
   }
 
-  onColHeaderDragOver(event: DragEvent): void {
-    event.preventDefault()
-    event.stopPropagation()
-    if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'
-    this.colHeaderDragOver.emit(event)
+  blurPathInput(_el?: HTMLInputElement): void {
+    this.blurAllPathInputs()
   }
 
-  onColHeaderDrop(col: string, event: DragEvent): void {
-    event.preventDefault()
-    event.stopPropagation()
-    this.colHeaderDrop.emit({ col, event })
-  }
-
-  onColHeaderDragEnd(): void {
-    this.colHeaderDragEnd.emit()
-  }
-
-  blurPathInput(el: HTMLInputElement | undefined): void {
-    if (el && document.activeElement === el) el.blur()
-    this.pathFocused = false
-  }
+  trackByCol = (_: number, col: string): string => col
 
   colHeaderLabel(col: string): string { return this.colHeaderLabelFn(col) }
   colValue(col: string, e: any): string { return this.colValueFn(col, e) }

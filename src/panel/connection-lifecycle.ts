@@ -8,13 +8,15 @@ import { NotificationsService } from 'tabby-core'
 import { SftpConnectionService, SFTPSessionLike, SSHSessionLike } from '../sftp.service'
 import { SftpI18nService } from '../sftp-i18n.service'
 
+export type PathFollowMode = 'off' | 'remember' | 'sync'
+
 export interface ConnectionLifecycleCtx {
   sshSession: SSHSessionLike | null
   sftpSession: SFTPSessionLike | null
   connected: boolean
   connecting: boolean
   reconnecting: boolean
-  rememberPath: boolean
+  pathMode: PathFollowMode
   remotePath: string
   remotePathInput: string
   terminalRef: any
@@ -26,6 +28,7 @@ export interface ConnectionLifecycleCtx {
   getDefaultRemotePath(): string
   refreshRemote(): Promise<boolean>
   restoreSavedRemotePath(): void
+  tryGetTerminalCwd(): Promise<string | null>
   pushRemoteNav(path: string): void
   clearNavHistory(): void
   clearRemoteListing(): void
@@ -80,14 +83,10 @@ export class PanelConnectionLifecycle {
       c.sftpSession = await c.sftpService.openFromSSHSession(c.sshSession)
       c.connected = true
       this.startHeartbeat()
-      c.remotePath = c.getDefaultRemotePath()
-      c.remotePathInput = c.remotePath
-      if (c.rememberPath) {
-        c.restoreSavedRemotePath()
-      }
+      await this.applyInitialRemotePath()
       const ok = await c.refreshRemote()
       if (!ok && c.remotePath !== '/') {
-        console.warn('[SFTP+] Saved remote path invalid, falling back to /')
+        console.warn('[SFTP+] Initial remote path invalid, falling back to /')
         c.remotePath = '/'
         c.remotePathInput = '/'
         await c.refreshRemote()
@@ -261,14 +260,10 @@ export class PanelConnectionLifecycle {
       this.releaseSftp()
       c.sftpSession = await c.sftpService.openFromSSHSession(c.sshSession)
       c.connected = true
-      c.remotePath = c.getDefaultRemotePath()
-      c.remotePathInput = c.remotePath
-      if (c.rememberPath) {
-        c.restoreSavedRemotePath()
-      }
+      await this.applyInitialRemotePath()
       const ok = await c.refreshRemote()
       if (!ok && c.remotePath !== '/') {
-        console.warn('[SFTP+] Reconnect: saved remote path invalid, falling back to /')
+        console.warn('[SFTP+] Reconnect: initial remote path invalid, falling back to /')
         c.remotePath = '/'
         c.remotePathInput = '/'
         await c.refreshRemote()
@@ -285,6 +280,30 @@ export class PanelConnectionLifecycle {
       c.reconnecting = false
       c.setRemoteLoading(false)
       c.cdr.detectChanges()
+    }
+  }
+
+  /**
+   * 远程初始路径：终端同步 > 路径记忆 > 默认
+   * （方案 A：三选一互斥）
+   */
+  private async applyInitialRemotePath(): Promise<void> {
+    const c = this.ctx
+    c.remotePath = c.getDefaultRemotePath()
+    c.remotePathInput = c.remotePath
+
+    if (c.pathMode === 'sync') {
+      const cwd = await c.tryGetTerminalCwd()
+      if (cwd) {
+        c.remotePath = cwd
+        c.remotePathInput = cwd
+        return
+      }
+      return
+    }
+
+    if (c.pathMode === 'remember') {
+      c.restoreSavedRemotePath()
     }
   }
 }

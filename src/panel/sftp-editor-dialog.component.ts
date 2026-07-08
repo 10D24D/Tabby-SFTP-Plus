@@ -1,7 +1,7 @@
 /**
  * SFTP+ 文本文件编辑对话框（本地 / 远程）
  */
-import { Component, EventEmitter, Input, Output } from '@angular/core'
+import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core'
 
 import { SftpI18nService } from '../sftp-i18n.service'
 import { FILE_DIALOG_SHARED_STYLES } from './file-dialog-shared-styles'
@@ -11,17 +11,36 @@ import { onFileDialogOverlayWheel, onFileDialogScrollableWheel } from './file-di
   selector: 'sftp-editor-dialog',
   template: `
     <div class="overlay" *ngIf="visible" (wheel)="onOverlayWheel($event)">
-      <div class="dialog file-dialog-shell">
+      <div class="dialog file-dialog-shell" [class.is-maximized]="maximized">
         <div class="dialog-title">
           <div class="file-dialog-title-wrap">
             <span class="file-dialog-title">{{ i18n.t('file.edit') }} — {{ fileName }}</span>
             <span class="editor-dirty" *ngIf="dirty">*</span>
           </div>
-          <button type="button" class="file-dialog-close" (click)="onCloseClick()"
-            [disabled]="saving" [title]="i18n.t('app.close')">×</button>
+          <div class="file-dialog-window-btns">
+            <button type="button" class="file-dialog-win-btn"
+              (click)="toggleMaximize()"
+              [disabled]="saving"
+              [title]="maximized ? i18n.t('app.restore') : i18n.t('app.maximize')">
+              <svg *ngIf="!maximized" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4">
+                <rect x="1.5" y="1.5" width="9" height="9" rx="0.5"/>
+              </svg>
+              <svg *ngIf="maximized" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4">
+                <rect x="3.5" y="1.5" width="7" height="7" rx="0.5"/>
+                <path d="M1.5 3.5h6.5v6.5H1.5z"/>
+              </svg>
+            </button>
+            <button type="button" class="file-dialog-win-btn"
+              (click)="onCloseClick()"
+              [disabled]="saving" [title]="i18n.t('app.close')">
+              <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round">
+                <path d="M2.5 2.5l7 7M9.5 2.5l-7 7"/>
+              </svg>
+            </button>
+          </div>
         </div>
         <div class="file-dialog-path" *ngIf="displayPath">{{ displayPath }}</div>
-        <div class="file-dialog-body" (wheel)="onScrollableWheel($event)">
+        <div class="file-dialog-body editor-body">
           <div class="file-dialog-status" *ngIf="loading">{{ i18n.t('viewer.loading') }}</div>
           <div class="file-dialog-status file-dialog-error" *ngIf="!loading && error">{{ error }}</div>
           <textarea class="file-dialog-textarea"
@@ -48,7 +67,9 @@ import { onFileDialogOverlayWheel, onFileDialogScrollableWheel } from './file-di
   `,
   styles: [FILE_DIALOG_SHARED_STYLES],
 })
-export class SftpEditorDialogComponent {
+export class SftpEditorDialogComponent implements OnChanges {
+  private static readonly MAXIMIZED_KEY = 'sftp-plus-editor-maximized'
+
   @Input() visible = false
   @Input() loading = false
   @Input() saving = false
@@ -66,14 +87,42 @@ export class SftpEditorDialogComponent {
 
   @Input() i18n!: SftpI18nService
 
+  maximized = SftpEditorDialogComponent.loadMaximized()
+
   onOverlayWheel = onFileDialogOverlayWheel
   onScrollableWheel = onFileDialogScrollableWheel
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['visible']?.currentValue === true) {
+      this.maximized = SftpEditorDialogComponent.loadMaximized()
+    }
+  }
 
   onContentChange(value: string): void {
     this.contentChange.emit(value)
   }
 
+  toggleMaximize(): void {
+    if (this.saving) return
+    this.maximized = !this.maximized
+    SftpEditorDialogComponent.saveMaximized(this.maximized)
+  }
+
   onCloseClick(): void {
     if (!this.saving) this.cancel.emit()
+  }
+
+  private static loadMaximized(): boolean {
+    try {
+      return localStorage.getItem(SftpEditorDialogComponent.MAXIMIZED_KEY) === 'true'
+    } catch {
+      return false
+    }
+  }
+
+  private static saveMaximized(value: boolean): void {
+    try {
+      localStorage.setItem(SftpEditorDialogComponent.MAXIMIZED_KEY, value ? 'true' : 'false')
+    } catch { /* ignore */ }
   }
 }

@@ -16,30 +16,30 @@ import type { BookmarkScope } from './panel-types'
       (mousedown)="$event.stopPropagation()"
       (wheel)="$event.stopPropagation()">
       <div class="popup-arrow" [style.left.px]="arrowLeft"></div>
-      <div class="popup-title">{{ paneLabel }} {{ i18n.t('bookmark.title') }}</div>
-      <div class="bookmark-add-btns">
-        <ng-container *ngIf="pane === 'remote' || pane === 'local'; else localAddBtn">
-          <button class="add-btn" (click)="addScopeClick.emit('connection')" [class.active]="addScope === 'connection'">
-            <span class="add-icon">+</span> {{ i18n.t('bookmark.addLocal') }}
-          </button>
-          <button class="add-btn" (click)="addScopeClick.emit('global')" [class.active]="addScope === 'global'">
-            <span class="add-icon">+</span> {{ i18n.t('bookmark.addGlobal') }}
-          </button>
-        </ng-container>
-        <ng-template #localAddBtn>
-          <button class="add-btn" (click)="addScopeClick.emit('connection')" [class.active]="addScope === 'connection'">
-            <span class="add-icon">+</span> {{ i18n.t('bookmark.addLocal') }}
-          </button>
-        </ng-template>
+      <div class="popup-header">
+        <div class="popup-title">{{ paneLabel }} {{ i18n.t('bookmark.title') }}</div>
+        <div class="bookmark-header-actions">
+          <button class="header-action-btn"
+                  (click)="addScopeClick.emit('connection')"
+                  [class.active]="addScope === 'connection'"
+                  [title]="i18n.t('bookmark.addLocal')">{{ i18n.t('bookmark.addCurrentShort') }}</button>
+          <button class="header-action-btn"
+                  (click)="addScopeClick.emit('global')"
+                  [class.active]="addScope === 'global'"
+                  [title]="i18n.t('bookmark.addGlobal')">{{ i18n.t('bookmark.addGlobalShort') }}</button>
+        </div>
       </div>
       <div class="bookmark-add-form" *ngIf="addScope">
         <input [ngModel]="newName" (ngModelChange)="newNameChange.emit($event)"
           placeholder="{{ i18n.t('bookmark.name') }} ({{ i18n.t('app.optional') }})" />
         <input [ngModel]="newPath" (ngModelChange)="newPathChange.emit($event)"
           placeholder="{{ i18n.t('bookmark.path') }}" />
-        <button class="btn-confirm" (click)="addBookmark.emit()" [disabled]="!newPath.trim()">
-          {{ editingId ? (i18n.t('bookmark.save') || '保存书签') : i18n.t('bookmark.add') }}
-        </button>
+        <div class="bookmark-form-actions">
+          <button class="btn-cancel" (click)="cancelEdit.emit()">{{ i18n.t('app.cancel') || '取消' }}</button>
+          <button class="btn-confirm" (click)="addBookmark.emit()" [disabled]="!newPath.trim()">
+            {{ editingId ? (i18n.t('bookmark.save') || '保存书签') : i18n.t('bookmark.add') }}
+          </button>
+        </div>
       </div>
       <div class="bookmark-list">
         <div class="bookmark-scope-label" *ngIf="connectionBookmarks.length">
@@ -119,9 +119,43 @@ import type { BookmarkScope } from './panel-types'
       z-index: 1;
       pointer-events: none;
     }
+    .popup-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 10px 4px 10px;
+    }
     .popup-title {
-      padding: 10px 14px 6px;
       font-weight: 700; color: var(--_primary); font-size: 13px;
+      padding: 2px 2px;
+    }
+    .bookmark-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .header-action-btn {
+      width: auto;
+      min-width: 46px;
+      height: 22px;
+      border-radius: 5px;
+      border: 1px solid var(--_border);
+      background: transparent;
+      color: var(--_text);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      line-height: 1;
+      padding: 0 6px;
+      white-space: nowrap;
+    }
+    .header-action-btn:hover { background: var(--_hover); }
+    .header-action-btn.active {
+      border-color: var(--_primary);
+      background: var(--_hover);
+      color: var(--_primary);
     }
     .popup-footer {
       display: flex; justify-content: flex-end;
@@ -134,17 +168,6 @@ import type { BookmarkScope } from './panel-types'
       color: var(--_text); cursor: pointer;
     }
     .popup-footer button:hover { background: var(--_hover); }
-    .bookmark-add-btns { display: flex; gap: 6px; padding: 0 14px 10px; }
-    .add-btn {
-      display: flex; align-items: center; gap: 4px;
-      padding: 4px 10px; border-radius: 6px; font-size: 12px;
-      border: 1px solid var(--_border);
-      background: var(--_content);
-      color: var(--_text); cursor: pointer;
-    }
-    .add-btn:hover { background: var(--_hover); }
-    .add-btn.active { border-color: var(--_primary); background: rgba(59,130,246,0.08); }
-    .add-icon { font-weight: 700; font-size: 14px; color: var(--_primary); }
     .bookmark-add-form {
       display: flex; flex-direction: column; gap: 6px;
       padding: 0 10px 10px;
@@ -161,6 +184,14 @@ import type { BookmarkScope } from './panel-types'
       -webkit-user-select: text !important;
       box-sizing: border-box; outline: none;
     }
+    .bookmark-add-form input::placeholder {
+      color: var(--_text);
+      opacity: 0.45;
+    }
+    .bookmark-add-form input::-webkit-input-placeholder {
+      color: var(--_text);
+      opacity: 0.45;
+    }
     .bookmark-add-form input:focus,
     .bookmark-add-form input:focus-visible {
       border-color: var(--_primary) !important;
@@ -168,13 +199,32 @@ import type { BookmarkScope } from './panel-types'
       outline: none !important;
     }
     .bookmark-add-form .btn-confirm {
-      align-self: flex-end;
-      padding: 6px 16px; border-radius: 4px;
+      padding: 4px 10px;
+      border-radius: 6px;
       border: 1px solid var(--_primary);
       background: var(--_primary);
-      color: #fff; cursor: pointer; font-size: 12px; white-space: nowrap;
+      color: #fff;
+      cursor: pointer;
+      font-size: 11px;
+      white-space: nowrap;
     }
-    .bookmark-add-form .btn-confirm:disabled { opacity: 0.4; }
+    .bookmark-add-form .btn-confirm:disabled { opacity: 0.4; cursor: default; }
+    .bookmark-form-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 6px;
+    }
+    .bookmark-add-form .btn-cancel {
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      border: 1px solid var(--_border);
+      background: var(--_content);
+      color: var(--_text);
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .bookmark-add-form .btn-cancel:hover { background: var(--_hover); }
     .bookmark-scope-label {
       padding: 4px 10px 2px; font-size: 10px; font-weight: 600;
       color: var(--_primary); opacity: 0.6; text-transform: uppercase;
@@ -250,6 +300,7 @@ export class SftpBookmarkPopupComponent {
   @Output() newNameChange = new EventEmitter<string>()
   @Output() newPathChange = new EventEmitter<string>()
   @Output() addBookmark = new EventEmitter<void>()
+  @Output() cancelEdit = new EventEmitter<void>()
   @Output() gotoBookmark = new EventEmitter<Bookmark>()
   @Output() removeBookmark = new EventEmitter<string>()
   @Output() contextMenu = new EventEmitter<{ bookmark: Bookmark; event: MouseEvent }>()

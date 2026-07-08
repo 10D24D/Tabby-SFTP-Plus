@@ -18,11 +18,43 @@ export const FILE_DIALOG_SHARED_STYLES = `
     width: min(900px, 92vw);
     height: min(80vh, 720px);
     max-height: min(80vh, 720px);
+    transition: width 0.15s ease, height 0.15s ease, max-height 0.15s ease, border-radius 0.15s ease;
+  }
+  .file-dialog-shell.is-maximized {
+    width: 100%;
+    height: 100%;
+    max-height: 100%;
+    border-radius: 0;
   }
   .dialog-title {
     display: flex; align-items: center; justify-content: space-between;
     font-weight: 700; margin-bottom: 6px; color: var(--_primary);
     gap: 12px; flex-shrink: 0;
+  }
+  .file-dialog-window-btns {
+    display: flex; align-items: center; gap: 2px; flex-shrink: 0;
+  }
+  .file-dialog-win-btn {
+    box-sizing: border-box;
+    flex: 0 0 28px;
+    width: 28px; height: 28px;
+    min-width: 28px; min-height: 28px;
+    max-width: 28px; max-height: 28px;
+    margin: 0; padding: 0;
+    border: none; border-radius: 6px;
+    background: transparent; color: var(--_text);
+    display: inline-flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    line-height: 0;
+    font-size: 0;
+  }
+  .file-dialog-win-btn:hover { background: var(--_hover); }
+  .file-dialog-win-btn:disabled { opacity: 0.45; cursor: default; }
+  .file-dialog-win-btn:disabled:hover { background: transparent; }
+  .file-dialog-win-btn svg {
+    width: 12px; height: 12px;
+    display: block;
+    flex-shrink: 0;
   }
   .file-dialog-title {
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -43,6 +75,43 @@ export const FILE_DIALOG_SHARED_STYLES = `
     background: var(--_content);
     display: flex;
     flex-direction: column;
+    scrollbar-width: thin;
+    scrollbar-color: var(--_scroll-thumb, rgba(128,128,128,0.4)) var(--_scroll-track, rgba(128,128,128,0.08));
+  }
+  .file-dialog-body::-webkit-scrollbar,
+  .file-dialog-textarea::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  .file-dialog-body::-webkit-scrollbar-track,
+  .file-dialog-textarea::-webkit-scrollbar-track {
+    background: var(--_scroll-track, rgba(128,128,128,0.08));
+    border-radius: 4px;
+    margin: 2px;
+  }
+  .file-dialog-body::-webkit-scrollbar-thumb,
+  .file-dialog-textarea::-webkit-scrollbar-thumb {
+    background: var(--_scroll-thumb, rgba(128,128,128,0.38));
+    border-radius: 4px;
+    min-height: 28px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  .file-dialog-body::-webkit-scrollbar-thumb:hover,
+  .file-dialog-textarea::-webkit-scrollbar-thumb:hover {
+    background: var(--_scroll-thumb-hover, rgba(128,128,128,0.55));
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  .file-dialog-body::-webkit-scrollbar-thumb:active,
+  .file-dialog-textarea::-webkit-scrollbar-thumb:active {
+    background: var(--_primary, #4dabff);
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  .file-dialog-body::-webkit-scrollbar-corner,
+  .file-dialog-textarea::-webkit-scrollbar-corner {
+    background: transparent;
   }
   .file-dialog-status {
     padding: 24px; text-align: center; font-size: 13px;
@@ -55,6 +124,7 @@ export const FILE_DIALOG_SHARED_STYLES = `
     white-space: pre-wrap; word-break: break-word;
     color: var(--_text);
     user-select: text;
+    flex: 0 0 auto;
   }
   .file-dialog-textarea {
     flex: 1 1 auto;
@@ -75,6 +145,8 @@ export const FILE_DIALOG_SHARED_STYLES = `
     user-select: text !important;
     overflow: auto;
     overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: var(--_scroll-thumb, rgba(128,128,128,0.4)) var(--_scroll-track, rgba(128,128,128,0.08));
   }
   .file-dialog-textarea:focus {
     box-shadow: inset 0 0 0 1px var(--_primary);
@@ -117,13 +189,9 @@ export const FILE_DIALOG_SHARED_STYLES = `
     display: flex; align-items: center; gap: 4px;
     flex: 1; min-width: 0;
   }
-  .file-dialog-close {
-    flex-shrink: 0;
-    width: 28px; height: 28px; padding: 0;
-    border: none; border-radius: 6px;
-    background: transparent; color: var(--_text);
-    font-size: 20px; line-height: 1; cursor: pointer;
-  }
-  .file-dialog-close:hover { background: var(--_hover); }
   .editor-dirty { color: #f59e0b; font-size: 16px; flex-shrink: 0; }
+  /* 编辑器：由 textarea 自行滚动，外层 body 不截断滚轮 */
+  .editor-body {
+    overflow: hidden;
+  }
 `

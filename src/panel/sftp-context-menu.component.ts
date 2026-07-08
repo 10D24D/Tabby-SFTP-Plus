@@ -7,7 +7,7 @@ import { SftpI18nService } from '../sftp-i18n.service'
 
 export type ContextMenuAction =
   | 'newFolder' | 'newFile' | 'rename' | 'delete'
-  | 'viewFile' | 'editFile' | 'upload' | 'download'
+  | 'openLocal' | 'viewFile' | 'editFile' | 'upload' | 'download'
   | 'revealInExplorer' | 'chmod' | 'details'
   | 'copy' | 'cut' | 'paste' | 'refresh' | 'selectAll' | 'selectInvert' | 'copyPath'
 
@@ -41,7 +41,8 @@ export type ColVisibilityState = {
       <div class="ctx-item" (click)="menuAction.emit('download')" *ngIf="hasDownload">{{ i18n.t('app.download') }}</div>
       <div class="ctx-sep" *ngIf="sepBeforeOpen"></div>
 
-      <!-- 2. 查看 / 编辑 / 在资源管理器中显示 -->
+      <!-- 2. 打开 / 查看 / 编辑 / 在资源管理器中显示 -->
+      <div class="ctx-item" (click)="menuAction.emit('openLocal')" *ngIf="hasLocalOpen">{{ i18n.t('file.open') }}</div>
       <div class="ctx-item" (click)="menuAction.emit('viewFile')" *ngIf="hasView">{{ i18n.t('file.view') }}</div>
       <div class="ctx-item" (click)="menuAction.emit('editFile')" *ngIf="hasEdit">{{ i18n.t('file.edit') }}</div>
       <div class="ctx-item" (click)="menuAction.emit('revealInExplorer')" *ngIf="hasLocalReveal">{{ i18n.t('file.showInFolder') }}</div>
@@ -164,6 +165,10 @@ export class SftpContextMenuComponent {
   /** @deprecated 仅保留兼容，菜单分组改由组件内 getter 计算 */
   @Input() hasFileActions = false
 
+  get hasLocalOpen(): boolean {
+    return this.pane === 'local' && this.singleSelected && !!this.entry
+  }
+
   get hasView(): boolean {
     return this.singleSelected && !!this.entry && !this.entry.isDirectory && this.canView
   }
@@ -185,7 +190,7 @@ export class SftpContextMenuComponent {
   }
 
   get hasOpenActions(): boolean {
-    return this.hasView || this.hasEdit || this.hasLocalReveal
+    return this.hasLocalOpen || this.hasView || this.hasEdit || this.hasLocalReveal
   }
 
   get hasTransferActions(): boolean {

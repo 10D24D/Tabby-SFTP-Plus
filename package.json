@@ -13,6 +13,7 @@
   "scripts": {
     "build": "webpack --progress --color",
     "watch": "webpack --progress --color --watch",
+    "use-in-tabby": "powershell -NoProfile -ExecutionPolicy Bypass -File ./use-in-tabby.ps1",
     "prepublishOnly": "npm run build"
   },
   "files": [

@@ -22,8 +22,11 @@ import { SftpI18nService } from './sftp-i18n.service'
 import { SftpBookmarksService, Bookmark } from './sftp-bookmarks.service'
 import { SftpTransferLogService, TransferLogEntry } from './sftp-transfer-log.service'
 import { openSftpPlusSettings } from './sftp-open-settings'
-import { PanelConnectionLifecycle } from './panel/connection-lifecycle'
+import { PanelConnectionLifecycle, PathFollowMode } from './panel/connection-lifecycle'
 import { PanelRubberBand } from './panel/panel-rubber-band'
+import { PanelHeaderReorder } from './panel/panel-header-reorder'
+import { PanelFileDnd } from './panel/panel-file-dnd'
+import { PanelFileDropRuntime } from './panel/panel-file-drop-runtime'
 import { PanelConflictResolver } from './panel/panel-conflict-resolver'
 import { PanelTransferRuntime } from './panel/panel-transfer-runtime'
 import { PaneNavHistory } from './panel/panel-nav-history'
@@ -54,12 +57,18 @@ import {
   formatFailReason as formatFailReasonFn,
 } from './panel/panel-format'
 import { SFTP_PANEL_STYLES } from './panel/panel-main-styles'
-import { IdNameResolver } from './panel/panel-id-resolver'
+import { IdNameResolver, execSshCommand } from './panel/panel-id-resolver'
 import type { PaneNavAction, PaneSortAction } from './panel/sftp-file-pane.component'
 import type { ContextMenuAction, HeaderMenuAction } from './panel/sftp-context-menu.component'
 import type { PermField } from './panel/sftp-perm-dialog.component'
 import type { DetailsDisplay } from './panel/sftp-details-dialog.component'
 import type { ViewerMode } from './panel/sftp-viewer-dialog.component'
+import type { CwdSetupChoice } from './panel/sftp-cwd-setup-dialog.component'
+import {
+  CWD_SESSION_CMD,
+  CWD_BASH_SNIPPET,
+  CWD_ZSH_SNIPPET,
+} from './panel/sftp-cwd-setup-dialog.component'
 import {
   isViewableRemoteFileType,
   isEditableRemoteFileType,
@@ -89,8 +98,11 @@ import {
     <div class="sftp-root" tabindex="0"
       [class.has-zebra]="showZebra"
       [class.has-col-borders]="showColBorders"
+      [class.col-header-reordering]="_headerReorder?.active && _headerReorder?.moved"
       [class.workspace-mode]="displayMode === 'workspace'">
-      <div class="sftp-toast" *ngIf="toastMessage">{{ toastMessage }}</div>
+      <div class="sftp-toast" *ngIf="toastMessage"
+        (mouseenter)="onToastMouseEnter()"
+        (mouseleave)="onToastMouseLeave()">{{ toastMessage }}</div>
       <div class="sftp-main">
       <!-- 顶部标题栏 -->
       <div class="top-bar">
@@ -107,13 +119,20 @@ import {
           </button>
         </span>
         <div class="top-actions">
-          <!-- 记住路径开关 -->
-          <button class="btn-link btn-icon btn-remember-path" (click)="toggleRememberPath()"
-                  [class.active]="rememberPath"
-                  title="{{ rememberPath ? (effectiveLang==='zh-CN'?'路径记忆：已开启':'Path Memory: ON') : (effectiveLang==='zh-CN'?'路径记忆：已关闭':'Path Memory: OFF') }}">
-            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linejoin="round">
+          <!-- 路径模式：关闭 → 路径记忆 → 终端同步 -->
+          <button class="btn-link btn-icon btn-path-mode" (click)="cyclePathMode()"
+                  [class.active]="pathMode !== 'off'"
+                  [title]="pathModeTitle()">
+            <!-- 关闭/路径记忆：共用定位销图标（通过 active 亮度区分） -->
+            <svg *ngIf="pathMode !== 'sync'" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linejoin="round">
               <path d="M8 2.4C6.05 2.4 4.5 3.95 4.5 5.9c0 2.55 3.5 6.35 3.5 6.35s3.5-3.8 3.5-6.35C11.5 3.95 9.95 2.4 8 2.4z"/>
               <circle cx="8" cy="5.9" r="1.25"/>
+            </svg>
+            <!-- 终端同步：链接图标 -->
+            <svg *ngIf="pathMode === 'sync'" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round">
+              <path d="M6.2 9.8l3.6-3.6"/>
+              <path d="M7.1 4.4l1.1-1.1a2.4 2.4 0 013.4 3.4L10.5 7.8"/>
+              <path d="M8.9 11.6l-1.1 1.1a2.4 2.4 0 01-3.4-3.4L5.5 8.2"/>
             </svg>
           </button>
           <!-- 布局模式切换 -->
@@ -200,7 +219,9 @@ import {
           [showEmpty]="getFilteredLocalEntries().length === 0 && !_localLoading"
           [entries]="getFilteredLocalEntries()"
           [visibleCols]="localVisibleCols"
+          [headerCols]="localHeaderPreviewCols"
           [colWidths]="getLocalColWidths()"
+          [headerColWidths]="localHeaderPreviewWidths"
           [sortBy]="localSortBy"
           [sortAsc]="localSortAsc"
           [selectionInfo]="getLocalSelectionInfo()"
@@ -210,6 +231,10 @@ import {
           [isSelectedFn]="isLocalSelectedFn"
           [sortArrowFn]="localSortArrowFn"
           [trackByFn]="trackLocalEntryBy"
+          [resizingCol]="localResizingCol"
+          [draggingCol]="localDraggingCol"
+          [dropIndicatorCol]="localDropIndicatorCol"
+          [dropIndicatorAfter]="localDropIndicatorAfter"
           (nav)="onLocalPaneNav($event)"
           (applyFilter)="applyLocalFilter()"
           (clearFilter)="clearLocalFilter()"
@@ -226,12 +251,9 @@ import {
           (sort)="onLocalSort($event)"
           (colResizeStart)="onColResizeStart($event.col, $event.event, 'local')"
           (colResizeAutoFit)="onColResizeAutoFit($event.col, 'local')"
-          (colHeaderDragStart)="onColHeaderDragStart($event.event, $event.col)"
-          (colHeaderDragOver)="onColHeaderDragOver($event)"
-          (colHeaderDrop)="onColHeaderDrop($event.event, $event.col, 'local')"
-          (colHeaderDragEnd)="onColHeaderDragEnd()"
+          (colHeaderReorderStart)="onColHeaderReorderStart($event.col, $event.event, 'local')"
           (entryClick)="onLocalClick($event.entry, $event.event, $event.index)"
-          (entryDblClick)="openLocal($event.entry, $event.event)"
+          (entryDblClick)="onLocalEntryDblClick($event.entry, $event.event)"
           (entryContextMenu)="onLocalContextMenu($event.entry, $event.event)"
           (entryDragStart)="onDragStartLocal($event.event, $event.entry)"
           (entryDragEnd)="onEntryDragEnd()"
@@ -276,7 +298,9 @@ import {
           [showEmpty]="connected && getFilteredRemoteEntries().length === 0 && !_remoteLoading"
           [entries]="getFilteredRemoteEntries()"
           [visibleCols]="remoteVisibleCols"
+          [headerCols]="remoteHeaderPreviewCols"
           [colWidths]="getRemoteColWidths()"
+          [headerColWidths]="remoteHeaderPreviewWidths"
           [sortBy]="remoteSortBy"
           [sortAsc]="remoteSortAsc"
           [draggable]="connected"
@@ -287,6 +311,10 @@ import {
           [isSelectedFn]="isRemoteSelectedFn"
           [sortArrowFn]="remoteSortArrowFn"
           [trackByFn]="trackRemoteEntryBy"
+          [resizingCol]="remoteResizingCol"
+          [draggingCol]="remoteDraggingCol"
+          [dropIndicatorCol]="remoteDropIndicatorCol"
+          [dropIndicatorAfter]="remoteDropIndicatorAfter"
           (nav)="onRemotePaneNav($event)"
           (applyFilter)="applyRemoteFilter()"
           (clearFilter)="clearRemoteFilter()"
@@ -303,12 +331,9 @@ import {
           (sort)="onRemoteSort($event)"
           (colResizeStart)="onColResizeStart($event.col, $event.event, 'remote')"
           (colResizeAutoFit)="onColResizeAutoFit($event.col, 'remote')"
-          (colHeaderDragStart)="onColHeaderDragStart($event.event, $event.col)"
-          (colHeaderDragOver)="onColHeaderDragOver($event)"
-          (colHeaderDrop)="onColHeaderDrop($event.event, $event.col, 'remote')"
-          (colHeaderDragEnd)="onColHeaderDragEnd()"
+          (colHeaderReorderStart)="onColHeaderReorderStart($event.col, $event.event, 'remote')"
           (entryClick)="onRemoteClick($event.entry, $event.event, $event.index)"
-          (entryDblClick)="openRemote($event.entry, $event.event)"
+          (entryDblClick)="onRemoteEntryDblClick($event.entry, $event.event)"
           (entryContextMenu)="onRemoteContextMenu($event.entry, $event.event)"
           (entryDragStart)="onDragStartRemote($event.event, $event.entry)"
           (entryDragEnd)="onEntryDragEnd()"
@@ -359,6 +384,12 @@ import {
         (cancel)="cancelInputDialog()">
       </sftp-input-dialog>
 
+      <sftp-cwd-setup-dialog
+        [i18n]="i18n"
+        [visible]="cwdSetupVisible"
+        (choose)="onCwdSetupChoice($event)">
+      </sftp-cwd-setup-dialog>
+
       <sftp-bookmark-popup *ngIf="showBookmarks"
         [i18n]="i18n"
         [top]="bookmarkPopupY"
@@ -382,6 +413,7 @@ import {
         (close)="closeBookmarks()"
         (addScopeClick)="openBookmarkAddForm($event)"
         (addBookmark)="addBookmark()"
+        (cancelEdit)="cancelBookmarkEdit()"
         (gotoBookmark)="gotoBookmark($event)"
         (removeBookmark)="removeBookmark($event)"
         (contextMenu)="onBookmarkContextMenu($event.bookmark, $event.event)"
@@ -586,10 +618,7 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
   /** 本地面板刷新闪烁 */
   _localFlash = false
   /** 本地面板拖拽悬停（桌面文件拖入时高亮） */
-  _localDragOver = false
-  /** 内部拖拽：源面板与同目录无操作标记 */
-  private _dragSourcePane: 'local' | 'remote' | null = null
-  private _dragSameDirNoop = false
+  get _localDragOver(): boolean { return this._fileDnd?.localDragOver ?? false }
   /** 本地面板访问错误（权限不足、路径不存在等） */
   _localError = false
 
@@ -624,11 +653,14 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
   /** 远程面板刷新闪烁 */
   _remoteFlash = false
   /** 远程面板拖拽悬停（桌面文件拖入时高亮） */
-  _remoteDragOver = false
+  get _remoteDragOver(): boolean { return this._fileDnd?.remoteDragOver ?? false }
   /** 远程面板访问错误（权限不足、路径不存在等） */
   _remoteError = false
 
   private _rubberBand!: PanelRubberBand
+  private _headerReorder!: PanelHeaderReorder
+  private _fileDnd!: PanelFileDnd
+  private _fileDropRuntime!: PanelFileDropRuntime
   private readonly localIdResolver = new IdNameResolver()
   private readonly remoteIdResolver = new IdNameResolver()
   private _conflictResolver!: PanelConflictResolver
@@ -876,12 +908,58 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
   private resizePane: 'local' | 'remote' = 'local'
   private resizeStartX = 0
   private resizeStartWidth = 0
-  /** 防止 resize 后立即触发 sort click */
+  /** 防止 resize / 表头拖拽后立即触发 sort click */
   private _colJustResized = false
 
-  // ========== 列排序拖拽 ==========
-  private _colDragCol: string | null = null
-  private _colHeaderDragging = false
+  get localResizingCol(): string | null {
+    return this.resizing && this.resizePane === 'local' ? this.resizeCol : null
+  }
+
+  get remoteResizingCol(): string | null {
+    return this.resizing && this.resizePane === 'remote' ? this.resizeCol : null
+  }
+
+  get localDraggingCol(): string | null {
+    return this._headerReorder?.draggingColFor('local') ?? null
+  }
+
+  get remoteDraggingCol(): string | null {
+    return this._headerReorder?.draggingColFor('remote') ?? null
+  }
+
+  get localHeaderPreviewCols(): string[] | null {
+    return this._headerReorder?.previewColsFor('local') ?? null
+  }
+
+  get remoteHeaderPreviewCols(): string[] | null {
+    return this._headerReorder?.previewColsFor('remote') ?? null
+  }
+
+  get localHeaderPreviewWidths(): string {
+    const preview = this.localHeaderPreviewCols
+    return preview ? this._buildColWidths('local', preview) : ''
+  }
+
+  get remoteHeaderPreviewWidths(): string {
+    const preview = this.remoteHeaderPreviewCols
+    return preview ? this._buildColWidths('remote', preview) : ''
+  }
+
+  get localDropIndicatorCol(): string | null {
+    return this._headerReorder?.dropIndicatorColFor('local') ?? null
+  }
+
+  get localDropIndicatorAfter(): boolean {
+    return this._headerReorder?.dropIndicatorAfterFor('local') ?? false
+  }
+
+  get remoteDropIndicatorCol(): string | null {
+    return this._headerReorder?.dropIndicatorColFor('remote') ?? null
+  }
+
+  get remoteDropIndicatorAfter(): boolean {
+    return this._headerReorder?.dropIndicatorAfterFor('remote') ?? false
+  }
 
   colHeaderLabel(col: string): string {
     const map: Record<string, string> = {
@@ -896,7 +974,6 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
   sortArrow(col: string, pane: 'local' | 'remote'): string {
     const sortBy = pane === 'local' ? this.localSortBy : this.remoteSortBy
     const sortAsc = pane === 'local' ? this.localSortAsc : this.remoteSortAsc
-    // date 列在内部用 modified 排序，映射匹配
     const mapped = col === 'date' ? 'modified' : col === 'created' ? 'birthtime' : col
     if (sortBy === mapped) return sortAsc ? '▲' : '▼'
     return ''
@@ -917,67 +994,38 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     return ''
   }
 
-  onColHeaderDragStart(event: DragEvent, col: string): void {
-    if (col === 'name') return // 名称列不允许移动
-    this._colHeaderDragging = true
-    this._colDragCol = col
-    event.dataTransfer?.setData('text/plain', col)
-    if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move'
-  }
-
-  onColHeaderDragOver(event: DragEvent): void {
-    event.preventDefault()
-    if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'
-  }
-
-  onColHeaderDragEnd(): void {
-    this._colHeaderDragging = false
-    this._colDragCol = null
-    this._localDragOver = false
-    this._remoteDragOver = false
-    this.cdr.detectChanges()
-  }
-
-  onColHeaderDrop(event: DragEvent, targetCol: string, pane: 'local' | 'remote'): void {
-    event.preventDefault()
-    const dragCol = this._colDragCol || event.dataTransfer?.getData('text/plain')
-    if (!dragCol || dragCol === targetCol || dragCol === 'name' || targetCol === 'name') return
-    const order = pane === 'local' ? this.localColOrder : this.remoteColOrder
-    const fromIdx = order.indexOf(dragCol)
-    const toIdx = order.indexOf(targetCol)
-    if (fromIdx < 0 || toIdx < 0) return
-    this.moveColumn(pane, fromIdx, toIdx)
-    this._colHeaderDragging = false
-    this._colDragCol = null
-    this.cdr.detectChanges()
+  onColHeaderReorderStart(col: string, event: MouseEvent, pane: 'local' | 'remote'): void {
+    this._headerReorder.start(col, event, pane)
   }
 
   getLocalColWidths(): string {
-    const parts: string[] = [`${this.colIconWidth}px`]
-    parts.push(`${this.localColNameWidth}px`)
-    const widthMap: Record<string, number> = {
-      size: this.localColSizeWidth, date: this.localColDateWidth, created: this.localColCreatedWidth,
-      perms: this.localColPermsWidth,
-      mode: this.localColModeWidth, access: this.localColAccessWidth, owner: this.localColOwnerWidth,
-      group: this.localColGroupWidth, path: this.localColPathWidth, ext: this.localColExtWidth,
-    }
-    for (const col of this.localVisibleCols) {
-      parts.push(`${widthMap[col] || 80}px`)
-    }
-    return parts.join(' ')
+    return this._buildColWidths('local', this.localVisibleCols)
   }
 
   getRemoteColWidths(): string {
+    return this._buildColWidths('remote', this.remoteVisibleCols)
+  }
+
+  private _buildColWidths(pane: 'local' | 'remote', cols: string[]): string {
     const parts: string[] = [`${this.colIconWidth}px`]
-    parts.push(`${this.remoteColNameWidth}px`)
-    const widthMap: Record<string, number> = {
-      size: this.remoteColSizeWidth, date: this.remoteColDateWidth, created: this.remoteColCreatedWidth,
-      perms: this.remoteColPermsWidth,
-      mode: this.remoteColModeWidth, access: this.remoteColAccessWidth, owner: this.remoteColOwnerWidth,
-      group: this.remoteColGroupWidth, path: this.remoteColPathWidth, ext: this.remoteColExtWidth,
-    }
-    for (const col of this.remoteVisibleCols) {
-      parts.push(`${widthMap[col] || 80}px`)
+    if (pane === 'local') {
+      parts.push(`${this.localColNameWidth}px`)
+      const widthMap: Record<string, number> = {
+        size: this.localColSizeWidth, date: this.localColDateWidth, created: this.localColCreatedWidth,
+        perms: this.localColPermsWidth,
+        mode: this.localColModeWidth, access: this.localColAccessWidth, owner: this.localColOwnerWidth,
+        group: this.localColGroupWidth, path: this.localColPathWidth, ext: this.localColExtWidth,
+      }
+      for (const col of cols) parts.push(`${widthMap[col] || 80}px`)
+    } else {
+      parts.push(`${this.remoteColNameWidth}px`)
+      const widthMap: Record<string, number> = {
+        size: this.remoteColSizeWidth, date: this.remoteColDateWidth, created: this.remoteColCreatedWidth,
+        perms: this.remoteColPermsWidth,
+        mode: this.remoteColModeWidth, access: this.remoteColAccessWidth, owner: this.remoteColOwnerWidth,
+        group: this.remoteColGroupWidth, path: this.remoteColPathWidth, ext: this.remoteColExtWidth,
+      }
+      for (const col of cols) parts.push(`${widthMap[col] || 80}px`)
     }
     return parts.join(' ')
   }
@@ -1425,10 +1473,12 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
       setTimeout(() => { this._colJustResized = false }, 200)
       if (this.resizePane === 'local') this.saveLocalColWidths()
       else this.saveRemoteColWidths()
+      this.cdr.detectChanges()
     }
 
     document.addEventListener('mousemove', onMouseMove)
     document.addEventListener('mouseup', onMouseUp)
+    this.cdr.detectChanges()
   }
 
   private _getColDefaultWidth(col: string): number {
@@ -1515,12 +1565,20 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     } catch {}
   }
 
-  // ========== 路径记忆 ==========
-  /** 路径记忆开关 */
-  rememberPath = false
+  // ========== 路径模式（方案 A：三选一）==========
+  /** off=关闭 / remember=路径记忆 / sync=与终端同步 */
+  pathMode: PathFollowMode = 'off'
+  private static PATH_MODE_KEY = 'sftp-plus-path-mode'
   private static REMEMBER_PATH_KEY = 'sftp-plus-path-mem'
   private static SAVED_LOCAL_PATH_KEY = 'sftp-plus-saved-local-path'
   private static SAVED_REMOTE_PATH_KEY = 'sftp-plus-saved-remote-path'
+  private _cwdSyncTimer: ReturnType<typeof setInterval> | null = null
+  private _lastSyncedCwd = ''
+
+  /** 兼容旧逻辑的 getter（仅路径记忆模式为 true） */
+  get rememberPath(): boolean {
+    return this.pathMode === 'remember'
+  }
 
   /** 获取当前配置的唯一标识，用于 per-profile 独立路径记忆 */
   private get _hostKey(): string {
@@ -1533,35 +1591,61 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     return `${base}.${this._hostKey}`
   }
 
-  private loadRememberPath(): void {
+  private loadPathMode(): void {
     try {
-      const raw = this._paneGet(this._profileKey(SftpFloatingPanel.REMEMBER_PATH_KEY))
-      if (raw !== null) this.rememberPath = raw === 'true'
+      const raw = this._paneGet(this._profileKey(SftpFloatingPanel.PATH_MODE_KEY))
+      if (raw === 'off' || raw === 'remember' || raw === 'sync') {
+        this.pathMode = raw
+        return
+      }
+      // 兼容旧版 rememberPath 布尔开关
+      const legacy = this._paneGet(this._profileKey(SftpFloatingPanel.REMEMBER_PATH_KEY))
+      if (legacy === 'true') this.pathMode = 'remember'
     } catch { /* 使用默认值 */ }
   }
 
-  private saveRememberPath(): void {
+  private savePathMode(): void {
     try {
-      this._paneSet(this._profileKey(SftpFloatingPanel.REMEMBER_PATH_KEY), this.rememberPath ? 'true' : 'false')
+      this._paneSet(this._profileKey(SftpFloatingPanel.PATH_MODE_KEY), this.pathMode)
+      // 同步写旧键，便于旧逻辑/调试
+      this._paneSet(
+        this._profileKey(SftpFloatingPanel.REMEMBER_PATH_KEY),
+        this.pathMode === 'remember' ? 'true' : 'false',
+      )
     } catch { /* ignore */ }
   }
 
-  /** 保存当前路径到 localStorage */
+  /** 保存当前路径到存储（仅路径记忆模式） */
   private saveCurrentPath(): void {
-    if (!this.rememberPath) return
+    if (this.pathMode !== 'remember') return
     try {
       this._paneSet(this._profileKey(SftpFloatingPanel.SAVED_LOCAL_PATH_KEY), this.localPath)
       this._paneSet(this._profileKey(SftpFloatingPanel.SAVED_REMOTE_PATH_KEY), this.remotePath)
     } catch { /* ignore */ }
   }
 
-  /** 切换路径记忆开关 */
-  toggleRememberPath(): void {
-    this.rememberPath = !this.rememberPath
-    this.saveRememberPath()
-    if (this.rememberPath) {
+  pathModeTitle(): string {
+    if (this.pathMode === 'remember') return this.i18n.t('path.modeRemember')
+    if (this.pathMode === 'sync') return this.i18n.t('path.modeSync')
+    return this.i18n.t('path.modeOff')
+  }
+
+  /** 循环：关闭 → 路径记忆 → 终端同步 → 关闭 */
+  cyclePathMode(): void {
+    const order: PathFollowMode[] = ['off', 'remember', 'sync']
+    const idx = order.indexOf(this.pathMode)
+    const next = order[(idx + 1) % order.length]
+    this.setPathMode(next)
+  }
+
+  private setPathMode(mode: PathFollowMode): void {
+    const prev = this.pathMode
+    this.pathMode = mode
+    this.savePathMode()
+
+    if (mode === 'remember') {
       this.saveCurrentPath()
-    } else {
+    } else if (prev === 'remember') {
       try {
         delete this._paneStore[this._profileKey(SftpFloatingPanel.SAVED_LOCAL_PATH_KEY)]
         delete this._paneStore[this._profileKey(SftpFloatingPanel.SAVED_REMOTE_PATH_KEY)]
@@ -1570,6 +1654,182 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
         this._paneFlushToConfig()
       } catch { /* ignore */ }
     }
+
+    if (mode === 'sync') {
+      this._cwdSetupPrompted = false
+      this._startCwdSync()
+      void this._syncRemoteToTerminalCwd(true)
+    } else {
+      this._stopCwdSync()
+      this.cwdSetupVisible = false
+      this._cwdSetupPrompted = false
+    }
+  }
+
+  /**
+   * 读取终端当前工作目录。
+   * 依赖 shell 上报 OSC 1337 CurrentDir（需用户确认后配置；插件不会擅自向终端注入命令）。
+   */
+  private async tryGetTerminalCwd(): Promise<string | null> {
+    try {
+      const term = this.terminalRef as {
+        session?: {
+          supportsWorkingDirectory?: () => boolean
+          getWorkingDirectory?: () => Promise<string | null>
+          reportedCWD?: string | null
+        } | null
+      } | null
+      const session = term?.session
+      if (!session) return null
+      if (typeof session.reportedCWD === 'string' && session.reportedCWD) {
+        return this._normalizeRemoteCwd(session.reportedCWD)
+      }
+      if (!session.getWorkingDirectory) return null
+      if (session.supportsWorkingDirectory && !session.supportsWorkingDirectory()) return null
+      const cwd = await session.getWorkingDirectory()
+      if (!cwd || typeof cwd !== 'string') return null
+      return this._normalizeRemoteCwd(cwd)
+    } catch {
+      return null
+    }
+  }
+
+  private _normalizeRemoteCwd(cwd: string): string {
+    const normalized = cwd.replace(/\\/g, '/').replace(/\/+$/, '') || '/'
+    return normalized.startsWith('/') ? normalized : `/${normalized}`
+  }
+
+  private _startCwdSync(): void {
+    if (this._cwdSyncTimer) {
+      clearInterval(this._cwdSyncTimer)
+      this._cwdSyncTimer = null
+    }
+    if (this.pathMode !== 'sync') return
+    this._cwdSyncTimer = setInterval(() => {
+      void this._syncRemoteToTerminalCwd(false)
+    }, 800)
+  }
+
+  private _stopCwdSync(): void {
+    if (this._cwdSyncTimer) {
+      clearInterval(this._cwdSyncTimer)
+      this._cwdSyncTimer = null
+    }
+    this._lastSyncedCwd = ''
+  }
+
+  cwdSetupVisible = false
+  private _cwdSetupPrompted = false
+
+  /**
+   * 将远程面板路径跟随终端 cwd（仅 sync 模式）。
+   * @param offerSetup 用户主动切换到同步且尚无 cwd 时，弹出确认配置对话框（不自动注入）
+   */
+  private async _syncRemoteToTerminalCwd(offerSetup: boolean): Promise<void> {
+    if (this.pathMode !== 'sync' || !this.connected) return
+
+    const cwd = await this.tryGetTerminalCwd()
+    if (!cwd) {
+      if (offerSetup && !this.cwdSetupVisible && !this._cwdSetupPrompted) {
+        this._cwdSetupPrompted = true
+        this.cwdSetupVisible = true
+        this.cdr.detectChanges()
+      }
+      return
+    }
+    this._cwdSetupPrompted = false
+    if (!offerSetup && cwd === this._lastSyncedCwd) return
+    if (!offerSetup && cwd === this.remotePath) {
+      this._lastSyncedCwd = cwd
+      return
+    }
+    this._lastSyncedCwd = cwd
+    this.remotePath = cwd
+    this.remotePathInput = cwd
+    if (offerSetup) this._pushRemoteNav(cwd)
+    await this.refreshRemote()
+    this.cdr.detectChanges()
+  }
+
+  async onCwdSetupChoice(choice: CwdSetupChoice): Promise<void> {
+    this.cwdSetupVisible = false
+    if (choice === 'cancel') {
+      // 取消 = 放弃同步，回到路径模式关闭
+      this.setPathMode('off')
+      this.cdr.detectChanges()
+      return
+    }
+    const ok = choice === 'permanent'
+      ? await this._enableCwdReporterPermanent()
+      : this._enableCwdReporterSession()
+    if (!ok) {
+      this.showToast(this.i18n.t('path.cwdSetupFailed'))
+      this.setPathMode('off')
+      this.cdr.detectChanges()
+      return
+    }
+    this.showToast(this.i18n.t('path.cwdSetupDone'))
+    for (let i = 0; i < 15; i++) {
+      await new Promise(r => setTimeout(r, 200))
+      if (this.pathMode !== 'sync') return
+      const cwd = await this.tryGetTerminalCwd()
+      if (cwd) {
+        this._lastSyncedCwd = cwd
+        this.remotePath = cwd
+        this.remotePathInput = cwd
+        this._pushRemoteNav(cwd)
+        await this.refreshRemote()
+        this.cdr.detectChanges()
+        return
+      }
+    }
+    this.cdr.detectChanges()
+  }
+
+  /** 仅当前交互会话：用户确认后向终端发送临时 PS1 上报 */
+  private _enableCwdReporterSession(): boolean {
+    const term = this.terminalRef as { sendInput?: (data: string) => void } | null
+    if (!term?.sendInput) return false
+    try {
+      term.sendInput(CWD_SESSION_CMD + '\n')
+      return true
+    } catch (e) {
+      console.warn('[SFTP+] Session cwd reporter failed', e)
+      return false
+    }
+  }
+
+  /**
+   * 永久写入：经确认后通过独立 SSH exec 追加到 ~/.bashrc 或 ~/.zshrc，
+   * 再向当前终端 source + 立即上报（仍经用户点击「永久写入」确认）。
+   */
+  private async _enableCwdReporterPermanent(): Promise<boolean> {
+    if (!this.sshSession) return false
+    const marker = '# tabby-sftp-plus cwd reporting'
+    const shellOut = (await execSshCommand(
+      this.sshSession,
+      'echo "${SHELL:-}"; [ -n "${BASH_VERSION:-}" ] && echo BASH; [ -n "${ZSH_VERSION:-}" ] && echo ZSH; true',
+    )).toLowerCase()
+    const useZsh = /zsh/.test(shellOut)
+    const rcFile = useZsh ? '$HOME/.zshrc' : '$HOME/.bashrc'
+    const snippet = useZsh ? CWD_ZSH_SNIPPET + '\n' : CWD_BASH_SNIPPET + '\n'
+
+    const b64 = Buffer.from(snippet, 'utf8').toString('base64')
+    const writeCmd =
+      `RC=${rcFile}; ` +
+      `grep -qF '${marker}' "$RC" 2>/dev/null || echo '${b64}' | base64 -d >> "$RC"; ` +
+      `echo OK`
+    const result = await execSshCommand(this.sshSession, writeCmd)
+    if (!/\bOK\b/.test(result)) return false
+
+    const term = this.terminalRef as { sendInput?: (data: string) => void } | null
+    if (term?.sendInput) {
+      const apply = useZsh
+        ? `source ~/.zshrc >/dev/null 2>&1; printf "\\033]1337;CurrentDir=%s\\007" "\${PWD:-\$(pwd)}"\n`
+        : `source ~/.bashrc >/dev/null 2>&1; printf "\\033]1337;CurrentDir=%s\\007" "\${PWD:-\$(pwd)}"\n`
+      try { term.sendInput(apply) } catch { /* 文件已写入即可 */ }
+    }
+    return true
   }
 
   /** 循环切换布局模式：auto → horizontal → vertical → single → auto */
@@ -1635,6 +1895,26 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     })
   }
 
+  /** 窗口尺寸变化时关闭悬浮菜单，避免位置错位 */
+  private _closeFloatingPanelsOnResize(): void {
+    let changed = false
+    if (this.showBookmarks) {
+      this.closeBookmarks()
+      changed = true
+    }
+    if (this.contextMenuVisible) {
+      this.contextMenuVisible = false
+      this.contextMenuEntry = null
+      changed = true
+    }
+    if (this.headerMenuVisible) {
+      this.headerMenuVisible = false
+      this.headerMenuCol = null
+      changed = true
+    }
+    if (changed) this.cdr.detectChanges()
+  }
+
   private _bindLayoutObservers(): void {
     const root = this.elRef?.nativeElement as HTMLElement | null
     if (!root) return
@@ -1652,10 +1932,13 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
         }
         el = el.parentElement
       }
-      if (!this._winResizeHandler) {
-        this._winResizeHandler = () => this._scheduleLayoutRefresh()
-        window.addEventListener('resize', this._winResizeHandler)
+    }
+    if (!this._winResizeHandler) {
+      this._winResizeHandler = () => {
+        this._closeFloatingPanelsOnResize()
+        this._scheduleLayoutRefresh()
       }
+      window.addEventListener('resize', this._winResizeHandler)
     }
 
     this._ro = ro
@@ -1692,10 +1975,10 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
       : this.i18n.t('pane.splitterHintHorizontal')
   }
 
-  /** 从 localStorage 恢复路径 */
+  /** 从存储恢复路径（仅路径记忆模式） */
   private _loadSavedPaths(): void {
-    this.loadRememberPath()
-    if (!this.rememberPath) return
+    this.loadPathMode()
+    if (this.pathMode !== 'remember') return
     try {
       const savedLocal = this._paneGet(this._profileKey(SftpFloatingPanel.SAVED_LOCAL_PATH_KEY))
       if (savedLocal) {
@@ -1827,6 +2110,47 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
       get headerMenuVisible() { return panel.headerMenuVisible },
       set headerMenuVisible(v) { panel.headerMenuVisible = v },
       syncPaneSelectionVisual: (p) => panel.syncPaneSelectionVisual(p),
+    })
+    this._headerReorder = new PanelHeaderReorder({
+      cdr: this.cdr,
+      elRef: this.elRef,
+      get resizing() { return panel.resizing },
+      get localVisibleCols() { return panel.localVisibleCols },
+      get remoteVisibleCols() { return panel.remoteVisibleCols },
+      get localColOrder() { return panel.localColOrder },
+      set localColOrder(v) { panel.localColOrder = v },
+      get remoteColOrder() { return panel.remoteColOrder },
+      set remoteColOrder(v) { panel.remoteColOrder = v },
+      saveLocalColSettings: () => panel.saveLocalColSettings(),
+      saveRemoteColSettings: () => panel.saveRemoteColSettings(),
+      markJustResized: () => { panel._colJustResized = true },
+      clearJustResizedSoon: (ms) => { setTimeout(() => { panel._colJustResized = false }, ms ?? 200) },
+    })
+    this._fileDnd = new PanelFileDnd({
+      cdr: this.cdr,
+      elRef: this.elRef,
+      isHeaderReorderActive: () => !!panel._headerReorder?.active,
+    })
+    this._fileDropRuntime = new PanelFileDropRuntime({
+      cdr: this.cdr,
+      get connected() { return panel.connected },
+      get sftpSession() { return panel.sftpSession },
+      get remotePath() { return panel.remotePath },
+      get localPath() { return panel.localPath },
+      get effectiveLang() { return panel.effectiveLang },
+      get notifications() { return panel.notifications },
+      get selectedLocal() { return panel.selectedLocal as any[] },
+      set selectedLocal(v) { panel.selectedLocal = v as any },
+      get selectedRemote() { return panel.selectedRemote as any[] },
+      set selectedRemote(v) { panel.selectedRemote = v as any },
+      hasConflictQueue: () => panel._conflictQueue.length > 0,
+      isSameDirInternalDrop: (payload, targetPane) => panel._isSameDirInternalDrop(payload, targetPane),
+      resetFileDragState: () => panel._resetFileDragState(),
+      uploadPathToRemote: (remoteDir, localPath) => panel.uploadPathToRemote(remoteDir, localPath),
+      streamDownloadOne: (file) => panel._streamDownloadOne(file),
+      refreshLocal: () => panel.refreshLocal(),
+      refreshRemote: () => panel.refreshRemote(),
+      showConflictDialog: () => panel._showConflictDialog(),
     })
     this._conflictResolver = new PanelConflictResolver({
       get sftpSession() { return panel.sftpSession },
@@ -1999,7 +2323,7 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
       set connecting(v) { panel.connecting = v },
       get reconnecting() { return panel.reconnecting },
       set reconnecting(v) { panel.reconnecting = v },
-      get rememberPath() { return panel.rememberPath },
+      get pathMode() { return panel.pathMode },
       get remotePath() { return panel.remotePath },
       set remotePath(v) { panel.remotePath = v },
       get remotePathInput() { return panel.remotePathInput },
@@ -2013,6 +2337,7 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
       getDefaultRemotePath: () => panel.getDefaultRemotePath(),
       refreshRemote: () => panel.refreshRemote(),
       restoreSavedRemotePath: () => panel._restoreSavedRemotePath(),
+      tryGetTerminalCwd: () => panel.tryGetTerminalCwd(),
       pushRemoteNav: (p) => panel._pushRemoteNav(p),
       clearNavHistory: () => {
         panel._remoteNav.clear()
@@ -2022,8 +2347,10 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
       setRemoteLoading: (loading) => { panel._remoteLoading = loading },
     })
 
-    // profile 已就绪，此时加载路径记忆才能正确匹配 per-profile 的 key
+    // profile 已就绪，此时加载路径模式才能正确匹配 per-profile 的 key
     this._loadSavedPaths()
+    this._cwdSetupPrompted = false
+    if (this.pathMode === 'sync') this._startCwdSync()
     // 本地导航历史：记录初始路径
     this._pushLocalNav(this.localPath)
     // 路径记忆可能更新了 localPath，刷新本地列表显示正确的目录内容
@@ -2094,21 +2421,48 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     // overlay 的 stopPropagation 阻止了冒泡阶段到达 document，但捕获阶段不受影响
     this._docClickCapture = (ev: MouseEvent) => {
       const target = ev.target as HTMLElement | null
+      const clickedInFilterUi = !!(target?.closest('.pane-filters') || target?.closest('.filter-toggle-btn'))
+      let changed = false
+      if (!clickedInFilterUi) {
+        if (this.localFilterVisible && !this.localFilterPending.trim()) {
+          this.localFilterVisible = false
+          changed = true
+        }
+        if (this.remoteFilterVisible && !this.remoteFilterPending.trim()) {
+          this.remoteFilterVisible = false
+          changed = true
+        }
+      }
       if (this.showBookmarks) {
         if (this._bookmarkJustOpened) return
         if (!target?.closest('.bookmark-popup') && !target?.closest('.bm-btn')) {
-          this.zone.run(() => this.closeBookmarks())
+          this.zone.run(() => {
+            this.closeBookmarks()
+            if (changed) this.cdr.detectChanges()
+          })
+          return
         }
       }
       if (this.contextMenuVisible) {
         if (!target?.closest('.context-menu')) {
-          this.zone.run(() => { this.contextMenuVisible = false; this.cdr.detectChanges() })
+          this.zone.run(() => {
+            this.contextMenuVisible = false
+            this.cdr.detectChanges()
+          })
+          return
         }
       }
       if (this.headerMenuVisible) {
         if (!target?.closest('.context-menu')) {
-          this.zone.run(() => { this.headerMenuVisible = false; this.cdr.detectChanges() })
+          this.zone.run(() => {
+            this.headerMenuVisible = false
+            this.cdr.detectChanges()
+          })
+          return
         }
+      }
+      if (changed) {
+        this.zone.run(() => this.cdr.detectChanges())
       }
     }
     document.addEventListener('click', this._docClickCapture, true)
@@ -2152,6 +2506,9 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this._clearCustomDragPreview()
+    this._fileDnd?.reset()
+    this._headerReorder?.dispose()
     this._rubberBand.dispose()
     this._transferRuntime.dispose()
     if (this._splitMoveHandler) {
@@ -2163,6 +2520,9 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
       this._splitUpHandler = null
     }
     this.saveCurrentPath()
+    this._stopCwdSync()
+    this.cwdSetupVisible = false
+    this._cwdSetupPrompted = false
     this._paneFlushToConfig()  // 面板销毁前持久化所有 UI 状态到 config
     this.disconnect()
     this._clearPanelTimers()
@@ -2421,12 +2781,30 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
   }
 
   // ========== 连接管理（委托 panel/connection-lifecycle） ==========
-  connect(): Promise<void> {
-    return this._connLifecycle.connect()
+  async connect(): Promise<void> {
+    await this._connLifecycle.connect()
+    if (this.pathMode === 'sync' && this.connected) {
+      this._startCwdSync()
+      void this._syncRemoteToTerminalCwd(true)
+    }
   }
 
   disconnect(): void {
+    this._stopCwdSync()
     this._connLifecycle?.disconnect()
+  }
+
+  onReconnect(): Promise<void> {
+    return this._reconnectKeepingSync()
+  }
+
+  private async _reconnectKeepingSync(): Promise<void> {
+    await this._connLifecycle.reconnect()
+    if (this.pathMode === 'sync' && this.connected) {
+      this._cwdSetupPrompted = false
+      this._startCwdSync()
+      void this._syncRemoteToTerminalCwd(true)
+    }
   }
 
   /** 清空远程列表与 uid 映射（断开/会话失效时调用） */
@@ -2528,10 +2906,6 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
       this._invalidateRemoteCache()
       this.cdr.detectChanges()
     })
-  }
-
-  onReconnect(): Promise<void> {
-    return this._connLifecycle.reconnect()
   }
 
   private getDefaultRemotePath(): string {
@@ -2873,7 +3247,7 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
   }
 
   onPaneMouseDown(event: MouseEvent, pane: 'local' | 'remote'): void {
-    this._commitPathInput(pane)
+    this._commitAllPathInputs()
     this._rubberBand.onPaneMouseDown(event, pane)
   }
 
@@ -2886,13 +3260,14 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     this.remotePathInput = this.remotePath
   }
 
-  private _commitPathInput(pane: 'local' | 'remote'): void {
-    const listSel = pane === 'local' ? '.pane-list.local-pane' : '.pane-list.remote-pane'
-    const inp = (this.elRef.nativeElement as HTMLElement)
-      .querySelector(`${listSel}`)?.closest('.pane')?.querySelector('.path-input') as HTMLInputElement | null
-    if (inp && document.activeElement === inp) inp.blur()
-    if (pane === 'local') this.localPathInput = this.localPath
-    else this.remotePathInput = this.remotePath
+  private _commitAllPathInputs(): void {
+    const root = this.elRef.nativeElement as HTMLElement
+    root.querySelectorAll('.path-input').forEach(node => {
+      const inp = node as HTMLInputElement
+      if (document.activeElement === inp) inp.blur()
+    })
+    this.localPathInput = this.localPath
+    this.remotePathInput = this.remotePath
   }
 
   // ========== 窄屏上下布局分割线 ==========
@@ -3205,6 +3580,22 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     void this.refreshLocal()
   }
 
+  /** 本地双击：文件夹进入；文件=查看；Ctrl/Cmd+双击=系统打开 */
+  onLocalEntryDblClick(e: LocalEntry, $event?: MouseEvent): void {
+    if (this.localClickTimer) { clearTimeout(this.localClickTimer); this.localClickTimer = null }
+    if ($event) $event.preventDefault()
+    if (e.isDirectory || this.isDirByMode(e.mode)) {
+      this.openLocal(e)
+      return
+    }
+    const openInSystem = !!($event && (os.platform() === 'darwin' ? $event.metaKey : $event.ctrlKey))
+    if (openInSystem) {
+      this._openPathInSystem(e.fullPath, { waitForModRelease: true })
+      return
+    }
+    void this._viewLocalFile(e)
+  }
+
   /** 远程面板双击进入目录（或文件选择逻辑） */
   openRemote(e: SFTPFile, $event?: MouseEvent): void {
     if (this.remoteClickTimer) { clearTimeout(this.remoteClickTimer); this.remoteClickTimer = null }
@@ -3216,6 +3607,23 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     this.remotePathInput = e.fullPath
     this.saveCurrentPath()
     void this.refreshRemote()
+  }
+
+  /** 远程双击：文件夹进入；文件=查看；Ctrl/Cmd+双击=下载到临时目录后系统打开 */
+  onRemoteEntryDblClick(e: SFTPFile, $event?: MouseEvent): void {
+    if (this.remoteClickTimer) { clearTimeout(this.remoteClickTimer); this.remoteClickTimer = null }
+    if ($event) $event.preventDefault()
+    if (!this.connected) return
+    if (e.isDirectory || this.isDirByMode(e.mode)) {
+      this.openRemote(e)
+      return
+    }
+    const openInSystem = !!($event && (os.platform() === 'darwin' ? $event.metaKey : $event.ctrlKey))
+    if (openInSystem) {
+      void this._openRemoteInSystem(e)
+      return
+    }
+    void this._viewRemoteFile(e)
   }
 
   /** 远程面板单击处理：延迟执行选择，避免与双击冲突 */
@@ -3334,6 +3742,7 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
       case 'newFile': this.ctxNewFile(); break
       case 'rename': this.ctxRename(); break
       case 'delete': this.ctxDelete(); break
+      case 'openLocal': this.ctxOpenLocal(); break
       case 'viewFile': void this.ctxViewFile(); break
       case 'editFile': void this.ctxEditFile(); break
       case 'upload': void this.ctxUpload(); break
@@ -3455,60 +3864,102 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private _isInternalSameDirDrag(targetPane: 'local' | 'remote'): boolean {
-    return this._dragSameDirNoop && this._dragSourcePane === targetPane
+    return this._fileDnd.isInternalSameDirDrag(targetPane)
   }
 
   private _resetFileDragState(): void {
-    this._dragSourcePane = null
-    this._dragSameDirNoop = false
-    this._localDragOver = false
-    this._remoteDragOver = false
+    this._fileDnd.reset()
   }
 
   onEntryDragEnd(): void {
-    this._resetFileDragState()
-    this.cdr.detectChanges()
+    this._fileDnd.onEntryDragEnd(() => this._clearCustomDragPreview())
+  }
+
+  private _customDragPreviewEl: HTMLElement | null = null
+
+  private _clearCustomDragPreview(): void {
+    if (this._customDragPreviewEl) {
+      try { this._customDragPreviewEl.remove() } catch {}
+      this._customDragPreviewEl = null
+    }
+  }
+
+  private _setCustomDragPreview(ev: DragEvent, items: Array<{ name: string; isDirectory: boolean }>): void {
+    const dt = ev.dataTransfer
+    if (!dt || !items.length) return
+    this._clearCustomDragPreview()
+
+    const wrap = document.createElement('div')
+    wrap.style.position = 'fixed'
+    wrap.style.left = '-99999px'
+    wrap.style.top = '-99999px'
+    wrap.style.pointerEvents = 'none'
+    wrap.style.zIndex = '2147483647'
+    wrap.style.display = 'inline-flex'
+    wrap.style.alignItems = 'center'
+    wrap.style.gap = '8px'
+    wrap.style.padding = '6px 10px'
+    wrap.style.borderRadius = '8px'
+    wrap.style.border = '1px solid rgba(128,128,128,0.35)'
+    wrap.style.background = 'rgba(20, 20, 22, 0.92)'
+    wrap.style.color = '#f3f4f6'
+    wrap.style.fontSize = '12px'
+    wrap.style.lineHeight = '1'
+    wrap.style.boxShadow = '0 6px 16px rgba(0,0,0,0.3)'
+
+    if (items.length === 1) {
+      const one = items[0]
+      const icon = document.createElement('span')
+      icon.textContent = one.isDirectory ? '📁' : '📄'
+      icon.style.fontSize = '14px'
+      icon.style.lineHeight = '1'
+      const name = document.createElement('span')
+      name.textContent = one.name
+      name.style.maxWidth = '260px'
+      name.style.overflow = 'hidden'
+      name.style.textOverflow = 'ellipsis'
+      name.style.whiteSpace = 'nowrap'
+      wrap.appendChild(icon)
+      wrap.appendChild(name)
+    } else {
+      const iconStack = document.createElement('span')
+      iconStack.style.position = 'relative'
+      iconStack.style.display = 'inline-block'
+      iconStack.style.width = '30px'
+      iconStack.style.height = '16px'
+      const uniqueIcons = Array.from(new Set(items.map(i => i.isDirectory ? '📁' : '📄'))).slice(0, 3)
+      uniqueIcons.forEach((ic, idx) => {
+        const s = document.createElement('span')
+        s.textContent = ic
+        s.style.position = 'absolute'
+        s.style.left = `${idx * 8}px`
+        s.style.top = '0'
+        s.style.fontSize = '14px'
+        s.style.lineHeight = '1'
+        iconStack.appendChild(s)
+      })
+      const count = document.createElement('span')
+      count.textContent = `${items.length}`
+      count.style.fontWeight = '600'
+      wrap.appendChild(iconStack)
+      wrap.appendChild(count)
+    }
+
+    document.body.appendChild(wrap)
+    this._customDragPreviewEl = wrap
+    dt.setDragImage(wrap, 12, 12)
   }
 
   onDragOver(ev: DragEvent, targetPane: 'local' | 'remote'): void {
-    if (this._colHeaderDragging) return
-    if (this._isInternalSameDirDrag(targetPane)) {
-      ev.preventDefault()
-      if (ev.dataTransfer) ev.dataTransfer.dropEffect = 'none'
-      return
-    }
-    ev.preventDefault()
-    if (ev.dataTransfer) ev.dataTransfer.dropEffect = 'copy'
+    this._fileDnd.onDragOver(ev, targetPane)
   }
 
   onDragEnter(ev: DragEvent, targetPane: 'local' | 'remote'): void {
-    if (this._colHeaderDragging) return
-    if (this._isInternalSameDirDrag(targetPane)) {
-      ev.preventDefault()
-      return
-    }
-    ev.preventDefault()
-    if (targetPane === 'remote') {
-      this._remoteDragOver = true
-    } else {
-      this._localDragOver = true
-    }
-    this.cdr.detectChanges()
+    this._fileDnd.onDragEnter(ev, targetPane)
   }
 
   onDragLeave(ev: DragEvent, targetPane: 'local' | 'remote'): void {
-    if (this._colHeaderDragging) return
-    ev.preventDefault()
-    // 仅当真正离开 pane-list 时才取消高亮（避免鼠标在子元素间移动时误触发 dragleave）
-    const related = ev.relatedTarget as Node | null
-    const paneList = this.elRef.nativeElement.querySelector(`.pane-list.${targetPane}-pane`) as HTMLElement | null
-    if (paneList && related && paneList.contains(related)) return
-    if (targetPane === 'remote') {
-      this._remoteDragOver = false
-    } else {
-      this._localDragOver = false
-    }
-    this.cdr.detectChanges()
+    this._fileDnd.onDragLeave(ev, targetPane)
   }
 
   onDragStartLocal(ev: DragEvent, entry: LocalEntry): void {
@@ -3523,9 +3974,9 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     this._rubberBand.cleanup()
     const src = this._localSelectedPaths.has(entry.fullPath) && this.selectedLocal.length
       ? this.selectedLocal : [entry]
+    this._setCustomDragPreview(ev, src.map(e => ({ name: e.name, isDirectory: e.isDirectory })))
     const cur = path.resolve(this.localPath)
-    this._dragSourcePane = 'local'
-    this._dragSameDirNoop = src.every(e => path.resolve(path.dirname(e.fullPath)) === cur)
+    this._fileDnd.setDragSource('local', src.every(e => path.resolve(path.dirname(e.fullPath)) === cur))
     const p: DragPayload = { kind: 'local-paths', paths: src.map(e => ({ fullPath: e.fullPath, name: e.name, isDirectory: e.isDirectory })) }
     ev.dataTransfer?.setData('application/x-sftp-plus', JSON.stringify(p))
 
@@ -3559,9 +4010,9 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     this._rubberBand.cleanup()
     const src = this._remoteSelectedPaths.has(entry.fullPath) && this.selectedRemote.length
       ? this.selectedRemote : [entry]
+    this._setCustomDragPreview(ev, src.map(e => ({ name: e.name, isDirectory: e.isDirectory })))
     const cur = this._normRemoteDir(this.remotePath)
-    this._dragSourcePane = 'remote'
-    this._dragSameDirNoop = src.every(e => this._normRemoteDir(path.posix.dirname(e.fullPath)) === cur)
+    this._fileDnd.setDragSource('remote', src.every(e => this._normRemoteDir(path.posix.dirname(e.fullPath)) === cur))
     const p: DragPayload = { kind: 'remote-paths', paths: src.map(e => ({ remotePath: e.fullPath, name: e.name, isDirectory: e.isDirectory, size: e.size, mode: e.mode, modified: e.modified?.getTime?.() })) }
     ev.dataTransfer?.setData('application/x-sftp-plus', JSON.stringify(p))
 
@@ -3646,155 +4097,7 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
   }
 
   async onDrop(ev: DragEvent, targetPane: 'local' | 'remote'): Promise<void> {
-    ev.preventDefault()
-
-    const rawPayload = this._parseDragPayload(ev)
-    if (rawPayload && this._isSameDirInternalDrop(rawPayload, targetPane)) {
-      this._resetFileDragState()
-      this.cdr.detectChanges()
-      return
-    }
-
-    this._remoteDragOver = false
-    this._localDragOver = false
-    this._dragSourcePane = null
-    this._dragSameDirNoop = false
-
-    // 优先检测是否为内部拖拽（有 application/x-sftp-plus 自定义数据）
-    // 必须在 OS 路径检测之前，避免我们自己添加的 File 对象被误处理
-    // 注意：getData() 在 drop 事件中只能调用一次（浏览器会消费数据），后续调用返回空
-    if (rawPayload) {
-      if (!this.connected || !this.sftpSession) return
-      if (rawPayload.kind === 'local-paths' && targetPane === 'remote') {
-        for (const p of rawPayload.paths) {
-          await this.uploadPathToRemote(this.remotePath, p.fullPath)
-        }
-        await this.refreshRemote()
-        this.selectedLocal = []
-        this.cdr.detectChanges()
-        return
-      }
-      if (rawPayload.kind === 'remote-paths' && targetPane === 'local') {
-        for (const p of rawPayload.paths) {
-          await this._streamDownloadOne({
-            name: p.name,
-            fullPath: p.remotePath,
-            isDirectory: p.isDirectory,
-            isSymlink: false,
-            mode: p.mode ?? 0o644,
-            size: p.size ?? 0,
-            modified: p.modified != null ? new Date(p.modified) : new Date(),
-          } as SFTPFile)
-        }
-        if (this._conflictQueue.length) this._showConflictDialog()
-        await this.refreshLocal()
-        this.selectedRemote = []
-        this.cdr.detectChanges()
-        return
-      }
-    }
-
-    // OS 文件拖入
-    const osPaths = await this.getDroppedOsPaths(ev)
-    if (osPaths.length && targetPane === 'local') {
-      const cur = path.resolve(this.localPath)
-      if (osPaths.every(p => path.resolve(path.dirname(p)) === cur)) {
-        this._resetFileDragState()
-        this.cdr.detectChanges()
-        return
-      }
-    }
-    if (osPaths.length && targetPane === 'remote') {
-      if (!this.connected || !this.sftpSession) return
-      for (const p of osPaths) {
-        await this.uploadPathToRemote(this.remotePath, p)
-      }
-      await this.refreshRemote()
-      return
-    }
-    if (osPaths.length && targetPane === 'local') {
-      // OS→本地面板：复制文件/文件夹到本地面板当前目录
-      for (const p of osPaths) {
-        const baseName = path.basename(p)
-        const dest = path.join(this.localPath, baseName)
-        try {
-          await fs.cp(p, dest, { recursive: true, errorOnExist: false, dereference: false })
-        } catch (e) {
-          console.error('[SFTP+] Copy local failed:', p, e)
-          const msg = this.effectiveLang === 'zh-CN'
-            ? `复制失败: ${baseName}`
-            : `Copy failed: ${baseName}`
-          try { this.notifications?.error?.(msg, '') } catch {}
-        }
-      }
-      await this.refreshLocal()
-      return
-    }
-  }
-
-  /** 解析内部拖拽数据（getData 在 drop 事件中只能消费一次，封装为工具方法确保只读一次） */
-  private _parseDragPayload(ev: DragEvent): DragPayload | null {
-    const raw = ev.dataTransfer?.getData('application/x-sftp-plus')
-    if (!raw) return null
-    try { return JSON.parse(raw) } catch { return null }
-  }
-
-  private async getDroppedOsPaths(ev: DragEvent): Promise<string[]> {
-    const dt = ev.dataTransfer
-    if (!dt) return []
-
-    // 策略1: Electron File.path（最直接，跨平台，带正确原生路径）
-    const files = Array.from(dt.files ?? [])
-    const electronPaths = files.map(f => (f as any).path as string | undefined).filter(Boolean) as string[]
-    if (electronPaths.length) return electronPaths
-
-    // 策略1b: 遍历 dataTransfer.items 用 webUtils.getPathForFile()（Electron 22+，支持文件和文件夹）
-    try {
-      const { webUtils } = require('electron')
-      const items = Array.from(dt.items ?? [])
-      const itemPaths: string[] = []
-      for (const item of items) {
-        if (item.kind === 'file') {
-          const file = item.getAsFile()
-          if (file) {
-            const p = webUtils.getPathForFile(file)
-            if (p) itemPaths.push(p)
-          }
-        }
-      }
-      if (itemPaths.length) return itemPaths
-    } catch { /* Electron 版本不支持 webUtils，或未启用 */ }
-
-    // 策略2: File 对象有内容但没有 .path → 写入临时目录后返回路径（仅单文件，非目录）
-    if (files.length) {
-      const tmpDir = path.join(os.tmpdir(), 'sftp-plus-dragdrop')
-      await fs.mkdir(tmpDir, { recursive: true }).catch(() => {})
-      const tmpPaths: string[] = []
-      for (const file of files) {
-        if (!file.name) continue
-        const tmpPath = path.join(tmpDir, file.name)
-        try {
-          const buf = Buffer.from(await file.arrayBuffer())
-          if (buf.length === 0 && file.size === 0) continue
-          await fs.writeFile(tmpPath, buf)
-          tmpPaths.push(tmpPath)
-        } catch { /* 跳过无法读取的文件（含文件夹占位项） */ }
-      }
-      if (tmpPaths.length) return tmpPaths
-    }
-
-    // 策略3: text/uri-list 回退（处理 Windows file:///C:/path 格式）
-    const uriList = dt.getData('text/uri-list') || ''
-    const uris = uriList.split(/\r?\n/g).map(x => x.trim()).filter(x => x && !x.startsWith('#'))
-    return uris.map(x => {
-      if (!x.startsWith('file://')) return x
-      const raw = decodeURIComponent(x.slice('file://'.length))  // 去掉 file://
-      // Windows: file:///C:/path → /C:/path → 去掉开头的 /，保持 Drive letter
-      if (/^\/[a-zA-Z]:/.test(raw)) {
-        return raw.slice(1).replace(/\//g, '\\')
-      }
-      return raw
-    })
+    await this._fileDropRuntime.onDrop(ev, targetPane)
   }
 
   // ========== 文件夹传输进度 ==========
@@ -4361,7 +4664,7 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
   localNewFile(): void { this.openInputDialog('local-touch', this.i18n.t('app.newFile'), '', '', this.localPath) }
   localRename(): void {
     if (this.selectedLocal.length !== 1) return
-    this.openInputDialog('local-rename', this.i18n.t('app.rename'), this.i18n.t('app.rename'), this.selectedLocal[0].name, this.selectedLocal[0].fullPath)
+    this.openInputDialog('local-rename', this.i18n.t('app.rename'), this.selectedLocal[0].name, this.selectedLocal[0].name, this.selectedLocal[0].fullPath)
   }
   localDelete(): void {
     if (!this.selectedLocal.length) return
@@ -4379,7 +4682,7 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
   }
   remoteRename(): void {
     if (this.selectedRemote.length !== 1 || !this.connected) return
-    this.openInputDialog('remote-rename', this.i18n.t('app.rename'), this.i18n.t('app.rename'), this.selectedRemote[0].name, '', this.selectedRemote[0].fullPath)
+    this.openInputDialog('remote-rename', this.i18n.t('app.rename'), this.selectedRemote[0].name, this.selectedRemote[0].name, '', this.selectedRemote[0].fullPath)
   }
   remoteDelete(): void {
     if (!this.selectedRemote.length) return
@@ -4628,11 +4931,24 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     }
     const btnRect = btn.getBoundingClientRect()
     const rootRect = rootEl.getBoundingClientRect()
-    // 弹窗宽度约 320px，确保不超出右边界
     const popupW = 320
+    const rootW = rootEl.clientWidth ?? window.innerWidth
     let left = btnRect.left - rootRect.left
-    if (left + popupW > (rootEl.clientWidth ?? window.innerWidth)) {
-      left = Math.max(0, (rootEl.clientWidth ?? window.innerWidth) - popupW - 8)
+    if (!this._isNarrowLayout && pane === 'local') {
+      // 左右布局：本地面板弹层右缘对齐书签按钮，向左展开（与远程面板对称）
+      left = btnRect.right - rootRect.left - popupW
+      const paneHost = btn.closest('sftp-file-pane') as HTMLElement | null
+      const paneRect = paneHost?.getBoundingClientRect()
+      if (paneRect) {
+        const paneLeft = paneRect.left - rootRect.left
+        left = Math.max(paneLeft + 8, left)
+      } else {
+        left = Math.max(8, left)
+      }
+      // 视觉微调：本地面板整体右移一点，避免过于贴左
+      left = Math.min(left + 8.8, Math.max(0, rootW - popupW - 8))
+    } else if (left + popupW > rootW) {
+      left = Math.max(0, rootW - popupW - 8)
     }
     this.bookmarkPopupX = left
     const paneTitle = btn.closest('.pane-title') as HTMLElement | null
@@ -4714,6 +5030,13 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
 
     this.bookmarks.add(name, bp, type, ck)
     this.newBookmarkName = ''; this.newBookmarkPath = ''; this.bookmarkAddScope = null
+  }
+
+  cancelBookmarkEdit(): void {
+    this._editingBookmarkId = null
+    this.newBookmarkName = ''
+    this.newBookmarkPath = ''
+    this.bookmarkAddScope = null
   }
 
   removeBookmark(id: string): void { this.bookmarks.remove(id) }
@@ -5020,13 +5343,36 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
   /** 面板顶部轻提示（替代 Tabby 底部通知） */
   showToast(message: string, ms = 2200): void {
     this.toastMessage = message
+    this._toastDurationMs = Math.max(ms, message.length > 40 ? 4500 : ms)
+    this._toastHovering = false
+    this._armToastDismiss()
+    try { this.cdr.detectChanges() } catch {}
+  }
+
+  onToastMouseEnter(): void {
+    this._toastHovering = true
+    if (this.toastTimer) {
+      clearTimeout(this.toastTimer)
+      this.toastTimer = null
+    }
+  }
+
+  onToastMouseLeave(): void {
+    this._toastHovering = false
+    if (this.toastMessage) this._armToastDismiss()
+  }
+
+  private _toastDurationMs = 2200
+  private _toastHovering = false
+
+  private _armToastDismiss(): void {
     if (this.toastTimer) clearTimeout(this.toastTimer)
     this.toastTimer = setTimeout(() => {
+      if (this._toastHovering) return
       this.toastMessage = ''
       this.toastTimer = null
       try { this.cdr.detectChanges() } catch {}
-    }, ms)
-    try { this.cdr.detectChanges() } catch {}
+    }, this._toastDurationMs)
   }
 
   /** 右键菜单 → 更改权限（仅远程） */
@@ -5037,20 +5383,21 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  /** 右键菜单 → 打开（文件夹：进入目录；文件：系统默认程序） */
+  ctxOpenLocal(): void {
+    const entry = this.contextMenuEntry as LocalEntry | null
+    this.closeContextMenu()
+    if (!entry?.fullPath) return
+    if (entry.isDirectory || this.isDirByMode(entry.mode)) {
+      this.openLocal(entry)
+      return
+    }
+    this._openPathInSystem(entry.fullPath)
+  }
+
   /** 右键菜单 → 打开本地文件（用系统默认程序） */
   ctxOpenLocalFile(): void {
-    const filePath = (this.contextMenuEntry as LocalEntry)?.fullPath
-    this.closeContextMenu()
-    if (!filePath) return
-    console.log('[SFTP+] Open file:', filePath)
-    try {
-      const { shell } = require('electron')
-      shell.openPath(filePath).then((err?: string) => {
-        if (err) console.error('[SFTP+] Open file failed:', err)
-      })
-    } catch (e) {
-      console.error('[SFTP+] Open file failed:', e)
-    }
+    this.ctxOpenLocal()
   }
 
   /** 右键菜单 → 在文件管理器中显示 */
@@ -5488,14 +5835,54 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
     this._openPathInSystem(this.editorLocalPath)
   }
 
-  private _openPathInSystem(filePath: string): void {
+  private _openPathInSystem(filePath: string, opts?: { waitForModRelease?: boolean }): void {
+    const open = (): void => {
+      try {
+        const { shell } = require('electron')
+        shell.openPath(filePath).then((err?: string) => {
+          if (err) console.error('[SFTP+] Open in system failed:', err)
+        })
+      } catch (e) {
+        console.error('[SFTP+] Open in system failed:', e)
+      }
+    }
+
+    if (!opts?.waitForModRelease) {
+      open()
+      return
+    }
+
+    // Ctrl/⌘ 仍按住时 Windows 会按「后台打开」处理，窗口不置顶。
+    // 等修饰键松开后再调用（最多等 800ms）。
+    let done = false
+    const finish = (): void => {
+      if (done) return
+      done = true
+      window.removeEventListener('keyup', onKeyUp, true)
+      open()
+    }
+    const onKeyUp = (ev: KeyboardEvent): void => {
+      if (ev.key === 'Control' || ev.key === 'Meta' || ev.key === 'OS') finish()
+    }
+    window.addEventListener('keyup', onKeyUp, true)
+    setTimeout(finish, 800)
+  }
+
+  /** 远程文件下载到临时目录后用系统默认程序打开 */
+  private async _openRemoteInSystem(entry: SFTPFile): Promise<void> {
+    if (!entry || entry.isDirectory || !this.connected || !this.sftpSession) return
     try {
-      const { shell } = require('electron')
-      shell.openPath(filePath).then((err?: string) => {
-        if (err) console.error('[SFTP+] Open in system failed:', err)
-      })
+      this.showToast(this.i18n.t('viewer.loading'))
+      const localPath = await downloadRemoteToTempFile(
+        this.sftpSession,
+        entry.fullPath,
+        entry.size ?? 0,
+        entry.mode,
+      )
+      this._openPathInSystem(localPath)
     } catch (e) {
-      console.error('[SFTP+] Open in system failed:', e)
+      this.showToast(this.i18n.t('viewer.loadFailed'))
+      console.error('[SFTP+] Open remote in system failed', e)
     }
   }
 
@@ -6127,14 +6514,25 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
   @HostListener('document:keydown', ['$event'])
   onGlobalKeyDown(event: KeyboardEvent): void {
     if (!this._isPanelActive) return
-    // 输入状态（path input、filter input 等）不响应快捷键
+    // 输入状态（path input、filter input 等）不响应快捷键；Esc 例外（查看/编辑器要能关闭）
     const el = event.target as HTMLElement | null
-    if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) return
+    const isTyping = !!(el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA'))
+    if (isTyping && event.key !== 'Escape') return
 
     const isMod = os.platform() === 'darwin' ? event.metaKey : event.ctrlKey
     if (!isMod) {
-      // Escape 全局处理
       if (event.key === 'Escape') {
+        if (this.viewerVisible) {
+          event.preventDefault()
+          this.closeViewer()
+          return
+        }
+        if (this.editorVisible) {
+          event.preventDefault()
+          this.closeEditor()
+          return
+        }
+        if (this.cwdSetupVisible) { this.onCwdSetupChoice('cancel'); return }
         if (this.inputDialogVisible) { this.cancelInputDialog(); return }
         if (this.deleteConfirmVisible) { this.cancelDelete(); return }
         if (this.showBookmarks) { this.closeBookmarks(); return }
@@ -6143,6 +6541,8 @@ export class SftpFloatingPanel implements OnInit, AfterViewInit, OnDestroy {
       }
       return
     }
+
+    if (isTyping) return
 
     // 智能确定目标面板（优先使用有选中项的面板）
     this.contextMenuPane = this._resolveTargetPane()

@@ -32,6 +32,7 @@ import { SftpPermDialogComponent } from './panel/sftp-perm-dialog.component'
 import { SftpDetailsDialogComponent } from './panel/sftp-details-dialog.component'
 import { SftpViewerDialogComponent } from './panel/sftp-viewer-dialog.component'
 import { SftpEditorDialogComponent } from './panel/sftp-editor-dialog.component'
+import { SftpCwdSetupDialogComponent } from './panel/sftp-cwd-setup-dialog.component'
 
 
 @NgModule({
@@ -56,6 +57,7 @@ import { SftpEditorDialogComponent } from './panel/sftp-editor-dialog.component'
     SftpDetailsDialogComponent,
     SftpViewerDialogComponent,
     SftpEditorDialogComponent,
+    SftpCwdSetupDialogComponent,
 
   ],
   providers: [

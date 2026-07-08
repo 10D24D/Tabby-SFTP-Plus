@@ -99,6 +99,7 @@ export const SFTP_PANEL_STYLES = `
       left: 50%;
       transform: translateX(-50%);
       z-index: 200010;
+      max-width: min(92%, 560px);
       padding: 6px 14px;
       border-radius: 6px;
       background: var(--_bg);
@@ -106,8 +107,11 @@ export const SFTP_PANEL_STYLES = `
       box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
       font-size: 12px;
       color: var(--_text);
-      white-space: nowrap;
-      pointer-events: none;
+      white-space: normal;
+      line-height: 1.4;
+      text-align: center;
+      pointer-events: auto;
+      cursor: default;
       animation: sftp-toast-in 0.18s ease-out;
     }
     @keyframes sftp-toast-in {
@@ -133,6 +137,7 @@ export const SFTP_PANEL_STYLES = `
     }
     .sftp-root .sftp-overlays > sftp-delete-dialog,
     .sftp-root .sftp-overlays > sftp-input-dialog,
+    .sftp-root .sftp-overlays > sftp-cwd-setup-dialog,
     .sftp-root .sftp-overlays > sftp-bookmark-popup,
     .sftp-root .sftp-overlays > sftp-transfer-log-dialog,
     .sftp-root .sftp-overlays > sftp-conflict-dialog,
@@ -170,7 +175,7 @@ export const SFTP_PANEL_STYLES = `
       display: flex;
       align-items: center;
       gap: 12px;
-      padding: 6px 12px;
+      padding: 0px 5px 5px 5px;
       background: var(--header-bg, var(--_content));
       border-radius: 8px 8px 0 0;
       flex-shrink: 0;
@@ -234,17 +239,21 @@ export const SFTP_PANEL_STYLES = `
       display: block;
       flex-shrink: 0;
     }
-    .sftp-root .top-actions .btn-remember-path svg,
+    .sftp-root .top-actions .btn-path-mode svg,
     .sftp-root .top-actions .btn-settings svg {
       width: 17px;
       height: 17px;
     }
     .sftp-root .top-actions .btn-icon:hover { opacity: 1; }
-    .sftp-root .top-actions .btn-remember-path:not(.active) { opacity: 0.5; }
-    .sftp-root .top-actions .btn-remember-path.active,
+    .sftp-root .top-actions .btn-path-mode:not(.active) { opacity: 0.5; }
+    .sftp-root .top-actions .btn-path-mode.active,
     .sftp-root .top-actions .btn-transfer-log.active {
       opacity: 1;
-      background: rgba(59,130,246,0.12);
+      background: transparent;
+    }
+    .sftp-root .top-actions .btn-path-mode.active:hover,
+    .sftp-root .top-actions .btn-transfer-log.active:hover {
+      background: var(--_hover);
     }
     .sftp-root .top-actions .btn-minimize,
     .sftp-root .top-actions .btn-close {
@@ -394,12 +403,24 @@ export const SFTP_PANEL_STYLES = `
       justify-content: center;
     }
     .sftp-root .pane-toolbar-btn svg {
-      width: 14px;
-      height: 14px;
+      width: 16px;
+      height: 16px;
       display: block;
       flex-shrink: 0;
     }
     .sftp-root .pane-toolbar-btn:hover { background: var(--_hover); }
+    .sftp-root .pane-title .pane-toolbar-btn:disabled {
+      opacity: 0.4;
+      cursor: default;
+    }
+    .sftp-root .pane-title .pane-toolbar-btn:disabled:hover {
+      background: transparent;
+    }
+    .sftp-root .pane-title .pane-toolbar-btn.toggle-btn.active { background: var(--_hover); }
+    .sftp-root .pane-title .pane-toolbar-btn.bm-btn.active {
+      background: var(--_hover);
+      color: var(--_primary);
+    }
     .sftp-root .pane-actions button {
       padding: 2px 5px; border-radius: 4px;
       border: none;
@@ -411,11 +432,11 @@ export const SFTP_PANEL_STYLES = `
     .sftp-root .pane-actions button:disabled { opacity: 0.4; cursor: default; }
     .sftp-root .pane-actions .bm-btn { color: var(--_text-muted, inherit); font-weight: 700; font-size: 14px; }
     .sftp-root .pane-actions .bm-btn:hover { background: var(--_hover); }
-    .sftp-root .pane-actions .bm-btn.active { background: var(--_active); color: var(--_primary); }
+    .sftp-root .pane-actions .bm-btn.active { background: var(--_hover); color: var(--_primary); }
     .sftp-root .pane-actions .icon-btn { font-size: 14px; min-width: 26px; text-align: center; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
     .sftp-root .pane-actions .icon-btn svg { display: block; flex-shrink: 0; }
     .sftp-root .pane-actions .toggle-btn { min-width: 26px; padding: 2px 6px; }
-    .sftp-root .pane-actions .toggle-btn.active { background: var(--_active); }
+    .sftp-root .pane-actions .toggle-btn.active { background: var(--_hover); }
 
     .sftp-root .pane-filters {
       position: absolute;
@@ -638,8 +659,78 @@ export const SFTP_PANEL_STYLES = `
     .sftp-root .path { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12px; font-family: inherit; }
     .sftp-root .ext { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12px; font-family: inherit; text-align: left; }
     .sftp-root .sortable { cursor: pointer; display: inline-flex; align-items: center; gap: 2px; }
-    .sftp-root .sortable[draggable="true"] { cursor: grab; }
-    .sftp-root .sortable[draggable="true"]:active { cursor: grabbing; }
+    .sftp-root .entry.header > span.sortable:not(.name) { cursor: grab; }
+    .sftp-root .entry.header > span.sortable.header-col-dragging { cursor: grabbing; }
+    /* 表头列 hover / 拖拽列宽：主色调轻高亮 + 显示右侧分隔线 */
+    .sftp-root .entry.header > span.sortable:hover,
+    .sftp-root .entry.header > span.sortable.header-col-resizing {
+      align-self: stretch;
+      display: inline-flex;
+      align-items: center;
+      background: color-mix(in srgb, var(--_primary) 16%, transparent);
+      color: var(--_primary);
+      border-right: 1px solid color-mix(in srgb, var(--_primary) 60%, var(--_border, rgba(128,128,128,0.25)));
+      z-index: 2;
+      padding-left: 2px;
+      padding-right: 2px;
+      margin-left: -2px;
+      margin-right: -2px;
+    }
+    .sftp-root .entry.header > span.sortable:hover .col-resize-handle,
+    .sftp-root .entry.header > span.sortable.header-col-resizing .col-resize-handle {
+      background: var(--_primary, #4dabff);
+      opacity: 0.9;
+    }
+    /* 拖拽中：原位置表头变淡，表示“正在拖走” */
+    .sftp-root .entry.header > span.sortable.header-col-dragging {
+      opacity: 0.28;
+      color: var(--_primary);
+      background: color-mix(in srgb, var(--_primary) 10%, transparent);
+    }
+    /* 落点指示线：插入到目标列左/右 */
+    .sftp-root .entry.header > span.sortable.header-col-drop-before,
+    .sftp-root .entry.header > span.sortable.header-col-drop-after {
+      position: relative;
+    }
+    .sftp-root .entry.header > span.sortable.header-col-drop-before::before,
+    .sftp-root .entry.header > span.sortable.header-col-drop-after::after {
+      content: '';
+      position: absolute;
+      top: 1px;
+      bottom: 1px;
+      width: 2px;
+      background: var(--_primary, #4dabff);
+      box-shadow: 0 0 0 1px color-mix(in srgb, var(--_primary) 30%, transparent);
+      border-radius: 2px;
+      pointer-events: none;
+      z-index: 12;
+    }
+    .sftp-root .entry.header > span.sortable.header-col-drop-before::before { left: -2px; }
+    .sftp-root .entry.header > span.sortable.header-col-drop-after::after { right: -2px; }
+    .sftp-root.col-header-reordering,
+    .sftp-root.col-header-reordering * {
+      user-select: none !important;
+      cursor: grabbing !important;
+    }
+    /* 跟随鼠标的幽灵表头 */
+    .header-col-ghost {
+      display: inline-flex !important;
+      align-items: center;
+      gap: 2px;
+      padding: 4px 8px !important;
+      border-radius: 4px;
+      background: color-mix(in srgb, var(--primary-color, #3b82f6) 18%, var(--content-bg, #1e1e2e)) !important;
+      color: var(--primary-color, #3b82f6) !important;
+      border: 1px solid color-mix(in srgb, var(--primary-color, #3b82f6) 55%, transparent) !important;
+      box-shadow: 0 6px 16px rgba(0,0,0,0.28);
+      opacity: 0.95;
+      font-weight: 600;
+      font-size: 12px;
+      white-space: nowrap;
+      overflow: hidden;
+      transform: translateY(-1px) rotate(-0.5deg);
+    }
+    .header-col-ghost .col-resize-handle { display: none !important; }
     .sftp-root .sortable:hover { color: var(--_primary); }
     .sftp-root .sort-arrow { font-size: 11px; opacity: 1; margin-left: 1px; }
     .sftp-root .pane-empty { padding: 20px; text-align: center; opacity: 0.4; font-size: 12px; }
@@ -1039,6 +1130,18 @@ export const SFTP_PANEL_STYLES = `
       caret-color: var(--_text, currentColor) !important;
       color: var(--_text, inherit) !important;
       -webkit-text-fill-color: var(--_text, currentColor) !important;
+    }
+    .sftp-root input[type="text"]::placeholder,
+    .sftp-root input:not([type])::placeholder,
+    .sftp-root textarea::placeholder {
+      color: var(--_text, inherit) !important;
+      opacity: 0.45;
+    }
+    .sftp-root input[type="text"]::-webkit-input-placeholder,
+    .sftp-root input:not([type])::-webkit-input-placeholder,
+    .sftp-root textarea::-webkit-input-placeholder {
+      color: var(--_text, inherit) !important;
+      opacity: 0.45;
     }
     .sftp-root .log-toolbar select {
       color: var(--_text, inherit) !important;

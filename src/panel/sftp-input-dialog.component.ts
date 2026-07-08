@@ -49,6 +49,14 @@ import { SftpI18nService } from '../sftp-i18n.service'
       -webkit-user-select: text !important;
       margin-bottom: 12px; box-sizing: border-box; outline: none;
     }
+    .dialog-input::placeholder {
+      color: var(--_text);
+      opacity: 0.45;
+    }
+    .dialog-input::-webkit-input-placeholder {
+      color: var(--_text);
+      opacity: 0.45;
+    }
     .dialog-input:focus,
     .dialog-input:focus-visible {
       border-color: var(--_primary) !important;
