@@ -18,7 +18,7 @@
     "allowJs": true,
     "baseUrl": ".",
     "paths": {
-      "@common/*": ["../tabby-plugin-common/src/*"]
+      "@common/*": ["./tabby-plugin-common/src/*"]
     },
     "types": ["node"]
   },

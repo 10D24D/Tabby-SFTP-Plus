@@ -28,8 +28,9 @@ module.exports = {
     modules: ['.', 'src', 'node_modules'].map(x => path.join(__dirname, x)),
     extensions: ['.ts', '.js', '.json'],
     alias: {
-      // 唯一真源：仓库根目录 tabby-plugin-common（勿再嵌套副本）
-      '@common': path.resolve(__dirname, '../tabby-plugin-common/src'),
+      // 指向仓库内副本（自包含，CI 可构建）；开发唯一真源仍是 monorepo 根
+      // tabby-plugin-common，prebuild 时由 scripts/check-common-sync.mjs 自动同步进来
+      '@common': path.resolve(__dirname, 'tabby-plugin-common/src'),
     },
   },
   module: {
