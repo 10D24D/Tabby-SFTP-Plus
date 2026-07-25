@@ -4,3 +4,6 @@ dist/
 .DS_Store
 Thumbs.db
 *.py
+
+# 临时调试占位文件
+test.js
