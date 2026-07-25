@@ -6,6 +6,9 @@ name: Publish npm package
 on:
   release:
     types: [published]
+  push:
+    tags:
+      - 'v*'
   workflow_dispatch:
 
 permissions:
