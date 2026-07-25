@@ -24,11 +24,25 @@ declare module 'tabby-core' {
     error(title: string, message: string): void
     notice(title: string, message?: string): void
   }
+  export class Logger {
+    debug(...args: any[]): void
+    info(...args: any[]): void
+    warn(...args: any[]): void
+    error(...args: any[]): void
+    log(...args: any[]): void
+  }
   export class LogService {
-    create(name: string): any
+    create(name: string): Logger
   }
   export class HotkeysService {
     hotkey$: any
+    unfilteredHotkey$?: any
+    keystroke$?: any
+    keyEvent$?: any
+    disable?(): void
+    enable?(): void
+    clearCurrentKeystrokes?(): void
+    getHotkeyDescriptions?(): Promise<Array<{ id: string; name: string }>>
   }
   export abstract class HotkeyProvider {
     abstract provide(): Promise<Array<{ id: string; name: string }>>

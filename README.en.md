@@ -26,6 +26,7 @@ SFTP+ is a plugin for [Tabby Terminal](https://tabby.sh/) that adds a **dual-pan
 | **📌 Context Menus** | Upload/download, view/edit, new/rename/delete, copy/cut/paste, refresh, select all/invert; <br />Header: column visibility, fit widths, borders & zebra stripes |
 | **🔍 Filter & Sort** | Keyword filter, multi-column sorting (click headers), configurable visible columns |
 | **🧭 Path Memory** | Toggle to restore last browsed paths when reopening the panel |
+| **🧭 Path Following** | Optional "Sync with terminal" mode: opening the panel jumps to the terminal's current directory, and the remote pane follows live as you `cd` in the terminal (relies on Tabby OSC 1337 current-dir reporting); off by default, switchable in the panel |
 | **🎨 Theme System** | 7 presets + custom colors, supports following the Tabby system theme |
 | **🌐 Internationalization** | Chinese (Simplified) and English, auto-detects Tabby/browser language |
 | **📦 Data Backup** | One-click export/import of all data (bookmarks, logs, settings, path memory) |
@@ -108,7 +109,7 @@ Path: Settings → Data Backup → Export / Import
 
 ## 📜 Changelog
 
-Latest: **v1.1.0** (2026-07-07) — [Full changelog](CHANGELOG.md)
+Latest: **v2.0.0** (2026-07-25) — [Full changelog](CHANGELOG.md)
 
 ---
 
@@ -145,19 +146,20 @@ The built plugin bundle is `dist/index.js`.
 ```
 tabby-FTPS+/
 ├── docs/
+├── scripts/                       # Build helpers (copy-sftp-manifest generates dist/package.json)
 ├── src/
 │   ├── index.ts
-│   ├── sftp-floating-panel.component.ts
-│   ├── sftp-workspace-tab.component.ts
-│   ├── sftp-terminal-decorator.ts
-│   ├── panel/                    # Extracted UI & logic modules
-│   │   ├── sftp-file-pane.component.ts
-│   │   ├── sftp-viewer-dialog.component.ts
-│   │   ├── sftp-editor-dialog.component.ts
-│   │   ├── panel-conflict-resolver.ts
-│   │   └── …
-│   ├── sftp.service.ts
-│   └── …
+│   ├── tabby-shims.d.ts
+│   ├── services/                  # sftp.service / bookmarks / i18n / transfer-log / config (Tabby convention)
+│   ├── settings/                  # sftp-settings component (Tabby convention)
+│   ├── tabby/                     # Terminal integration: config/hotkey providers, terminal-decorator
+│   ├── sftp/                      # SFTP feature module
+│   │   ├── sftp-floating-panel.component.ts
+│   │   ├── sftp-workspace-tab.component.ts
+│   │   ├── components/            # View layer (V): file panes, dialogs, context menu, conflict, transfer queue…
+│   │   ├── controllers/           # Controller layer (C): column / viewer / bookmark controllers
+│   │   └── core/                  # Logic / utils / types: transfer, conflict, drop, clipboard, path…
+│   └── tabby-plugin-common/       # Shared utilities across plugins (theme / utils)
 ├── dist/index.js
 └── package.json
 ```

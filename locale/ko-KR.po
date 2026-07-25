@@ -1,0 +1,1096 @@
+msgid ""
+msgstr ""
+Content-Type: text/plain; charset=UTF-8\nPlural-Forms: nplurals=1; plural=0;\nLanguage: ko_KR\n
+
+msgid "app.title"
+msgstr "SFTP+ 파일 관리자"
+
+msgid "app.openSettings"
+msgstr "설정 열기"
+
+msgid "app.open"
+msgstr "SFTP 열기"
+
+msgid "app.close"
+msgstr "닫기"
+
+msgid "app.maximize"
+msgstr "최대화"
+
+msgid "app.restore"
+msgstr "복원"
+
+msgid "app.confirm"
+msgstr "확인"
+
+msgid "app.cancel"
+msgstr "취소"
+
+msgid "app.delete"
+msgstr "삭제"
+
+msgid "app.deleteFile"
+msgstr "파일 삭제"
+
+msgid "app.deleteFolder"
+msgstr "폴더 삭제"
+
+msgid "app.deleteMultiple"
+msgstr "여러 항목 삭제"
+
+msgid "conflict.title"
+msgstr "파일 충돌"
+
+msgid "conflict.sourceFile"
+msgstr "원본 파일"
+
+msgid "conflict.localFile"
+msgstr "로컬 파일"
+
+msgid "conflict.remoteFile"
+msgstr "원격 파일"
+
+msgid "conflict.size"
+msgstr "크기"
+
+msgid "conflict.modified"
+msgstr "수정일"
+
+msgid "conflict.path"
+msgstr "경로"
+
+msgid "conflict.cancel"
+msgstr "취소"
+
+msgid "conflict.skip"
+msgstr "건너뛰기"
+
+msgid "conflict.rename"
+msgstr "이름 변경"
+
+msgid "conflict.overwrite"
+msgstr "덮어쓰기"
+
+msgid "conflict.batch"
+msgstr "일괄:"
+
+msgid "conflict.skipAll"
+msgstr "모두 건너뛰기"
+
+msgid "conflict.renameAll"
+msgstr "모두 이름 변경"
+
+msgid "conflict.overwriteAll"
+msgstr "모두 덮어쓰기"
+
+msgid "conflict.existsLocal"
+msgstr "로컬에 이미 존재함"
+
+msgid "conflict.existsRemote"
+msgstr "원격에 이미 존재함"
+
+msgid "log.onlySuccess"
+msgstr "성공만"
+
+msgid "log.success"
+msgstr "성공"
+
+msgid "log.failed"
+msgstr "실패"
+
+msgid "fileType.txt"
+msgstr "텍스트 파일"
+
+msgid "fileType.log"
+msgstr "로그 파일"
+
+msgid "fileType.md"
+msgstr "마크다운 파일"
+
+msgid "fileType.json"
+msgstr "JSON 파일"
+
+msgid "fileType.xml"
+msgstr "XML 파일"
+
+msgid "fileType.html"
+msgstr "HTML 파일"
+
+msgid "fileType.css"
+msgstr "CSS 파일"
+
+msgid "fileType.js"
+msgstr "JavaScript 파일"
+
+msgid "fileType.ts"
+msgstr "TypeScript 파일"
+
+msgid "fileType.image"
+msgstr "이미지 파일"
+
+msgid "fileType.video"
+msgstr "비디오 파일"
+
+msgid "fileType.audio"
+msgstr "오디오 파일"
+
+msgid "fileType.archive"
+msgstr "아카이브 파일"
+
+msgid "fileType.doc"
+msgstr "문서 파일"
+
+msgid "fileType.code"
+msgstr "코드 파일"
+
+msgid "fileType.data"
+msgstr "데이터 파일"
+
+msgid "fileType.config"
+msgstr "설정 파일"
+
+msgid "fileType.cert"
+msgstr "인증서 파일"
+
+msgid "fileType.executable"
+msgstr "실행 파일"
+
+msgid "fileType.unknown"
+msgstr "파일"
+
+msgid "app.deleteConfirmFile"
+msgstr "이 파일을 삭제하시겠습니까?"
+
+msgid "app.deleteConfirmFolder"
+msgstr "이 폴더를 삭제하시겠습니까?"
+
+msgid "app.deleteConfirmMultiple"
+msgstr "이 {count}개 항목을 삭제하시겠습니까?"
+
+msgid "app.rename"
+msgstr "이름 변경"
+
+msgid "app.refresh"
+msgstr "새로고침"
+
+msgid "app.upload"
+msgstr "업로드"
+
+msgid "app.download"
+msgstr "다운로드"
+
+msgid "app.newFolder"
+msgstr "새 폴더"
+
+msgid "app.newFile"
+msgstr "새 파일"
+
+msgid "app.loading"
+msgstr "로드 중…"
+
+msgid "app.error"
+msgstr "오류"
+
+msgid "app.success"
+msgstr "성공"
+
+msgid "app.yes"
+msgstr "예"
+
+msgid "app.no"
+msgstr "아니오"
+
+msgid "app.all"
+msgstr "모두"
+
+msgid "app.export"
+msgstr "내보내기"
+
+msgid "app.clear"
+msgstr "지우기"
+
+msgid "app.optional"
+msgstr "선택"
+
+msgid "app.settings"
+msgstr "설정"
+
+msgid "app.modeSwitchSsh"
+msgstr "SSH"
+
+msgid "app.modeSwitchSftp"
+msgstr "SFTP"
+
+msgid "app.backToTerminal"
+msgstr "터미널로 돌아가기"
+
+msgid "filter.allOps"
+msgstr "모든 작업"
+
+msgid "filter.allStatus"
+msgstr "모든 상태"
+
+msgid "filter.allTime"
+msgstr "모든 기간"
+
+msgid "filter.today"
+msgstr "오늘"
+
+msgid "filter.last7Days"
+msgstr "최근 7일"
+
+msgid "filter.last30Days"
+msgstr "최근 30일"
+
+msgid "filter.customRange"
+msgstr "사용자 정의"
+
+msgid "filter.dateFrom"
+msgstr "시작"
+
+msgid "filter.dateTo"
+msgstr "종료"
+
+msgid "pane.local"
+msgstr "로컬"
+
+msgid "pane.remote"
+msgstr "원격"
+
+msgid "pane.path"
+msgstr "경로"
+
+msgid "pane.up"
+msgstr "상위"
+
+msgid "pane.home"
+msgstr "홈"
+
+msgid "pane.go"
+msgstr "이동"
+
+msgid "pane.refresh"
+msgstr "새로고침"
+
+msgid "pane.filter"
+msgstr "필터…"
+
+msgid "pane.filterBtn"
+msgstr "파일 필터"
+
+msgid "pane.showHidden"
+msgstr "숨김 파일 표시"
+
+msgid "pane.pinFolders"
+msgstr "폴더 상단 고정"
+
+msgid "view.panelBorder"
+msgstr "패널 테두리"
+
+msgid "view.colBorder"
+msgstr "테두리 표시"
+
+msgid "view.zebra"
+msgstr "얼룩말 무늬 표시"
+
+msgid "pane.hideHidden"
+msgstr "숨김 파일 숨기기"
+
+msgid "pane.sortByName"
+msgstr "이름순 정렬"
+
+msgid "pane.sortBySize"
+msgstr "크기순 정렬"
+
+msgid "pane.sortByModified"
+msgstr "수정일순 정렬"
+
+msgid "pane.selectAll"
+msgstr "모두 선택"
+
+msgid "pane.selectInvert"
+msgstr "선택反전"
+
+msgid "pane.clearSelection"
+msgstr "선택 해제"
+
+msgid "pane.items"
+msgstr "{count}개 항목"
+
+msgid "pane.copyPath"
+msgstr "경로 복사"
+
+msgid "pane.splitterHintHorizontal"
+msgstr "좌우 패널 크기를 드래그로 조절. 더블 클릭으로 리셋."
+
+msgid "pane.splitterHintVertical"
+msgstr "상하 패널 크기를 드래그로 조절. 더블 클릭으로 리셋."
+
+msgid "pane.openFolder"
+msgstr "폴더 열기"
+
+msgid "pane.noMatch"
+msgstr "일치하는 파일이 없음"
+
+msgid "pane.empty"
+msgstr "빈 폴더"
+
+msgid "pane.errorAccess"
+msgstr "접근할 수 없음(권한 없음 또는 경로를 찾을 수 없음)"
+
+msgid "pane.loading"
+msgstr "로드 중…"
+
+msgid "path.modeOff"
+msgstr "경로 모드: 꺼짐(클릭하여 전환: 기억, 동기화)"
+
+msgid "path.modeRemember"
+msgstr "경로 모드: 기억(다음에 복원)"
+
+msgid "path.modeSync"
+msgstr "경로 모드: 터미널과 동기화(원격이 cwd를 따름)"
+
+msgid "path.syncNoCwd"
+msgstr "터미널 cwd가 보고되지 않았습니다. 다시 동기화로 전환하여 구성하세요"
+
+msgid "path.cwdSetupTitle"
+msgstr "터미널 디렉토리 동기화 활성화"
+
+msgid "path.cwdSetupIntro"
+msgstr "SFTP+가 동기화하려면 Tabby가 셸에서 OSC 1337을 통해 cwd를 보고해야 합니다. 활성화 방법을 선택하세요:"
+
+msgid "path.cwdSetupSessionHint"
+msgstr "이 세션만: 현재 터미널에서 다음 임시 명령 실행(셸 재시작 후 손실됨)"
+
+msgid "path.cwdSetupPermanentHint"
+msgstr "영구: 다음 스니펫을 원격 프로필에 추가하고 source하세요(감지된 셸 기반)"
+
+msgid "path.cwdSetupNote"
+msgstr "취소하면 경로 모드가 꺼집니다. 실행하거나 쓰지 않습니다."
+
+msgid "path.cwdSetupSession"
+msgstr "이 세션만"
+
+msgid "path.cwdSetupPermanent"
+msgstr "영구적으로 쓰기"
+
+msgid "path.cwdSetupDone"
+msgstr "디렉토리 보고 활성화됨, 동기화 중…"
+
+msgid "path.cwdSetupFailed"
+msgstr "활성화 실패. 원격 권한이나 셸 유형을 확인하세요"
+
+msgid "file.name"
+msgstr "이름"
+
+msgid "file.type"
+msgstr "유형"
+
+msgid "file.size"
+msgstr "크기"
+
+msgid "file.modified"
+msgstr "수정일"
+
+msgid "file.created"
+msgstr "생성일"
+
+msgid "file.accessed"
+msgstr "접근일"
+
+msgid "file.permissions"
+msgstr "권한"
+
+msgid "file.owner"
+msgstr "소유자"
+
+msgid "file.group"
+msgstr "그룹"
+
+msgid "file.mode"
+msgstr "모드"
+
+msgid "file.path"
+msgstr "경로"
+
+msgid "file.ext"
+msgstr "확장자"
+
+msgid "file.columns"
+msgstr "열"
+
+msgid "file.inaccessible"
+msgstr "접근 불가"
+
+msgid "file.open"
+msgstr "열기"
+
+msgid "file.view"
+msgstr "보기"
+
+msgid "file.edit"
+msgstr "편집"
+
+msgid "file.copy"
+msgstr "복사"
+
+msgid "file.cut"
+msgstr "잘라내기"
+
+msgid "file.paste"
+msgstr "붙여넣기"
+
+msgid "file.delete"
+msgstr "삭제"
+
+msgid "file.rename"
+msgstr "이름 변경"
+
+msgid "file.newFolder"
+msgstr "새 폴더"
+
+msgid "file.newFile"
+msgstr "새 파일"
+
+msgid "file.properties"
+msgstr "속성"
+
+msgid "file.openWith"
+msgstr "프로그램으로 열기"
+
+msgid "file.showInFolder"
+msgstr "탐색기에서 보기"
+
+msgid "file.openInSystem"
+msgstr "시스템에서 열기"
+
+msgid "file.editInSystem"
+msgstr "시스템에서 편집"
+
+msgid "viewer.loading"
+msgstr "로드 중…"
+
+msgid "viewer.loadFailed"
+msgstr "파일 로드 실패"
+
+msgid "viewer.binaryNotSupported"
+msgstr "바이너리 파일은 텍스트로 보거나 편집할 수 없음"
+
+msgid "viewer.tooLarge"
+msgstr "파일이 너무 커서 열 수 없음"
+
+msgid "viewer.tooLargeView"
+msgstr "파일이 너무 큼({limit} 초과) 표시할 수 없음"
+
+msgid "viewer.typeNotSupported"
+msgstr "이 파일 유형은 표시할 수 없음"
+
+msgid "editor.save"
+msgstr "저장"
+
+msgid "editor.saving"
+msgstr "저장 중…"
+
+msgid "editor.saveSuccess"
+msgstr "서버에 저장됨"
+
+msgid "editor.saveFailed"
+msgstr "저장 실패"
+
+msgid "editor.unsaved"
+msgstr "저장하지 않은 변경 사항이 있습니다. 버리시겠습니까?"
+
+msgid "editor.tooLarge"
+msgstr "파일이 너무 큼({limit} 초과) 집할 수 없음"
+
+msgid "editor.typeNotSupported"
+msgstr "이 파일 유형은 편집할 수 없음"
+
+msgid "transfer.upload"
+msgstr "업로드"
+
+msgid "transfer.download"
+msgstr "다운로드"
+
+msgid "transfer.edit-upload"
+msgstr "편집 저장"
+
+msgid "transfer.edit-download"
+msgstr "편집 로드"
+
+msgid "transfer.progress"
+msgstr "진행"
+
+msgid "transfer.speed"
+msgstr "속도"
+
+msgid "transfer.remaining"
+msgstr "남은 시간"
+
+msgid "transfer.cancel"
+msgstr "취소"
+
+msgid "transfer.closePanel"
+msgstr "전송 패널 닫기"
+
+msgid "transfer.pause"
+msgstr "일시 정지"
+
+msgid "transfer.resume"
+msgstr "재개"
+
+msgid "transfer.cancelAll"
+msgstr "폴더 취소"
+
+msgid "transfer.cancelCurrent"
+msgstr "현재 취소"
+
+msgid "transfer.paused"
+msgstr "일시 정지됨"
+
+msgid "transfer.inProgress"
+msgstr "진행 중"
+
+msgid "transfer.minimizePanel"
+msgstr "최소화"
+
+msgid "transfer.hidePanel"
+msgstr "숨기기"
+
+msgid "transfer.noActiveTransfers"
+msgstr "활성 전송 없음"
+
+msgid "transfer.clearCompleted"
+msgstr "완료 항목 지우기"
+
+msgid "transfer.queue"
+msgstr "전송 큐"
+
+msgid "transfer.log"
+msgstr "전송 기록"
+
+msgid "transfer.logEmpty"
+msgstr "전송 기록 없음"
+
+msgid "transfer.logNoMatch"
+msgstr "일치하는 기록 없음"
+
+msgid "transfer.logCount"
+msgstr "{total}개 기록"
+
+msgid "transfer.logCountFiltered"
+msgstr "{total}개 중 {filtered}개 표시"
+
+msgid "transfer.noTransfers"
+msgstr "활성 전송 없음"
+
+msgid "transfer.clearConfirm"
+msgstr "모든 전송 기록을 지우시겠습니까? 이 작업은 되돌릴 수 없습니다."
+
+msgid "transfer.clearTitle"
+msgstr "지우기 확인"
+
+msgid "transfer.replaceConfirm"
+msgstr "파일이 이미 존재합니다. 교체하시겠습니까?"
+
+msgid "transfer.replaceTitle"
+msgstr "교체 확인"
+
+msgid "transfer.deleteConfirm"
+msgstr "선택한 {count}개 항목을 삭제하시겠습니까?"
+
+msgid "transfer.deleteTitle"
+msgstr "삭제 확인"
+
+msgid "bookmark.title"
+msgstr "북마크"
+
+msgid "bookmark.add"
+msgstr "북마크 추가"
+
+msgid "bookmark.addLocal"
+msgstr "로컬 추가"
+
+msgid "bookmark.addGlobal"
+msgstr "전역 추가"
+
+msgid "bookmark.addCurrentShort"
+msgstr "+로컬"
+
+msgid "bookmark.addGlobalShort"
+msgstr "+전역"
+
+msgid "bookmark.remove"
+msgstr "북마크 제거"
+
+msgid "bookmark.edit"
+msgstr "북마크 편집"
+
+msgid "bookmark.noBookmarks"
+msgstr "북마크 없음"
+
+msgid "bookmark.name"
+msgstr "북마크 이름"
+
+msgid "bookmark.path"
+msgstr "경로"
+
+msgid "bookmark.save"
+msgstr "북마크 저장"
+
+msgid "bookmark.global"
+msgstr "전역 북마크"
+
+msgid "bookmark.forConnection"
+msgstr "이 연결"
+
+msgid "permission.title"
+msgstr "권한 편집"
+
+msgid "permission.owner"
+msgstr "소유자"
+
+msgid "permission.group"
+msgstr "그룹"
+
+msgid "permission.others"
+msgstr "기타"
+
+msgid "permission.read"
+msgstr "읽기"
+
+msgid "permission.write"
+msgstr "쓰기"
+
+msgid "permission.execute"
+msgstr "실행"
+
+msgid "permission.mode"
+msgstr "모드(8진수)"
+
+msgid "notify.sftpOpened"
+msgstr "SFTP 열림"
+
+msgid "notify.noSSHSession"
+msgstr "현재 탭에 SSH 세션이 없음"
+
+msgid "notify.transferComplete"
+msgstr "전송 완료"
+
+msgid "notify.transferFailed"
+msgstr "전송 실패"
+
+msgid "notify.connectionLost"
+msgstr "연결 끊김"
+
+msgid "notify.connected"
+msgstr "연결됨"
+
+msgid "notify.connecting"
+msgstr "연결 중"
+
+msgid "notify.sftpConnectFailed"
+msgstr "SFTP 연결 실패. SSH가 연결되어 있고 서버가 SFTP를 지원하는지 확인하세요."
+
+msgid "notify.reconnectNoTerminal"
+msgstr "터미널 연결이 끊어졌습니다. 터미널을 릭하거나 아무 키나 눌러 재연결하세요."
+
+msgid "notify.reconnectFailed"
+msgstr "재연결 실패. 터미널을 클릭하거나 아무 키나 눌러 재연결하세요."
+
+msgid "settings.desc"
+msgstr "아름다운 SFTP 파일 관리자: 드래그 앤 드롭, 북마크, 정렬, 전송 로그, 다국어 지원."
+
+msgid "settings.language"
+msgstr "언어"
+
+msgid "settings.followTabby"
+msgstr "Tabby 따라가기"
+
+msgid "settings.theme"
+msgstr "테마"
+
+msgid "settings.primary"
+msgstr "주요"
+
+msgid "settings.bg"
+msgstr "배경"
+
+msgid "settings.text"
+msgstr "텍스트"
+
+msgid "settings.border"
+msgstr "테두리"
+
+msgid "settings.layout"
+msgstr "레이아웃"
+
+msgid "settings.layoutAdaptive"
+msgstr "적응형"
+
+msgid "settings.layoutAdaptiveSub"
+msgstr "너비에 따라 자동 전환"
+
+msgid "settings.layoutHorizontal"
+msgstr "수평"
+
+msgid "settings.layoutHorizontalSub"
+msgstr "좌우로 나란히"
+
+msgid "settings.layoutVertical"
+msgstr "수직"
+
+msgid "settings.layoutVerticalSub"
+msgstr "위아래로 쌓기"
+
+msgid "settings.layoutSingle"
+msgstr "단일 패널"
+
+msgid "settings.layoutSingleSub"
+msgstr "원격 패널만"
+
+msgid "settings.toolbarLayout"
+msgstr "툴바 사용자 정의"
+
+msgid "settings.customToolbar"
+msgstr "툴바 사용자 정의"
+
+msgid "settings.toolbarLayoutHint"
+msgstr "드래그로 순서 변경, 즉시 패널 헤더에 적용"
+
+msgid "settings.paneLabel"
+msgstr "터미널 레이블"
+
+msgid "settings.addressBar"
+msgstr "주소 표시줄"
+
+msgid "settings.toolbar"
+msgstr "툴바"
+
+msgid "settings.toolbarItem.back"
+msgstr "뒤로"
+
+msgid "settings.toolbarItem.forward"
+msgstr "앞으로"
+
+msgid "settings.toolbarItem.up"
+msgstr "상위"
+
+msgid "settings.toolbarItem.refresh"
+msgstr "새로고침"
+
+msgid "settings.toolbarItem.home"
+msgstr "홈"
+
+msgid "settings.toolbarItem.filter"
+msgstr "필터"
+
+msgid "settings.toolbarItem.bookmark"
+msgstr "북마크"
+
+msgid "settings.resetLayout"
+msgstr "리셋"
+
+msgid "settings.tableStyle"
+msgstr "테이블 스타일"
+
+msgid "settings.tableStyleHint"
+msgstr "팁: 파일 목록 헤더 우클릭 메뉴에서 제어"
+
+msgid "settings.hideNativeBtn"
+msgstr "네이티브 SFTP 버 숨기기"
+
+msgid "settings.openInNewTab"
+msgstr "기본적으로 새 탭에서 열기"
+
+msgid "settings.singleWorkspaceInstance"
+msgstr "단일 인스턴스만"
+
+msgid "settings.hotkey"
+msgstr "패널 핫키"
+
+msgid "settings.hotkeyUnbound"
+msgstr "핫키 설정"
+
+msgid "settings.hotkeyClear"
+msgstr "지우기"
+
+msgid "settings.hotkeyRecording"
+msgstr "키 조합을 르세요…"
+
+msgid "settings.hotkeyClickToSet"
+msgstr "클릭하여 핫키 설정"
+
+msgid "settings.hotkeyConflict"
+msgstr "충돌: {names}"
+
+msgid "settings.hotkeyConflictConfirm"
+msgstr "핫키 {keys}는 이미 {names}에서 사용 중입니다.\\nSFTP+에 할당하시겠습니까?(둘 다 실행될 수 있습니다.)"
+
+msgid "settings.hotkeySaved"
+msgstr "저장되었으며 Tabby에 동기화됨: {keys}"
+
+msgid "settings.hotkeyCleared"
+msgstr "핫키 할당이 지워짐"
+
+msgid "settings.hotkeySaveFailed"
+msgstr "핫키 저장 실패"
+
+msgid "settings.hotkeyRecordTimeout"
+msgstr "기록 시간 초과, 다시 시도하세요"
+
+msgid "settings.compatibility"
+msgstr "호환성"
+
+msgid "settings.data"
+msgstr "데이터"
+
+msgid "settings.export"
+msgstr "내보내기"
+
+msgid "settings.import"
+msgstr "가져오기"
+
+msgid "settings.clearAll"
+msgstr "모두 지우기"
+
+msgid "settings.about"
+msgstr "정보"
+
+msgid "settings.version"
+msgstr "버전"
+
+msgid "settings.buildTime"
+msgstr "빌드 시간"
+
+msgid "settings.author"
+msgstr "작성자"
+
+msgid "settings.githubSource"
+msgstr "GitHub 소스"
+
+msgid "settings.giveStar"
+msgstr "별점 주기"
+
+msgid "settings.feedback"
+msgstr "피드백"
+
+msgid "settings.modifyColors"
+msgstr "⚠️ 색상 수정"
+
+msgid "settings.overwriteConfirm"
+msgstr "자동/프리셋 모드입니다. 변경 사항은 사용자 정의 색상을 덮어씁니다. 계속하시겠습니까?"
+
+msgid "settings.overwrite"
+msgstr "덮어기"
+
+msgid "settings.clearAllTitle"
+msgstr "⚠️ 모든 데이터 지우기"
+
+msgid "settings.clearAllConfirm"
+msgstr "모든 북마크, 전송 로그, 설정이 삭제됩니다. 되돌릴 수 없습니다!"
+
+msgid "settings.clearAllPrompt"
+msgstr "확인을 위해 DELETE를 입력하세요:"
+
+msgid "settings.clear"
+msgstr "지우기"
+
+msgid "settings.dark"
+msgstr "어두움"
+
+msgid "settings.light"
+msgstr "밝음"
+
+msgid "settings.invalidFormat"
+msgstr "잘못된 데이터 형식입니다."
+
+msgid "settings.importComplete"
+msgstr "가져오기 완료."
+
+msgid "settings.importUnavailable"
+msgstr "가져올 수 없음: ConfigService를 사용할 수 없습니다."
+
+msgid "settings.importFailed"
+msgstr "가져오기 실패: 잘못되거나 손상된 파일입니다."
+
+msgid "settings.dataCleared"
+msgstr "모든 데이터가 지워짐"
+
+msgid "file.adjustCol"
+msgstr "열 너비 맞춤"
+
+msgid "file.adjustAllCols"
+msgstr "모든 열 너비 맞춤"
+
+msgid "notify.pathCopied"
+msgstr "경로 {n}개 복사됨"
+
+msgid "conflict.sourceFile"
+msgstr "원본 파일"
+
+msgid "conflict.targetFileExists"
+msgstr "대상 파일(존재함)"
+
+msgid "transfer.success"
+msgstr "성공"
+
+msgid "settings.closeBookmarkPanel"
+msgstr "선택 후 북마크 패널 닫기"
+
+msgid "layout.mode.auto"
+msgstr "자동 레이아웃"
+
+msgid "layout.mode.horizontal"
+msgstr "가로 레이아웃"
+
+msgid "layout.mode.vertical"
+msgstr "세로 레이아웃"
+
+msgid "layout.mode.single"
+msgstr "단일 창(원격만)"
+
+msgid "notify.closeWithTransfers"
+msgstr "{count}개의 전송이 진행 중입니다. 패널을 닫으면 모든 전송이 중단됩니다. 계속할까요?"
+
+msgid "type.folder"
+msgstr "폴더"
+
+msgid "type.file"
+msgstr "파일"
+
+msgid "pane.exclFolders"
+msgstr ", 폴더 제외"
+
+msgid "pane.selectedInfo"
+msgstr " — {n}개 항목 선택됨({size})"
+
+msgid "fail.cancelled"
+msgstr "취소됨"
+
+msgid "fail.interrupted"
+msgstr "연결 끊김"
+
+msgid "fail.unknown"
+msgstr "실패"
+
+msgid "notify.uploadFailed"
+msgstr "업로드 실패: {name}"
+
+msgid "notify.downloadFailed"
+msgstr "다운로드 실패: {name}"
+
+msgid "op.renameFailed"
+msgstr "이름 변경 실패: {reason}"
+
+msgid "op.mkdirFailed"
+msgstr "디렉터리 생성 실패: {reason}"
+
+msgid "op.touchFailed"
+msgstr "파일 생성 실패: {reason}"
+
+msgid "op.chmodFailed"
+msgstr "chmod 실패: {reason}"
+
+msgid "op.failed"
+msgstr "작업 실패: {reason}"
+
+msgid "notify.deleteFailed"
+msgstr "{n}개 항목 삭제 실패(사용 중이거나 권한 없음)"
+
+msgid "input.dirExists"
+msgstr "디렉터리가 이미 존재함: {val}"
+
+msgid "input.fileExists"
+msgstr "파일이 이미 존재함: {val}"
+
+msgid "input.fileWhenMkdir"
+msgstr "\"{val}\"(이)라는 이름의 파일이 이미 있어 디렉터리를 만들 수 없습니다"
+
+msgid "input.dirWhenTouch"
+msgstr "\"{val}\"(이)라는 이름의 디렉터리가 이미 있어 파일을 만들 수 없습니다"
+
+msgid "notify.notConnectedUpload"
+msgstr "연결되지 않음, 업로드 불가"
+
+msgid "notify.notConnectedDownload"
+msgstr "연결되지 않음, 다운로드 불가"
+
+msgid "notify.copied"
+msgstr "{n}개 항목 복사됨"
+
+msgid "notify.cut"
+msgstr "{n}개 항목 잘라냄"
+
+msgid "status.disconnected"
+msgstr "연결 끊김"
+
+msgid "status.reconnecting"
+msgstr "재연결 중…"
+
+msgid "status.reconnect"
+msgstr "재연결"
+
+msgid "app.restoreDefaultSize"
+msgstr "기본 패널 크기로 복원"
+
+msgid "notify.pasteFailed"
+msgstr "붙여넣기 실패"
+
+msgid "notify.copyFailed"
+msgstr "복사 실패: {name}"
+
+msgid "theme.auto"
+msgstr "자동"
+
+msgid "theme.dark"
+msgstr "다크"
+
+msgid "theme.light"
+msgstr "라이트"
+
+msgid "theme.blue"
+msgstr "파란색"
+
+msgid "theme.green"
+msgstr "초록색"
+
+msgid "theme.purple"
+msgstr "보라색"
+
+msgid "theme.red"
+msgstr "빨간색"
+
+msgid "theme.custom"
+msgstr "사용자 지정"
+
+msgid "pane.back"
+msgstr "뒤로"
+
+msgid "pane.forward"
+msgstr "앞으로"
+
+msgid "filter.apply"
+msgstr "적용"
+
+msgid "filter.clear"
+msgstr "지우기"
+
+msgid "hotkey.togglePanel"
+msgstr "SFTP+ 패널 열기"
+
+
+msgid "conflict.existsSamePane"
+msgstr "대상 위치에 동일한 이름의 파일이 이미 있습니다"
+
+msgid "settings.dateFormat"
+msgstr "사용자 지정 시간 형식"
+
+msgid "settings.dateFormatHint"
+msgstr "토큰: YYYY / YY / MM / DD / HH / hh / mm / ss / A (비워두면 기본값)"
+
+msgid "settings.dateFormatPreview"
+msgstr "미리보기"
+
+msgid "settings.dateFormatReset"
+msgstr "기본값으로 재설정"

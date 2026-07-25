@@ -1,0 +1,1081 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"Language: id_ID\n"
+
+msgid "app.title"
+msgstr "Manajer File SFTP+"
+
+msgid "app.openSettings"
+msgstr "Buka Pengaturan"
+
+msgid "app.open"
+msgstr "Buka SFTP"
+
+msgid "app.close"
+msgstr "Tutup"
+
+msgid "app.maximize"
+msgstr "Maksimalkan"
+
+msgid "app.restore"
+msgstr "Pulihkan"
+
+msgid "app.confirm"
+msgstr "Konfirmasi"
+
+msgid "app.cancel"
+msgstr "Batal"
+
+msgid "app.delete"
+msgstr "Hapus"
+
+msgid "app.deleteFile"
+msgstr "Hapus File"
+
+msgid "app.deleteFolder"
+msgstr "Hapus Folder"
+
+msgid "app.deleteMultiple"
+msgstr "Hapus Beberapa Item"
+
+msgid "conflict.title"
+msgstr "Konflik File"
+
+msgid "conflict.sourceFile"
+msgstr "File Sumber"
+
+msgid "conflict.localFile"
+msgstr "File Lokal"
+
+msgid "conflict.remoteFile"
+msgstr "File Jarak Jauh"
+
+msgid "conflict.size"
+msgstr "Ukuran"
+
+msgid "conflict.modified"
+msgstr "Dimodifikasi"
+
+msgid "conflict.path"
+msgstr "Jalur"
+
+msgid "conflict.cancel"
+msgstr "Batal"
+
+msgid "conflict.skip"
+msgstr "Lewati"
+
+msgid "conflict.rename"
+msgstr "Ganti Nama"
+
+msgid "conflict.overwrite"
+msgstr "Timpa"
+
+msgid "conflict.batch"
+msgstr "Batch:"
+msgid "conflict.skipAll"
+msgstr "Lewati Semua"
+
+msgid "conflict.renameAll"
+msgstr "Ganti Nama Semua"
+
+msgid "conflict.overwriteAll"
+msgstr "Timpa Semua"
+
+msgid "conflict.existsLocal"
+msgstr "Sudah ada secara lokal"
+
+msgid "conflict.existsRemote"
+msgstr "Sudah ada secara jarak jauh"
+
+msgid "log.onlySuccess"
+msgstr "Hanya Sukses"
+
+msgid "log.success"
+msgstr "Sukses"
+
+msgid "log.failed"
+msgstr "Gagal"
+
+msgid "fileType.txt"
+msgstr "File Teks"
+
+msgid "fileType.log"
+msgstr "File Log"
+
+msgid "fileType.md"
+msgstr "File Markdown"
+
+msgid "fileType.json"
+msgstr "File JSON"
+
+msgid "fileType.xml"
+msgstr "File XML"
+
+msgid "fileType.html"
+msgstr "File HTML"
+
+msgid "fileType.css"
+msgstr "File CSS"
+
+msgid "fileType.js"
+msgstr "File JavaScript"
+
+msgid "fileType.ts"
+msgstr "File TypeScript"
+
+msgid "fileType.image"
+msgstr "File Gambar"
+
+msgid "fileType.video"
+msgstr "File Video"
+
+msgid "fileType.audio"
+msgstr "File Audio"
+
+msgid "fileType.archive"
+msgstr "File Arsip"
+
+msgid "fileType.doc"
+msgstr "File Dokumen"
+
+msgid "fileType.code"
+msgstr "File Kode"
+
+msgid "fileType.data"
+msgstr "File Data"
+
+msgid "fileType.config"
+msgstr "File Konfigurasi"
+
+msgid "fileType.cert"
+msgstr "File Sertifikat"
+
+msgid "fileType.executable"
+msgstr "File Eksekusi"
+
+msgid "fileType.unknown"
+msgstr "File"
+msgid "app.deleteConfirmFile"
+msgstr "Apakah Anda yakin ingin menghapus file ini?"
+
+msgid "app.deleteConfirmFolder"
+msgstr "Apakah Anda yakin ingin menghapus folder ini?"
+
+msgid "app.deleteConfirmMultiple"
+msgstr "Apakah Anda yakin ingin menghapus {count} item ini?"
+
+msgid "app.rename"
+msgstr "Ganti Nama"
+
+msgid "app.refresh"
+msgstr "Segarkan"
+
+msgid "app.upload"
+msgstr "Unggah"
+
+msgid "app.download"
+msgstr "Unduh"
+
+msgid "app.newFolder"
+msgstr "Folder Baru"
+
+msgid "app.newFile"
+msgstr "File Baru"
+
+msgid "app.loading"
+msgstr "Memuat..."
+
+msgid "app.error"
+msgstr "Kesalahan"
+
+msgid "app.success"
+msgstr "Sukses"
+
+msgid "app.yes"
+msgstr "Ya"
+
+msgid "app.no"
+msgstr "Tidak"
+
+msgid "app.all"
+msgstr "Semua"
+
+msgid "app.export"
+msgstr "Ekspor"
+
+msgid "app.clear"
+msgstr "Bersihkan"
+
+msgid "app.optional"
+msgstr "Opsional"
+
+msgid "app.settings"
+msgstr "Pengaturan"
+
+msgid "app.modeSwitchSsh"
+msgstr "SSH"
+
+msgid "app.modeSwitchSftp"
+msgstr "SFTP"
+
+msgid "app.backToTerminal"
+msgstr "Kembali ke Terminal"
+
+msgid "filter.allOps"
+msgstr "Semua Operasi"
+
+msgid "filter.allStatus"
+msgstr "Semua Status"
+
+msgid "filter.allTime"
+msgstr "Semua Waktu"
+
+msgid "filter.today"
+msgstr "Hari Ini"
+
+msgid "filter.last7Days"
+msgstr "7 Hari Terakhir"
+
+msgid "filter.last30Days"
+msgstr "30 Hari Terakhir"
+
+msgid "filter.customRange"
+msgstr "Kustom"
+
+msgid "filter.dateFrom"
+msgstr "Dari"
+
+msgid "filter.dateTo"
+msgstr "Ke"
+
+msgid "pane.local"
+msgstr "Lokal"
+
+msgid "pane.remote"
+msgstr "Jarak Jauh"
+
+msgid "pane.path"
+msgstr "Jalur"
+
+msgid "pane.up"
+msgstr "Ke Atas"
+
+msgid "pane.home"
+msgstr "Beranda"
+
+msgid "pane.go"
+msgstr "Pergi"
+
+msgid "pane.refresh"
+msgstr "Segarkan"
+
+msgid "pane.filter"
+msgstr "Filter..."
+msgid "pane.filterBtn"
+msgstr "Filter File"
+
+msgid "pane.showHidden"
+msgstr "Tampilkan File Tersembunyi"
+
+msgid "pane.pinFolders"
+msgstr "Sematkan Folder di Atas"
+
+msgid "view.panelBorder"
+msgstr "Batas panel"
+
+msgid "view.colBorder"
+msgstr "Tampilkan batas"
+
+msgid "view.zebra"
+msgstr "Tampilkan garis zebra"
+
+msgid "pane.hideHidden"
+msgstr "Sembunyikan File Tersembunyi"
+
+msgid "pane.sortByName"
+msgstr "Urutkan berdasarkan Nama"
+
+msgid "pane.sortBySize"
+msgstr "Urutkan berdasarkan Ukuran"
+
+msgid "pane.sortByModified"
+msgstr "Urutkan berdasarkan Modifikasi"
+
+msgid "pane.selectAll"
+msgstr "Pilih Semua"
+
+msgid "pane.selectInvert"
+msgstr "Balikkan Pilihan"
+
+msgid "pane.clearSelection"
+msgstr "Bersihkan Pilihan"
+
+msgid "pane.items"
+msgstr "{count} item"
+
+msgid "pane.copyPath"
+msgstr "Salin Jalur"
+
+msgid "pane.splitterHintHorizontal"
+msgstr "Seret untuk mengubah ukuran panel kiri/kanan. Klik ganda untuk mereset."
+
+msgid "pane.splitterHintVertical"
+msgstr "Seret untuk mengubah ukuran panel atas/bawah. Klik ganda untuk mereset."
+
+msgid "notify.pathCopied"
+msgstr "Menyalin {n} jalur"
+
+msgid "pane.openFolder"
+msgstr "Buka Folder"
+
+msgid "pane.noMatch"
+msgstr "Tidak ada file yang cocok"
+
+msgid "pane.empty"
+msgstr "Folder kosong"
+
+msgid "pane.errorAccess"
+msgstr "Tidak dapat mengakses (izin ditolak atau jalur tidak ditemukan)"
+
+msgid "pane.loading"
+msgstr "Memuat…"
+
+msgid "path.modeOff"
+msgstr "Mode Jalur: Mati (klik untuk mengganti: Ingat, Sinkron)"
+
+msgid "path.modeRemember"
+msgstr "Mode Jalur: Ingat (pulihkan lain kali)"
+
+msgid "path.modeSync"
+msgstr "Mode Jalur: Sinkron dengan terminal (jarak jauh mengikuti cwd)"
+
+msgid "path.syncNoCwd"
+msgstr "cwd terminal tidak dilaporkan. Alihkan ke Sinkron lagi untuk mengonfigurasi"
+
+msgid "path.cwdSetupTitle"
+msgstr "Aktifkan sinkronisasi direktori terminal"
+
+msgid "path.cwdSetupIntro"
+msgstr "Tabby memerlukan shell untuk melaporkan cwd melalui OSC 1337 sebelum SFTP+ dapat menyinkronkan. Pilih cara mengaktifkannya:"
+
+msgid "path.cwdSetupSessionHint"
+msgstr "Sesi ini saja: jalankan perintah sementara di bawah ini di terminal saat ini (hilang setelah shell restart)"
+
+msgid "path.cwdSetupPermanentHint"
+msgstr "Permanen: tambahkan snippet di bawah ini ke profil jarak jauh, lalu source (berdasarkan shell yang terdeteksi)"
+
+msgid "path.cwdSetupNote"
+msgstr "Batal mematikan mode jalur. Tid ada yang dieksekusi atau ditulis."
+
+msgid "path.cwdSetupSession"
+msgstr "Sesi ini saja"
+
+msgid "path.cwdSetupPermanent"
+msgstr "Tulis secara permanen"
+
+msgid "path.cwdSetupDone"
+msgstr "Pelaporan direktori diaktifkan, menyinkronkan…"
+
+msgid "path.cwdSetupFailed"
+msgstr "Gagal mengaktifkan. Periksa izin jarak jauh atau jenis shell"
+
+msgid "file.name"
+msgstr "Nama"
+
+msgid "file.type"
+msgstr "Jenis"
+
+msgid "file.size"
+msgstr "Ukuran"
+
+msgid "file.modified"
+msgstr "Dimodifikasi"
+
+msgid "file.created"
+msgstr "Dibuat"
+msgid "file.accessed"
+msgstr "Diakses"
+msgid "file.permissions"
+msgstr "Izin"
+msgid "file.owner"
+msgstr "Pemilik"
+
+msgid "file.group"
+msgstr "Grup"
+
+msgid "file.mode"
+msgstr "Mode"
+msgid "file.path"
+msgstr "Jalur"
+
+msgid "file.ext"
+msgstr "Ekstensi"
+
+msgid "file.columns"
+msgstr "Kolom"
+
+msgid "file.inaccessible"
+msgstr "Tidak Dapat Diakses"
+
+msgid "file.open"
+msgstr "Buka"
+
+msgid "file.view"
+msgstr "Lihat"
+
+msgid "file.edit"
+msgstr "Edit"
+msgid "file.copy"
+msgstr "Salin"
+
+msgid "file.cut"
+msgstr "Potong"
+
+msgid "file.paste"
+msgstr "Tempel"
+
+msgid "file.delete"
+msgstr "Hapus"
+
+msgid "file.rename"
+msgstr "Ganti Nama"
+
+msgid "file.newFolder"
+msgstr "Folder Baru"
+
+msgid "file.newFile"
+msgstr "File Baru"
+
+msgid "file.properties"
+msgstr "Properti"
+
+msgid "file.openWith"
+msgstr "Buka Dengan"
+
+msgid "file.showInFolder"
+msgstr "Tampilkan di Explorer"
+
+msgid "file.openInSystem"
+msgstr "Buka di Sistem"
+
+msgid "file.editInSystem"
+msgstr "Edit di Sistem"
+
+msgid "viewer.loading"
+msgstr "Memuat…"
+
+msgid "viewer.loadFailed"
+msgstr "Gagal memuat file"
+
+msgid "viewer.binaryNotSupported"
+msgstr "File biner tidak dapat dilihat atau diedit sebagai teks"
+
+msgid "viewer.tooLarge"
+msgstr "File terlalu besar untuk dibuka"
+
+msgid "viewer.tooLargeView"
+msgstr "File terlalu besar (lebih dari {limit}) dan tidak dapat dilihat"
+
+msgid "viewer.typeNotSupported"
+msgstr "Jenis file ini tidak dapat dilihat"
+
+msgid "editor.save"
+msgstr "Simpan"
+
+msgid "editor.saving"
+msgstr "Menyimpan…"
+
+msgid "editor.saveSuccess"
+msgstr "Disimpan ke server"
+
+msgid "editor.saveFailed"
+msgstr "Penyimpanan gagal"
+
+msgid "editor.unsaved"
+msgstr "Anda memiliki perubahan yang belum disimpan. Buang?"
+
+msgid "editor.tooLarge"
+msgstr "File terlalu besar (lebih dari {limit}) dan tidak dapat diedit"
+
+msgid "editor.typeNotSupported"
+msgstr "Jenis file ini tidak dapat diedit"
+
+msgid "file.adjustCol"
+msgstr "Sesuaikan Lebar Kolom"
+
+msgid "file.adjustAllCols"
+msgstr "Sesuaikan Semua Kolom"
+
+msgid "transfer.upload"
+msgstr "Unggah"
+
+msgid "transfer.download"
+msgstr "Unduh"
+
+msgid "transfer.edit-upload"
+msgstr "Edit Simpan"
+
+msgid "transfer.edit-download"
+msgstr "Edit Muat"
+
+msgid "transfer.progress"
+msgstr "Kemajuan"
+
+msgid "transfer.speed"
+msgstr "Kecepatan"
+
+msgid "transfer.remaining"
+msgstr "Sisa"
+
+msgid "transfer.cancel"
+msgstr "Batal"
+
+msgid "transfer.closePanel"
+msgstr "Tutup panel transfer"
+
+msgid "transfer.pause"
+msgstr "Jeda"
+
+msgid "transfer.resume"
+msgstr "Lanjutkan"
+
+msgid "transfer.cancelAll"
+msgstr "Batal folder"
+
+msgid "transfer.cancelCurrent"
+msgstr "Batal saat ini"
+
+msgid "transfer.paused"
+msgstr "Dijeda"
+
+msgid "transfer.inProgress"
+msgstr "Sedang Berlangsung"
+
+msgid "transfer.minimizePanel"
+msgstr "Minimalkan"
+
+msgid "transfer.hidePanel"
+msgstr "Sembunyikan"
+
+msgid "transfer.noActiveTransfers"
+msgstr "Tidak ada transfer aktif"
+
+msgid "transfer.clearCompleted"
+msgstr "Bersihkan Selesai"
+
+msgid "transfer.queue"
+msgstr "Antrean Transfer"
+
+msgid "transfer.log"
+msgstr "Riwayat Transfer"
+
+msgid "transfer.logEmpty"
+msgstr "Belum ada catatan transfer"
+
+msgid "transfer.logNoMatch"
+msgstr "Tidak ada catatan yang cocok"
+
+msgid "transfer.logCount"
+msgstr "{total} catatan"
+
+msgid "transfer.logCountFiltered"
+msgstr "Menampilkan {filtered} dari {total}"
+
+msgid "transfer.noTransfers"
+msgstr "Tidak ada transfer aktif"
+
+msgid "transfer.clearConfirm"
+msgstr "Bersihkan semua catatan transfer? Tindakan ini tidak dapat dibatalkan."
+
+msgid "transfer.clearTitle"
+msgstr "Konfirmasi Bersihkan"
+
+msgid "transfer.replaceConfirm"
+msgstr "File sudah ada. Ganti?"
+
+msgid "transfer.replaceTitle"
+msgstr "Konfirmasi Ganti"
+
+msgid "transfer.deleteConfirm"
+msgstr "Hapus {count} item yang dipilih?"
+
+msgid "transfer.deleteTitle"
+msgstr "Konfirmasi Hapus"
+
+msgid "bookmark.title"
+msgstr "Bookmark"
+
+msgid "bookmark.add"
+msgstr "Tambahkan Bookmark"
+
+msgid "bookmark.addLocal"
+msgstr "Tambahkan Lokal"
+
+msgid "bookmark.addGlobal"
+msgstr "Tambahkan Global"
+
+msgid "bookmark.addCurrentShort"
+msgstr "+Lokal"
+
+msgid "bookmark.addGlobalShort"
+msgstr "+Global"
+msgid "bookmark.remove"
+msgstr "Hapus Bookmark"
+
+msgid "bookmark.edit"
+msgstr "Edit Penanda"
+msgid "bookmark.noBookmarks"
+msgstr "Belum ada bookmark"
+
+msgid "bookmark.name"
+msgstr "Nama Bookmark"
+
+msgid "bookmark.path"
+msgstr "Jalur"
+
+msgid "bookmark.save"
+msgstr "Simpan Bookmark"
+
+msgid "bookmark.global"
+msgstr "Bookmark Global"
+
+msgid "bookmark.forConnection"
+msgstr "Koneksi Ini"
+
+msgid "permission.title"
+msgstr "Edit Izin"
+
+msgid "permission.owner"
+msgstr "Pemilik"
+
+msgid "permission.group"
+msgstr "Grup"
+
+msgid "permission.others"
+msgstr "Lainnya"
+
+msgid "permission.read"
+msgstr "Baca"
+
+msgid "permission.write"
+msgstr "Tulis"
+
+msgid "permission.execute"
+msgstr "Eksekusi"
+
+msgid "permission.mode"
+msgstr "Mode (Oktal)"
+
+msgid "notify.sftpOpened"
+msgstr "SFTP Dibuka"
+
+msgid "notify.noSSHSession"
+msgstr "Tidak ada sesi SSH di tab saat ini"
+
+msgid "notify.transferComplete"
+msgstr "Transfer Selesai"
+
+msgid "notify.transferFailed"
+msgstr "Transfer Gagal"
+
+msgid "notify.connectionLost"
+msgstr "Koneksi Hilang"
+
+msgid "notify.connected"
+msgstr "Terhubung ke"
+
+msgid "notify.connecting"
+msgstr "Menghubungkan ke"
+
+msgid "notify.sftpConnectFailed"
+msgstr "Koneksi SFTP gagal. Pastikan SSH terhubung dan server mendukung SFTP."
+
+msgid "notify.reconnectNoTerminal"
+msgstr "Terminal terputus. Silakan klik atau tekan tombol apa pun di terminal untuk menghubungkan kembali."
+
+msgid "notify.reconnectFailed"
+msgstr "Penghubungan kembali gagal. Silakan klik atau tekan tombol apa pun di terminal untuk menghubungkan kembali."
+
+msgid "settings.desc"
+msgstr "Manajer file SFTP yang indah: drag-drop, bookmark, sortir, log transfer & multibahasa."
+
+msgid "settings.language"
+msgstr "Bahasa"
+
+msgid "settings.followTabby"
+msgstr "Ikuti Tabby"
+
+msgid "settings.theme"
+msgstr "Tema"
+
+msgid "settings.primary"
+msgstr "Utama"
+
+msgid "settings.bg"
+msgstr "Latar"
+
+msgid "settings.text"
+msgstr "Teks"
+
+msgid "settings.border"
+msgstr "Batas"
+
+msgid "settings.layout"
+msgstr "Tata Letak"
+
+msgid "settings.layoutAdaptive"
+msgstr "Adaptif"
+
+msgid "settings.layoutAdaptiveSub"
+msgstr "Peralihan otomatis berdasarkan lebar"
+
+msgid "settings.layoutHorizontal"
+msgstr "Horizontal"
+msgid "settings.layoutHorizontalSub"
+msgstr "Panel berdampingan"
+
+msgid "settings.layoutVertical"
+msgstr "Vertikal"
+
+msgid "settings.layoutVerticalSub"
+msgstr "Panel ditumpuk"
+
+msgid "settings.layoutSingle"
+msgstr "Panel Tunggal"
+
+msgid "settings.layoutSingleSub"
+msgstr "Hanya panel jarak jauh"
+
+msgid "settings.toolbarLayout"
+msgstr "Sesuaikan Toolbar"
+
+msgid "settings.customToolbar"
+msgstr "Sesuaikan Toolbar"
+
+msgid "settings.toolbarLayoutHint"
+msgstr "Seret untuk menyusun ulang dan terapkan segera ke header panel"
+
+msgid "settings.paneLabel"
+msgstr "Label Terminal"
+
+msgid "settings.addressBar"
+msgstr "Bar Alamat"
+
+msgid "settings.toolbar"
+msgstr "Toolbar"
+msgid "settings.toolbarItem.back"
+msgstr "Kembali"
+
+msgid "settings.toolbarItem.forward"
+msgstr "Maju"
+
+msgid "settings.toolbarItem.up"
+msgstr "Atas"
+
+msgid "settings.toolbarItem.refresh"
+msgstr "Segarkan"
+
+msgid "settings.toolbarItem.home"
+msgstr "Beranda"
+
+msgid "settings.toolbarItem.filter"
+msgstr "Filter"
+msgid "settings.toolbarItem.bookmark"
+msgstr "Penanda"
+msgid "settings.resetLayout"
+msgstr "Reset"
+msgid "settings.tableStyle"
+msgstr "Gaya Tabel"
+
+msgid "settings.tableStyleHint"
+msgstr "Tip: Kontrol melalui menu klik kanan header daftar file"
+
+msgid "settings.hideNativeBtn"
+msgstr "Sembunyikan tombol SFTP asli"
+
+msgid "settings.openInNewTab"
+msgstr "Buka di tab baru secara default"
+
+msgid "settings.singleWorkspaceInstance"
+msgstr "Hanya instance tunggal"
+
+msgid "settings.hotkey"
+msgstr "Hotkey Panel"
+
+msgid "settings.hotkeyUnbound"
+msgstr "Atur hotkey"
+
+msgid "settings.hotkeyClear"
+msgstr "Bersihkan"
+
+msgid "settings.hotkeyRecording"
+msgstr "Tekan kombinasi tombol…"
+
+msgid "settings.hotkeyClickToSet"
+msgstr "Klik untuk mengatur hotkey"
+
+msgid "settings.hotkeyConflict"
+msgstr "Bentrok dengan: {names}"
+
+msgid "settings.hotkeyConflictConfirm"
+msgstr "Hotkey {keys} sudah digunakan oleh: {names}\nTetap ikat ke SFTP+? (Keduanya mungkin aktif.)"
+msgid "settings.hotkeySaved"
+msgstr "Disimpan dan disinkronkan ke Tabby: {keys}"
+
+msgid "settings.hotkeyCleared"
+msgstr "Pengikatan hotkey dibersihkan"
+
+msgid "settings.hotkeySaveFailed"
+msgstr "Gagal menyimpan hotkey"
+
+msgid "settings.hotkeyRecordTimeout"
+msgstr "Perekaman habis waktu, silakan coba lagi"
+
+msgid "settings.compatibility"
+msgstr "Kompatibilitas"
+
+msgid "settings.data"
+msgstr "Data"
+msgid "settings.export"
+msgstr "Ekspor"
+
+msgid "settings.import"
+msgstr "Impor"
+
+msgid "settings.clearAll"
+msgstr "Bersihkan Semua"
+
+msgid "settings.about"
+msgstr "Tentang"
+
+msgid "settings.version"
+msgstr "Versi"
+
+msgid "settings.buildTime"
+msgstr "Waktu Build"
+
+msgid "settings.author"
+msgstr "Penulis"
+
+msgid "settings.githubSource"
+msgstr "Sumber GitHub"
+
+msgid "settings.giveStar"
+msgstr "Beri Bintang"
+
+msgid "settings.feedback"
+msgstr "Masukan"
+
+msgid "settings.modifyColors"
+msgstr "⚠️ Modifikasi Warna"
+
+msgid "settings.overwriteConfirm"
+msgstr "Anda berada dalam mode Auto/Preset. Perubahan akan menimpa skema warna kustom. Lanjutkan?"
+
+msgid "settings.overwrite"
+msgstr "Timpa"
+
+msgid "settings.clearAllTitle"
+msgstr "⚠️ Bersihkan Semua Data"
+
+msgid "settings.clearAllConfirm"
+msgstr "Ini akan menghapus semua bookmark, log transfer, dan pengaturan. Tidak dapat dibatalkan!"
+
+msgid "settings.clearAllPrompt"
+msgstr "Silakan ketik DELETE untuk mengonfirmasi:"
+
+msgid "settings.clear"
+msgstr "Bersihkan"
+
+msgid "settings.dark"
+msgstr "Gelap"
+
+msgid "settings.light"
+msgstr "Terang"
+
+msgid "settings.invalidFormat"
+msgstr "Format data tidak valid."
+
+msgid "settings.importComplete"
+msgstr "Impor selesai."
+
+msgid "settings.importUnavailable"
+msgstr "Tidak dapat mengimpor: ConfigService tidak tersedia."
+
+msgid "settings.importFailed"
+msgstr "Impor gagal: file tidak valid atau rusak."
+
+msgid "settings.dataCleared"
+msgstr "Semua data dibersihkan"
+
+msgid "conflict.sourceFile"
+msgstr "Berkas sumber"
+
+msgid "conflict.targetFileExists"
+msgstr "Berkas target (ada)"
+
+msgid "transfer.success"
+msgstr "Berhasil"
+
+msgid "settings.closeBookmarkPanel"
+msgstr "Tutup panel markah setelah memilih"
+
+msgid "layout.mode.auto"
+msgstr "Tata letak Otomatis"
+
+msgid "layout.mode.horizontal"
+msgstr "Tata letak Mendatar"
+
+msgid "layout.mode.vertical"
+msgstr "Tata letak Tegak"
+
+msgid "layout.mode.single"
+msgstr "Satu panel (Hanya jarak jauh)"
+
+msgid "notify.closeWithTransfers"
+msgstr "{count} transfer sedang berlangsung. Menutup panel akan menginterupsi semua transfer. Lanjutkan?"
+
+msgid "type.folder"
+msgstr "Folder"
+
+msgid "type.file"
+msgstr "Berkas"
+
+msgid "pane.exclFolders"
+msgstr ", kec. folder"
+
+msgid "pane.selectedInfo"
+msgstr " — {n} item terpilih ({size})"
+
+msgid "fail.cancelled"
+msgstr "Dibatalkan"
+
+msgid "fail.interrupted"
+msgstr "Terputus"
+
+msgid "fail.unknown"
+msgstr "Gagal"
+
+msgid "notify.uploadFailed"
+msgstr "Unggah gagal: {name}"
+
+msgid "notify.downloadFailed"
+msgstr "Unduh gagal: {name}"
+
+msgid "op.renameFailed"
+msgstr "Gagal mengganti nama: {reason}"
+
+msgid "op.mkdirFailed"
+msgstr "Gagal membuat direktori: {reason}"
+
+msgid "op.touchFailed"
+msgstr "Gagal membuat berkas: {reason}"
+
+msgid "op.chmodFailed"
+msgstr "Chmod gagal: {reason}"
+
+msgid "op.failed"
+msgstr "Operasi gagal: {reason}"
+
+msgid "notify.deleteFailed"
+msgstr "{n} item gagal dihapus (mungkin sedang digunakan atau tidak ada izin)"
+
+msgid "input.dirExists"
+msgstr "Direktori sudah ada: {val}"
+
+msgid "input.fileExists"
+msgstr "Berkas sudah ada: {val}"
+
+msgid "input.fileWhenMkdir"
+msgstr "Berkas bernama \"{val}\" sudah ada, tidak dapat membuat direktori"
+
+msgid "input.dirWhenTouch"
+msgstr "Direktori bernama \"{val}\" sudah ada, tidak dapat membuat berkas"
+
+msgid "notify.notConnectedUpload"
+msgstr "Tidak terhubung, tidak dapat mengunggah"
+
+msgid "notify.notConnectedDownload"
+msgstr "Tidak terhubung, tidak dapat mengunduh"
+
+msgid "notify.copied"
+msgstr "{n} item disalin"
+
+msgid "notify.cut"
+msgstr "{n} item dipotong"
+
+msgid "status.disconnected"
+msgstr "Terputus"
+
+msgid "status.reconnecting"
+msgstr "Menyambungkan kembali…"
+
+msgid "status.reconnect"
+msgstr "Sambungkan kembali"
+
+msgid "app.restoreDefaultSize"
+msgstr "Kembalikan ukuran panel bawaan"
+
+msgid "notify.pasteFailed"
+msgstr "Tempel gagal"
+
+msgid "notify.copyFailed"
+msgstr "Salin gagal: {name}"
+
+msgid "theme.auto"
+msgstr "Otomatis"
+
+msgid "theme.dark"
+msgstr "Gelap"
+
+msgid "theme.light"
+msgstr "Terang"
+
+msgid "theme.blue"
+msgstr "Biru"
+
+msgid "theme.green"
+msgstr "Hijau"
+
+msgid "theme.purple"
+msgstr "Ungu"
+
+msgid "theme.red"
+msgstr "Merah"
+
+msgid "theme.custom"
+msgstr "Kustom"
+
+msgid "pane.back"
+msgstr "Kembali"
+
+msgid "pane.forward"
+msgstr "Maju"
+
+msgid "filter.apply"
+msgstr "Terapkan"
+
+msgid "filter.clear"
+msgstr "Bersihkan"
+
+msgid "hotkey.togglePanel"
+msgstr "Buka panel SFTP+"
+
+
+msgid "conflict.existsSamePane"
+msgstr "Berkas dengan nama yang sama sudah ada di lokasi tujuan"
+
+msgid "settings.dateFormat"
+msgstr "Format waktu kustom"
+
+msgid "settings.dateFormatHint"
+msgstr "Token: YYYY / YY / MM / DD / HH / hh / mm / ss / A (kosong = bawaan)"
+
+msgid "settings.dateFormatPreview"
+msgstr "Pratinjau"
+
+msgid "settings.dateFormatReset"
+msgstr "Setel ulang ke bawaan"

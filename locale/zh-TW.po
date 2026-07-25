@@ -1,0 +1,1098 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"Language: zh_TW\n"
+
+msgid "app.title"
+msgstr "SFTP+ 檔案管理器"
+
+msgid "app.openSettings"
+msgstr "開啟設定"
+
+msgid "app.open"
+msgstr "開啟 SFTP"
+
+msgid "app.close"
+msgstr "關閉"
+
+msgid "app.maximize"
+msgstr "最大化"
+
+msgid "app.restore"
+msgstr "還原"
+
+msgid "app.confirm"
+msgstr "確認"
+
+msgid "app.cancel"
+msgstr "取消"
+
+msgid "app.delete"
+msgstr "刪除"
+
+msgid "app.deleteFile"
+msgstr "刪除檔案"
+
+msgid "app.deleteFolder"
+msgstr "刪除資料夾"
+
+msgid "app.deleteMultiple"
+msgstr "刪除多個專案"
+
+msgid "conflict.title"
+msgstr "檔案衝突"
+
+msgid "conflict.sourceFile"
+msgstr "原始檔"
+
+msgid "conflict.localFile"
+msgstr "本地檔案"
+
+msgid "conflict.remoteFile"
+msgstr "遠端檔案"
+
+msgid "conflict.size"
+msgstr "大小"
+
+msgid "conflict.modified"
+msgstr "修改時間"
+
+msgid "conflict.path"
+msgstr "路徑"
+
+msgid "conflict.cancel"
+msgstr "取消"
+
+msgid "conflict.skip"
+msgstr "跳過"
+
+msgid "conflict.rename"
+msgstr "重新命名"
+
+msgid "conflict.overwrite"
+msgstr "覆蓋"
+
+msgid "conflict.batch"
+msgstr "批次操作："
+
+msgid "conflict.skipAll"
+msgstr "全部跳過"
+
+msgid "conflict.renameAll"
+msgstr "全部重新命名"
+
+msgid "conflict.overwriteAll"
+msgstr "全部覆蓋"
+
+msgid "conflict.existsLocal"
+msgstr "已存在於本地目錄"
+
+msgid "conflict.existsRemote"
+msgstr "已存在於遠端目錄"
+
+msgid "log.onlySuccess"
+msgstr "僅成功"
+
+msgid "log.success"
+msgstr "成功"
+
+msgid "log.failed"
+msgstr "失敗"
+
+msgid "fileType.txt"
+msgstr "文本文件"
+
+msgid "fileType.log"
+msgstr "日誌檔案"
+
+msgid "fileType.md"
+msgstr "Markdown 檔案"
+
+msgid "fileType.json"
+msgstr "JSON 檔案"
+
+msgid "fileType.xml"
+msgstr "XML 檔案"
+
+msgid "fileType.html"
+msgstr "HTML 檔案"
+
+msgid "fileType.css"
+msgstr "CSS 檔案"
+
+msgid "fileType.js"
+msgstr "JavaScript 檔案"
+
+msgid "fileType.ts"
+msgstr "TypeScript 檔案"
+
+msgid "fileType.image"
+msgstr "圖片檔案"
+
+msgid "fileType.video"
+msgstr "影片檔案"
+
+msgid "fileType.audio"
+msgstr "音訊檔案"
+
+msgid "fileType.archive"
+msgstr "壓縮檔案"
+
+msgid "fileType.doc"
+msgstr "文件檔案"
+
+msgid "fileType.code"
+msgstr "程式碼檔案"
+
+msgid "fileType.data"
+msgstr "資料檔案"
+
+msgid "fileType.config"
+msgstr "配置檔案"
+
+msgid "fileType.cert"
+msgstr "證書檔案"
+
+msgid "fileType.executable"
+msgstr "執行檔"
+
+msgid "fileType.unknown"
+msgstr "檔案"
+
+msgid "app.deleteConfirmFile"
+msgstr "確實要刪除此檔案嗎？"
+
+msgid "app.deleteConfirmFolder"
+msgstr "確實要刪除此資料夾嗎？"
+
+msgid "app.deleteConfirmMultiple"
+msgstr "確實要刪除這 {count} 個專案嗎？"
+
+msgid "app.rename"
+msgstr "重新命名"
+
+msgid "app.refresh"
+msgstr "重新整理"
+
+msgid "app.upload"
+msgstr "上傳"
+
+msgid "app.download"
+msgstr "下載"
+
+msgid "app.newFolder"
+msgstr "新建資料夾"
+
+msgid "app.newFile"
+msgstr "新建檔案"
+
+msgid "app.loading"
+msgstr "載入中..."
+
+msgid "app.error"
+msgstr "錯誤"
+
+msgid "app.success"
+msgstr "成功"
+
+msgid "app.yes"
+msgstr "是"
+
+msgid "app.no"
+msgstr "否"
+
+msgid "app.all"
+msgstr "全部"
+
+msgid "app.export"
+msgstr "匯出"
+
+msgid "app.clear"
+msgstr "清除"
+
+msgid "app.optional"
+msgstr "可選"
+
+msgid "app.settings"
+msgstr "設定"
+
+msgid "app.modeSwitchSsh"
+msgstr "SSH"
+
+msgid "app.modeSwitchSftp"
+msgstr "SFTP"
+
+msgid "app.backToTerminal"
+msgstr "返回終端"
+
+msgid "filter.allOps"
+msgstr "所有操作"
+
+msgid "filter.allStatus"
+msgstr "全部狀態"
+
+msgid "filter.allTime"
+msgstr "全部時間"
+
+msgid "filter.today"
+msgstr "今天"
+
+msgid "filter.last7Days"
+msgstr "近 7 天"
+
+msgid "filter.last30Days"
+msgstr "近 30 天"
+
+msgid "filter.customRange"
+msgstr "自定義"
+
+msgid "filter.dateFrom"
+msgstr "起始"
+
+msgid "filter.dateTo"
+msgstr "截止"
+
+msgid "pane.local"
+msgstr "本地"
+
+msgid "pane.remote"
+msgstr "遠端"
+
+msgid "pane.path"
+msgstr "路徑"
+
+msgid "pane.up"
+msgstr "返回上級"
+
+msgid "pane.home"
+msgstr "主目錄"
+
+msgid "pane.go"
+msgstr "跳轉"
+
+msgid "pane.refresh"
+msgstr "重新整理"
+
+msgid "pane.filter"
+msgstr "過濾..."
+
+msgid "pane.filterBtn"
+msgstr "檔案過濾"
+
+msgid "pane.showHidden"
+msgstr "顯示隱藏檔案"
+
+msgid "pane.pinFolders"
+msgstr "置頂資料夾"
+
+msgid "view.panelBorder"
+msgstr "面板邊框"
+
+msgid "view.colBorder"
+msgstr "顯示邊框"
+
+msgid "view.zebra"
+msgstr "顯示斑馬紋"
+
+msgid "pane.hideHidden"
+msgstr "不顯示隱藏檔案"
+
+msgid "pane.sortByName"
+msgstr "按名稱排序"
+
+msgid "pane.sortBySize"
+msgstr "按大小排序"
+
+msgid "pane.sortByModified"
+msgstr "按修改時間排序"
+
+msgid "pane.selectAll"
+msgstr "全選"
+
+msgid "pane.selectInvert"
+msgstr "反選"
+
+msgid "pane.clearSelection"
+msgstr "清除選擇"
+
+msgid "pane.items"
+msgstr "{count} 項"
+
+msgid "pane.copyPath"
+msgstr "複製路徑"
+
+msgid "pane.splitterHintHorizontal"
+msgstr "拖拽調整左右面板大小，雙擊恢復預設"
+
+msgid "pane.splitterHintVertical"
+msgstr "拖拽調整上下面板大小，雙擊恢復預設"
+
+msgid "notify.pathCopied"
+msgstr "已複製 {n} 個路徑"
+
+msgid "pane.openFolder"
+msgstr "開啟資料夾"
+
+msgid "pane.noMatch"
+msgstr "無匹配檔案"
+
+msgid "pane.empty"
+msgstr "空資料夾"
+
+msgid "pane.errorAccess"
+msgstr "無法訪問（許可權不足或路徑不存在）"
+
+msgid "pane.loading"
+msgstr "載入中…"
+
+msgid "path.modeOff"
+msgstr "路徑模式：關閉（點選切換 路徑記憶、路徑同步）"
+
+msgid "path.modeRemember"
+msgstr "路徑模式：路徑記憶（下次開啟恢復）"
+
+msgid "path.modeSync"
+msgstr "路徑模式：與終端同步（遠端跟隨終端目錄）"
+
+msgid "path.syncNoCwd"
+msgstr "未檢測到終端目錄上報。可再次切換到「與終端同步」以配置"
+
+msgid "path.cwdSetupTitle"
+msgstr "啟用終端目錄同步"
+
+msgid "path.cwdSetupIntro"
+msgstr "Tabby 需要 shell 通過 OSC 1337 上報當前目錄後，才能與 SFTP+ 同步。請選擇一種方式："
+
+msgid "path.cwdSetupSessionHint"
+msgstr "僅本次會話：將在當前終端執行下面的臨時命令（重啟 shell 後失效）"
+
+msgid "path.cwdSetupPermanentHint"
+msgstr "永久寫入：追加下面內容到遠端配置檔案，並立即 source 生效（按檢測到的 shell 選其一）"
+
+msgid "path.cwdSetupNote"
+msgstr "取消將關閉路徑同步（回到「路徑模式：關閉」），不會執行或寫入任何內容。"
+
+msgid "path.cwdSetupSession"
+msgstr "僅本次會話"
+
+msgid "path.cwdSetupPermanent"
+msgstr "永久寫入配置"
+
+msgid "path.cwdSetupDone"
+msgstr "已啟用目錄上報，正在同步…"
+
+msgid "path.cwdSetupFailed"
+msgstr "啟用失敗，請檢查遠端許可權或 shell 型別"
+
+msgid "file.name"
+msgstr "名稱"
+
+msgid "file.type"
+msgstr "型別"
+
+msgid "file.size"
+msgstr "大小"
+
+msgid "file.modified"
+msgstr "修改時間"
+
+msgid "file.created"
+msgstr "建立時間"
+
+msgid "file.accessed"
+msgstr "訪問時間"
+
+msgid "file.permissions"
+msgstr "許可權"
+
+msgid "file.owner"
+msgstr "所有者"
+
+msgid "file.group"
+msgstr "組"
+
+msgid "file.mode"
+msgstr "模式"
+
+msgid "file.path"
+msgstr "路徑"
+
+msgid "file.ext"
+msgstr "副檔名"
+
+msgid "file.columns"
+msgstr "顯示列"
+
+msgid "file.inaccessible"
+msgstr "受限"
+
+msgid "file.open"
+msgstr "開啟"
+
+msgid "file.view"
+msgstr "檢視"
+
+msgid "file.edit"
+msgstr "編輯"
+
+msgid "file.copy"
+msgstr "複製"
+
+msgid "file.cut"
+msgstr "剪下"
+
+msgid "file.paste"
+msgstr "貼上"
+
+msgid "file.delete"
+msgstr "刪除"
+
+msgid "file.rename"
+msgstr "重新命名"
+
+msgid "file.newFolder"
+msgstr "新建資料夾"
+
+msgid "file.newFile"
+msgstr "新建檔案"
+
+msgid "file.properties"
+msgstr "屬性"
+
+msgid "file.openWith"
+msgstr "開啟方式"
+
+msgid "file.showInFolder"
+msgstr "在資源管理器中顯示"
+
+msgid "file.openInSystem"
+msgstr "在系統中開啟"
+
+msgid "file.editInSystem"
+msgstr "在系統中編輯"
+
+msgid "viewer.loading"
+msgstr "載入中…"
+
+msgid "viewer.loadFailed"
+msgstr "無法載入檔案"
+
+msgid "viewer.binaryNotSupported"
+msgstr "該檔案為二進位制格式，無法以文本檢視或編輯"
+
+msgid "viewer.tooLarge"
+msgstr "檔案過大，無法開啟"
+
+msgid "viewer.tooLargeView"
+msgstr "檔案過大（超過 {limit}），無法檢視"
+
+msgid "viewer.typeNotSupported"
+msgstr "不支援檢視此型別檔案"
+
+msgid "editor.save"
+msgstr "儲存"
+
+msgid "editor.saving"
+msgstr "儲存中…"
+
+msgid "editor.saveSuccess"
+msgstr "已儲存到伺服器"
+
+msgid "editor.saveFailed"
+msgstr "儲存失敗"
+
+msgid "editor.unsaved"
+msgstr "有未儲存的更改，確定放棄嗎？"
+
+msgid "editor.tooLarge"
+msgstr "檔案過大（超過 {limit}），無法編輯"
+
+msgid "editor.typeNotSupported"
+msgstr "不支援編輯此型別檔案"
+
+msgid "file.adjustCol"
+msgstr "將列調整為合適的大小"
+
+msgid "file.adjustAllCols"
+msgstr "將所有列調整為合適的大小"
+
+msgid "transfer.upload"
+msgstr "上傳"
+
+msgid "transfer.download"
+msgstr "下載"
+
+msgid "transfer.edit-upload"
+msgstr "編輯儲存"
+
+msgid "transfer.edit-download"
+msgstr "編輯載入"
+
+msgid "transfer.progress"
+msgstr "進度"
+
+msgid "transfer.speed"
+msgstr "速度"
+
+msgid "transfer.remaining"
+msgstr "剩餘時間"
+
+msgid "transfer.cancel"
+msgstr "取消"
+
+msgid "transfer.closePanel"
+msgstr "關閉傳輸面板"
+
+msgid "transfer.pause"
+msgstr "暫停"
+
+msgid "transfer.resume"
+msgstr "繼續"
+
+msgid "transfer.cancelAll"
+msgstr "取消整個資料夾"
+
+msgid "transfer.cancelCurrent"
+msgstr "取消當前檔案"
+
+msgid "transfer.paused"
+msgstr "已暫停"
+
+msgid "transfer.inProgress"
+msgstr "傳輸中"
+
+msgid "transfer.minimizePanel"
+msgstr "最小化"
+
+msgid "transfer.hidePanel"
+msgstr "隱藏面板"
+
+msgid "transfer.noActiveTransfers"
+msgstr "暫無傳輸任務"
+
+msgid "transfer.clearCompleted"
+msgstr "清除已完成"
+
+msgid "transfer.queue"
+msgstr "傳輸佇列"
+
+msgid "transfer.log"
+msgstr "傳輸記錄"
+
+msgid "transfer.logEmpty"
+msgstr "暫無傳輸記錄"
+
+msgid "transfer.logNoMatch"
+msgstr "無匹配記錄"
+
+msgid "transfer.logCount"
+msgstr "共 {total} 條"
+
+msgid "transfer.logCountFiltered"
+msgstr "顯示 {filtered} / 共 {total} 條"
+
+msgid "transfer.noTransfers"
+msgstr "無進行中的傳輸"
+
+msgid "transfer.clearConfirm"
+msgstr "確定要清空所有傳輸記錄嗎？此操作不可撤銷。"
+
+msgid "transfer.clearTitle"
+msgstr "確認清空"
+
+msgid "transfer.replaceConfirm"
+msgstr "檔案已存在，是否替換？"
+
+msgid "transfer.replaceTitle"
+msgstr "確認替換"
+
+msgid "transfer.deleteConfirm"
+msgstr "確定要刪除選中的 {count} 個專案嗎？"
+
+msgid "transfer.deleteTitle"
+msgstr "確認刪除"
+
+msgid "bookmark.title"
+msgstr "書籤"
+
+msgid "bookmark.add"
+msgstr "新增書籤"
+
+msgid "bookmark.addLocal"
+msgstr "當前新增"
+
+msgid "bookmark.addGlobal"
+msgstr "全域性新增"
+
+msgid "bookmark.addCurrentShort"
+msgstr "+本地"
+
+msgid "bookmark.addGlobalShort"
+msgstr "+全域性"
+
+msgid "bookmark.remove"
+msgstr "移除書籤"
+
+msgid "bookmark.edit"
+msgstr "編輯書籤"
+
+msgid "bookmark.noBookmarks"
+msgstr "暫無書籤"
+
+msgid "bookmark.name"
+msgstr "書籤名稱"
+
+msgid "bookmark.path"
+msgstr "路徑"
+
+msgid "bookmark.save"
+msgstr "儲存書籤"
+
+msgid "bookmark.global"
+msgstr "全域性書籤"
+
+msgid "bookmark.forConnection"
+msgstr "當前連線"
+
+msgid "permission.title"
+msgstr "修改許可權"
+
+msgid "permission.owner"
+msgstr "所有者"
+
+msgid "permission.group"
+msgstr "使用者組"
+
+msgid "permission.others"
+msgstr "其他使用者"
+
+msgid "permission.read"
+msgstr "讀"
+
+msgid "permission.write"
+msgstr "寫"
+
+msgid "permission.execute"
+msgstr "執行"
+
+msgid "permission.mode"
+msgstr "許可權值 (八進位制)"
+
+msgid "notify.sftpOpened"
+msgstr "SFTP 已開啟"
+
+msgid "notify.noSSHSession"
+msgstr "當前標籤頁沒有 SSH 會話"
+
+msgid "notify.transferComplete"
+msgstr "傳輸完成"
+
+msgid "notify.transferFailed"
+msgstr "傳輸失敗"
+
+msgid "notify.connectionLost"
+msgstr "連線已斷開"
+
+msgid "notify.connected"
+msgstr "已連線到"
+
+msgid "notify.connecting"
+msgstr "正在連線到"
+
+msgid "notify.sftpConnectFailed"
+msgstr "SFTP 連線失敗，請確認 SSH 已連線且伺服器支援 SFTP 子系統。"
+
+msgid "notify.reconnectNoTerminal"
+msgstr "終端連線已斷開，請在終端中點選或按任意鍵重新連線。"
+
+msgid "notify.reconnectFailed"
+msgstr "重連失敗，請在終端中點選或按任意鍵重新連線。"
+
+msgid "settings.desc"
+msgstr "美觀易用的SFTP檔案管理器，支援拖拽、書籤、排序、傳輸記錄與多語言。"
+
+msgid "settings.language"
+msgstr "語言"
+
+msgid "settings.followTabby"
+msgstr "跟隨Tabby"
+
+msgid "settings.theme"
+msgstr "主題"
+
+msgid "settings.primary"
+msgstr "主色調"
+
+msgid "settings.bg"
+msgstr "背景"
+
+msgid "settings.text"
+msgstr "文字"
+
+msgid "settings.border"
+msgstr "邊框"
+
+msgid "settings.layout"
+msgstr "佈局"
+
+msgid "settings.layoutAdaptive"
+msgstr "自適應"
+
+msgid "settings.layoutAdaptiveSub"
+msgstr "根據視窗寬度自動切換"
+
+msgid "settings.layoutHorizontal"
+msgstr "左右佈局"
+
+msgid "settings.layoutHorizontalSub"
+msgstr "兩個面板水平並排"
+
+msgid "settings.layoutVertical"
+msgstr "上下佈局"
+
+msgid "settings.layoutVerticalSub"
+msgstr "兩個面板垂直堆疊"
+
+msgid "settings.layoutSingle"
+msgstr "單欄佈局"
+
+msgid "settings.layoutSingleSub"
+msgstr "僅顯示遠端面板"
+
+msgid "settings.toolbarLayout"
+msgstr "定製工具欄"
+
+msgid "settings.customToolbar"
+msgstr "定製工具欄"
+
+msgid "settings.toolbarLayoutHint"
+msgstr "拖拽排序後會立即同步到檔案面板標題欄"
+
+msgid "settings.paneLabel"
+msgstr "終端標識"
+
+msgid "settings.addressBar"
+msgstr "位址列"
+
+msgid "settings.toolbar"
+msgstr "工具欄"
+
+msgid "settings.toolbarItem.back"
+msgstr "後退"
+
+msgid "settings.toolbarItem.forward"
+msgstr "前進"
+
+msgid "settings.toolbarItem.up"
+msgstr "上級目錄"
+
+msgid "settings.toolbarItem.refresh"
+msgstr "重新整理"
+
+msgid "settings.toolbarItem.home"
+msgstr "主目錄"
+
+msgid "settings.toolbarItem.filter"
+msgstr "篩選"
+
+msgid "settings.toolbarItem.bookmark"
+msgstr "書籤"
+
+msgid "settings.resetLayout"
+msgstr "重置"
+
+msgid "settings.tableStyle"
+msgstr "表格樣式"
+
+msgid "settings.tableStyleHint"
+msgstr "提示：可在檔案列表的表頭右鍵選單中控制"
+
+msgid "settings.hideNativeBtn"
+msgstr "隱藏原生 SFTP 按鈕"
+
+msgid "settings.openInNewTab"
+msgstr "預設新標籤頁開啟"
+
+msgid "settings.singleWorkspaceInstance"
+msgstr "只打開一個例項"
+
+msgid "settings.hotkey"
+msgstr "面板快捷鍵"
+
+msgid "settings.hotkeyUnbound"
+msgstr "設定快捷鍵"
+
+msgid "settings.hotkeyClear"
+msgstr "清除"
+
+msgid "settings.hotkeyRecording"
+msgstr "請按下快捷鍵…"
+
+msgid "settings.hotkeyClickToSet"
+msgstr "點選設定快捷鍵"
+
+msgid "settings.hotkeyConflict"
+msgstr "與已有快捷鍵衝突：{names}"
+
+msgid "settings.hotkeyConflictConfirm"
+msgstr "快捷鍵 {keys} 已用於：{names}\\n仍要繫結到 SFTP+ 面板嗎？（可能互相搶觸發）"
+
+msgid "settings.hotkeySaved"
+msgstr "已儲存並同步到 Tabby：{keys}"
+
+msgid "settings.hotkeyCleared"
+msgstr "已清除快捷鍵繫結"
+
+msgid "settings.hotkeySaveFailed"
+msgstr "儲存快捷鍵失敗"
+
+msgid "settings.hotkeyRecordTimeout"
+msgstr "錄製已超時，請重試"
+
+msgid "settings.compatibility"
+msgstr "相容性"
+
+msgid "settings.data"
+msgstr "資料"
+
+msgid "settings.export"
+msgstr "匯出資料"
+
+msgid "settings.import"
+msgstr "匯入資料"
+
+msgid "settings.clearAll"
+msgstr "清空資料"
+
+msgid "settings.about"
+msgstr "關於"
+
+msgid "settings.version"
+msgstr "版本"
+
+msgid "settings.buildTime"
+msgstr "構建時間"
+
+msgid "settings.author"
+msgstr "作者"
+
+msgid "settings.githubSource"
+msgstr "Github原始碼"
+
+msgid "settings.giveStar"
+msgstr "點贊支援"
+
+msgid "settings.feedback"
+msgstr "意見反饋"
+
+msgid "settings.modifyColors"
+msgstr "⚠️ 修改配色"
+
+msgid "settings.overwriteConfirm"
+msgstr "當前為自動/預設模式，修改將覆蓋到自定義配色方案中。是否繼續？"
+
+msgid "settings.overwrite"
+msgstr "確認覆蓋"
+
+msgid "settings.clearAllTitle"
+msgstr "⚠️ 清空資料"
+
+msgid "settings.clearAllConfirm"
+msgstr "此操作將刪除所有書籤、傳輸記錄和設定資料，不可撤銷！"
+
+msgid "settings.clearAllPrompt"
+msgstr "請輸入 DELETE 確認："
+
+msgid "settings.clear"
+msgstr "清空"
+
+msgid "settings.dark"
+msgstr "暗色"
+
+msgid "settings.light"
+msgstr "亮色"
+
+msgid "settings.invalidFormat"
+msgstr "無效的資料格式。"
+
+msgid "settings.importComplete"
+msgstr "資料匯入完成。"
+
+msgid "settings.importUnavailable"
+msgstr "無法匯入：ConfigService 不可用。"
+
+msgid "settings.importFailed"
+msgstr "匯入失敗：檔案格式錯誤或已損壞。"
+
+msgid "settings.dataCleared"
+msgstr "已清空所有資料"
+
+msgid "conflict.sourceFile"
+msgstr "來源檔案"
+
+msgid "conflict.targetFileExists"
+msgstr "目標檔案（已存在）"
+
+msgid "transfer.success"
+msgstr "成功"
+
+msgid "settings.closeBookmarkPanel"
+msgstr "選取後關閉書籤面板"
+
+msgid "layout.mode.auto"
+msgstr "自動佈局"
+
+msgid "layout.mode.horizontal"
+msgstr "水平佈局"
+
+msgid "layout.mode.vertical"
+msgstr "垂直佈局"
+
+msgid "layout.mode.single"
+msgstr "單一窗格（僅遠端）"
+
+msgid "notify.closeWithTransfers"
+msgstr "有 {count} 個傳輸正在進行。關閉面板將中斷所有傳輸。是否繼續？"
+
+msgid "type.folder"
+msgstr "資料夾"
+
+msgid "type.file"
+msgstr "檔案"
+
+msgid "pane.exclFolders"
+msgstr "，排除資料夾"
+
+msgid "pane.selectedInfo"
+msgstr " — 已選取 {n} 個項目（{size}）"
+
+msgid "fail.cancelled"
+msgstr "已取消"
+
+msgid "fail.interrupted"
+msgstr "已中斷連線"
+
+msgid "fail.unknown"
+msgstr "失敗"
+
+msgid "notify.uploadFailed"
+msgstr "上傳失敗：{name}"
+
+msgid "notify.downloadFailed"
+msgstr "下載失敗：{name}"
+
+msgid "op.renameFailed"
+msgstr "重新命名失敗：{reason}"
+
+msgid "op.mkdirFailed"
+msgstr "建立目錄失敗：{reason}"
+
+msgid "op.touchFailed"
+msgstr "建立檔案失敗：{reason}"
+
+msgid "op.chmodFailed"
+msgstr "修改權限失敗：{reason}"
+
+msgid "op.failed"
+msgstr "操作失敗：{reason}"
+
+msgid "notify.deleteFailed"
+msgstr "{n} 個項目刪除失敗（可能使用中或無權限）"
+
+msgid "input.dirExists"
+msgstr "目錄已存在：{val}"
+
+msgid "input.fileExists"
+msgstr "檔案已存在：{val}"
+
+msgid "input.fileWhenMkdir"
+msgstr "名為「{val}」的檔案已存在，無法建立目錄"
+
+msgid "input.dirWhenTouch"
+msgstr "名為「{val}」的目錄已存在，無法建立檔案"
+
+msgid "notify.notConnectedUpload"
+msgstr "未連線，無法上傳"
+
+msgid "notify.notConnectedDownload"
+msgstr "未連線，無法下載"
+
+msgid "notify.copied"
+msgstr "已複製 {n} 個項目"
+
+msgid "notify.cut"
+msgstr "已剪下 {n} 個項目"
+
+msgid "status.disconnected"
+msgstr "已中斷連線"
+
+msgid "status.reconnecting"
+msgstr "重新連線中…"
+
+msgid "status.reconnect"
+msgstr "重新連線"
+
+msgid "app.restoreDefaultSize"
+msgstr "還原預設面板大小"
+
+msgid "notify.pasteFailed"
+msgstr "貼上失敗"
+
+msgid "notify.copyFailed"
+msgstr "複製失敗：{name}"
+
+msgid "theme.auto"
+msgstr "自動"
+
+msgid "theme.dark"
+msgstr "深色"
+
+msgid "theme.light"
+msgstr "淺色"
+
+msgid "theme.blue"
+msgstr "藍色"
+
+msgid "theme.green"
+msgstr "綠色"
+
+msgid "theme.purple"
+msgstr "紫色"
+
+msgid "theme.red"
+msgstr "紅色"
+
+msgid "theme.custom"
+msgstr "自訂"
+
+msgid "pane.back"
+msgstr "上一頁"
+
+msgid "pane.forward"
+msgstr "下一頁"
+
+msgid "filter.apply"
+msgstr "套用"
+
+msgid "filter.clear"
+msgstr "清除"
+
+msgid "hotkey.togglePanel"
+msgstr "開啟 SFTP+ 面板"
+
+
+msgid "conflict.existsSamePane"
+msgstr "目標位置已存在同名檔案"
+
+msgid "settings.dateFormat"
+msgstr "自訂時間格式"
+
+msgid "settings.dateFormatHint"
+msgstr "支援占位符：YYYY / YY / MM / DD / HH / hh / mm / ss / A（留空 = 預設格式）"
+
+msgid "settings.dateFormatPreview"
+msgstr "預覽"
+
+msgid "settings.dateFormatReset"
+msgstr "恢復預設"

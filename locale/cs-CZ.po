@@ -1,0 +1,1085 @@
+msgid ""
+msgstr ""
+
+msgid "app.title"
+msgstr "Správce Souborů SFTP+"
+
+msgid "app.openSettings"
+msgstr "Otevřít Nastavení"
+
+msgid "app.open"
+msgstr "Otevřít SFTP"
+
+msgid "app.close"
+msgstr "Zavřít"
+
+msgid "app.maximize"
+msgstr "Maximalizovat"
+
+msgid "app.restore"
+msgstr "Obnovit"
+
+msgid "app.confirm"
+msgstr "Potvrdit"
+
+msgid "app.cancel"
+msgstr "Zrušit"
+
+msgid "app.delete"
+msgstr "Smazat"
+
+msgid "app.deleteFile"
+msgstr "Smazat Soubor"
+
+msgid "app.deleteFolder"
+msgstr "Smazat Složku"
+
+msgid "app.deleteMultiple"
+msgstr "Smazat Více Položek"
+
+msgid "conflict.title"
+msgstr "Konflikt Souboru"
+
+msgid "conflict.sourceFile"
+msgstr "Zdrojový Soubor"
+
+msgid "conflict.localFile"
+msgstr "Místní Soubor"
+
+msgid "conflict.remoteFile"
+msgstr "Vzdálený Soubor"
+
+msgid "conflict.size"
+msgstr "Velikost"
+
+msgid "conflict.modified"
+msgstr "Upraveno"
+
+msgid "conflict.path"
+msgstr "Cesta"
+
+msgid "conflict.cancel"
+msgstr "Zrušit"
+
+msgid "conflict.skip"
+msgstr "Přeskočit"
+
+msgid "conflict.rename"
+msgstr "Přejmenovat"
+
+msgid "conflict.overwrite"
+msgstr "Přepsat"
+
+msgid "conflict.batch"
+msgstr "Dávka:"
+
+msgid "conflict.skipAll"
+msgstr "Přeskočit Vše"
+
+msgid "conflict.renameAll"
+msgstr "Přejmenovat Vše"
+
+msgid "conflict.overwriteAll"
+msgstr "Přepsat Vše"
+
+msgid "conflict.existsLocal"
+msgstr "Již existuje místně"
+
+msgid "conflict.existsRemote"
+msgstr "Již existuje vzdáleně"
+
+msgid "log.onlySuccess"
+msgstr "Pouze Úspěch"
+
+msgid "log.success"
+msgstr "Úspěch"
+
+msgid "log.failed"
+msgstr "Selhalo"
+
+msgid "fileType.txt"
+msgstr "Textový Soubor"
+
+msgid "fileType.log"
+msgstr "Soubor Logu"
+
+msgid "fileType.md"
+msgstr "Markdown Soubor"
+
+msgid "fileType.json"
+msgstr "JSON Soubor"
+
+msgid "fileType.xml"
+msgstr "XML Soubor"
+
+msgid "fileType.html"
+msgstr "HTML Soubor"
+
+msgid "fileType.css"
+msgstr "CSS Soubor"
+
+msgid "fileType.js"
+msgstr "JavaScript Soubor"
+
+msgid "fileType.ts"
+msgstr "TypeScript Soubor"
+
+msgid "fileType.image"
+msgstr "Obrázkový Soubor"
+
+msgid "fileType.video"
+msgstr "Video Soubor"
+
+msgid "fileType.audio"
+msgstr "Audio Soubor"
+
+msgid "fileType.archive"
+msgstr "Archivní Soubor"
+
+msgid "fileType.doc"
+msgstr "Dokumentový Soubor"
+
+msgid "fileType.code"
+msgstr "Kódový Soubor"
+
+msgid "fileType.data"
+msgstr "Datový Soubor"
+
+msgid "fileType.config"
+msgstr "Konfigurační Soubor"
+
+msgid "fileType.cert"
+msgstr "Certifikátový Soubor"
+
+msgid "fileType.executable"
+msgstr "Spustitelný Soubor"
+
+msgid "fileType.unknown"
+msgstr "Soubor"
+
+msgid "app.deleteConfirmFile"
+msgstr "Opravdu chcete smazat tento soubor?"
+
+msgid "app.deleteConfirmFolder"
+msgstr "Opravdu chcete smazat tuto složku?"
+
+msgid "app.deleteConfirmMultiple"
+msgstr "Opravdu chcete smazat těchto {count} položek?"
+
+msgid "app.rename"
+msgstr "Přejmenovat"
+
+msgid "app.refresh"
+msgstr "Obnovit"
+
+msgid "app.upload"
+msgstr "Nahrát"
+
+msgid "app.download"
+msgstr "Stáhnout"
+
+msgid "app.newFolder"
+msgstr "Nová Složka"
+
+msgid "app.newFile"
+msgstr "Nový Soubor"
+
+msgid "app.loading"
+msgstr "Načítání..."
+
+msgid "app.error"
+msgstr "Chyba"
+
+msgid "app.success"
+msgstr "Úspěch"
+
+msgid "app.yes"
+msgstr "Ano"
+
+msgid "app.no"
+msgstr "Ne"
+
+msgid "app.all"
+msgstr "Vše"
+
+msgid "app.export"
+msgstr "Exportovat"
+
+msgid "app.clear"
+msgstr "Vymazat"
+
+msgid "app.optional"
+msgstr "Volitelné"
+
+msgid "app.settings"
+msgstr "Nastavení"
+
+msgid "app.modeSwitchSsh"
+msgstr "SSH"
+msgid "app.modeSwitchSftp"
+msgstr "SFTP"
+msgid "app.backToTerminal"
+msgstr "Zpět do Terminálu"
+
+msgid "filter.allOps"
+msgstr "Všechny Operace"
+
+msgid "filter.allStatus"
+msgstr "Všechny Stavy"
+
+msgid "filter.allTime"
+msgstr "Všechny Doby"
+
+msgid "filter.today"
+msgstr "Dnes"
+
+msgid "filter.last7Days"
+msgstr "Posledních 7 Dnů"
+
+msgid "filter.last30Days"
+msgstr "Posledních 30 Dnů"
+
+msgid "filter.customRange"
+msgstr "Vlastní"
+
+msgid "filter.dateFrom"
+msgstr "Od"
+
+msgid "filter.dateTo"
+msgstr "Do"
+
+msgid "pane.local"
+msgstr "Místní"
+
+msgid "pane.remote"
+msgstr "Vzdálený"
+
+msgid "pane.path"
+msgstr "Cesta"
+
+msgid "pane.up"
+msgstr "Jít Nahoru"
+
+msgid "pane.home"
+msgstr "Domů"
+
+msgid "pane.go"
+msgstr "Jít"
+
+msgid "pane.refresh"
+msgstr "Obnovit"
+
+msgid "pane.filter"
+msgstr "Filtrovat..."
+
+msgid "pane.filterBtn"
+msgstr "Filtr Souborů"
+
+msgid "pane.showHidden"
+msgstr "Zobrazit Skryté Soubory"
+
+msgid "pane.pinFolders"
+msgstr "Připnout Složky Nahoru"
+
+msgid "view.panelBorder"
+msgstr "Okraj Panelu"
+
+msgid "view.colBorder"
+msgstr "Zobrazit okraj"
+
+msgid "view.zebra"
+msgstr "Zobrazit zebra pruhy"
+
+msgid "pane.hideHidden"
+msgstr "Skrýt Skryté Soubory"
+
+msgid "pane.sortByName"
+msgstr "Seřadit podle Názvu"
+
+msgid "pane.sortBySize"
+msgstr "Seřadit podle Velikosti"
+
+msgid "pane.sortByModified"
+msgstr "Seřadit podle Úpravy"
+
+msgid "pane.selectAll"
+msgstr "Vybrat Vše"
+
+msgid "pane.selectInvert"
+msgstr "Invertovat Výběr"
+
+msgid "pane.clearSelection"
+msgstr "Vymazat Výběr"
+
+msgid "pane.items"
+msgstr "{count} položek"
+
+msgid "pane.copyPath"
+msgstr "Kopírovat Cestu"
+
+msgid "pane.splitterHintHorizontal"
+msgstr "Přetáhněte pro změnu velikosti levých/pravých panelů. Dvojklik pro reset."
+
+msgid "pane.splitterHintVertical"
+msgstr "Přetáhněte pro změnu velikosti horních/dolních panelů. Dvojklik pro reset."
+
+msgid "notify.pathCopied"
+msgstr "Zkopírováno {n} cest"
+
+msgid "pane.openFolder"
+msgstr "Otevřít Složku"
+
+msgid "pane.noMatch"
+msgstr "Žádné odpovídající soubory"
+
+msgid "pane.empty"
+msgstr "Prázdná složka"
+
+msgid "pane.errorAccess"
+msgstr "Nelze přistoupit (oprávnění zamítnuto nebo cesta nenalezena)"
+
+msgid "pane.loading"
+msgstr "Načítání…"
+
+msgid "path.modeOff"
+msgstr "Režim cesty: Vypnuto (klikněte pro přepnutí: Zapamatovat, Synchronizovat)"
+
+msgid "path.modeRemember"
+msgstr "Režim cesty: Zapamatovat (obnovit příště)"
+
+msgid "path.modeSync"
+msgstr "Režim cesty: Synchronizovat s terminálem (vzdálený sleduje cwd)"
+
+msgid "path.syncNoCwd"
+msgstr "cwd terminálu není hlášeno. Přepněte znovu na Synchronizovat pro konfiguraci"
+
+msgid "path.cwdSetupTitle"
+msgstr "Povolit synchronizaci adresáře terminálu"
+
+msgid "path.cwdSetupIntro"
+msgstr "Tabby potřebuje, aby shell hlásil cwd prostřednictvím OSC 1337, než může SFTP+ synchronizovat. Vyberte, jak to povolit:"
+
+msgid "path.cwdSetupSessionHint"
+msgstr "Toto sezení: spusťte dočasný příkaz níže v aktuálním terminálu (ztraceno po restartu shell)"
+
+msgid "path.cwdSetupPermanentHint"
+msgstr "Trvalé: přidejte snippet níže do vzdáleného profilu, pak source (na základě detekovaného shell)"
+
+msgid "path.cwdSetupNote"
+msgstr "Zrušení vypne režim cesty. Nic se neprovádí ani nezapisuje."
+
+msgid "path.cwdSetupSession"
+msgstr "Toto sezení"
+
+msgid "path.cwdSetupPermanent"
+msgstr "Zapsat trvale"
+
+msgid "path.cwdSetupDone"
+msgstr "Hlášení adresáře povoleno, synchronizace…"
+
+msgid "path.cwdSetupFailed"
+msgstr "Povolení selhalo. Zkontrolujte vzdálená oprávnění nebo typ shell"
+
+msgid "file.name"
+msgstr "Název"
+
+msgid "file.type"
+msgstr "Typ"
+
+msgid "file.size"
+msgstr "Velikost"
+
+msgid "file.modified"
+msgstr "Upraveno"
+
+msgid "file.created"
+msgstr "Vytvořeno"
+msgid "file.accessed"
+msgstr "Přístup"
+msgid "file.permissions"
+msgstr "Oprávnění"
+msgid "file.owner"
+msgstr "Vlastník"
+
+msgid "file.group"
+msgstr "Skupina"
+
+msgid "file.mode"
+msgstr "Režim"
+
+msgid "file.path"
+msgstr "Cesta"
+
+msgid "file.ext"
+msgstr "Přípona"
+
+msgid "file.columns"
+msgstr "Sloupce"
+
+msgid "file.inaccessible"
+msgstr "Nepřístupné"
+
+msgid "file.open"
+msgstr "Otevřít"
+
+msgid "file.view"
+msgstr "Zobrazit"
+
+msgid "file.edit"
+msgstr "Upravit"
+
+msgid "file.copy"
+msgstr "Kopírovat"
+
+msgid "file.cut"
+msgstr "Vyjmout"
+
+msgid "file.paste"
+msgstr "Vložit"
+
+msgid "file.delete"
+msgstr "Smazat"
+
+msgid "file.rename"
+msgstr "Přejmenovat"
+
+msgid "file.newFolder"
+msgstr "Nová Složka"
+
+msgid "file.newFile"
+msgstr "Nový Soubor"
+
+msgid "file.properties"
+msgstr "Vlastnosti"
+
+msgid "file.openWith"
+msgstr "Otevřít S"
+
+msgid "file.showInFolder"
+msgstr "Zobrazit v Exploreru"
+
+msgid "file.openInSystem"
+msgstr "Otevřít v Systému"
+
+msgid "file.editInSystem"
+msgstr "Upravit v Systému"
+
+msgid "viewer.loading"
+msgstr "Načítání…"
+
+msgid "viewer.loadFailed"
+msgstr "Soubor nelze načíst"
+
+msgid "viewer.binaryNotSupported"
+msgstr "Binární soubor nelze zobrazit ani upravit jako text"
+
+msgid "viewer.tooLarge"
+msgstr "Soubor je příliš velký pro otevření"
+
+msgid "viewer.tooLargeView"
+msgstr "Soubor je příliš velký (přes {limit}) a nelze jej zobrazit"
+
+msgid "viewer.typeNotSupported"
+msgstr "Tento typ souboru nelze zobrazit"
+
+msgid "editor.save"
+msgstr "Uložit"
+
+msgid "editor.saving"
+msgstr "Ukládání…"
+
+msgid "editor.saveSuccess"
+msgstr "Uloženo na server"
+
+msgid "editor.saveFailed"
+msgstr "Ukládání selhalo"
+
+msgid "editor.unsaved"
+msgstr "Máte neuložené změny. Zrušit je?"
+
+msgid "editor.tooLarge"
+msgstr "Soubor je příliš velký (přes {limit}) a nelze jej upravit"
+
+msgid "editor.typeNotSupported"
+msgstr "Tento typ souboru nelze upravit"
+
+msgid "file.adjustCol"
+msgstr "Přizpůsobit Šířku Sloupce"
+
+msgid "file.adjustAllCols"
+msgstr "Přizpůsobit Všechny Sloupce"
+
+msgid "transfer.upload"
+msgstr "Nahrát"
+
+msgid "transfer.download"
+msgstr "Stáhnout"
+
+msgid "transfer.edit-upload"
+msgstr "Upravit Uložit"
+
+msgid "transfer.edit-download"
+msgstr "Upravit Načíst"
+
+msgid "transfer.progress"
+msgstr "Pokrok"
+
+msgid "transfer.speed"
+msgstr "Rychlost"
+
+msgid "transfer.remaining"
+msgstr "Zbývá"
+
+msgid "transfer.cancel"
+msgstr "Zrušit"
+
+msgid "transfer.closePanel"
+msgstr "Zavřít panel transferu"
+
+msgid "transfer.pause"
+msgstr "Pozastavit"
+
+msgid "transfer.resume"
+msgstr "Pokračovat"
+
+msgid "transfer.cancelAll"
+msgstr "Zrušit složku"
+
+msgid "transfer.cancelCurrent"
+msgstr "Zrušit aktuální"
+
+msgid "transfer.paused"
+msgstr "Pozastaveno"
+
+msgid "transfer.inProgress"
+msgstr "Probíhá"
+
+msgid "transfer.minimizePanel"
+msgstr "Minimalizovat"
+
+msgid "transfer.hidePanel"
+msgstr "Skrýt"
+
+msgid "transfer.noActiveTransfers"
+msgstr "Žádné aktivní transfery"
+
+msgid "transfer.clearCompleted"
+msgstr "Vymazat Dokončené"
+
+msgid "transfer.queue"
+msgstr "Fronta Transferů"
+
+msgid "transfer.log"
+msgstr "Historie Transferů"
+
+msgid "transfer.logEmpty"
+msgstr "Zatím žádné záznamy transferu"
+
+msgid "transfer.logNoMatch"
+msgstr "Žádné odpovídající záznamy"
+
+msgid "transfer.logCount"
+msgstr "{total} záznamů"
+
+msgid "transfer.logCountFiltered"
+msgstr "Zobrazeno {filtered} z {total}"
+
+msgid "transfer.noTransfers"
+msgstr "Žádné aktivní transfery"
+
+msgid "transfer.clearConfirm"
+msgstr "Vymazat všechny záznamy transferu? Tuto akci nelze vrátit zpět."
+
+msgid "transfer.clearTitle"
+msgstr "Potvrdit Vymazání"
+
+msgid "transfer.replaceConfirm"
+msgstr "Soubor již existuje. Nahradit?"
+
+msgid "transfer.replaceTitle"
+msgstr "Potvrdit Nahrazení"
+
+msgid "transfer.deleteConfirm"
+msgstr "Smazat {count} vybraných položek?"
+
+msgid "transfer.deleteTitle"
+msgstr "Potvrdit Smazání"
+
+msgid "bookmark.title"
+msgstr "Záložky"
+
+msgid "bookmark.add"
+msgstr "Přidat Záložku"
+
+msgid "bookmark.addLocal"
+msgstr "Přidat Místní"
+
+msgid "bookmark.addGlobal"
+msgstr "Přidat Globální"
+
+msgid "bookmark.addCurrentShort"
+msgstr "+Místní"
+
+msgid "bookmark.addGlobalShort"
+msgstr "+Globální"
+
+msgid "bookmark.remove"
+msgstr "Odstranit Záložku"
+
+msgid "bookmark.edit"
+msgstr "Upravit Záložku"
+
+msgid "bookmark.noBookmarks"
+msgstr "Zatím žádné záložky"
+
+msgid "bookmark.name"
+msgstr "Název Záložky"
+
+msgid "bookmark.path"
+msgstr "Cesta"
+
+msgid "bookmark.save"
+msgstr "Uložit Záložku"
+
+msgid "bookmark.global"
+msgstr "Globální Záložky"
+
+msgid "bookmark.forConnection"
+msgstr "Toto Připojení"
+
+msgid "permission.title"
+msgstr "Upravit Oprávnění"
+
+msgid "permission.owner"
+msgstr "Vlastník"
+
+msgid "permission.group"
+msgstr "Skupina"
+
+msgid "permission.others"
+msgstr "Ostatní"
+
+msgid "permission.read"
+msgstr "Číst"
+
+msgid "permission.write"
+msgstr "Zapsat"
+
+msgid "permission.execute"
+msgstr "Spustit"
+
+msgid "permission.mode"
+msgstr "Režim (Oktální)"
+
+msgid "notify.sftpOpened"
+msgstr "SFTP Otevřeno"
+
+msgid "notify.noSSHSession"
+msgstr "Žádná SSH relace na aktuální kartě"
+
+msgid "notify.transferComplete"
+msgstr "Transfer Dokončen"
+
+msgid "notify.transferFailed"
+msgstr "Transfer Selhal"
+
+msgid "notify.connectionLost"
+msgstr "Připojení Ztraceno"
+
+msgid "notify.connected"
+msgstr "Připojeno k"
+
+msgid "notify.connecting"
+msgstr "Připojování k"
+
+msgid "notify.sftpConnectFailed"
+msgstr "SFTP připojení selhalo. Ujistěte se, že SSH je připojeno a server podporuje SFTP."
+
+msgid "notify.reconnectNoTerminal"
+msgstr "Terminál odpojen. Prosím klikněte nebo stiskněte libovolnou klávesu v terminálu pro opětovné připojení."
+
+msgid "notify.reconnectFailed"
+msgstr "Opětovné připojení selhalo. Prosím klikněte nebo stiskněte libovolnou klávesu v terminálu pro opětovné připojení."
+
+msgid "settings.desc"
+msgstr "Krásný správce souborů SFTP: drag-drop, záložky, řazení, logy transferů a vícejazyčnost."
+
+msgid "settings.language"
+msgstr "Jazyk"
+
+msgid "settings.followTabby"
+msgstr "Sledovat Tabby"
+
+msgid "settings.theme"
+msgstr "Motiv"
+
+msgid "settings.primary"
+msgstr "Primární"
+
+msgid "settings.bg"
+msgstr "Pozadí"
+
+msgid "settings.text"
+msgstr "Text"
+msgid "settings.border"
+msgstr "Okraj"
+
+msgid "settings.layout"
+msgstr "Rozvržení"
+
+msgid "settings.layoutAdaptive"
+msgstr "Adaptivní"
+
+msgid "settings.layoutAdaptiveSub"
+msgstr "Automatické přepnutí podle šířky"
+
+msgid "settings.layoutHorizontal"
+msgstr "Vodorovný"
+
+msgid "settings.layoutHorizontalSub"
+msgstr "Panely vedle sebe"
+
+msgid "settings.layoutVertical"
+msgstr "Svislý"
+
+msgid "settings.layoutVerticalSub"
+msgstr "Panely naskládané"
+
+msgid "settings.layoutSingle"
+msgstr "Jednotlivý Panel"
+
+msgid "settings.layoutSingleSub"
+msgstr "Pouze vzdálený panel"
+
+msgid "settings.toolbarLayout"
+msgstr "Přizpůsobit Panel Nástrojů"
+
+msgid "settings.customToolbar"
+msgstr "Přizpůsobit Panel Nástrojů"
+
+msgid "settings.toolbarLayoutHint"
+msgstr "Přetáhněte pro uspořádání a okamžité aplikování na hlavičku panelu"
+
+msgid "settings.paneLabel"
+msgstr "Štítek Terminálu"
+
+msgid "settings.addressBar"
+msgstr "Panel Adresy"
+
+msgid "settings.toolbar"
+msgstr "Panel Nástrojů"
+
+msgid "settings.toolbarItem.back"
+msgstr "Zpět"
+
+msgid "settings.toolbarItem.forward"
+msgstr "Vpřed"
+
+msgid "settings.toolbarItem.up"
+msgstr "Nahoru"
+
+msgid "settings.toolbarItem.refresh"
+msgstr "Obnovit"
+
+msgid "settings.toolbarItem.home"
+msgstr "Domů"
+
+msgid "settings.toolbarItem.filter"
+msgstr "Filtr"
+
+msgid "settings.toolbarItem.bookmark"
+msgstr "Záložka"
+
+msgid "settings.resetLayout"
+msgstr "Resetovat"
+msgid "settings.tableStyle"
+msgstr "Styl Tabulky"
+
+msgid "settings.tableStyleHint"
+msgstr "Tip: Ovládejte přes kontextové menu hlavičky seznamu souborů"
+
+msgid "settings.hideNativeBtn"
+msgstr "Skrýt nativní tlačítko SFTP"
+
+msgid "settings.openInNewTab"
+msgstr "Otevřít v nové kartě jako výchozí"
+
+msgid "settings.singleWorkspaceInstance"
+msgstr "Pouze jedna instance"
+
+msgid "settings.hotkey"
+msgstr "Klávesová zkratka panelu"
+msgid "settings.hotkeyUnbound"
+msgstr "Nastavit hotkey"
+
+msgid "settings.hotkeyClear"
+msgstr "Vymazat"
+
+msgid "settings.hotkeyRecording"
+msgstr "Stiskněte kombinaci kláves…"
+
+msgid "settings.hotkeyClickToSet"
+msgstr "Klikněte pro nastavení hotkey"
+
+msgid "settings.hotkeyConflict"
+msgstr "Konflikty s: {names}"
+
+msgid "settings.hotkeyConflictConfirm"
+msgstr "Hotkey {keys} je již používán: {names}\nPřesto ho svázat s SFTP+? (Obě mohou být spuštěny.)"
+
+msgid "settings.hotkeySaved"
+msgstr "Uloženo a synchronizováno do Tabby: {keys}"
+
+msgid "settings.hotkeyCleared"
+msgstr "Vazba hotkey vymazána"
+
+msgid "settings.hotkeySaveFailed"
+msgstr "Uložení hotkey selhalo"
+
+msgid "settings.hotkeyRecordTimeout"
+msgstr "Nahrávání vypršelo, zkuste to znovu"
+
+msgid "settings.compatibility"
+msgstr "Kompatibilita"
+
+msgid "settings.data"
+msgstr "Data"
+msgid "settings.export"
+msgstr "Exportovat"
+
+msgid "settings.import"
+msgstr "Importovat"
+msgid "settings.clearAll"
+msgstr "Vymazat Vše"
+
+msgid "settings.about"
+msgstr "O"
+
+msgid "settings.version"
+msgstr "Verze"
+
+msgid "settings.buildTime"
+msgstr "Čas sestavení"
+
+msgid "settings.author"
+msgstr "Autor"
+
+msgid "settings.githubSource"
+msgstr "GitHub Zdroj"
+
+msgid "settings.giveStar"
+msgstr "Dejte Hvězdičku"
+
+msgid "settings.feedback"
+msgstr "Zpětná vazba"
+
+msgid "settings.modifyColors"
+msgstr "⚠️ Upravit Barvy"
+
+msgid "settings.overwriteConfirm"
+msgstr "Jste v režimu Auto/Preset. Změny přepíšou vlastní barevné schéma. Pokračovat?"
+
+msgid "settings.overwrite"
+msgstr "Přepsat"
+
+msgid "settings.clearAllTitle"
+msgstr "⚠️ Vymazat Všechna Data"
+
+msgid "settings.clearAllConfirm"
+msgstr "Toto smaže všechny záložky, logy transferů a nastavení. Nelze vrátit zpět!"
+
+msgid "settings.clearAllPrompt"
+msgstr "Prosím napište DELETE pro potvrzení:"
+
+msgid "settings.clear"
+msgstr "Vymazat"
+
+msgid "settings.dark"
+msgstr "Tmavý"
+
+msgid "settings.light"
+msgstr "Světlý"
+
+msgid "settings.invalidFormat"
+msgstr "Neplatný formát dat."
+
+msgid "settings.importComplete"
+msgstr "Import dokončen."
+
+msgid "settings.importUnavailable"
+msgstr "Nelze importovat: ConfigService není dostupný."
+
+msgid "settings.importFailed"
+msgstr "Import selhal: neplatný nebo poškozený soubor."
+
+msgid "settings.dataCleared"
+msgstr "Všechna data vymazána"
+
+msgid "conflict.sourceFile"
+msgstr "Zdrojový soubor"
+
+msgid "conflict.targetFileExists"
+msgstr "Cílový soubor (existuje)"
+
+msgid "transfer.success"
+msgstr "Úspěch"
+
+msgid "settings.closeBookmarkPanel"
+msgstr "Zavřít panel záložek po výběru"
+
+msgid "layout.mode.auto"
+msgstr "Automatické rozložení"
+
+msgid "layout.mode.horizontal"
+msgstr "Vodorovné rozložení"
+
+msgid "layout.mode.vertical"
+msgstr "Svislé rozložení"
+
+msgid "layout.mode.single"
+msgstr "Jedno podokno (jen vzdálené)"
+
+msgid "notify.closeWithTransfers"
+msgstr "{count} přenos(ů) v běhu. Zavření panelu přeruší všechny přenosy. Pokračovat?"
+
+msgid "type.folder"
+msgstr "Složka"
+
+msgid "type.file"
+msgstr "Soubor"
+
+msgid "pane.exclFolders"
+msgstr ", kromě složek"
+
+msgid "pane.selectedInfo"
+msgstr " — Vybráno {n} položek ({size})"
+
+msgid "fail.cancelled"
+msgstr "Zrušeno"
+
+msgid "fail.interrupted"
+msgstr "Odpojeno"
+
+msgid "fail.unknown"
+msgstr "Selhalo"
+
+msgid "notify.uploadFailed"
+msgstr "Nahrání selhalo: {name}"
+
+msgid "notify.downloadFailed"
+msgstr "Stažení selhalo: {name}"
+
+msgid "op.renameFailed"
+msgstr "Přejmenování selhalo: {reason}"
+
+msgid "op.mkdirFailed"
+msgstr "Vytvoření složky selhalo: {reason}"
+
+msgid "op.touchFailed"
+msgstr "Vytvoření souboru selhalo: {reason}"
+
+msgid "op.chmodFailed"
+msgstr "Chmod selhalo: {reason}"
+
+msgid "op.failed"
+msgstr "Operace selhala: {reason}"
+
+msgid "notify.deleteFailed"
+msgstr "{n} položek se nepodařilo smazat (možná používáno nebo chybí oprávnění)"
+
+msgid "input.dirExists"
+msgstr "Složka již existuje: {val}"
+
+msgid "input.fileExists"
+msgstr "Soubor již existuje: {val}"
+
+msgid "input.fileWhenMkdir"
+msgstr "Soubor s názvem \"{val}\" již existuje, složku nelze vytvořit"
+
+msgid "input.dirWhenTouch"
+msgstr "Složka s názvem \"{val}\" již existuje, soubor nelze vytvořit"
+
+msgid "notify.notConnectedUpload"
+msgstr "Není připojeno, nelze nahrát"
+
+msgid "notify.notConnectedDownload"
+msgstr "Není připojeno, nelze stáhnout"
+
+msgid "notify.copied"
+msgstr "Zkopírováno {n} položek"
+
+msgid "notify.cut"
+msgstr "Vyjmuto {n} položek"
+
+msgid "status.disconnected"
+msgstr "Odpojeno"
+
+msgid "status.reconnecting"
+msgstr "Opětovné připojování…"
+
+msgid "status.reconnect"
+msgstr "Znovu připojit"
+
+msgid "app.restoreDefaultSize"
+msgstr "Obnovit výchozí velikost panelu"
+
+msgid "notify.pasteFailed"
+msgstr "Vložení selhalo"
+
+msgid "notify.copyFailed"
+msgstr "Kopírování selhalo: {name}"
+
+msgid "theme.auto"
+msgstr "Auto"
+
+msgid "theme.dark"
+msgstr "Tmavý"
+
+msgid "theme.light"
+msgstr "Světlý"
+
+msgid "theme.blue"
+msgstr "Modrá"
+
+msgid "theme.green"
+msgstr "Zelená"
+
+msgid "theme.purple"
+msgstr "Fialová"
+
+msgid "theme.red"
+msgstr "Červená"
+
+msgid "theme.custom"
+msgstr "Vlastní"
+
+msgid "pane.back"
+msgstr "Zpět"
+
+msgid "pane.forward"
+msgstr "Vpřed"
+
+msgid "filter.apply"
+msgstr "Použít"
+
+msgid "filter.clear"
+msgstr "Vymazat"
+
+msgid "hotkey.togglePanel"
+msgstr "Otevřít panel SFTP+"
+
+
+msgid "conflict.existsSamePane"
+msgstr "Soubor se stejným názvem již v cílovém umístění existuje"
+
+msgid "settings.dateFormat"
+msgstr "Vlastní formát času"
+
+msgid "settings.dateFormatHint"
+msgstr "Tokeny: YYYY / YY / MM / DD / HH / hh / mm / ss / A (prázdné = výchozí)"
+
+msgid "settings.dateFormatPreview"
+msgstr "Náhled"
+
+msgid "settings.dateFormatReset"
+msgstr "Obnovit výchozí"

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * SFTP+ 插件入口
  * 功能描述：注册 TerminalDecorator（SFTP+ 按钮）+ 浮动面板 + 设置页 + ConfigProvider
  *   参考：tabby-command-workbench 的模块结构
@@ -10,29 +10,31 @@
  */
 import { CommonModule } from '@angular/common'
 import { FormsModule } from '@angular/forms'
-import { NgModule } from '@angular/core'
-import TabbyCoreModule, { ConfigProvider } from 'tabby-core'
+import { NgModule, Optional } from '@angular/core'
+import TabbyCoreModule, { ConfigProvider, HotkeyProvider, LogService } from 'tabby-core'
 import { SettingsTabProvider } from 'tabby-settings'
 import { TerminalDecorator } from 'tabby-terminal'
 
-import { SftpTerminalDecorator } from './sftp-terminal-decorator'
-import { SftpFloatingPanel } from './sftp-floating-panel.component'
-import { SftpWorkspaceTabComponent } from './sftp-workspace-tab.component'
-import { SftpSettingsTabProvider, SftpSettingsTabComponent } from './sftp-settings.component'
-import { SftpPlusConfigProvider } from './sftp-config-provider'
-import { SftpConflictDialogComponent } from './panel/sftp-conflict-dialog.component'
-import { SftpTransferQueueComponent } from './panel/sftp-transfer-queue.component'
-import { SftpTransferLogDialogComponent } from './panel/sftp-transfer-log-dialog.component'
-import { SftpFilePaneComponent } from './panel/sftp-file-pane.component'
-import { SftpContextMenuComponent } from './panel/sftp-context-menu.component'
-import { SftpBookmarkPopupComponent } from './panel/sftp-bookmark-popup.component'
-import { SftpDeleteDialogComponent } from './panel/sftp-delete-dialog.component'
-import { SftpInputDialogComponent } from './panel/sftp-input-dialog.component'
-import { SftpPermDialogComponent } from './panel/sftp-perm-dialog.component'
-import { SftpDetailsDialogComponent } from './panel/sftp-details-dialog.component'
-import { SftpViewerDialogComponent } from './panel/sftp-viewer-dialog.component'
-import { SftpEditorDialogComponent } from './panel/sftp-editor-dialog.component'
-import { SftpCwdSetupDialogComponent } from './panel/sftp-cwd-setup-dialog.component'
+import { bindSftpLogger, log } from './services/sftp-logger'
+import { SftpTerminalDecorator } from './tabby/terminal-decorator'
+import { SftpFloatingPanel } from './sftp/sftp-floating-panel.component'
+import { SftpWorkspaceTabComponent } from './sftp/sftp-workspace-tab.component'
+import { SftpSettingsTabProvider, SftpSettingsTabComponent } from './settings/sftp-settings.component'
+import { SftpPlusConfigProvider } from './tabby/config-provider'
+import { SftpHotkeyProvider } from './tabby/hotkey-provider'
+import { SftpConflictDialogComponent } from './sftp/components/sftp-conflict-dialog.component'
+import { SftpTransferQueueComponent } from './sftp/components/sftp-transfer-queue.component'
+import { SftpTransferLogDialogComponent } from './sftp/components/sftp-transfer-log-dialog.component'
+import { SftpFilePaneComponent } from './sftp/components/sftp-file-pane.component'
+import { SftpContextMenuComponent } from './sftp/components/sftp-context-menu.component'
+import { SftpBookmarkPopupComponent } from './sftp/components/sftp-bookmark-popup.component'
+import { SftpDeleteDialogComponent } from './sftp/components/sftp-delete-dialog.component'
+import { SftpInputDialogComponent } from './sftp/components/sftp-input-dialog.component'
+import { SftpPermDialogComponent } from './sftp/components/sftp-perm-dialog.component'
+import { SftpDetailsDialogComponent } from './sftp/components/sftp-details-dialog.component'
+import { SftpViewerDialogComponent } from './sftp/components/sftp-viewer-dialog.component'
+import { SftpEditorDialogComponent } from './sftp/components/sftp-editor-dialog.component'
+import { SftpCwdSetupDialogComponent } from './sftp/components/sftp-cwd-setup-dialog.component'
 
 
 @NgModule({
@@ -64,10 +66,12 @@ import { SftpCwdSetupDialogComponent } from './panel/sftp-cwd-setup-dialog.compo
     { provide: TerminalDecorator, useClass: SftpTerminalDecorator, multi: true },
     { provide: SettingsTabProvider, useClass: SftpSettingsTabProvider, multi: true },
     { provide: ConfigProvider, useClass: SftpPlusConfigProvider, multi: true },
+    { provide: HotkeyProvider, useClass: SftpHotkeyProvider, multi: true },
   ],
 })
 export default class SftpPlusModule {
-  constructor() {
-    console.log('[SFTP+] Module loaded OK')
+  constructor(@Optional() logService: LogService) {
+    bindSftpLogger(logService)
+    log.info('Module loaded OK')
   }
 }

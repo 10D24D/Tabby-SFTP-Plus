@@ -1,0 +1,1071 @@
+msgid ""
+msgstr ""
+
+msgid "app.title"
+msgstr "SFTP+ Filhåndtering"
+
+msgid "app.openSettings"
+msgstr "Åbn Indstillinger"
+
+msgid "app.open"
+msgstr "Åbn SFTP"
+
+msgid "app.close"
+msgstr "Luk"
+
+msgid "app.maximize"
+msgstr "Maksimer"
+
+msgid "app.restore"
+msgstr "Gendan"
+
+msgid "app.confirm"
+msgstr "Bekræft"
+
+msgid "app.cancel"
+msgstr "Annuller"
+
+msgid "app.delete"
+msgstr "Slet"
+
+msgid "app.deleteFile"
+msgstr "Slet Fil"
+
+msgid "app.deleteFolder"
+msgstr "Slet Mappe"
+
+msgid "app.deleteMultiple"
+msgstr "Slet Flere Elementer"
+
+msgid "conflict.title"
+msgstr "Filkonflikt"
+
+msgid "conflict.sourceFile"
+msgstr "Kildefil"
+
+msgid "conflict.localFile"
+msgstr "Lokal Fil"
+
+msgid "conflict.remoteFile"
+msgstr "Fjernfil"
+
+msgid "conflict.size"
+msgstr "Størrelse"
+
+msgid "conflict.modified"
+msgstr "Ændret"
+
+msgid "conflict.path"
+msgstr "Sti"
+
+msgid "conflict.cancel"
+msgstr "Annuller"
+
+msgid "conflict.skip"
+msgstr "Spring Over"
+
+msgid "conflict.rename"
+msgstr "Omdøb"
+
+msgid "conflict.overwrite"
+msgstr "Overskriv"
+
+msgid "conflict.batch"
+msgstr "Batch:"
+msgid "conflict.skipAll"
+msgstr "Spring Alle Over"
+
+msgid "conflict.renameAll"
+msgstr "Omdøb Alle"
+
+msgid "conflict.overwriteAll"
+msgstr "Overskriv Alle"
+
+msgid "conflict.existsLocal"
+msgstr "Eksisterer allerede lokalt"
+
+msgid "conflict.existsRemote"
+msgstr "Eksisterer allerede fjernt"
+
+msgid "log.onlySuccess"
+msgstr "Kun Succes"
+
+msgid "log.success"
+msgstr "Succes"
+
+msgid "log.failed"
+msgstr "Fejlede"
+
+msgid "fileType.txt"
+msgstr "Tekstfil"
+
+msgid "fileType.log"
+msgstr "Logfil"
+
+msgid "fileType.md"
+msgstr "Markdown-fil"
+
+msgid "fileType.json"
+msgstr "JSON-fil"
+
+msgid "fileType.xml"
+msgstr "XML-fil"
+
+msgid "fileType.html"
+msgstr "HTML-fil"
+
+msgid "fileType.css"
+msgstr "CSS-fil"
+
+msgid "fileType.js"
+msgstr "JavaScript-fil"
+
+msgid "fileType.ts"
+msgstr "TypeScript-fil"
+
+msgid "fileType.image"
+msgstr "Billedfil"
+
+msgid "fileType.video"
+msgstr "Videofil"
+
+msgid "fileType.audio"
+msgstr "Lydfil"
+
+msgid "fileType.archive"
+msgstr "Arkivfil"
+
+msgid "fileType.doc"
+msgstr "Dokumentfil"
+
+msgid "fileType.code"
+msgstr "Kodefil"
+
+msgid "fileType.data"
+msgstr "Datafil"
+
+msgid "fileType.config"
+msgstr "Konfigurationsfil"
+
+msgid "fileType.cert"
+msgstr "Certifikatfil"
+
+msgid "fileType.executable"
+msgstr "Eksekverbar Fil"
+
+msgid "fileType.unknown"
+msgstr "Fil"
+
+msgid "app.deleteConfirmFile"
+msgstr "Er du sikker på at du vil slette denne fil?"
+
+msgid "app.deleteConfirmFolder"
+msgstr "Er du sikker på at du vil slette denne mappe?"
+
+msgid "app.deleteConfirmMultiple"
+msgstr "Er du sikker på at du vil slette disse {count} elementer?"
+
+msgid "app.rename"
+msgstr "Omdøb"
+
+msgid "app.refresh"
+msgstr "Opdater"
+
+msgid "app.upload"
+msgstr "Upload"
+msgid "app.download"
+msgstr "Download"
+msgid "app.newFolder"
+msgstr "Ny Mappe"
+
+msgid "app.newFile"
+msgstr "Ny Fil"
+
+msgid "app.loading"
+msgstr "Indlæser..."
+
+msgid "app.error"
+msgstr "Fejl"
+
+msgid "app.success"
+msgstr "Succes"
+
+msgid "app.yes"
+msgstr "Ja"
+
+msgid "app.no"
+msgstr "Nej"
+
+msgid "app.all"
+msgstr "Alle"
+
+msgid "app.export"
+msgstr "Eksport"
+
+msgid "app.clear"
+msgstr "Ryd"
+
+msgid "app.optional"
+msgstr "Valgfri"
+
+msgid "app.settings"
+msgstr "Indstillinger"
+
+msgid "app.modeSwitchSsh"
+msgstr "SSH"
+msgid "app.modeSwitchSftp"
+msgstr "SFTP"
+msgid "app.backToTerminal"
+msgstr "Tilbage til Terminal"
+
+msgid "filter.allOps"
+msgstr "Alle Operationer"
+
+msgid "filter.allStatus"
+msgstr "Alle Status"
+
+msgid "filter.allTime"
+msgstr "Alt Tid"
+
+msgid "filter.today"
+msgstr "I Dag"
+
+msgid "filter.last7Days"
+msgstr "Sidste 7 Dage"
+
+msgid "filter.last30Days"
+msgstr "Sidste 30 Dage"
+
+msgid "filter.customRange"
+msgstr "Brugerdefineret"
+
+msgid "filter.dateFrom"
+msgstr "Fra"
+
+msgid "filter.dateTo"
+msgstr "Til"
+
+msgid "pane.local"
+msgstr "Lokal"
+
+msgid "pane.remote"
+msgstr "Fjernt"
+
+msgid "pane.path"
+msgstr "Sti"
+
+msgid "pane.up"
+msgstr "Gå Op"
+
+msgid "pane.home"
+msgstr "Hjem"
+
+msgid "pane.go"
+msgstr "Gå"
+
+msgid "pane.refresh"
+msgstr "Opdater"
+
+msgid "pane.filter"
+msgstr "Filtrer..."
+
+msgid "pane.filterBtn"
+msgstr "Filfilter"
+
+msgid "pane.showHidden"
+msgstr "Vis Skjulte Filer"
+
+msgid "pane.pinFolders"
+msgstr "Fastgør Mapper Øverst"
+
+msgid "view.panelBorder"
+msgstr "Panelets kant"
+
+msgid "view.colBorder"
+msgstr "Vis kant"
+
+msgid "view.zebra"
+msgstr "Vis zebra-striber"
+
+msgid "pane.hideHidden"
+msgstr "Skjul Skjulte Filer"
+
+msgid "pane.sortByName"
+msgstr "Sortér efter Navn"
+
+msgid "pane.sortBySize"
+msgstr "Sortér efter Størrelse"
+
+msgid "pane.sortByModified"
+msgstr "Sortér efter Ændret"
+
+msgid "pane.selectAll"
+msgstr "Vælg Alle"
+
+msgid "pane.selectInvert"
+msgstr "Invertér Valg"
+
+msgid "pane.clearSelection"
+msgstr "Ryd Valg"
+
+msgid "pane.items"
+msgstr "{count} elementer"
+
+msgid "pane.copyPath"
+msgstr "Kopier Sti"
+
+msgid "pane.splitterHintHorizontal"
+msgstr "Træk for at ændre størrelse på venstre/højre paneler. Dobbeltklik for at nulstille."
+
+msgid "pane.splitterHintVertical"
+msgstr "Træk for at ændre størrelse på øvre/nedre paneler. Dobbeltklik for at nulstille."
+
+msgid "notify.pathCopied"
+msgstr "Kopieret {n} stier"
+
+msgid "pane.openFolder"
+msgstr "Åbn Mappe"
+
+msgid "pane.noMatch"
+msgstr "Ingen matchende filer"
+
+msgid "pane.empty"
+msgstr "Tom mappe"
+
+msgid "pane.errorAccess"
+msgstr "Kan ikke tilgå (adgang nægtet eller sti ikke fundet)"
+
+msgid "pane.loading"
+msgstr "Indlæser…"
+
+msgid "path.modeOff"
+msgstr "Sti-tilstand: Fra (klik for at skifte: Husk, Sync)"
+
+msgid "path.modeRemember"
+msgstr "Sti-tilstand: Husk (gendan næste gang)"
+
+msgid "path.modeSync"
+msgstr "Sti-tilstand: Sync med terminal (fjern følger cwd)"
+
+msgid "path.syncNoCwd"
+msgstr "Terminal cwd ikke rapporteret. Skift til Sync igen for at konfigurere"
+
+msgid "path.cwdSetupTitle"
+msgstr "Aktivér terminal mappe-sync"
+
+msgid "path.cwdSetupIntro"
+msgstr "Tabby har brug for at shell rapporterer cwd via OSC 1337 før SFTP+ kan synce. Vælg hvordan du vil aktivere det:"
+
+msgid "path.cwdSetupSessionHint"
+msgstr "Kun denne session: kør den midlertidige kommando nedenfor i den aktuelle terminal (mistet efter shell-genstart)"
+
+msgid "path.cwdSetupPermanentHint"
+msgstr "Permanent: tilføj snippet nedenfor til den fjerne profil, derefter source den"
+
+msgid "path.cwdSetupNote"
+msgstr "Annuller slår sti-tilstand Fra. Ingenting udføres eller skrives."
+
+msgid "path.cwdSetupSession"
+msgstr "Kun denne session"
+
+msgid "path.cwdSetupPermanent"
+msgstr "Skriv permanent"
+
+msgid "path.cwdSetupDone"
+msgstr "Mappe-rapportering aktiveret, synce…"
+
+msgid "path.cwdSetupFailed"
+msgstr "Aktivering fejlede. Tjek fjerne tilladelser eller shell-type"
+
+msgid "file.name"
+msgstr "Navn"
+
+msgid "file.type"
+msgstr "Type"
+msgid "file.size"
+msgstr "Størrelse"
+
+msgid "file.modified"
+msgstr "Ændret"
+
+msgid "file.created"
+msgstr "Oprettet"
+msgid "file.accessed"
+msgstr "Tilgået"
+msgid "file.permissions"
+msgstr "Tilladelser"
+msgid "file.owner"
+msgstr "Ejer"
+
+msgid "file.group"
+msgstr "Gruppe"
+
+msgid "file.mode"
+msgstr "Tilstand"
+
+msgid "file.path"
+msgstr "Sti"
+
+msgid "file.ext"
+msgstr "Udvidelse"
+
+msgid "file.columns"
+msgstr "Kolonner"
+
+msgid "file.inaccessible"
+msgstr "Utilgængelig"
+
+msgid "file.open"
+msgstr "Åbn"
+
+msgid "file.view"
+msgstr "Vis"
+
+msgid "file.edit"
+msgstr "Redigér"
+
+msgid "file.copy"
+msgstr "Kopiér"
+
+msgid "file.cut"
+msgstr "Klip"
+
+msgid "file.paste"
+msgstr "Indsæt"
+
+msgid "file.delete"
+msgstr "Slet"
+
+msgid "file.rename"
+msgstr "Omdøb"
+
+msgid "file.newFolder"
+msgstr "Ny Mappe"
+
+msgid "file.newFile"
+msgstr "Ny Fil"
+
+msgid "file.properties"
+msgstr "Egenskaber"
+
+msgid "file.openWith"
+msgstr "Åbn Med"
+
+msgid "file.showInFolder"
+msgstr "Vis i Explorer"
+
+msgid "file.openInSystem"
+msgstr "Åbn i System"
+
+msgid "file.editInSystem"
+msgstr "Redigér i System"
+
+msgid "viewer.loading"
+msgstr "Indlæser…"
+
+msgid "viewer.loadFailed"
+msgstr "Fil kunne ikke indlæses"
+
+msgid "viewer.binaryNotSupported"
+msgstr "Binær fil kan ikke vises eller redigeres som tekst"
+
+msgid "viewer.tooLarge"
+msgstr "Fil er for stor til at åbne"
+
+msgid "viewer.tooLargeView"
+msgstr "Fil er for stor (over {limit}) og kan ikke vises"
+
+msgid "viewer.typeNotSupported"
+msgstr "Denne filtype kan ikke vises"
+
+msgid "editor.save"
+msgstr "Gem"
+
+msgid "editor.saving"
+msgstr "Gemmer…"
+
+msgid "editor.saveSuccess"
+msgstr "Gemt på server"
+
+msgid "editor.saveFailed"
+msgstr "Gem fejlede"
+
+msgid "editor.unsaved"
+msgstr "Du har ugemte ændringer. Kassér dem?"
+
+msgid "editor.tooLarge"
+msgstr "Fil er for stor (over {limit}) og kan ikke redigeres"
+
+msgid "editor.typeNotSupported"
+msgstr "Denne filtype kan ikke redigeres"
+
+msgid "file.adjustCol"
+msgstr "Tilpas Kolonnebredde"
+
+msgid "file.adjustAllCols"
+msgstr "Tilpas Alle Kolonner"
+
+msgid "transfer.upload"
+msgstr "Upload"
+msgid "transfer.download"
+msgstr "Download"
+msgid "transfer.edit-upload"
+msgstr "Redigér Gem"
+
+msgid "transfer.edit-download"
+msgstr "Redigér Indlæs"
+
+msgid "transfer.progress"
+msgstr "Fremskridt"
+
+msgid "transfer.speed"
+msgstr "Hastighed"
+
+msgid "transfer.remaining"
+msgstr "Tilbage"
+
+msgid "transfer.cancel"
+msgstr "Annuller"
+
+msgid "transfer.closePanel"
+msgstr "Luk transfer-panel"
+
+msgid "transfer.pause"
+msgstr "Pause"
+msgid "transfer.resume"
+msgstr "Fortsæt"
+
+msgid "transfer.cancelAll"
+msgstr "Annuller mappe"
+
+msgid "transfer.cancelCurrent"
+msgstr "Annuller aktuel"
+
+msgid "transfer.paused"
+msgstr "Pauseret"
+
+msgid "transfer.inProgress"
+msgstr "Igangværende"
+
+msgid "transfer.minimizePanel"
+msgstr "Minimér"
+
+msgid "transfer.hidePanel"
+msgstr "Skjul"
+
+msgid "transfer.noActiveTransfers"
+msgstr "Ingen aktive transfers"
+
+msgid "transfer.clearCompleted"
+msgstr "Ryd Afsluttede"
+
+msgid "transfer.queue"
+msgstr "Transfer Kø"
+
+msgid "transfer.log"
+msgstr "Transfer Historik"
+
+msgid "transfer.logEmpty"
+msgstr "Ingen transfer-records endnu"
+
+msgid "transfer.logNoMatch"
+msgstr "Ingen matchende records"
+
+msgid "transfer.logCount"
+msgstr "{total} poster"
+msgid "transfer.logCountFiltered"
+msgstr "Viser {filtered} af {total}"
+
+msgid "transfer.noTransfers"
+msgstr "Ingen aktive transfers"
+
+msgid "transfer.clearConfirm"
+msgstr "Ryd alle transfer-records? Denne handling kan ikke fortrydes."
+
+msgid "transfer.clearTitle"
+msgstr "Bekræft Ryd"
+
+msgid "transfer.replaceConfirm"
+msgstr "Fil eksisterer allerede. Erstat?"
+
+msgid "transfer.replaceTitle"
+msgstr "Bekræft Erstat"
+
+msgid "transfer.deleteConfirm"
+msgstr "Slet {count} valgte elementer?"
+
+msgid "transfer.deleteTitle"
+msgstr "Bekræft Slet"
+
+msgid "bookmark.title"
+msgstr "Bogmærker"
+
+msgid "bookmark.add"
+msgstr "Tilføj Bogmærke"
+
+msgid "bookmark.addLocal"
+msgstr "Tilføj Lokal"
+
+msgid "bookmark.addGlobal"
+msgstr "Tilføj Global"
+
+msgid "bookmark.addCurrentShort"
+msgstr "+Lokal"
+
+msgid "bookmark.addGlobalShort"
+msgstr "+Global"
+msgid "bookmark.remove"
+msgstr "Fjern Bogmærke"
+
+msgid "bookmark.edit"
+msgstr "Redigér Bogmærke"
+
+msgid "bookmark.noBookmarks"
+msgstr "Ingen bogmærker endnu"
+
+msgid "bookmark.name"
+msgstr "Bogmærkenavn"
+
+msgid "bookmark.path"
+msgstr "Sti"
+
+msgid "bookmark.save"
+msgstr "Gem Bogmærke"
+
+msgid "bookmark.global"
+msgstr "Globale Bogmærker"
+
+msgid "bookmark.forConnection"
+msgstr "Denne Forbindelse"
+
+msgid "permission.title"
+msgstr "Redigér Tilladelser"
+
+msgid "permission.owner"
+msgstr "Ejer"
+
+msgid "permission.group"
+msgstr "Gruppe"
+
+msgid "permission.others"
+msgstr "Andre"
+
+msgid "permission.read"
+msgstr "Læs"
+
+msgid "permission.write"
+msgstr "Skriv"
+
+msgid "permission.execute"
+msgstr "Udfør"
+
+msgid "permission.mode"
+msgstr "Tilstand (Oktal)"
+
+msgid "notify.sftpOpened"
+msgstr "SFTP Åbnet"
+
+msgid "notify.noSSHSession"
+msgstr "Ingen SSH-session på aktuel fane"
+
+msgid "notify.transferComplete"
+msgstr "Transfer Afsluttet"
+
+msgid "notify.transferFailed"
+msgstr "Transfer Fejlede"
+
+msgid "notify.connectionLost"
+msgstr "Forbindelse Mistet"
+
+msgid "notify.connected"
+msgstr "Forbundet til"
+
+msgid "notify.connecting"
+msgstr "Forbinder til"
+
+msgid "notify.sftpConnectFailed"
+msgstr "SFTP-forbindelse fejlede. Sikr at SSH er forbundet og serveren understøtter SFTP."
+
+msgid "notify.reconnectNoTerminal"
+msgstr "Terminal afbrudt. Klik eller tryk på en tast i terminalen for at forbinde igen."
+
+msgid "notify.reconnectFailed"
+msgstr "Genforbindelse fejlede. Klik eller tryk på en tast i terminalen for at forbinde igen."
+
+msgid "settings.desc"
+msgstr "Smuk SFTP filhåndtering: drag-drop, bogmærker, sort, transfer-logs & flersproget."
+
+msgid "settings.language"
+msgstr "Sprog"
+
+msgid "settings.followTabby"
+msgstr "Følg Tabby"
+
+msgid "settings.theme"
+msgstr "Tema"
+
+msgid "settings.primary"
+msgstr "Primær"
+
+msgid "settings.bg"
+msgstr "Baggrund"
+msgid "settings.text"
+msgstr "Tekst"
+
+msgid "settings.border"
+msgstr "Kant"
+
+msgid "settings.layout"
+msgstr "Layout"
+msgid "settings.layoutAdaptive"
+msgstr "Adaptiv"
+
+msgid "settings.layoutAdaptiveSub"
+msgstr "Automatisk skift efter bredde"
+
+msgid "settings.layoutHorizontal"
+msgstr "Vandret"
+
+msgid "settings.layoutHorizontalSub"
+msgstr "Paneler side om side"
+
+msgid "settings.layoutVertical"
+msgstr "Lodret"
+
+msgid "settings.layoutVerticalSub"
+msgstr "Paneler stakket"
+
+msgid "settings.layoutSingle"
+msgstr "Enkelt Panel"
+
+msgid "settings.layoutSingleSub"
+msgstr "Kun fjernpanel"
+
+msgid "settings.toolbarLayout"
+msgstr "Tilpas Toolbar"
+
+msgid "settings.customToolbar"
+msgstr "Tilpas Toolbar"
+
+msgid "settings.toolbarLayoutHint"
+msgstr "Træk for at omarrangere og anvend straks på panelets overskrift"
+
+msgid "settings.paneLabel"
+msgstr "Terminaletiket"
+msgid "settings.addressBar"
+msgstr "Adressebar"
+
+msgid "settings.toolbar"
+msgstr "Værktøjslinje"
+msgid "settings.toolbarItem.back"
+msgstr "Tilbage"
+
+msgid "settings.toolbarItem.forward"
+msgstr "Frem"
+
+msgid "settings.toolbarItem.up"
+msgstr "Op"
+
+msgid "settings.toolbarItem.refresh"
+msgstr "Opdater"
+
+msgid "settings.toolbarItem.home"
+msgstr "Hjem"
+
+msgid "settings.toolbarItem.filter"
+msgstr "Filter"
+msgid "settings.toolbarItem.bookmark"
+msgstr "Bogmærke"
+
+msgid "settings.resetLayout"
+msgstr "Nulstil"
+
+msgid "settings.tableStyle"
+msgstr "Tabelstil"
+
+msgid "settings.tableStyleHint"
+msgstr "Tip: Kontroller via fil-listens højreklik-menu"
+
+msgid "settings.hideNativeBtn"
+msgstr "Skjul nativ SFTP-knap"
+
+msgid "settings.openInNewTab"
+msgstr "Åbn i ny fane som standard"
+
+msgid "settings.singleWorkspaceInstance"
+msgstr "Kun enkelt instans"
+
+msgid "settings.hotkey"
+msgstr "Panelgenvej"
+msgid "settings.hotkeyUnbound"
+msgstr "Sæt hotkey"
+
+msgid "settings.hotkeyClear"
+msgstr "Ryd"
+
+msgid "settings.hotkeyRecording"
+msgstr "Tryk på en tastekombination…"
+
+msgid "settings.hotkeyClickToSet"
+msgstr "Klik for at sætte hotkey"
+
+msgid "settings.hotkeyConflict"
+msgstr "Konflikter med: {names}"
+
+msgid "settings.hotkeyConflictConfirm"
+msgstr "Hotkey {keys} er allerede brugt af: {names}\nBind det til SFTP+ alligevel? (Begge kan aktiveres.)"
+
+msgid "settings.hotkeySaved"
+msgstr "Gemt og synkroniseret til Tabby: {keys}"
+
+msgid "settings.hotkeyCleared"
+msgstr "Hotkey-binding ryddet"
+
+msgid "settings.hotkeySaveFailed"
+msgstr "Fejlede at gemme hotkey"
+
+msgid "settings.hotkeyRecordTimeout"
+msgstr "Optagelse timeout, prøv igen"
+
+msgid "settings.compatibility"
+msgstr "Kompatibilitet"
+
+msgid "settings.data"
+msgstr "Data"
+msgid "settings.export"
+msgstr "Eksport"
+
+msgid "settings.import"
+msgstr "Importér"
+msgid "settings.clearAll"
+msgstr "Ryd Alle"
+
+msgid "settings.about"
+msgstr "Om"
+
+msgid "settings.version"
+msgstr "Version"
+msgid "settings.buildTime"
+msgstr "Build-tid"
+
+msgid "settings.author"
+msgstr "Forfatter"
+
+msgid "settings.githubSource"
+msgstr "GitHub Kilde"
+
+msgid "settings.giveStar"
+msgstr "Giv en Stjerne"
+
+msgid "settings.feedback"
+msgstr "Tilbagemelding"
+msgid "settings.modifyColors"
+msgstr "⚠️ Modificer Farver"
+
+msgid "settings.overwriteConfirm"
+msgstr "Du er i Auto/Preset-tilstand. Ændringer overskriver den tilpassede farveskema. Fortsæt?"
+
+msgid "settings.overwrite"
+msgstr "Overskriv"
+
+msgid "settings.clearAllTitle"
+msgstr "⚠️ Ryd Alle Data"
+
+msgid "settings.clearAllConfirm"
+msgstr "Dette sletter alle bogmærker, transfer-logs og indstillinger. Kan ikke fortrydes!"
+
+msgid "settings.clearAllPrompt"
+msgstr "Skriv DELETE for at bekræfte:"
+
+msgid "settings.clear"
+msgstr "Ryd"
+
+msgid "settings.dark"
+msgstr "Mørk"
+
+msgid "settings.light"
+msgstr "Lys"
+
+msgid "settings.invalidFormat"
+msgstr "Ugyldigt dataformat."
+
+msgid "settings.importComplete"
+msgstr "Import fuldført."
+
+msgid "settings.importUnavailable"
+msgstr "Kan ikke importere: ConfigService ikke tilgængelig."
+
+msgid "settings.importFailed"
+msgstr "Import fejlede: ugyldig eller korrupt fil."
+
+msgid "settings.dataCleared"
+msgstr "Alle data ryddet"
+
+msgid "conflict.sourceFile"
+msgstr "Kildfil"
+
+msgid "conflict.targetFileExists"
+msgstr "Målfil (findes)"
+
+msgid "transfer.success"
+msgstr "Succes"
+
+msgid "settings.closeBookmarkPanel"
+msgstr "Luk bogmærkepanelet efter valg"
+
+msgid "layout.mode.auto"
+msgstr "Automatisk layout"
+
+msgid "layout.mode.horizontal"
+msgstr "Horisontalt layout"
+
+msgid "layout.mode.vertical"
+msgstr "Vertikalt layout"
+
+msgid "layout.mode.single"
+msgstr "Enkelt rude (kun fjern)"
+
+msgid "notify.closeWithTransfers"
+msgstr "{count} overførsel(er) i gang. Lukning af panelet afbryder alle overførsler. Fortsæt?"
+
+msgid "type.folder"
+msgstr "Mappe"
+
+msgid "type.file"
+msgstr "Fil"
+
+msgid "pane.exclFolders"
+msgstr ", undt. mapper"
+
+msgid "pane.selectedInfo"
+msgstr " — {n} element(er) valgt ({size})"
+
+msgid "fail.cancelled"
+msgstr "Annulleret"
+
+msgid "fail.interrupted"
+msgstr "Afbrudt"
+
+msgid "fail.unknown"
+msgstr "Mislykkedes"
+
+msgid "notify.uploadFailed"
+msgstr "Upload mislykkedes: {name}"
+
+msgid "notify.downloadFailed"
+msgstr "Download mislykkedes: {name}"
+
+msgid "op.renameFailed"
+msgstr "Omdøbning mislykkedes: {reason}"
+
+msgid "op.mkdirFailed"
+msgstr "Oprettelse af mappe mislykkedes: {reason}"
+
+msgid "op.touchFailed"
+msgstr "Oprettelse af fil mislykkedes: {reason}"
+
+msgid "op.chmodFailed"
+msgstr "Chmod mislykkedes: {reason}"
+
+msgid "op.failed"
+msgstr "Handling mislykkedes: {reason}"
+
+msgid "notify.deleteFailed"
+msgstr "{n} element(er) kunne ikke slettes (måske i brug eller manglende tilladelse)"
+
+msgid "input.dirExists"
+msgstr "Mappen findes allerede: {val}"
+
+msgid "input.fileExists"
+msgstr "Filen findes allerede: {val}"
+
+msgid "input.fileWhenMkdir"
+msgstr "En fil med navnet \"{val}\" findes allerede, mappen kan ikke oprettes"
+
+msgid "input.dirWhenTouch"
+msgstr "En mappe med navnet \"{val}\" findes allerede, filen kan ikke oprettes"
+
+msgid "notify.notConnectedUpload"
+msgstr "Ikke forbundet, kan ikke uploade"
+
+msgid "notify.notConnectedDownload"
+msgstr "Ikke forbundet, kan ikke downloade"
+
+msgid "notify.copied"
+msgstr "{n} element(er) kopieret"
+
+msgid "notify.cut"
+msgstr "{n} element(er) klippet ud"
+
+msgid "status.disconnected"
+msgstr "Afbrudt"
+
+msgid "status.reconnecting"
+msgstr "Genopretter forbindelse…"
+
+msgid "status.reconnect"
+msgstr "Genopret forbindelse"
+
+msgid "app.restoreDefaultSize"
+msgstr "Gendan standardpanelstørrelse"
+
+msgid "notify.pasteFailed"
+msgstr "Indsætning mislykkedes"
+
+msgid "notify.copyFailed"
+msgstr "Kopiér mislykkedes: {name}"
+
+msgid "theme.auto"
+msgstr "Auto"
+
+msgid "theme.dark"
+msgstr "Mørk"
+
+msgid "theme.light"
+msgstr "Lys"
+
+msgid "theme.blue"
+msgstr "Blå"
+
+msgid "theme.green"
+msgstr "Grøn"
+
+msgid "theme.purple"
+msgstr "Lilla"
+
+msgid "theme.red"
+msgstr "Rød"
+
+msgid "theme.custom"
+msgstr "Brugerdefineret"
+
+msgid "pane.back"
+msgstr "Tilbage"
+
+msgid "pane.forward"
+msgstr "Fremad"
+
+msgid "filter.apply"
+msgstr "Anvend"
+
+msgid "filter.clear"
+msgstr "Ryd"
+
+msgid "hotkey.togglePanel"
+msgstr "Åbn SFTP+-panel"
+
+
+msgid "conflict.existsSamePane"
+msgstr "En fil med samme navn findes allerede på destinationsstedet"
+
+msgid "settings.dateFormat"
+msgstr "Brugerdefineret tidsformat"
+
+msgid "settings.dateFormatHint"
+msgstr "Tokens: YYYY / YY / MM / DD / HH / hh / mm / ss / A (tom = standard)"
+
+msgid "settings.dateFormatPreview"
+msgstr "Forhåndsvisning"
+
+msgid "settings.dateFormatReset"
+msgstr "Nulstil til standard"

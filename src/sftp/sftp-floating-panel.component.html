@@ -1,0 +1,493 @@
+    <div class="sftp-root" tabindex="0"
+      [class.has-zebra]="showZebra"
+      [class.has-col-borders]="showColBorders"
+      [class.col-header-reordering]="_headerReorder?.active && _headerReorder?.moved"
+      [class.workspace-mode]="displayMode === 'workspace'"
+      [class.dragging]="panelDragging"
+      [class.resizing]="panelResizing">
+      <div class="sftp-toast" *ngIf="toastMessage"
+        (mouseenter)="onToastMouseEnter()"
+        (mouseleave)="onToastMouseLeave()">{{ toastMessage }}</div>
+      <!-- 缩放手柄层（仅浮动模式、未最大化时显示；pointer-events 仅手柄自身捕获） -->
+      <div class="resize-layer" *ngIf="displayMode !== 'workspace' && panelDraggable && !panelMaximized">
+        <div class="resize-handle rh-n" (mousedown)="onResizeStart($event, 'n')"></div>
+        <div class="resize-handle rh-s" (mousedown)="onResizeStart($event, 's')"></div>
+        <div class="resize-handle rh-e" (mousedown)="onResizeStart($event, 'e')"></div>
+        <div class="resize-handle rh-w" (mousedown)="onResizeStart($event, 'w')"></div>
+        <div class="resize-handle rh-ne" (mousedown)="onResizeStart($event, 'ne')"></div>
+        <div class="resize-handle rh-nw" (mousedown)="onResizeStart($event, 'nw')"></div>
+        <div class="resize-handle rh-se" (mousedown)="onResizeStart($event, 'se')"></div>
+        <div class="resize-handle rh-sw" (mousedown)="onResizeStart($event, 'sw')"></div>
+      </div>
+      <div class="sftp-main">
+      <!-- 顶部标题栏 -->
+      <div class="top-bar" (mousedown)="onTopBarMouseDown($event)" (contextmenu)="onTopBarContextMenu($event)">
+        <span class="title">SFTP+</span>
+        <span class="host-info" *ngIf="hostInfo">{{ hostInfo }}</span>
+        <!-- 断开连接指示器 -->
+        <span class="disconnect-indicator" *ngIf="!connected && !connecting && sshSession">
+          <span class="disconnect-dot"></span>
+          <span class="disconnect-tag">{{ i18n.t('status.disconnected') }}</span>
+          <button class="reconnect-btn" (click)="onReconnect()" [disabled]="reconnecting">
+            {{ reconnecting
+              ? i18n.t('status.reconnecting')
+              : i18n.t('status.reconnect') }}
+          </button>
+        </span>
+        <div class="top-actions">
+          <!-- 路径模式：关闭 → 路径记忆 → 终端同步 -->
+          <button class="btn-link btn-icon btn-path-mode" (click)="cyclePathMode()"
+                  [class.active]="pathMode !== 'off'"
+                  [title]="pathModeTitle()">
+            <!-- 关闭/路径记忆：共用定位销图标（通过 active 亮度区分） -->
+            <svg *ngIf="pathMode !== 'sync'" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linejoin="round">
+              <path d="M8 2.4C6.05 2.4 4.5 3.95 4.5 5.9c0 2.55 3.5 6.35 3.5 6.35s3.5-3.8 3.5-6.35C11.5 3.95 9.95 2.4 8 2.4z"/>
+              <circle cx="8" cy="5.9" r="1.25"/>
+            </svg>
+            <!-- 终端同步：链接图标 -->
+            <svg *ngIf="pathMode === 'sync'" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round">
+              <path d="M6.2 9.8l3.6-3.6"/>
+              <path d="M7.1 4.4l1.1-1.1a2.4 2.4 0 013.4 3.4L10.5 7.8"/>
+              <path d="M8.9 11.6l-1.1 1.1a2.4 2.4 0 01-3.4-3.4L5.5 8.2"/>
+            </svg>
+          </button>
+          <!-- 布局模式切换 -->
+          <button class="btn-link btn-icon btn-layout" (click)="cycleLayoutMode()"
+                  title="{{ layoutModeTitle() }}">
+            <!-- 自动模式：四格方块自适应图标 -->
+            <svg *ngIf="_layoutMode === 'auto'" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.35">
+              <rect x="2" y="2" width="5.5" height="5.5" rx="0.9"/>
+              <rect x="8.5" y="2" width="5.5" height="5.5" rx="0.9"/>
+              <rect x="2" y="8.5" width="5.5" height="5.5" rx="0.9"/>
+              <rect x="8.5" y="8.5" width="5.5" height="5.5" rx="0.9"/>
+              <path d="M4.75 7.25v1.5M11.25 7.25v1.5M7.25 4.75h1.5M7.25 11.25h1.5" stroke-width="1.2"/>
+            </svg>
+            <!-- 左右布局图标 -->
+            <svg *ngIf="_layoutMode === 'horizontal'" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.35">
+              <rect x="2" y="2.5" width="5.5" height="11" rx="0.9"/>
+              <rect x="8.5" y="2.5" width="5.5" height="11" rx="0.9"/>
+            </svg>
+            <!-- 上下布局图标 -->
+            <svg *ngIf="_layoutMode === 'vertical'" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.35">
+              <rect x="2.5" y="2" width="11" height="5.5" rx="0.9"/>
+              <rect x="2.5" y="8.5" width="11" height="5.5" rx="0.9"/>
+            </svg>
+            <!-- 单栏布局图标 -->
+            <svg *ngIf="_layoutMode === 'single'" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.35">
+              <rect x="2" y="2" width="12" height="12" rx="0.9"/>
+              <circle cx="10.5" cy="8" r="1.35" fill="currentColor" stroke="none"/>
+            </svg>
+          </button>
+          <button class="btn-link btn-icon btn-transfer-log" (click)="toggleTransferLog()"
+                  [class.active]="showTransferLog"
+                  title="{{ i18n.t('transfer.log') }}">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round">
+              <rect x="2.5" y="2.5" width="11" height="11" rx="0.9"/>
+              <line x1="5" y1="5.75" x2="11" y2="5.75"/>
+              <line x1="5" y1="8" x2="11" y2="8"/>
+              <line x1="5" y1="10.25" x2="9.5" y2="10.25"/>
+            </svg>
+          </button>
+          <button class="btn-link btn-icon btn-settings" (click)="openPluginSettings()"
+                  title="{{ i18n.t('app.openSettings') }}">
+            <svg viewBox="0 0 16 16" fill="currentColor">
+              <g transform="translate(8 8) scale(0.62) translate(-12 -12)">
+                <path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
+              </g>
+            </svg>
+          </button>
+          <button *ngIf="displayMode !== 'workspace'" class="btn-link btn-icon btn-minimize" (click)="minimize()" title="{{ minimized ? (effectiveLang==='zh-CN'?'恢复':'Restore') : (effectiveLang==='zh-CN'?'最小化':'Minimize') }}">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round">
+              <line x1="4" y1="8" x2="12" y2="8"/>
+            </svg>
+          </button>
+          <button *ngIf="displayMode !== 'workspace'" class="btn-link btn-icon btn-maximize" (click)="toggleMaximize()"
+                  [title]="panelMaximized ? i18n.t('app.restore') : i18n.t('app.maximize')">
+            <svg *ngIf="!panelMaximized" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M2.5 6V3.5A1 1 0 013.5 2.5H6"/>
+              <path d="M10 2.5h2.5A1 1 0 0113.5 3.5V6"/>
+              <path d="M13.5 10v2.5A1 1 0 0112.5 13.5H10"/>
+              <path d="M6 13.5H3.5A1 1 0 012.5 12.5V10"/>
+            </svg>
+            <svg *ngIf="panelMaximized" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linejoin="round">
+              <rect x="2.5" y="2.5" width="7" height="7" rx="1"/>
+              <rect x="6.5" y="6.5" width="7" height="7" rx="1"/>
+            </svg>
+          </button>
+          <button class="btn-close" (click)="close()">✕</button>
+        </div>
+      </div>
+
+      <!-- 标题栏右键菜单：还原默认面板大小 -->
+      <div class="sftp-title-menu" *ngIf="topBarMenuVisible"
+        [style.left.px]="topBarMenuX" [style.top.px]="topBarMenuY"
+        (mousedown)="$event.stopPropagation()" (click)="$event.stopPropagation()">
+        <div class="sftp-title-menu__item" (click)="restoreDefaultSize()">
+          {{ i18n.t('app.restoreDefaultSize') }}
+        </div>
+      </div>
+
+      <!-- 双栏主体 -->
+      <div class="sftp-body">
+        <!-- ====== 本地面板 ====== -->
+        <sftp-file-pane
+          *ngIf="_layoutMode !== 'single'"
+          [i18n]="i18n"
+          labelIcon="🖥"
+          [paneLabel]="i18n.t('pane.local')"
+          listClass="local-pane"
+          [isLocal]="true"
+          [pathInput]="localPathInput"
+          [paneCustomOrder]="paneCustomOrder"
+          (pathInputChange)="localPathInput = $event"
+          (pathEnter)="goToLocalPathInput()"
+          (pathBlur)="onLocalPathBlur()"
+          [canBack]="canLocalBack"
+          [canForward]="canLocalForward"
+          [canUp]="canLocalUp()"
+          [filterVisible]="localFilterVisible"
+          [filterPending]="localFilterPending"
+          (filterPendingChange)="localFilterPending = $event"
+          [filterActive]="localFilter"
+          [bookmarksActive]="showBookmarks && bookmarkPane === 'local'"
+          [loading]="_localLoading"
+          [flash]="_localFlash"
+          [dragOver]="_localDragOver"
+          [hasError]="_localError"
+          [showEmpty]="getFilteredLocalEntries().length === 0 && !_localLoading"
+          [entries]="getFilteredLocalEntries()"
+          [visibleCols]="localVisibleCols"
+          [headerCols]="localHeaderPreviewCols"
+          [colWidths]="getLocalColWidths()"
+          [headerColWidths]="localHeaderPreviewWidths"
+          [sortBy]="localSortBy"
+          [sortAsc]="localSortAsc"
+          [selectionInfo]="getLocalSelectionInfo()"
+          [i18n]="i18n"
+          [colHeaderLabelFn]="colHeaderLabelFn"
+          [colValueFn]="colValueFn"
+          [isSelectedFn]="isLocalSelectedFn"
+          [sortArrowFn]="localSortArrowFn"
+          [trackByFn]="trackLocalEntryBy"
+          [resizingCol]="localResizingCol"
+          [draggingCol]="localDraggingCol"
+          [dropIndicatorCol]="localDropIndicatorCol"
+          [dropIndicatorAfter]="localDropIndicatorAfter"
+          (nav)="onLocalPaneNav($event)"
+          (applyFilter)="applyLocalFilter()"
+          (clearFilter)="clearLocalFilter()"
+          (listDragOver)="onDragOver($event, 'local')"
+          (listDragEnter)="onDragEnter($event, 'local')"
+          (listDragLeave)="onDragLeave($event, 'local')"
+          (listDrop)="onDrop($event, 'local')"
+          (listMouseDown)="onPaneMouseDown($event, 'local')"
+          (mousedown)="onPaneMouseNav('local', $event)"
+          (listMouseEnter)="activePane = 'local'"
+          (listScroll)="onPaneScroll()"
+          (listClick)="onPaneListClick($event, 'local')"
+          (listContextMenu)="onPaneContextMenu($event)"
+          (headerContextMenu)="onHeaderContextMenu($event)"
+          (sort)="onLocalSort($event)"
+          (colResizeStart)="onColResizeStart($event.col, $event.event, 'local')"
+          (colResizeAutoFit)="onColResizeAutoFit($event.col, 'local')"
+          (colHeaderReorderStart)="onColHeaderReorderStart($event.col, $event.event, 'local')"
+          (entryClick)="onLocalClick($event.entry, $event.event, $event.index)"
+          (entryDblClick)="onLocalEntryDblClick($event.entry, $event.event)"
+          (entryContextMenu)="onLocalContextMenu($event.entry, $event.event)"
+          (entryDragStart)="onDragStartLocal($event.event, $event.entry)"
+          (entryDragEnd)="onEntryDragEnd()"
+          (toggleBookmarks)="toggleBookmarksForPane('local', $event)">
+        </sftp-file-pane>
+
+        <!-- 拖拽分割线（窄屏上下布局/宽屏左右布局均显示） -->
+        <div class="pane-splitter"
+             *ngIf="_layoutMode !== 'single'"
+             [title]="splitterTitle()"
+             (mousedown)="onSplitterDown($event)"
+             (dblclick)="onSplitterDblClick($event)"></div>
+
+        <!-- ====== 远程面板 ====== -->
+        <sftp-file-pane
+          [i18n]="i18n"
+          labelIcon="🌐"
+          [paneLabel]="i18n.t('pane.remote')"
+          listClass="remote-pane"
+          [isLocal]="false"
+          [pathInput]="remotePathInput"
+          [paneCustomOrder]="paneCustomOrder"
+          (pathInputChange)="remotePathInput = $event"
+          (pathEnter)="goToRemotePathInput()"
+          (pathBlur)="onRemotePathBlur()"
+          [pathDisabled]="!connected"
+          [refreshDisabled]="!connected"
+          [canBack]="canRemoteBack"
+          [canForward]="canRemoteForward"
+          [canUp]="canRemoteUp()"
+          [filterVisible]="remoteFilterVisible"
+          [filterPending]="remoteFilterPending"
+          (filterPendingChange)="remoteFilterPending = $event"
+          [filterActive]="remoteFilter"
+          [bookmarksActive]="showBookmarks && bookmarkPane === 'remote'"
+          [loading]="_remoteLoading"
+          [flash]="_remoteFlash"
+          [dragOver]="_remoteDragOver"
+          [hasError]="_remoteError"
+          [showNoSession]="!connected && !sshSession"
+          [showHeader]="connected"
+          [showEmpty]="connected && getFilteredRemoteEntries().length === 0 && !_remoteLoading"
+          [entries]="getFilteredRemoteEntries()"
+          [visibleCols]="remoteVisibleCols"
+          [headerCols]="remoteHeaderPreviewCols"
+          [colWidths]="getRemoteColWidths()"
+          [headerColWidths]="remoteHeaderPreviewWidths"
+          [sortBy]="remoteSortBy"
+          [sortAsc]="remoteSortAsc"
+          [draggable]="connected"
+          [selectionInfo]="getRemoteSelectionInfo()"
+          [i18n]="i18n"
+          [colHeaderLabelFn]="colHeaderLabelFn"
+          [colValueFn]="colValueFn"
+          [isSelectedFn]="isRemoteSelectedFn"
+          [sortArrowFn]="remoteSortArrowFn"
+          [trackByFn]="trackRemoteEntryBy"
+          [resizingCol]="remoteResizingCol"
+          [draggingCol]="remoteDraggingCol"
+          [dropIndicatorCol]="remoteDropIndicatorCol"
+          [dropIndicatorAfter]="remoteDropIndicatorAfter"
+          (nav)="onRemotePaneNav($event)"
+          (applyFilter)="applyRemoteFilter()"
+          (clearFilter)="clearRemoteFilter()"
+          (listDragOver)="onDragOver($event, 'remote')"
+          (listDragEnter)="onDragEnter($event, 'remote')"
+          (listDragLeave)="onDragLeave($event, 'remote')"
+          (listDrop)="onDrop($event, 'remote')"
+          (listMouseDown)="onPaneMouseDown($event, 'remote')"
+          (mousedown)="onPaneMouseNav('remote', $event)"
+          (listMouseEnter)="activePane = 'remote'"
+          (listScroll)="onPaneScroll()"
+          (listClick)="onPaneListClick($event, 'remote')"
+          (listContextMenu)="onPaneContextMenu($event)"
+          (headerContextMenu)="onHeaderContextMenu($event)"
+          (sort)="onRemoteSort($event)"
+          (colResizeStart)="onColResizeStart($event.col, $event.event, 'remote')"
+          (colResizeAutoFit)="onColResizeAutoFit($event.col, 'remote')"
+          (colHeaderReorderStart)="onColHeaderReorderStart($event.col, $event.event, 'remote')"
+          (entryClick)="onRemoteClick($event.entry, $event.event, $event.index)"
+          (entryDblClick)="onRemoteEntryDblClick($event.entry, $event.event)"
+          (entryContextMenu)="onRemoteContextMenu($event.entry, $event.event)"
+          (entryDragStart)="onDragStartRemote($event.event, $event.entry)"
+          (entryDragEnd)="onEntryDragEnd()"
+          (toggleBookmarks)="toggleBookmarksForPane('remote', $event)">
+        </sftp-file-pane>
+
+      </div>
+
+      <!-- 传输队列：无任务时不渲染，避免底部留白 -->
+      <sftp-transfer-queue
+        *ngIf="transfers.length && !transfersHidden"
+        [i18n]="i18n"
+        [transfers]="transfers"
+        [hidden]="transfersHidden"
+        [minimized]="transfersMinimized"
+        (hiddenChange)="transfersHidden = $event"
+        (minimizeChange)="transfersMinimized = $event"
+        (pause)="pauseTransfer($event)"
+        (resume)="resumeTransfer($event)"
+        (cancel)="cancelTransfer($event)"
+        (cancelCurrent)="cancelCurrentFile($event)">
+      </sftp-transfer-queue>
+      </div>
+
+      <div class="sftp-overlays">
+      <sftp-delete-dialog
+        [i18n]="i18n"
+        [visible]="deleteConfirmVisible"
+        [batch]="deleteConfirmBatch"
+        [batchText]="batchDeleteText"
+        [isDir]="deleteItemIsDir"
+        [name]="deleteItemName"
+        [type]="deleteItemType"
+        [size]="deleteItemSize"
+        [date]="deleteItemDate"
+        [toTrash]="deleteToTrash"
+        (confirm)="confirmDelete()"
+        (cancel)="cancelDelete()">
+      </sftp-delete-dialog>
+
+      <sftp-input-dialog
+        [i18n]="i18n"
+        [visible]="inputDialogVisible"
+        [title]="inputDialogTitle"
+        [value]="inputDialogValue"
+        [placeholder]="inputDialogPlaceholder"
+        (valueChange)="inputDialogValue = $event"
+        (confirm)="confirmInputDialog()"
+        (cancel)="cancelInputDialog()">
+      </sftp-input-dialog>
+
+      <sftp-cwd-setup-dialog
+        [i18n]="i18n"
+        [visible]="cwdSetupVisible"
+        (choose)="onCwdSetupChoice($event)">
+      </sftp-cwd-setup-dialog>
+
+      <sftp-bookmark-popup *ngIf="showBookmarks"
+        [i18n]="i18n"
+        [top]="bookmarkPopupY"
+        [left]="bookmarkPopupX"
+        [arrowLeft]="bookmarkArrowLeft"
+        [paneLabel]="bookmarkPane === 'local' ? i18n.t('pane.local') : i18n.t('pane.remote')"
+        [pane]="bookmarkPane"
+        [addScope]="bookmarkAddScope"
+        [newName]="newBookmarkName"
+        [newPath]="newBookmarkPath"
+        (newNameChange)="newBookmarkName = $event"
+        (newPathChange)="newBookmarkPath = $event"
+        [editingId]="_editingBookmarkId"
+        [connectionBookmarks]="getBookmarksForPaneType('connection')"
+        [globalBookmarks]="getBookmarksForPaneType('global')"
+        [dragOverIdx]="dragOverIdx"
+        [dragOverScope]="dragOverScope"
+        [dragOverBottom]="dragOverBottom"
+        [dragSourceIdx]="dragSourceIdx"
+        [dragSourceScope]="dragSourceScope"
+        (close)="closeBookmarks()"
+        (addScopeClick)="openBookmarkAddForm($event)"
+        (addBookmark)="addBookmark()"
+        (cancelEdit)="cancelBookmarkEdit()"
+        (gotoBookmark)="gotoBookmark($event)"
+        (removeBookmark)="removeBookmark($event)"
+        (contextMenu)="onBookmarkContextMenu($event.bookmark, $event.event)"
+        (dragStart)="onBookmarkDragStart($event.event, $event.index, $event.scope)"
+        (dragOver)="onBookmarkDragOver($event.event, $event.index, $event.scope)"
+        (dragEnd)="onBookmarkDragEnd()"
+        (drop)="onBookmarkDrop($event.event, $event.index, $event.scope)">
+      </sftp-bookmark-popup>
+
+      <!-- 传输日志 -->
+      <sftp-transfer-log-dialog
+        [i18n]="i18n"
+        [visible]="showTransferLog"
+        [entries]="filteredTransferLogs"
+        [totalCount]="transferLogTotalCount"
+        [filterOp]="logFilterOp"
+        [filterStatus]="logFilterStatus"
+        [filterTimeRange]="logFilterTimeRange"
+        [filterDateFrom]="logFilterDateFrom"
+        [filterDateTo]="logFilterDateTo"
+        [activeTransferCount]="transfers.length"
+        [transfersHidden]="transfersHidden"
+        [transfersMinimized]="transfersMinimized"
+        [i18n]="i18n"
+        (close)="showTransferLog = false"
+        (filterOpChange)="logFilterOp = $event"
+        (filterStatusChange)="logFilterStatus = $event"
+        (filterTimeRangeChange)="logFilterTimeRange = $event"
+        (filterDateFromChange)="logFilterDateFrom = $event"
+        (filterDateToChange)="logFilterDateTo = $event"
+        (showTransfers)="transfersHidden = false; transfersMinimized = false"
+        (export)="exportLog()"
+        (clear)="clearLog()">
+      </sftp-transfer-log-dialog>
+
+      <!-- 文件冲突对话框 -->
+      <sftp-conflict-dialog
+        [i18n]="i18n"
+        [visible]="showConflictDialog"
+        [data]="conflictData"
+        [currIdx]="conflictCurrIdx"
+        [totalIdx]="conflictTotalIdx"
+        (resolve)="resolveConflict($event)">
+      </sftp-conflict-dialog>
+
+      <sftp-context-menu
+        [i18n]="i18n"
+        [menuVisible]="contextMenuVisible"
+        [menuX]="contextMenuX"
+        [menuY]="contextMenuY"
+        [pane]="contextMenuPane"
+        [entry]="contextMenuEntry"
+        [hasSelection]="hasContextSelection()"
+        [hasFileActions]="hasFileActions()"
+        [singleSelected]="contextMenuPane === 'local' ? selectedLocal.length === 1 : selectedRemote.length === 1"
+        [clipboardHasEntries]="clipboardEntries.length > 0"
+        [canView]="canViewEntry(contextMenuEntry)"
+        [canEdit]="canEditEntry(contextMenuEntry)"
+        [canTransfer]="connected"
+        [modKey]="modKey"
+        [i18n]="i18n"
+        [headerVisible]="headerMenuVisible"
+        [headerX]="headerMenuX"
+        [headerY]="headerMenuY"
+        [headerCol]="headerMenuCol"
+        [cols]="contextColVisibility"
+        [pinFolders]="contextMenuPane === 'local' ? pinFoldersLocal : pinFoldersRemote"
+        [showHidden]="contextMenuPane === 'local' ? showHiddenLocal : showHiddenRemote"
+        [showColBorders]="showColBorders"
+        [showZebra]="showZebra"
+        (menuAction)="onContextMenuAction($event)"
+        (headerAction)="onHeaderMenuAction($event)">
+      </sftp-context-menu>
+
+      <sftp-perm-dialog
+        [i18n]="i18n"
+        [visible]="showPermDialog"
+        [targetName]="permTargetName"
+        [targetPath]="permTargetPath"
+        [ownerRead]="permOwnerRead"
+        [ownerWrite]="permOwnerWrite"
+        [ownerExec]="permOwnerExec"
+        [groupRead]="permGroupRead"
+        [groupWrite]="permGroupWrite"
+        [groupExec]="permGroupExec"
+        [otherRead]="permOtherRead"
+        [otherWrite]="permOtherWrite"
+        [otherExec]="permOtherExec"
+        [modePreview]="permModePreview"
+        (permChange)="onPermFieldChange($event)"
+        (confirm)="confirmPermDialog()"
+        (cancel)="cancelPermDialog()">
+      </sftp-perm-dialog>
+
+      <sftp-details-dialog
+        [i18n]="i18n"
+        [visible]="detailsVisible"
+        [display]="detailsDisplay"
+        (confirm)="detailsVisible = false"
+        (cancel)="detailsVisible = false">
+      </sftp-details-dialog>
+
+      <sftp-viewer-dialog
+        [i18n]="i18n"
+        [visible]="viewerVisible"
+        [loading]="viewerLoading"
+        [mode]="viewerMode"
+        [fileName]="viewerFileName"
+        [displayPath]="viewerDisplayPath"
+        [textContent]="viewerTextContent"
+        [imageUrl]="viewerImageUrl"
+        [error]="viewerError"
+        [showSystemAction]="viewerShowSystemAction"
+        (systemAction)="openViewerInSystem()"
+        (close)="closeViewer()">
+      </sftp-viewer-dialog>
+
+      <sftp-editor-dialog
+        [i18n]="i18n"
+        [visible]="editorVisible"
+        [loading]="editorLoading"
+        [saving]="editorSaving"
+        [dirty]="editorDirty"
+        [fileName]="editorFileName"
+        [displayPath]="editorDisplayPath"
+        [content]="editorContent"
+        [error]="editorError"
+        [showSystemAction]="editorShowSystemAction"
+        (contentChange)="onEditorContentChange($event)"
+        (save)="saveEditor()"
+        (cancel)="closeEditor()"
+        (systemAction)="openEditorInSystem()">
+      </sftp-editor-dialog>
+      </div>
+
+    </div>

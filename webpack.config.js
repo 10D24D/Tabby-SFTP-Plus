@@ -1,10 +1,12 @@
 /**
  * Webpack 配置
- * 功能描述：Tabby 插件构建配置，将 tabby 核心模块和 Node 内置模块设为 external
+ * 功能描述：Tabby 插件构建配置，将 tabby 核心模块和 Node 内置模块设为 external；
+ *           .html 模板经 asset/source 内联为字符串
+ *           （原配置误用 raw-loader 但未安装，属隐藏债；2026-07-11 抽模板时发现并改为 webpack5 内置 asset/source，零新依赖）
  * 创建人：DD1024z + Claude
  * 创建时间：2026-06-21
- * 修改人：DD1024z + Claude
- * 修改时间：2026-06-21
+ * 修改人：DD1024z + Hy3
+ * 修改时间：2026-07-11
  */
 
 const path = require('path')
@@ -26,7 +28,8 @@ module.exports = {
     modules: ['.', 'src', 'node_modules'].map(x => path.join(__dirname, x)),
     extensions: ['.ts', '.js', '.json'],
     alias: {
-      '@common': path.resolve(__dirname, 'tabby-plugin-common/src'),
+      // 唯一真源：仓库根目录 tabby-plugin-common（勿再嵌套副本）
+      '@common': path.resolve(__dirname, '../tabby-plugin-common/src'),
     },
   },
   module: {
@@ -47,8 +50,15 @@ module.exports = {
         use: ['style-loader', 'css-loader'],
       },
       {
+        // webpack5 内置，零依赖：将 .html 文件作为字符串导出，供 Angular 组件 `template: require('./x.html')` 使用
+        // （勿改回 raw-loader：该包已废弃且本项目未安装，会导致构建失败）
         test: /\.html$/,
-        use: 'raw-loader',
+        type: 'asset/source',
+      },
+      {
+        // 将 .po 文件内联为字符串，供 i18n 服务运行时解析
+        test: /\.po$/,
+        type: 'asset/source',
       },
     ],
   },

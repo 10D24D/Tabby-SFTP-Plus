@@ -2,6 +2,34 @@
 
 All notable changes to **tabby-sftp-plus** will be documented in this file.
 
+## [2.0.0] — 2026-07-25
+
+### ✨ 新增
+
+- **路径模式三选一** — `off` / `remember`（路径记忆）/ `sync`（与终端同步）。`sync` 模式打开面板即定位到终端当前目录，终端 `cd` 时远程面板实时跟随（依赖 Tabby 已内置的 OSC 1337 `CurrentDir` 上报 + `session.getWorkingDirectory`）；默认 **off**，可在面板内切换。拿不到 cwd 时弹出上报设置引导。
+
+### 🐛 修复
+
+- **取消不再残留半截文件** — 上传/下载取消时正确清理 `.tabby-upload` 临时文件与底层流，取消后的不完整文件会被删除而非遗留。
+- **上传暂停不再误删文件** — 暂停改为保留临时文件，仅取消才删除；续传基于临时文件实际大小。
+- **上传暂停并发修复** — 暂停不再关闭文件句柄，避免与进行中的读取竞争导致误删临时文件 / `EBADF` 异常；各 `read`/`finish`/`error` 分支统一安全闭合 fd，新增 `isPaused()` 安全分支。
+- **输入框聚焦** — 新建/重命名聚焦输入框自身；重命名仅聚焦、不高亮全选。
+- **窗口缩放即时跟随** — resize 期间挂 `sftp-plus-suppress-transition` 类禁用全站过渡，消除面板缓慢位移 / 收缩。
+- **拆分终端多面板互不遮挡** — 面板挂载到 `document.body` 并以 `position: fixed` 严格贴合各 pane 矩形，支持多个拆分终端并行打开各自面板；移除 z-index 依赖。
+- **分割调节线 hover 才显示** — 蓝条默认 `opacity:0`，仅 `:hover`/`.active` 时显示。
+
+### 🔧 技术 / 构建
+
+- **`dist/package.json` 自动生成** — 新增 `scripts/copy-sftp-manifest.mjs`，`npm run build` 后从根 `package.json` 派生（改写 `main` 为 `index.js`、剔除开发期脚本与 `devDependencies`，UTF-8 无 BOM），消除手工维护漂移与中文乱码。
+- 版本号 bump 至 **2.0.0**。
+
+### ⚠️ 已知限制
+
+- 默认路径模式为 `off`；希望打开即显示终端当前目录的用户，需在面板中将路径模式切到「与终端同步」。已写入 `localStorage` 的旧模式记录不会被新默认覆盖（清掉 `sftp-plus-path-mode.*` 即可恢复默认行为）。
+- 文件夹递归传输的子文件冲突、大目录虚拟滚动等架构级项仍待后续版本（参见历史架构文档）。
+
+---
+
 ## [1.1.0] — 2026-07-07
 
 ### ✨ 新增

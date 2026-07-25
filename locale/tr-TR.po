@@ -1,0 +1,1093 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"Language: tr_TR\n"
+
+msgid "app.title"
+msgstr "SFTP+ Dosya Yöneticisi"
+
+msgid "app.openSettings"
+msgstr "Ayarları Aç"
+
+msgid "app.open"
+msgstr "SFTP Aç"
+
+msgid "app.close"
+msgstr "Kapat"
+
+msgid "app.maximize"
+msgstr "Büyüt"
+
+msgid "app.restore"
+msgstr "Geri Yükle"
+
+msgid "app.confirm"
+msgstr "Onayla"
+
+msgid "app.cancel"
+msgstr "İptal"
+
+msgid "app.delete"
+msgstr "Sil"
+
+msgid "app.deleteFile"
+msgstr "Dosyayı Sil"
+
+msgid "app.deleteFolder"
+msgstr "Klasörü Sil"
+
+msgid "app.deleteMultiple"
+msgstr "Birden Fazla Öğeyi Sil"
+
+msgid "conflict.title"
+msgstr "Dosya Çakışması"
+
+msgid "conflict.sourceFile"
+msgstr "Kaynak Dosya"
+
+msgid "conflict.localFile"
+msgstr "Yerel Dosya"
+
+msgid "conflict.remoteFile"
+msgstr "Uzak Dosya"
+
+msgid "conflict.size"
+msgstr "Boyut"
+
+msgid "conflict.modified"
+msgstr "Değiştirildi"
+
+msgid "conflict.path"
+msgstr "Yol"
+
+msgid "conflict.cancel"
+msgstr "İptal"
+
+msgid "conflict.skip"
+msgstr "Atla"
+
+msgid "conflict.rename"
+msgstr "Yeniden Adlandır"
+
+msgid "conflict.overwrite"
+msgstr "Üzerine Yaz"
+
+msgid "conflict.batch"
+msgstr "Toplu:"
+
+msgid "conflict.skipAll"
+msgstr "Tümünü Atla"
+
+msgid "conflict.renameAll"
+msgstr "Tümünü Yeniden Adlandır"
+
+msgid "conflict.overwriteAll"
+msgstr "Tümünün Üzerine Yaz"
+
+msgid "conflict.existsLocal"
+msgstr "Yerel olarak zaten var"
+
+msgid "conflict.existsRemote"
+msgstr "Uzak olarak zaten var"
+
+msgid "log.onlySuccess"
+msgstr "Sadece Başarılı"
+
+msgid "log.success"
+msgstr "Başarılı"
+
+msgid "log.failed"
+msgstr "Başarısız"
+
+msgid "fileType.txt"
+msgstr "Metin Dosyası"
+
+msgid "fileType.log"
+msgstr "Günlük Dosyası"
+
+msgid "fileType.md"
+msgstr "Markdown Dosyası"
+
+msgid "fileType.json"
+msgstr "JSON Dosyası"
+
+msgid "fileType.xml"
+msgstr "XML Dosyası"
+
+msgid "fileType.html"
+msgstr "HTML Dosyası"
+
+msgid "fileType.css"
+msgstr "CSS Dosyası"
+
+msgid "fileType.js"
+msgstr "JavaScript Dosyası"
+
+msgid "fileType.ts"
+msgstr "TypeScript Dosyası"
+
+msgid "fileType.image"
+msgstr "Resim Dosyası"
+
+msgid "fileType.video"
+msgstr "Video Dosyası"
+
+msgid "fileType.audio"
+msgstr "Ses Dosyası"
+
+msgid "fileType.archive"
+msgstr "Arşiv Dosyası"
+
+msgid "fileType.doc"
+msgstr "Belge Dosyası"
+
+msgid "fileType.code"
+msgstr "Kod Dosyası"
+
+msgid "fileType.data"
+msgstr "Veri Dosyası"
+
+msgid "fileType.config"
+msgstr "Yapılandırma Dosyası"
+
+msgid "fileType.cert"
+msgstr "Sertifika Dosyası"
+
+msgid "fileType.executable"
+msgstr "Çalıştırılabilir Dosya"
+
+msgid "fileType.unknown"
+msgstr "Dosya"
+
+msgid "app.deleteConfirmFile"
+msgstr "Bu dosyayı silmek istediğinizden emin misiniz?"
+
+msgid "app.deleteConfirmFolder"
+msgstr "Bu klasörü silmek istediğinizden emin misiniz?"
+
+msgid "app.deleteConfirmMultiple"
+msgstr "Bu {count} öğeyi silmek istediğinizden emin misiniz?"
+
+msgid "app.rename"
+msgstr "Yeniden Adlandır"
+
+msgid "app.refresh"
+msgstr "Yenile"
+
+msgid "app.upload"
+msgstr "Yükle"
+
+msgid "app.download"
+msgstr "İndir"
+
+msgid "app.newFolder"
+msgstr "Yeni Klasör"
+
+msgid "app.newFile"
+msgstr "Yeni Dosya"
+
+msgid "app.loading"
+msgstr "Yükleniyor..."
+
+msgid "app.error"
+msgstr "Hata"
+
+msgid "app.success"
+msgstr "Başarılı"
+
+msgid "app.yes"
+msgstr "Evet"
+
+msgid "app.no"
+msgstr "Hayır"
+
+msgid "app.all"
+msgstr "Tümü"
+
+msgid "app.export"
+msgstr "Dışa Aktar"
+
+msgid "app.clear"
+msgstr "Temizle"
+
+msgid "app.optional"
+msgstr "İsteğe Bağlı"
+
+msgid "app.settings"
+msgstr "Ayarlar"
+
+msgid "app.modeSwitchSsh"
+msgstr "SSH"
+msgid "app.modeSwitchSftp"
+msgstr "SFTP"
+msgid "app.backToTerminal"
+msgstr "Terminale Dön"
+
+msgid "filter.allOps"
+msgstr "Tüm İşlemler"
+
+msgid "filter.allStatus"
+msgstr "Tüm Durumlar"
+
+msgid "filter.allTime"
+msgstr "Tüm Zamanlar"
+
+msgid "filter.today"
+msgstr "Bugün"
+
+msgid "filter.last7Days"
+msgstr "Son 7 Gün"
+
+msgid "filter.last30Days"
+msgstr "Son 30 Gün"
+
+msgid "filter.customRange"
+msgstr "Özel"
+
+msgid "filter.dateFrom"
+msgstr "Başlangıç"
+
+msgid "filter.dateTo"
+msgstr "Bitiş"
+
+msgid "pane.local"
+msgstr "Yerel"
+
+msgid "pane.remote"
+msgstr "Uzak"
+
+msgid "pane.path"
+msgstr "Yol"
+
+msgid "pane.up"
+msgstr "Yukarı Git"
+
+msgid "pane.home"
+msgstr "Ana Sayfa"
+
+msgid "pane.go"
+msgstr "Git"
+
+msgid "pane.refresh"
+msgstr "Yenile"
+
+msgid "pane.filter"
+msgstr "Filtrele..."
+
+msgid "pane.filterBtn"
+msgstr "Dosya Filtresi"
+
+msgid "pane.showHidden"
+msgstr "Gizli Dosyaları Göster"
+
+msgid "pane.pinFolders"
+msgstr "Klasörleri En Üste Sabitle"
+
+msgid "view.panelBorder"
+msgstr "Panel sınırı"
+
+msgid "view.colBorder"
+msgstr "Sınırı göster"
+
+msgid "view.zebra"
+msgstr "Zebra çizgilerini göster"
+
+msgid "pane.hideHidden"
+msgstr "Gizli Dosyaları Gizle"
+
+msgid "pane.sortByName"
+msgstr "Ada Göre Sırala"
+
+msgid "pane.sortBySize"
+msgstr "Boyuta Göre Sırala"
+
+msgid "pane.sortByModified"
+msgstr "Değiştirilme Tarihine Göre Sırala"
+
+msgid "pane.selectAll"
+msgstr "Tümünü Seç"
+
+msgid "pane.selectInvert"
+msgstr "Seçimi Ters Çevir"
+
+msgid "pane.clearSelection"
+msgstr "Seçimi Temizle"
+
+msgid "pane.items"
+msgstr "{count} öğe"
+
+msgid "pane.copyPath"
+msgstr "Yolu Kopyala"
+
+msgid "pane.splitterHintHorizontal"
+msgstr "Sol/sağ panelleri yeniden boyutlandırmak için sürükleyin. Sıfırlamak için çift tıklayın."
+
+msgid "pane.splitterHintVertical"
+msgstr "Üst/alt panelleri yeniden boyutlandırmak için sürükleyin. Sıfırlamak için çift tıklayın."
+
+msgid "notify.pathCopied"
+msgstr "{n} yol kopyalandı"
+
+msgid "pane.openFolder"
+msgstr "Klasörü Aç"
+
+msgid "pane.noMatch"
+msgstr "Eşleşen dosya yok"
+
+msgid "pane.empty"
+msgstr "Boş klasör"
+
+msgid "pane.errorAccess"
+msgstr "Erişilemez (izin reddedildi veya yol bulunamadı)"
+
+msgid "pane.loading"
+msgstr "Yükleniyor…"
+
+msgid "path.modeOff"
+msgstr "Yol modu: Kapalı (geçiş için tıklayın: Hatırla, Senkronize)"
+
+msgid "path.modeRemember"
+msgstr "Yol modu: Hatırla (bir sonraki seferde geri yükle)"
+
+msgid "path.modeSync"
+msgstr "Yol modu: Terminal ile senkronize (uzak cwd takip eder)"
+
+msgid "path.syncNoCwd"
+msgstr "Terminal cwd bildirilmedi. Yapılandırmak için tekrar Senkronizeye geçin"
+
+msgid "path.cwdSetupTitle"
+msgstr "Terminal dizin senkronizasyonunu etkinleştir"
+
+msgid "path.cwdSetupIntro"
+msgstr "Tabby, SFTP+ senkronize edebilmeden önce shellin cwdyi OSC 1337 aracılığıyla bildirmesi gerekir. Nasıl etkinleştirileceğini seçin:"
+
+msgid "path.cwdSetupSessionHint"
+msgstr "Sadece bu oturum: aşağıdaki geçici komutu geçerli terminalde çalıştırın (shell yeniden başlatıldıktan sonra kaybolur)"
+
+msgid "path.cwdSetupPermanentHint"
+msgstr "Kalıcı: aşağıdaki snippetı uzak profile ekle, ardından source et (tespit edilen shell bazında)"
+
+msgid "path.cwdSetupNote"
+msgstr "İptal yol modunu kapatır. Hiçbir şey yürütülmez veya yazılmaz."
+
+msgid "path.cwdSetupSession"
+msgstr "Sadece bu oturum"
+
+msgid "path.cwdSetupPermanent"
+msgstr "Kalıcı olarak yaz"
+
+msgid "path.cwdSetupDone"
+msgstr "Dizin bildirimi etkin, senkronizasyon…"
+
+msgid "path.cwdSetupFailed"
+msgstr "Etkinleştirme başarısız oldu. Uzak izinleri veya shell türünü kontrol edin"
+
+msgid "file.name"
+msgstr "Ad"
+
+msgid "file.type"
+msgstr "Tür"
+
+msgid "file.size"
+msgstr "Boyut"
+
+msgid "file.modified"
+msgstr "Değiştirildi"
+
+msgid "file.created"
+msgstr "Oluşturuldu"
+msgid "file.accessed"
+msgstr "Erişildi"
+msgid "file.permissions"
+msgstr "İzinler"
+msgid "file.owner"
+msgstr "Sahip"
+
+msgid "file.group"
+msgstr "Grup"
+
+msgid "file.mode"
+msgstr "Mod"
+
+msgid "file.path"
+msgstr "Yol"
+
+msgid "file.ext"
+msgstr "Uzantı"
+
+msgid "file.columns"
+msgstr "Sütunlar"
+
+msgid "file.inaccessible"
+msgstr "Erişilemez"
+
+msgid "file.open"
+msgstr "Aç"
+
+msgid "file.view"
+msgstr "Görüntüle"
+
+msgid "file.edit"
+msgstr "Düzenle"
+
+msgid "file.copy"
+msgstr "Kopyala"
+
+msgid "file.cut"
+msgstr "Kes"
+
+msgid "file.paste"
+msgstr "Yapıştır"
+
+msgid "file.delete"
+msgstr "Sil"
+
+msgid "file.rename"
+msgstr "Yeniden Adlandır"
+
+msgid "file.newFolder"
+msgstr "Yeni Klasör"
+
+msgid "file.newFile"
+msgstr "Yeni Dosya"
+
+msgid "file.properties"
+msgstr "Özellikler"
+
+msgid "file.openWith"
+msgstr "İle Aç"
+
+msgid "file.showInFolder"
+msgstr "Gezginde Göster"
+
+msgid "file.openInSystem"
+msgstr "Sistemde Aç"
+
+msgid "file.editInSystem"
+msgstr "Sistemde Düzenle"
+
+msgid "viewer.loading"
+msgstr "Yükleniyor…"
+
+msgid "viewer.loadFailed"
+msgstr "Dosya yüklenemedi"
+
+msgid "viewer.binaryNotSupported"
+msgstr "Binary dosya metin olarak görüntülenemez veya düzenlenemez"
+
+msgid "viewer.tooLarge"
+msgstr "Dosya açılmak için çok büyük"
+
+msgid "viewer.tooLargeView"
+msgstr "Dosya çok büyük ({limit} üzerinde) ve görüntülenemez"
+
+msgid "viewer.typeNotSupported"
+msgstr "Bu dosya türü görüntülenemez"
+
+msgid "editor.save"
+msgstr "Kaydet"
+
+msgid "editor.saving"
+msgstr "Kaydediliyor…"
+
+msgid "editor.saveSuccess"
+msgstr "Sunucuya kaydedildi"
+
+msgid "editor.saveFailed"
+msgstr "Kaydetme başarısız"
+
+msgid "editor.unsaved"
+msgstr "Kaydedilmemiş değişiklikleriniz var. Onları atın?"
+
+msgid "editor.tooLarge"
+msgstr "Dosya çok büyük ({limit} üzerinde) ve düzenlenemez"
+
+msgid "editor.typeNotSupported"
+msgstr "Bu dosya türü düzenlenemez"
+
+msgid "file.adjustCol"
+msgstr "Sütun Genişliğini Sığdır"
+
+msgid "file.adjustAllCols"
+msgstr "Tüm Sütunları Sığdır"
+
+msgid "transfer.upload"
+msgstr "Yükle"
+
+msgid "transfer.download"
+msgstr "İndir"
+
+msgid "transfer.edit-upload"
+msgstr "Düzenle Kaydet"
+
+msgid "transfer.edit-download"
+msgstr "Düzenle Yükle"
+
+msgid "transfer.progress"
+msgstr "İlerleme"
+
+msgid "transfer.speed"
+msgstr "Hız"
+
+msgid "transfer.remaining"
+msgstr "Kalan"
+
+msgid "transfer.cancel"
+msgstr "İptal"
+
+msgid "transfer.closePanel"
+msgstr "Transfer panelini kapat"
+
+msgid "transfer.pause"
+msgstr "Duraklat"
+
+msgid "transfer.resume"
+msgstr "Devam Et"
+
+msgid "transfer.cancelAll"
+msgstr "Klasörü iptal et"
+
+msgid "transfer.cancelCurrent"
+msgstr "Geçerliyi iptal et"
+
+msgid "transfer.paused"
+msgstr "Duraklatıldı"
+
+msgid "transfer.inProgress"
+msgstr "Devam Ediyor"
+
+msgid "transfer.minimizePanel"
+msgstr "Küçült"
+
+msgid "transfer.hidePanel"
+msgstr "Gizle"
+
+msgid "transfer.noActiveTransfers"
+msgstr "Aktif transfer yok"
+
+msgid "transfer.clearCompleted"
+msgstr "Tamamlananları Temizle"
+
+msgid "transfer.queue"
+msgstr "Transfer Kuyruğu"
+
+msgid "transfer.log"
+msgstr "Transfer Geçmişi"
+
+msgid "transfer.logEmpty"
+msgstr "Henüz transfer kaydı yok"
+
+msgid "transfer.logNoMatch"
+msgstr "Eşleşen kayıt yok"
+
+msgid "transfer.logCount"
+msgstr "{total} kayıt"
+
+msgid "transfer.logCountFiltered"
+msgstr "{total} içinden {filtered} gösteriliyor"
+
+msgid "transfer.noTransfers"
+msgstr "Aktif transfer yok"
+
+msgid "transfer.clearConfirm"
+msgstr "Tüm transfer kayıtlarını temizle? Bu işlem geri alınamaz."
+
+msgid "transfer.clearTitle"
+msgstr "Temizlemeyi Onayla"
+
+msgid "transfer.replaceConfirm"
+msgstr "Dosya zaten var. Üzerine yazılsın mı?"
+
+msgid "transfer.replaceTitle"
+msgstr "Değiştirmeyi Onayla"
+
+msgid "transfer.deleteConfirm"
+msgstr "{count} seçili öğeyi sil?"
+
+msgid "transfer.deleteTitle"
+msgstr "Silmeyi Onayla"
+
+msgid "bookmark.title"
+msgstr "Yer İmleri"
+
+msgid "bookmark.add"
+msgstr "Yer İmi Ekle"
+
+msgid "bookmark.addLocal"
+msgstr "Yerel Ekle"
+
+msgid "bookmark.addGlobal"
+msgstr "Genel Ekle"
+
+msgid "bookmark.addCurrentShort"
+msgstr "+Yerel"
+
+msgid "bookmark.addGlobalShort"
+msgstr "+Genel"
+
+msgid "bookmark.remove"
+msgstr "Yer İmini Kaldır"
+
+msgid "bookmark.edit"
+msgstr "Yer İmini Düzenle"
+
+msgid "bookmark.noBookmarks"
+msgstr "Henüz yer imi yok"
+
+msgid "bookmark.name"
+msgstr "Yer İmi Adı"
+
+msgid "bookmark.path"
+msgstr "Yol"
+
+msgid "bookmark.save"
+msgstr "Yer İmini Kaydet"
+
+msgid "bookmark.global"
+msgstr "Genel Yer İmleri"
+
+msgid "bookmark.forConnection"
+msgstr "Bu Bağlantı"
+
+msgid "permission.title"
+msgstr "İzinleri Düzenle"
+
+msgid "permission.owner"
+msgstr "Sahip"
+
+msgid "permission.group"
+msgstr "Grup"
+
+msgid "permission.others"
+msgstr "Diğerleri"
+
+msgid "permission.read"
+msgstr "Oku"
+
+msgid "permission.write"
+msgstr "Yaz"
+
+msgid "permission.execute"
+msgstr "Çalıştır"
+
+msgid "permission.mode"
+msgstr "Mod (Oktal)"
+
+msgid "notify.sftpOpened"
+msgstr "SFTP Açıldı"
+
+msgid "notify.noSSHSession"
+msgstr "Geçerli sekmede SSH oturumu yok"
+
+msgid "notify.transferComplete"
+msgstr "Transfer Tamamlandı"
+
+msgid "notify.transferFailed"
+msgstr "Transfer Başarısız"
+
+msgid "notify.connectionLost"
+msgstr "Bağlantı Kesildi"
+
+msgid "notify.connected"
+msgstr "Bağlandı"
+
+msgid "notify.connecting"
+msgstr "Bağlanıyor"
+
+msgid "notify.sftpConnectFailed"
+msgstr "SFTP bağlantısı başarısız oldu. SSH bağlı olduğundan ve sunucunun SFTP desteklediğinden emin olun."
+
+msgid "notify.reconnectNoTerminal"
+msgstr "Terminal bağlantısı kesildi. Yeniden bağlanmak için terminale tıklayın veya herhangi bir tuşa basın."
+
+msgid "notify.reconnectFailed"
+msgstr "Yeniden bağlanma başarısız oldu. Yeniden bağlanmak için terminale tıklayın veya herhangi bir tuşa basın."
+
+msgid "settings.desc"
+msgstr "Güzel SFTP dosya yöneticisi: sürükle-bırak, yer imleri, sıralama, transfer günlükleri ve çok dilli."
+
+msgid "settings.language"
+msgstr "Dil"
+
+msgid "settings.followTabby"
+msgstr "Tabby Takip Et"
+
+msgid "settings.theme"
+msgstr "Tema"
+
+msgid "settings.primary"
+msgstr "Ana"
+
+msgid "settings.bg"
+msgstr "Arka Plan"
+
+msgid "settings.text"
+msgstr "Metin"
+
+msgid "settings.border"
+msgstr "Sınır"
+
+msgid "settings.layout"
+msgstr "Düzen"
+
+msgid "settings.layoutAdaptive"
+msgstr "Uyarlanabilir"
+
+msgid "settings.layoutAdaptiveSub"
+msgstr "Genişliğe göre otomatik geçiş"
+
+msgid "settings.layoutHorizontal"
+msgstr "Yatay"
+
+msgid "settings.layoutHorizontalSub"
+msgstr "Paneller yan yana"
+
+msgid "settings.layoutVertical"
+msgstr "Dikey"
+
+msgid "settings.layoutVerticalSub"
+msgstr "Paneller üst üste"
+
+msgid "settings.layoutSingle"
+msgstr "Tek Panel"
+
+msgid "settings.layoutSingleSub"
+msgstr "Sadece uzak panel"
+
+msgid "settings.toolbarLayout"
+msgstr "Araç Çubuğunu Özelleştir"
+
+msgid "settings.customToolbar"
+msgstr "Araç Çubuğunu Özelleştir"
+
+msgid "settings.toolbarLayoutHint"
+msgstr "Sıralamak için sürükleyin ve pane headerına hemen uygulayın"
+
+msgid "settings.paneLabel"
+msgstr "Terminal Etiketi"
+
+msgid "settings.addressBar"
+msgstr "Adres Çubuğu"
+
+msgid "settings.toolbar"
+msgstr "Araç Çubuğu"
+
+msgid "settings.toolbarItem.back"
+msgstr "Geri"
+
+msgid "settings.toolbarItem.forward"
+msgstr "İleri"
+
+msgid "settings.toolbarItem.up"
+msgstr "Yukarı"
+
+msgid "settings.toolbarItem.refresh"
+msgstr "Yenile"
+
+msgid "settings.toolbarItem.home"
+msgstr "Ana Sayfa"
+
+msgid "settings.toolbarItem.filter"
+msgstr "Filtre"
+
+msgid "settings.toolbarItem.bookmark"
+msgstr "Yer İmi"
+
+msgid "settings.resetLayout"
+msgstr "Sıfırla"
+
+msgid "settings.tableStyle"
+msgstr "Tablo Stili"
+
+msgid "settings.tableStyleHint"
+msgstr "İpucu: Dosya listesi header sağ tık menüsü ile kontrol edin"
+
+msgid "settings.hideNativeBtn"
+msgstr "Yerel SFTP butonunu gizle"
+
+msgid "settings.openInNewTab"
+msgstr "Varsayılan olarak yeni sekmede aç"
+
+msgid "settings.singleWorkspaceInstance"
+msgstr "Sadece tek instance"
+
+msgid "settings.hotkey"
+msgstr "Panel kısayol tuşu"
+
+msgid "settings.hotkeyUnbound"
+msgstr "Kısayol tuşu ayarla"
+
+msgid "settings.hotkeyClear"
+msgstr "Temizle"
+
+msgid "settings.hotkeyRecording"
+msgstr "Bir tuş kombinasyonuna basın…"
+
+msgid "settings.hotkeyClickToSet"
+msgstr "Kısayol tuşu ayarlamak için tıklayın"
+
+msgid "settings.hotkeyConflict"
+msgstr "Şu ile çakışıyor: {names}"
+
+msgid "settings.hotkeyConflictConfirm"
+msgstr "Kısayol {keys} zaten kullanımda: {names}
+Yine de SFTP+'a bağlamak ister misiniz? (Her ikisi de tetiklenebilir.)"
+msgid "settings.hotkeySaved"
+msgstr "Tabby ile kaydedildi ve senkronize edildi: {keys}"
+
+msgid "settings.hotkeyCleared"
+msgstr "Kısayol tuşu bağlaması temizlendi"
+
+msgid "settings.hotkeySaveFailed"
+msgstr "Kısayol tuşu kaydetme başarısız"
+
+msgid "settings.hotkeyRecordTimeout"
+msgstr "Kayıt zaman aşımına uğradı, lütfen tekrar deneyin"
+
+msgid "settings.compatibility"
+msgstr "Uyumluluk"
+
+msgid "settings.data"
+msgstr "Veri"
+
+msgid "settings.export"
+msgstr "Dışa Aktar"
+
+msgid "settings.import"
+msgstr "İçe Aktar"
+
+msgid "settings.clearAll"
+msgstr "Tümünü Temizle"
+
+msgid "settings.about"
+msgstr "Hakkında"
+
+msgid "settings.version"
+msgstr "Sürüm"
+
+msgid "settings.buildTime"
+msgstr "Derleme zamanı"
+
+msgid "settings.author"
+msgstr "Yazar"
+
+msgid "settings.githubSource"
+msgstr "GitHub Kaynağı"
+
+msgid "settings.giveStar"
+msgstr "Yıldız Ver"
+
+msgid "settings.feedback"
+msgstr "Geri Bildirim"
+
+msgid "settings.modifyColors"
+msgstr "⚠️ Renkleri Düzenle"
+
+msgid "settings.overwriteConfirm"
+msgstr "Auto/Preset modundasınız. Değişiklikler özel renk şemasının üzerine yazacak. Devam et?"
+
+msgid "settings.overwrite"
+msgstr "Üzerine Yaz"
+
+msgid "settings.clearAllTitle"
+msgstr "⚠️ Tüm Verileri Temizle"
+
+msgid "settings.clearAllConfirm"
+msgstr "Bu tüm yer imlerini, transfer günlüklerini ve ayarları silecek. Geri alınamaz!"
+
+msgid "settings.clearAllPrompt"
+msgstr "Onaylamak için DELETE yazın:"
+
+msgid "settings.clear"
+msgstr "Temizle"
+
+msgid "settings.dark"
+msgstr "Koyu"
+
+msgid "settings.light"
+msgstr "Açık"
+
+msgid "settings.invalidFormat"
+msgstr "Geçersiz veri formatı."
+
+msgid "settings.importComplete"
+msgstr "İçe aktarma tamamlandı."
+
+msgid "settings.importUnavailable"
+msgstr "İçe aktarılamıyor: ConfigService mevcut değil."
+
+msgid "settings.importFailed"
+msgstr "İçe aktarma başarısız: geçersiz veya bozuk dosya."
+
+msgid "settings.dataCleared"
+msgstr "Tüm veriler temizlendi"
+
+msgid "conflict.sourceFile"
+msgstr "Kaynak dosya"
+
+msgid "conflict.targetFileExists"
+msgstr "Hedef dosya (mevcut)"
+
+msgid "transfer.success"
+msgstr "Başarılı"
+
+msgid "settings.closeBookmarkPanel"
+msgstr "Seçtikten sonra yer imi panelini kapat"
+
+msgid "layout.mode.auto"
+msgstr "Otomatik Düzen"
+
+msgid "layout.mode.horizontal"
+msgstr "Yatay Düzen"
+
+msgid "layout.mode.vertical"
+msgstr "Dikey Düzen"
+
+msgid "layout.mode.single"
+msgstr "Tek Panelli (Yalnızca Uzak)"
+
+msgid "notify.closeWithTransfers"
+msgstr "{count} aktarım devam ediyor. Paneli kapatmak tüm aktarımları durduracak. Devam edilsin mi?"
+
+msgid "type.folder"
+msgstr "Klasör"
+
+msgid "type.file"
+msgstr "Dosya"
+
+msgid "pane.exclFolders"
+msgstr ", kl. klasörler"
+
+msgid "pane.selectedInfo"
+msgstr " — {n} öğe seçildi ({size})"
+
+msgid "fail.cancelled"
+msgstr "İptal edildi"
+
+msgid "fail.interrupted"
+msgstr "Bağlantı kesildi"
+
+msgid "fail.unknown"
+msgstr "Başarısız"
+
+msgid "notify.uploadFailed"
+msgstr "Yükleme başarısız: {name}"
+
+msgid "notify.downloadFailed"
+msgstr "İndirme başarısız: {name}"
+
+msgid "op.renameFailed"
+msgstr "Yeniden adlandırma başarısız: {reason}"
+
+msgid "op.mkdirFailed"
+msgstr "Dizin oluşturma başarısız: {reason}"
+
+msgid "op.touchFailed"
+msgstr "Dosya oluşturma başarısız: {reason}"
+
+msgid "op.chmodFailed"
+msgstr "Chmod başarısız: {reason}"
+
+msgid "op.failed"
+msgstr "İşlem başarısız: {reason}"
+
+msgid "notify.deleteFailed"
+msgstr "{n} öğe silinemedi (belki kullanımda veya izin yok)"
+
+msgid "input.dirExists"
+msgstr "Dizin zaten var: {val}"
+
+msgid "input.fileExists"
+msgstr "Dosya zaten var: {val}"
+
+msgid "input.fileWhenMkdir"
+msgstr "\"{val}\" adında bir dosya zaten var, dizin oluşturulamıyor"
+
+msgid "input.dirWhenTouch"
+msgstr "\"{val}\" adında bir dizin zaten var, dosya oluşturulamıyor"
+
+msgid "notify.notConnectedUpload"
+msgstr "Bağlı değil, yüklenemiyor"
+
+msgid "notify.notConnectedDownload"
+msgstr "Bağlı değil, indirilemiyor"
+
+msgid "notify.copied"
+msgstr "{n} öğe kopyalandı"
+
+msgid "notify.cut"
+msgstr "{n} öğe kesildi"
+
+msgid "status.disconnected"
+msgstr "Bağlantı kesildi"
+
+msgid "status.reconnecting"
+msgstr "Yeniden bağlanılıyor…"
+
+msgid "status.reconnect"
+msgstr "Yeniden bağlan"
+
+msgid "app.restoreDefaultSize"
+msgstr "Paneli varsayılan boyuta getir"
+
+msgid "notify.pasteFailed"
+msgstr "Yapıştırma başarısız"
+
+msgid "notify.copyFailed"
+msgstr "Kopyalama başarısız: {name}"
+
+msgid "theme.auto"
+msgstr "Otomatik"
+
+msgid "theme.dark"
+msgstr "Koyu"
+
+msgid "theme.light"
+msgstr "Açık"
+
+msgid "theme.blue"
+msgstr "Mavi"
+
+msgid "theme.green"
+msgstr "Yeşil"
+
+msgid "theme.purple"
+msgstr "Mor"
+
+msgid "theme.red"
+msgstr "Kırmızı"
+
+msgid "theme.custom"
+msgstr "Özel"
+
+msgid "pane.back"
+msgstr "Geri"
+
+msgid "pane.forward"
+msgstr "İleri"
+
+msgid "filter.apply"
+msgstr "Uygula"
+
+msgid "filter.clear"
+msgstr "Temizle"
+
+msgid "hotkey.togglePanel"
+msgstr "SFTP+ panelini aç"
+
+
+msgid "conflict.existsSamePane"
+msgstr "Hedef konumda aynı ada sahip dosya zaten mevcut"
+
+msgid "settings.dateFormat"
+msgstr "Özel zaman biçimi"
+
+msgid "settings.dateFormatHint"
+msgstr "Belirteçler: YYYY / YY / MM / DD / HH / hh / mm / ss / A (boş = varsayılan)"
+
+msgid "settings.dateFormatPreview"
+msgstr "Önizleme"
+
+msgid "settings.dateFormatReset"
+msgstr "Varsayılana sıfırla"

@@ -1,0 +1,1111 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"Language: zh_CN\n"
+
+msgid "app.title"
+msgstr "SFTP+ 文件管理器"
+
+msgid "app.openSettings"
+msgstr "打开设置"
+
+msgid "app.open"
+msgstr "打开 SFTP"
+
+msgid "app.close"
+msgstr "关闭"
+
+msgid "app.maximize"
+msgstr "最大化"
+
+msgid "app.restore"
+msgstr "还原"
+
+msgid "app.confirm"
+msgstr "确认"
+
+msgid "app.cancel"
+msgstr "取消"
+
+msgid "app.delete"
+msgstr "删除"
+
+msgid "app.deleteFile"
+msgstr "删除文件"
+
+msgid "app.deleteFolder"
+msgstr "删除文件夹"
+
+msgid "app.deleteMultiple"
+msgstr "删除多个项目"
+
+msgid "conflict.title"
+msgstr "文件冲突"
+
+msgid "conflict.sourceFile"
+msgstr "源文件"
+
+msgid "conflict.localFile"
+msgstr "本地文件"
+
+msgid "conflict.remoteFile"
+msgstr "远程文件"
+
+msgid "conflict.size"
+msgstr "大小"
+
+msgid "conflict.modified"
+msgstr "修改时间"
+
+msgid "conflict.path"
+msgstr "路径"
+
+msgid "conflict.cancel"
+msgstr "取消"
+
+msgid "conflict.skip"
+msgstr "跳过"
+
+msgid "conflict.rename"
+msgstr "重命名"
+
+msgid "conflict.overwrite"
+msgstr "覆盖"
+
+msgid "conflict.batch"
+msgstr "批量操作："
+
+msgid "conflict.skipAll"
+msgstr "全部跳过"
+
+msgid "conflict.renameAll"
+msgstr "全部重命名"
+
+msgid "conflict.overwriteAll"
+msgstr "全部覆盖"
+
+msgid "conflict.existsLocal"
+msgstr "已存在于本地目录"
+
+msgid "conflict.existsRemote"
+msgstr "已存在于远程目录"
+
+msgid "log.onlySuccess"
+msgstr "仅成功"
+
+msgid "log.success"
+msgstr "成功"
+
+msgid "log.failed"
+msgstr "失败"
+
+msgid "fileType.txt"
+msgstr "文本文档"
+
+msgid "fileType.log"
+msgstr "日志文件"
+
+msgid "fileType.md"
+msgstr "Markdown 文件"
+
+msgid "fileType.json"
+msgstr "JSON 文件"
+
+msgid "fileType.xml"
+msgstr "XML 文件"
+
+msgid "fileType.html"
+msgstr "HTML 文件"
+
+msgid "fileType.css"
+msgstr "CSS 文件"
+
+msgid "fileType.js"
+msgstr "JavaScript 文件"
+
+msgid "fileType.ts"
+msgstr "TypeScript 文件"
+
+msgid "fileType.image"
+msgstr "图片文件"
+
+msgid "fileType.video"
+msgstr "视频文件"
+
+msgid "fileType.audio"
+msgstr "音频文件"
+
+msgid "fileType.archive"
+msgstr "压缩文件"
+
+msgid "fileType.doc"
+msgstr "文档文件"
+
+msgid "fileType.code"
+msgstr "代码文件"
+
+msgid "fileType.data"
+msgstr "数据文件"
+
+msgid "fileType.config"
+msgstr "配置文件"
+
+msgid "fileType.cert"
+msgstr "证书文件"
+
+msgid "fileType.executable"
+msgstr "可执行文件"
+
+msgid "fileType.unknown"
+msgstr "文件"
+
+msgid "app.deleteConfirmFile"
+msgstr "确实要删除此文件吗？"
+
+msgid "app.deleteConfirmFolder"
+msgstr "确实要删除此文件夹吗？"
+
+msgid "app.deleteConfirmMultiple"
+msgstr "确实要删除这 {count} 个项目吗？"
+
+# ★ 本地删除回收站/永久删除提示
+msgid "app.trashHint"
+msgstr "将移入回收站"
+
+msgid "app.permDeleteHint"
+msgstr "永久删除，不可恢复"
+
+msgid "app.rename"
+msgstr "重命名"
+
+msgid "app.refresh"
+msgstr "刷新"
+
+msgid "app.upload"
+msgstr "上传"
+
+msgid "app.download"
+msgstr "下载"
+
+msgid "app.newFolder"
+msgstr "新建文件夹"
+
+msgid "app.newFile"
+msgstr "新建文件"
+
+msgid "app.loading"
+msgstr "加载中..."
+
+msgid "app.error"
+msgstr "错误"
+
+msgid "app.success"
+msgstr "成功"
+
+msgid "app.yes"
+msgstr "是"
+
+msgid "app.no"
+msgstr "否"
+
+msgid "app.all"
+msgstr "全部"
+
+msgid "app.export"
+msgstr "导出"
+
+msgid "app.clear"
+msgstr "清除"
+
+msgid "app.optional"
+msgstr "可选"
+
+msgid "app.settings"
+msgstr "设置"
+
+msgid "app.modeSwitchSsh"
+msgstr "SSH"
+
+msgid "app.modeSwitchSftp"
+msgstr "SFTP"
+
+msgid "app.backToTerminal"
+msgstr "返回终端"
+
+msgid "filter.allOps"
+msgstr "所有操作"
+
+msgid "filter.allStatus"
+msgstr "全部状态"
+
+msgid "filter.allTime"
+msgstr "全部时间"
+
+msgid "filter.today"
+msgstr "今天"
+
+msgid "filter.last7Days"
+msgstr "近 7 天"
+
+msgid "filter.last30Days"
+msgstr "近 30 天"
+
+msgid "filter.customRange"
+msgstr "自定义"
+
+msgid "filter.dateFrom"
+msgstr "起始"
+
+msgid "filter.dateTo"
+msgstr "截止"
+
+msgid "pane.local"
+msgstr "本地"
+
+msgid "pane.remote"
+msgstr "远程"
+
+msgid "pane.path"
+msgstr "路径"
+
+msgid "pane.up"
+msgstr "返回上级"
+
+msgid "pane.home"
+msgstr "主目录"
+
+msgid "pane.go"
+msgstr "跳转"
+
+msgid "pane.refresh"
+msgstr "刷新"
+
+msgid "pane.filter"
+msgstr "过滤..."
+
+msgid "pane.filterBtn"
+msgstr "文件过滤"
+
+msgid "pane.showHidden"
+msgstr "显示隐藏文件"
+
+msgid "pane.pinFolders"
+msgstr "置顶文件夹"
+
+msgid "view.panelBorder"
+msgstr "面板边框"
+
+msgid "view.colBorder"
+msgstr "显示边框"
+
+msgid "view.zebra"
+msgstr "显示斑马纹"
+
+msgid "pane.hideHidden"
+msgstr "不显示隐藏文件"
+
+msgid "pane.sortByName"
+msgstr "按名称排序"
+
+msgid "pane.sortBySize"
+msgstr "按大小排序"
+
+msgid "pane.sortByModified"
+msgstr "按修改时间排序"
+
+msgid "pane.selectAll"
+msgstr "全选"
+
+msgid "pane.selectInvert"
+msgstr "反选"
+
+msgid "pane.clearSelection"
+msgstr "清除选择"
+
+msgid "pane.items"
+msgstr "{count} 项"
+
+msgid "pane.copyPath"
+msgstr "复制路径"
+
+msgid "pane.splitterHintHorizontal"
+msgstr "拖拽调整左右面板大小，双击恢复默认"
+
+msgid "pane.splitterHintVertical"
+msgstr "拖拽调整上下面板大小，双击恢复默认"
+
+msgid "notify.pathCopied"
+msgstr "已复制 {n} 个路径"
+
+msgid "pane.openFolder"
+msgstr "打开文件夹"
+
+msgid "pane.noMatch"
+msgstr "无匹配文件"
+
+msgid "pane.empty"
+msgstr "空文件夹"
+
+msgid "pane.errorAccess"
+msgstr "无法访问（权限不足或路径不存在）"
+
+msgid "pane.loading"
+msgstr "加载中…"
+
+msgid "path.modeOff"
+msgstr "路径模式：关闭（点击切换 路径记忆、路径同步）"
+
+msgid "path.modeRemember"
+msgstr "路径模式：路径记忆（下次打开恢复）"
+
+msgid "path.modeSync"
+msgstr "路径模式：与终端同步（远程跟随终端目录）"
+
+msgid "path.syncNoCwd"
+msgstr "未检测到终端目录上报。可再次切换到「与终端同步」以配置"
+
+msgid "path.cwdSetupTitle"
+msgstr "启用终端目录同步"
+
+msgid "path.cwdSetupIntro"
+msgstr "Tabby 需要 shell 通过 OSC 1337 上报当前目录后，才能与 SFTP+ 同步。请选择一种方式："
+
+msgid "path.cwdSetupSessionHint"
+msgstr "仅本次会话：将在当前终端执行下面的临时命令（重启 shell 后失效）"
+
+msgid "path.cwdSetupPermanentHint"
+msgstr "永久写入：追加下面内容到远程配置文件，并立即 source 生效（按检测到的 shell 选其一）"
+
+msgid "path.cwdSetupNote"
+msgstr "取消将关闭路径同步（回到「路径模式：关闭」），不会执行或写入任何内容。"
+
+msgid "path.cwdSetupSession"
+msgstr "仅本次会话"
+
+msgid "path.cwdSetupPermanent"
+msgstr "永久写入配置"
+
+msgid "path.cwdSetupDone"
+msgstr "已启用目录上报，正在同步…"
+
+msgid "path.cwdSetupFailed"
+msgstr "启用失败，请检查远程权限或 shell 类型"
+
+msgid "file.name"
+msgstr "名称"
+
+msgid "file.type"
+msgstr "类型"
+
+msgid "file.size"
+msgstr "大小"
+
+msgid "file.modified"
+msgstr "修改时间"
+
+msgid "file.created"
+msgstr "创建时间"
+
+msgid "file.accessed"
+msgstr "访问时间"
+
+msgid "file.permissions"
+msgstr "权限"
+
+msgid "file.owner"
+msgstr "所有者"
+
+msgid "file.group"
+msgstr "组"
+
+msgid "file.mode"
+msgstr "模式"
+
+msgid "file.path"
+msgstr "路径"
+
+msgid "file.ext"
+msgstr "扩展名"
+
+msgid "file.columns"
+msgstr "显示列"
+
+msgid "file.inaccessible"
+msgstr "受限"
+
+msgid "file.open"
+msgstr "打开"
+
+msgid "file.view"
+msgstr "查看"
+
+msgid "file.edit"
+msgstr "编辑"
+
+msgid "file.copy"
+msgstr "复制"
+
+msgid "file.cut"
+msgstr "剪切"
+
+msgid "file.paste"
+msgstr "粘贴"
+
+msgid "file.delete"
+msgstr "删除"
+
+msgid "file.rename"
+msgstr "重命名"
+
+msgid "file.newFolder"
+msgstr "新建文件夹"
+
+msgid "file.newFile"
+msgstr "新建文件"
+
+msgid "file.properties"
+msgstr "属性"
+
+msgid "file.openWith"
+msgstr "打开方式"
+
+msgid "file.showInFolder"
+msgstr "在资源管理器中显示"
+
+msgid "file.openInSystem"
+msgstr "在系统中打开"
+
+msgid "file.editInSystem"
+msgstr "在系统中编辑"
+
+msgid "viewer.loading"
+msgstr "加载中…"
+
+msgid "viewer.loadFailed"
+msgstr "无法加载文件"
+
+msgid "viewer.binaryNotSupported"
+msgstr "该文件为二进制格式，无法以文本查看或编辑"
+
+msgid "viewer.tooLarge"
+msgstr "文件过大，无法打开"
+
+msgid "viewer.tooLargeView"
+msgstr "文件过大（超过 {limit}），无法查看"
+
+msgid "viewer.typeNotSupported"
+msgstr "不支持查看此类型文件"
+
+msgid "editor.save"
+msgstr "保存"
+
+msgid "editor.saving"
+msgstr "保存中…"
+
+msgid "editor.saveSuccess"
+msgstr "已保存到服务器"
+
+msgid "editor.saveSuccessLocal"
+msgstr "已保存"
+
+msgid "editor.saveFailed"
+msgstr "保存失败"
+
+msgid "editor.unsaved"
+msgstr "有未保存的更改，确定放弃吗？"
+
+msgid "editor.tooLarge"
+msgstr "文件过大（超过 {limit}），无法编辑"
+
+msgid "editor.typeNotSupported"
+msgstr "不支持编辑此类型文件"
+
+msgid "file.adjustCol"
+msgstr "将列调整为合适的大小"
+
+msgid "file.adjustAllCols"
+msgstr "将所有列调整为合适的大小"
+
+msgid "transfer.upload"
+msgstr "上传"
+
+msgid "transfer.download"
+msgstr "下载"
+
+msgid "transfer.edit-upload"
+msgstr "编辑保存"
+
+msgid "transfer.edit-download"
+msgstr "编辑加载"
+
+msgid "transfer.progress"
+msgstr "进度"
+
+msgid "transfer.speed"
+msgstr "速度"
+
+msgid "transfer.remaining"
+msgstr "剩余时间"
+
+msgid "transfer.cancel"
+msgstr "取消"
+
+msgid "transfer.closePanel"
+msgstr "关闭传输面板"
+
+msgid "transfer.pause"
+msgstr "暂停"
+
+msgid "transfer.resume"
+msgstr "继续"
+
+msgid "transfer.cancelAll"
+msgstr "取消整个文件夹"
+
+msgid "transfer.cancelCurrent"
+msgstr "取消当前文件"
+
+msgid "transfer.paused"
+msgstr "已暂停"
+
+msgid "transfer.inProgress"
+msgstr "传输中"
+
+msgid "transfer.minimizePanel"
+msgstr "最小化"
+
+msgid "transfer.hidePanel"
+msgstr "隐藏面板"
+
+msgid "transfer.noActiveTransfers"
+msgstr "暂无传输任务"
+
+msgid "transfer.clearCompleted"
+msgstr "清除已完成"
+
+msgid "transfer.queue"
+msgstr "传输队列"
+
+msgid "transfer.log"
+msgstr "传输记录"
+
+msgid "transfer.logEmpty"
+msgstr "暂无传输记录"
+
+msgid "transfer.logNoMatch"
+msgstr "无匹配记录"
+
+msgid "transfer.logCount"
+msgstr "共 {total} 条"
+
+msgid "transfer.logCountFiltered"
+msgstr "显示 {filtered} / 共 {total} 条"
+
+msgid "transfer.noTransfers"
+msgstr "无进行中的传输"
+
+msgid "transfer.clearConfirm"
+msgstr "确定要清空所有传输记录吗？此操作不可撤销。"
+
+msgid "transfer.clearTitle"
+msgstr "确认清空"
+
+msgid "transfer.replaceConfirm"
+msgstr "文件已存在，是否替换？"
+
+msgid "transfer.replaceTitle"
+msgstr "确认替换"
+
+msgid "transfer.deleteConfirm"
+msgstr "确定要删除选中的 {count} 个项目吗？"
+
+msgid "transfer.deleteTitle"
+msgstr "确认删除"
+
+msgid "bookmark.title"
+msgstr "书签"
+
+msgid "bookmark.add"
+msgstr "添加书签"
+
+msgid "bookmark.addLocal"
+msgstr "当前添加"
+
+msgid "bookmark.addGlobal"
+msgstr "全局添加"
+
+msgid "bookmark.addCurrentShort"
+msgstr "+本地"
+
+msgid "bookmark.addGlobalShort"
+msgstr "+全局"
+
+msgid "bookmark.remove"
+msgstr "移除书签"
+
+msgid "bookmark.edit"
+msgstr "编辑书签"
+
+msgid "bookmark.noBookmarks"
+msgstr "暂无书签"
+
+msgid "bookmark.name"
+msgstr "书签名称"
+
+msgid "bookmark.path"
+msgstr "路径"
+
+msgid "bookmark.save"
+msgstr "保存书签"
+
+msgid "bookmark.global"
+msgstr "全局书签"
+
+msgid "bookmark.forConnection"
+msgstr "当前连接"
+
+msgid "permission.title"
+msgstr "修改权限"
+
+msgid "permission.owner"
+msgstr "所有者"
+
+msgid "permission.group"
+msgstr "用户组"
+
+msgid "permission.others"
+msgstr "其他用户"
+
+msgid "permission.read"
+msgstr "读"
+
+msgid "permission.write"
+msgstr "写"
+
+msgid "permission.execute"
+msgstr "执行"
+
+msgid "permission.mode"
+msgstr "权限值 (八进制)"
+
+msgid "notify.sftpOpened"
+msgstr "SFTP 已打开"
+
+msgid "notify.noSSHSession"
+msgstr "当前标签页没有 SSH 会话"
+
+msgid "notify.transferComplete"
+msgstr "传输完成"
+
+msgid "notify.transferFailed"
+msgstr "传输失败"
+
+msgid "notify.connectionLost"
+msgstr "连接已断开"
+
+msgid "notify.connected"
+msgstr "已连接到"
+
+msgid "notify.connecting"
+msgstr "正在连接到"
+
+msgid "notify.sftpConnectFailed"
+msgstr "SFTP 连接失败，请确认 SSH 已连接且服务器支持 SFTP 子系统。"
+
+msgid "notify.reconnectNoTerminal"
+msgstr "终端连接已断开，请在终端中点击或按任意键重新连接。"
+
+msgid "notify.reconnectFailed"
+msgstr "重连失败，请在终端中点击或按任意键重新连接。"
+
+msgid "settings.desc"
+msgstr "美观易用的SFTP文件管理器，支持拖拽、书签、排序、传输记录与多语言。"
+
+msgid "settings.language"
+msgstr "语言"
+
+msgid "settings.followTabby"
+msgstr "跟随Tabby"
+
+msgid "settings.theme"
+msgstr "主题"
+
+msgid "settings.primary"
+msgstr "主色调"
+
+msgid "settings.bg"
+msgstr "背景"
+
+msgid "settings.text"
+msgstr "文字"
+
+msgid "settings.border"
+msgstr "边框"
+
+msgid "settings.layout"
+msgstr "布局"
+
+msgid "settings.layoutAdaptive"
+msgstr "自适应"
+
+msgid "settings.layoutAdaptiveSub"
+msgstr "根据窗口宽度自动切换"
+
+msgid "settings.layoutHorizontal"
+msgstr "左右布局"
+
+msgid "settings.layoutHorizontalSub"
+msgstr "两个面板水平并排"
+
+msgid "settings.layoutVertical"
+msgstr "上下布局"
+
+msgid "settings.layoutVerticalSub"
+msgstr "两个面板垂直堆叠"
+
+msgid "settings.layoutSingle"
+msgstr "单栏布局"
+
+msgid "settings.layoutSingleSub"
+msgstr "仅显示远程面板"
+
+msgid "settings.toolbarLayout"
+msgstr "定制工具栏"
+
+msgid "settings.customToolbar"
+msgstr "定制工具栏"
+
+msgid "settings.toolbarLayoutHint"
+msgstr "拖拽排序后会立即同步到文件面板标题栏"
+
+msgid "settings.paneLabel"
+msgstr "终端标识"
+
+msgid "settings.addressBar"
+msgstr "地址栏"
+
+msgid "settings.toolbar"
+msgstr "工具栏"
+
+msgid "settings.toolbarItem.back"
+msgstr "后退"
+
+msgid "settings.toolbarItem.forward"
+msgstr "前进"
+
+msgid "settings.toolbarItem.up"
+msgstr "上级目录"
+
+msgid "settings.toolbarItem.refresh"
+msgstr "刷新"
+
+msgid "settings.toolbarItem.home"
+msgstr "主目录"
+
+msgid "settings.toolbarItem.filter"
+msgstr "筛选"
+
+msgid "settings.toolbarItem.bookmark"
+msgstr "书签"
+
+msgid "settings.resetLayout"
+msgstr "重置"
+
+msgid "settings.tableStyle"
+msgstr "表格样式"
+
+msgid "settings.tableStyleHint"
+msgstr "提示：可在文件列表的表头右键菜单中控制"
+
+msgid "settings.hideNativeBtn"
+msgstr "隐藏原生 SFTP 按钮"
+
+msgid "settings.openInNewTab"
+msgstr "默认新标签页打开"
+
+msgid "settings.singleWorkspaceInstance"
+msgstr "只打开一个实例"
+
+msgid "settings.closeBookmarkPanel"
+msgstr "选中书签后关闭书签面板"
+
+msgid "settings.hotkey"
+msgstr "面板快捷键"
+
+msgid "settings.hotkeyUnbound"
+msgstr "设置快捷键"
+
+msgid "settings.hotkeyClear"
+msgstr "清除"
+
+msgid "settings.hotkeyRecording"
+msgstr "请按下快捷键…"
+
+msgid "settings.hotkeyClickToSet"
+msgstr "点击设置快捷键"
+
+msgid "settings.hotkeyConflict"
+msgstr "与已有快捷键冲突：{names}"
+
+msgid "settings.hotkeyConflictConfirm"
+msgstr "快捷键 {keys} 已用于：{names}\n仍要绑定到 SFTP+ 面板吗？（可能互相抢触发）"
+
+msgid "settings.hotkeySaved"
+msgstr "已保存并同步到 Tabby：{keys}"
+
+msgid "settings.hotkeyCleared"
+msgstr "已清除快捷键绑定"
+
+msgid "settings.hotkeySaveFailed"
+msgstr "保存快捷键失败"
+
+msgid "settings.hotkeyRecordTimeout"
+msgstr "录制已超时，请重试"
+
+msgid "settings.compatibility"
+msgstr "兼容性"
+
+msgid "settings.data"
+msgstr "数据"
+
+msgid "settings.export"
+msgstr "导出数据"
+
+msgid "settings.import"
+msgstr "导入数据"
+
+msgid "settings.clearAll"
+msgstr "清空数据"
+
+msgid "settings.about"
+msgstr "关于"
+
+msgid "settings.version"
+msgstr "版本"
+
+msgid "settings.buildTime"
+msgstr "构建时间"
+
+msgid "settings.author"
+msgstr "作者"
+
+msgid "settings.githubSource"
+msgstr "Github源码"
+
+msgid "settings.giveStar"
+msgstr "点赞支持"
+
+msgid "settings.feedback"
+msgstr "意见反馈"
+
+msgid "settings.modifyColors"
+msgstr "⚠️ 修改配色"
+
+msgid "settings.overwriteConfirm"
+msgstr "当前为自动/预设模式，修改将覆盖到自定义配色方案中。是否继续？"
+
+msgid "settings.overwrite"
+msgstr "确认覆盖"
+
+msgid "settings.clearAllTitle"
+msgstr "⚠️ 清空数据"
+
+msgid "settings.clearAllConfirm"
+msgstr "此操作将删除所有书签、传输记录和设置数据，不可撤销！"
+
+msgid "settings.clearAllPrompt"
+msgstr "请输入 DELETE 确认："
+
+msgid "settings.clear"
+msgstr "清空"
+
+msgid "settings.dark"
+msgstr "暗色"
+
+msgid "settings.light"
+msgstr "亮色"
+
+msgid "settings.invalidFormat"
+msgstr "无效的数据格式。"
+
+msgid "settings.importComplete"
+msgstr "数据导入完成。"
+
+msgid "settings.importUnavailable"
+msgstr "无法导入：ConfigService 不可用。"
+
+msgid "settings.importFailed"
+msgstr "导入失败：文件格式错误或已损坏。"
+
+msgid "settings.dataCleared"
+msgstr "已清空所有数据"
+
+msgid "layout.mode.auto"
+msgstr "自适应布局"
+
+msgid "layout.mode.horizontal"
+msgstr "左右布局"
+
+msgid "layout.mode.vertical"
+msgstr "上下布局"
+
+msgid "layout.mode.single"
+msgstr "单栏布局（仅远程）"
+
+msgid "notify.closeWithTransfers"
+msgstr "有 {count} 个传输正在进行中，关闭面板将中断所有传输。是否继续？"
+
+msgid "type.folder"
+msgstr "文件夹"
+
+msgid "type.file"
+msgstr "文件"
+
+msgid "pane.exclFolders"
+msgstr "，文件夹不计"
+
+msgid "pane.selectedInfo"
+msgstr " — 已选择 {n} 项 ({size})"
+
+msgid "fail.cancelled"
+msgstr "用户取消"
+
+msgid "fail.interrupted"
+msgstr "连接中断"
+
+msgid "fail.unknown"
+msgstr "失败"
+
+msgid "notify.uploadFailed"
+msgstr "上传失败: {name}"
+
+msgid "notify.downloadFailed"
+msgstr "下载失败: {name}"
+
+msgid "op.renameFailed"
+msgstr "重命名失败: {reason}"
+
+msgid "op.mkdirFailed"
+msgstr "新建目录失败: {reason}"
+
+msgid "op.touchFailed"
+msgstr "创建文件失败: {reason}"
+
+msgid "op.chmodFailed"
+msgstr "权限修改失败: {reason}"
+
+msgid "op.failed"
+msgstr "操作失败: {reason}"
+
+msgid "notify.deleteFailed"
+msgstr "{n} 项删除失败（可能正被占用或无权限）"
+
+msgid "notify.trashFailed"
+msgstr "{n} 项移入回收站失败，文件未被删除（可尝试 Shift+Delete 永久删除）"
+
+msgid "input.dirExists"
+msgstr "目录已存在: {val}"
+
+msgid "input.fileExists"
+msgstr "文件已存在: {val}"
+
+msgid "input.fileWhenMkdir"
+msgstr "已存在同名文件 {val}，无法建目录"
+
+msgid "input.dirWhenTouch"
+msgstr "已存在同名目录 {val}，无法建文件"
+
+msgid "notify.notConnectedUpload"
+msgstr "未连接，无法上传"
+
+msgid "notify.notConnectedDownload"
+msgstr "未连接，无法下载"
+
+msgid "notify.copied"
+msgstr "已复制 {n} 项"
+
+msgid "notify.cut"
+msgstr "已剪切 {n} 项"
+
+msgid "status.disconnected"
+msgstr "已断开"
+
+msgid "status.reconnecting"
+msgstr "重连…"
+
+msgid "status.reconnect"
+msgstr "重连"
+
+msgid "app.restoreDefaultSize"
+msgstr "还原默认面板大小"
+
+msgid "notify.pasteFailed"
+msgstr "粘贴失败"
+
+msgid "notify.copyFailed"
+msgstr "复制失败: {name}"
+
+msgid "theme.auto"
+msgstr "自动"
+
+msgid "theme.dark"
+msgstr "深色"
+
+msgid "theme.light"
+msgstr "浅色"
+
+msgid "theme.blue"
+msgstr "蓝色"
+
+msgid "theme.green"
+msgstr "绿色"
+
+msgid "theme.purple"
+msgstr "紫色"
+
+msgid "theme.red"
+msgstr "红色"
+
+msgid "theme.custom"
+msgstr "自定义"
+
+msgid "pane.back"
+msgstr "后退"
+
+msgid "pane.forward"
+msgstr "前进"
+
+msgid "filter.apply"
+msgstr "确定"
+
+msgid "filter.clear"
+msgstr "清空"
+
+msgid "hotkey.togglePanel"
+msgstr "打开 SFTP+ 面板"
+
+msgid "conflict.sourceFile"
+msgstr "源文件"
+
+msgid "conflict.targetFileExists"
+msgstr "目标文件（已存在）"
+
+msgid "transfer.success"
+msgstr "成功"
+
+
+msgid "conflict.existsSamePane"
+msgstr "目标位置已存在同名文件"
+
+msgid "settings.dateFormat"
+msgstr "自定义时间格式"
+
+msgid "settings.dateFormatHint"
+msgstr "支持占位符：YYYY / YY / MM / DD / HH / hh / mm / ss / A（留空 = 默认格式）"
+
+msgid "settings.dateFormatPreview"
+msgstr "预览"
+
+msgid "settings.dateFormatReset"
+msgstr "恢复默认"

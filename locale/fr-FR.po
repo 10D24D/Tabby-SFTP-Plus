@@ -1,0 +1,1083 @@
+msgid ""
+msgstr ""
+Content-Type: text/plain; charset=UTF-8\nPlural-Forms: nplurals=2; plural=(n > 1);\nLanguage: fr_FR\n
+
+msgid "app.title"
+msgstr "SFTP+ Gestionnaire de Fichiers"
+
+msgid "app.openSettings"
+msgstr "Ouvrir les Paramètres"
+
+msgid "app.open"
+msgstr "Ouvrir SFTP"
+
+msgid "app.close"
+msgstr "Fermer"
+
+msgid "app.maximize"
+msgstr "Maximiser"
+
+msgid "app.restore"
+msgstr "Restaurer"
+
+msgid "app.confirm"
+msgstr "Confirmer"
+
+msgid "app.cancel"
+msgstr "Annuler"
+
+msgid "app.delete"
+msgstr "Supprimer"
+
+msgid "app.deleteFile"
+msgstr "Supprimer le Fichier"
+
+msgid "app.deleteFolder"
+msgstr "Supprimer le Dossier"
+
+msgid "app.deleteMultiple"
+msgstr "Supprimer Plusieurs Éléments"
+
+msgid "conflict.title"
+msgstr "Conflit de Fichier"
+
+msgid "conflict.sourceFile"
+msgstr "Fichier Source"
+
+msgid "conflict.localFile"
+msgstr "Fichier Local"
+
+msgid "conflict.remoteFile"
+msgstr "Fichier Distant"
+
+msgid "conflict.size"
+msgstr "Taille"
+
+msgid "conflict.modified"
+msgstr "Modifié"
+
+msgid "conflict.path"
+msgstr "Chemin"
+
+msgid "conflict.cancel"
+msgstr "Annuler"
+
+msgid "conflict.skip"
+msgstr "Ignorer"
+
+msgid "conflict.rename"
+msgstr "Renommer"
+
+msgid "conflict.overwrite"
+msgstr "Écraser"
+
+msgid "conflict.batch"
+msgstr "Lot :"
+
+msgid "conflict.skipAll"
+msgstr "Tout Ignorer"
+
+msgid "conflict.renameAll"
+msgstr "Tout Renommer"
+
+msgid "conflict.overwriteAll"
+msgstr "Tout Écraser"
+
+msgid "conflict.existsLocal"
+msgstr "Existe déjà localement"
+
+msgid "conflict.existsRemote"
+msgstr "Existe déjà à distance"
+
+msgid "log.onlySuccess"
+msgstr "Seulement Succès"
+
+msgid "log.success"
+msgstr "Succès"
+
+msgid "log.failed"
+msgstr "Échec"
+
+msgid "fileType.txt"
+msgstr "Fichier Texte"
+
+msgid "fileType.log"
+msgstr "Fichier Journal"
+
+msgid "fileType.md"
+msgstr "Fichier Markdown"
+
+msgid "fileType.json"
+msgstr "Fichier JSON"
+
+msgid "fileType.xml"
+msgstr "Fichier XML"
+
+msgid "fileType.html"
+msgstr "Fichier HTML"
+
+msgid "fileType.css"
+msgstr "Fichier CSS"
+
+msgid "fileType.js"
+msgstr "Fichier JavaScript"
+
+msgid "fileType.ts"
+msgstr "Fichier TypeScript"
+
+msgid "fileType.image"
+msgstr "Fichier Image"
+
+msgid "fileType.video"
+msgstr "Fichier Vidéo"
+
+msgid "fileType.audio"
+msgstr "Fichier Audio"
+
+msgid "fileType.archive"
+msgstr "Fichier Archive"
+
+msgid "fileType.doc"
+msgstr "Fichier Document"
+
+msgid "fileType.code"
+msgstr "Fichier Code"
+
+msgid "fileType.data"
+msgstr "Fichier Données"
+
+msgid "fileType.config"
+msgstr "Fichier Config"
+
+msgid "fileType.cert"
+msgstr "Fichier Certificat"
+
+msgid "fileType.executable"
+msgstr "Fichier Exécutable"
+
+msgid "fileType.unknown"
+msgstr "Fichier"
+
+msgid "app.deleteConfirmFile"
+msgstr "Êtes-vous sûr de vouloir supprimer ce fichier ?"
+
+msgid "app.deleteConfirmFolder"
+msgstr "Êtes-vous sûr de vouloir supprimer ce dossier ?"
+
+msgid "app.deleteConfirmMultiple"
+msgstr "Êtes-vous sûr de vouloir supprimer ces {count} éléments ?"
+
+msgid "app.rename"
+msgstr "Renommer"
+
+msgid "app.refresh"
+msgstr "Rafraîchir"
+
+msgid "app.upload"
+msgstr "Téléverser"
+
+msgid "app.download"
+msgstr "Télécharger"
+
+msgid "app.newFolder"
+msgstr "Nouveau Dossier"
+
+msgid "app.newFile"
+msgstr "Nouveau Fichier"
+
+msgid "app.loading"
+msgstr "Chargement…"
+
+msgid "app.error"
+msgstr "Erreur"
+
+msgid "app.success"
+msgstr "Succès"
+
+msgid "app.yes"
+msgstr "Oui"
+
+msgid "app.no"
+msgstr "Non"
+
+msgid "app.all"
+msgstr "Tout"
+
+msgid "app.export"
+msgstr "Exporter"
+
+msgid "app.clear"
+msgstr "Effacer"
+
+msgid "app.optional"
+msgstr "Optionnel"
+
+msgid "app.settings"
+msgstr "Paramètres"
+
+msgid "app.modeSwitchSsh"
+msgstr "SSH"
+
+msgid "app.modeSwitchSftp"
+msgstr "SFTP"
+
+msgid "app.backToTerminal"
+msgstr "Retour au Terminal"
+
+msgid "filter.allOps"
+msgstr "Toutes les Opérations"
+
+msgid "filter.allStatus"
+msgstr "Tous les Statuts"
+
+msgid "filter.allTime"
+msgstr "Toutes les Périodes"
+
+msgid "filter.today"
+msgstr "Aujourd'hui"
+
+msgid "filter.last7Days"
+msgstr "7 Derniers Jours"
+
+msgid "filter.last30Days"
+msgstr "30 Derniers Jours"
+
+msgid "filter.customRange"
+msgstr "Personnalisé"
+
+msgid "filter.dateFrom"
+msgstr "De"
+
+msgid "filter.dateTo"
+msgstr "À"
+
+msgid "pane.local"
+msgstr "Local"
+msgid "pane.remote"
+msgstr "Distant"
+
+msgid "pane.path"
+msgstr "Chemin"
+
+msgid "pane.up"
+msgstr "Monter"
+
+msgid "pane.home"
+msgstr "Accueil"
+
+msgid "pane.go"
+msgstr "Aller"
+
+msgid "pane.refresh"
+msgstr "Rafraîchir"
+
+msgid "pane.filter"
+msgstr "Filtrer…"
+
+msgid "pane.filterBtn"
+msgstr "Filtre de Fichiers"
+
+msgid "pane.showHidden"
+msgstr "Afficher les Fichiers Cachés"
+
+msgid "pane.pinFolders"
+msgstr "Épingler les Dossiers en Haut"
+
+msgid "view.panelBorder"
+msgstr "Bordure du Panneau"
+
+msgid "view.colBorder"
+msgstr "Afficher la Bordure"
+
+msgid "view.zebra"
+msgstr "Afficher les Rayures Zèbre"
+
+msgid "pane.hideHidden"
+msgstr "Masquer les Fichiers Cachés"
+
+msgid "pane.sortByName"
+msgstr "Trier par Nom"
+
+msgid "pane.sortBySize"
+msgstr "Trier par Taille"
+
+msgid "pane.sortByModified"
+msgstr "Trier par Date de Modification"
+
+msgid "pane.selectAll"
+msgstr "Tout Sélectionner"
+
+msgid "pane.selectInvert"
+msgstr "Inverser la Sélection"
+
+msgid "pane.clearSelection"
+msgstr "Effacer la Sélection"
+
+msgid "pane.items"
+msgstr "{count} éléments"
+
+msgid "pane.copyPath"
+msgstr "Copier le Chemin"
+
+msgid "pane.splitterHintHorizontal"
+msgstr "Faites glisser pour redimensionner les panneaux gauche/droite. Double-cliquez pour réinitialiser."
+
+msgid "pane.splitterHintVertical"
+msgstr "Faites glisser pour redimensionner les panneaux haut/bas. Double-cliquez pour réinitialiser."
+
+msgid "pane.openFolder"
+msgstr "Ouvrir le Dossier"
+
+msgid "pane.noMatch"
+msgstr "Aucun fichier correspondant"
+
+msgid "pane.empty"
+msgstr "Dossier Vide"
+
+msgid "pane.errorAccess"
+msgstr "Accès impossible (permission refusée ou chemin non trouvé)"
+
+msgid "pane.loading"
+msgstr "Chargement…"
+
+msgid "path.modeOff"
+msgstr "Mode Chemin : Désactivé (cliquez pour basculer : Mémoriser, Synchroniser)"
+
+msgid "path.modeRemember"
+msgstr "Mode Chemin : Mémoriser (restaurer la prochaine fois)"
+
+msgid "path.modeSync"
+msgstr "Mode Chemin : Synchroniser avec le terminal (le distant suit le cwd)"
+
+msgid "path.syncNoCwd"
+msgstr "Le cwd du terminal n'est pas signalé. Passez à nouveau en mode Synchro pour configurer"
+
+msgid "path.cwdSetupTitle"
+msgstr "Activer la synchronisation du répertoire du terminal"
+
+msgid "path.cwdSetupIntro"
+msgstr "SFTP+ a besoin que Tabby signale le cwd via OSC 1337 avant de pouvoir synchroniser. Choisissez comment l'activer :"
+
+msgid "path.cwdSetupSessionHint"
+msgstr "Cette session uniquement : exécutez la commande temporaire ci-dessous dans le terminal actuel (perdu après le redémarrage du shell)"
+
+msgid "path.cwdSetupPermanentHint"
+msgstr "Permanent : ajoutez l'extrait ci-dessous au profil distant, puis sourcez-le (basé sur le shell détecté)"
+
+msgid "path.cwdSetupNote"
+msgstr "Annuler désactive le mode Chemin. Rien n'est exécuté ni écrit."
+
+msgid "path.cwdSetupSession"
+msgstr "Cette session uniquement"
+
+msgid "path.cwdSetupPermanent"
+msgstr "Écrire de manière permanente"
+
+msgid "path.cwdSetupDone"
+msgstr "Rapport de répertoire activé, synchronisation…"
+
+msgid "path.cwdSetupFailed"
+msgstr "Échec de l'activation. Vérifiez les permissions distantes ou le type de shell"
+
+msgid "file.name"
+msgstr "Nom"
+
+msgid "file.type"
+msgstr "Type"
+msgid "file.size"
+msgstr "Taille"
+
+msgid "file.modified"
+msgstr "Modifié"
+
+msgid "file.created"
+msgstr "Créé"
+
+msgid "file.accessed"
+msgstr "Accédé"
+
+msgid "file.permissions"
+msgstr "Permissions"
+msgid "file.owner"
+msgstr "Propriétaire"
+
+msgid "file.group"
+msgstr "Groupe"
+
+msgid "file.mode"
+msgstr "Mode"
+msgid "file.path"
+msgstr "Chemin"
+
+msgid "file.ext"
+msgstr "Ext"
+msgid "file.columns"
+msgstr "Colonnes"
+
+msgid "file.inaccessible"
+msgstr "Inaccessible"
+msgid "file.open"
+msgstr "Ouvrir"
+
+msgid "file.view"
+msgstr "Voir"
+
+msgid "file.edit"
+msgstr "Éditer"
+
+msgid "file.copy"
+msgstr "Copier"
+
+msgid "file.cut"
+msgstr "Couper"
+
+msgid "file.paste"
+msgstr "Coller"
+
+msgid "file.delete"
+msgstr "Supprimer"
+
+msgid "file.rename"
+msgstr "Renommer"
+
+msgid "file.newFolder"
+msgstr "Nouveau Dossier"
+
+msgid "file.newFile"
+msgstr "Nouveau Fichier"
+
+msgid "file.properties"
+msgstr "Propriétés"
+
+msgid "file.openWith"
+msgstr "Ouvrir Avec"
+
+msgid "file.showInFolder"
+msgstr "Afficher dans l'Explorateur"
+
+msgid "file.openInSystem"
+msgstr "Ouvrir dans le Système"
+
+msgid "file.editInSystem"
+msgstr "Éditer dans le Système"
+
+msgid "viewer.loading"
+msgstr "Chargement…"
+
+msgid "viewer.loadFailed"
+msgstr "Échec du chargement du fichier"
+
+msgid "viewer.binaryNotSupported"
+msgstr "Le fichier binaire ne peut pas être visualisé ou édité en texte"
+
+msgid "viewer.tooLarge"
+msgstr "Le fichier est trop grand pour être ouvert"
+
+msgid "viewer.tooLargeView"
+msgstr "Le fichier est trop grand (plus de {limit}) et ne peut pas être visualisé"
+
+msgid "viewer.typeNotSupported"
+msgstr "Ce type de fichier ne peut pas être visualisé"
+
+msgid "editor.save"
+msgstr "Sauvegarder"
+
+msgid "editor.saving"
+msgstr "Sauvegarde…"
+
+msgid "editor.saveSuccess"
+msgstr "Sauvegardé sur le serveur"
+
+msgid "editor.saveFailed"
+msgstr "Échec de la sauvegarde"
+
+msgid "editor.unsaved"
+msgstr "Vous avez des modifications non sauvegardées. Les abandonner ?"
+
+msgid "editor.tooLarge"
+msgstr "Le fichier est trop grand (plus de {limit}) et ne peut pas être édité"
+
+msgid "editor.typeNotSupported"
+msgstr "Ce type de fichier ne peut pas être édité"
+
+msgid "transfer.upload"
+msgstr "Téléverser"
+
+msgid "transfer.download"
+msgstr "Télécharger"
+
+msgid "transfer.edit-upload"
+msgstr "Sauvegarde Édition"
+
+msgid "transfer.edit-download"
+msgstr "Chargement Édition"
+
+msgid "transfer.progress"
+msgstr "Progression"
+
+msgid "transfer.speed"
+msgstr "Vitesse"
+
+msgid "transfer.remaining"
+msgstr "Restant"
+
+msgid "transfer.cancel"
+msgstr "Annuler"
+
+msgid "transfer.closePanel"
+msgstr "Fermer le panneau de transfert"
+
+msgid "transfer.pause"
+msgstr "Pause"
+msgid "transfer.resume"
+msgstr "Reprendre"
+
+msgid "transfer.cancelAll"
+msgstr "Annuler le dossier"
+
+msgid "transfer.cancelCurrent"
+msgstr "Annuler l'actuel"
+
+msgid "transfer.paused"
+msgstr "En Pause"
+
+msgid "transfer.inProgress"
+msgstr "En Cours"
+
+msgid "transfer.minimizePanel"
+msgstr "Minimiser"
+
+msgid "transfer.hidePanel"
+msgstr "Masquer"
+
+msgid "transfer.noActiveTransfers"
+msgstr "Aucun transfert actif"
+
+msgid "transfer.clearCompleted"
+msgstr "Effacer les Complétés"
+
+msgid "transfer.queue"
+msgstr "File de Transfert"
+
+msgid "transfer.log"
+msgstr "Historique de Transfert"
+
+msgid "transfer.logEmpty"
+msgstr "Aucun enregistrement de transfert pour l'instant"
+
+msgid "transfer.logNoMatch"
+msgstr "Aucun enregistrement correspondant"
+
+msgid "transfer.logCount"
+msgstr "{total} enregistrements"
+
+msgid "transfer.logCountFiltered"
+msgstr "Affichage de {filtered} sur {total}"
+
+msgid "transfer.noTransfers"
+msgstr "Aucun transfert actif"
+
+msgid "transfer.clearConfirm"
+msgstr "Effacer tous les enregistrements de transfert ? Cette action ne peut pas être annulée."
+
+msgid "transfer.clearTitle"
+msgstr "Confirmer l'Effacement"
+
+msgid "transfer.replaceConfirm"
+msgstr "Le fichier existe déjà. Remplacer ?"
+
+msgid "transfer.replaceTitle"
+msgstr "Confirmer le Remplacement"
+
+msgid "transfer.deleteConfirm"
+msgstr "Supprimer les {count} éléments sélectionnés ?"
+
+msgid "transfer.deleteTitle"
+msgstr "Confirmer la Suppression"
+
+msgid "bookmark.title"
+msgstr "Signets"
+
+msgid "bookmark.add"
+msgstr "Ajouter un Signet"
+
+msgid "bookmark.addLocal"
+msgstr "Ajouter Local"
+
+msgid "bookmark.addGlobal"
+msgstr "Ajouter Global"
+
+msgid "bookmark.addCurrentShort"
+msgstr "+Local"
+msgid "bookmark.addGlobalShort"
+msgstr "+Global"
+msgid "bookmark.remove"
+msgstr "Supprimer le Signet"
+
+msgid "bookmark.edit"
+msgstr "Éditer le Signet"
+
+msgid "bookmark.noBookmarks"
+msgstr "Aucun signet pour l'instant"
+
+msgid "bookmark.name"
+msgstr "Nom du Signet"
+
+msgid "bookmark.path"
+msgstr "Chemin"
+
+msgid "bookmark.save"
+msgstr "Sauvegarder le Signet"
+
+msgid "bookmark.global"
+msgstr "Signets Globaux"
+
+msgid "bookmark.forConnection"
+msgstr "Cette Connexion"
+
+msgid "permission.title"
+msgstr "Éditer les Permissions"
+
+msgid "permission.owner"
+msgstr "Propriétaire"
+
+msgid "permission.group"
+msgstr "Groupe"
+
+msgid "permission.others"
+msgstr "Autres"
+
+msgid "permission.read"
+msgstr "Lecture"
+
+msgid "permission.write"
+msgstr "Écriture"
+
+msgid "permission.execute"
+msgstr "Exécution"
+
+msgid "permission.mode"
+msgstr "Mode (Octal)"
+msgid "notify.sftpOpened"
+msgstr "SFTP Ouvert"
+
+msgid "notify.noSSHSession"
+msgstr "Aucune session SSH sur l'onglet actuel"
+
+msgid "notify.transferComplete"
+msgstr "Transfert Terminé"
+
+msgid "notify.transferFailed"
+msgstr "Transfert Échoué"
+
+msgid "notify.connectionLost"
+msgstr "Connexion Perdue"
+
+msgid "notify.connected"
+msgstr "Connecté à"
+
+msgid "notify.connecting"
+msgstr "Connexion à"
+
+msgid "notify.sftpConnectFailed"
+msgstr "Échec de la connexion SFTP. Assurez-vous que SSH est connecté et que le serveur prend en charge SFTP."
+
+msgid "notify.reconnectNoTerminal"
+msgstr "Terminal déconnecté. Veuillez cliquer ou appuyer sur une touche dans le terminal pour vous reconnecter."
+
+msgid "notify.reconnectFailed"
+msgstr "Échec de la reconnexion. Veuillez cliquer ou appuyer sur une touche dans le terminal pour vous reconnecter."
+
+msgid "settings.desc"
+msgstr "Magnifique gestionnaire de fichiers SFTP : glisser-déposer, signets, tri, journaux de transfert et multilingue."
+
+msgid "settings.language"
+msgstr "Langue"
+
+msgid "settings.followTabby"
+msgstr "Suivre Tabby"
+
+msgid "settings.theme"
+msgstr "Thème"
+
+msgid "settings.primary"
+msgstr "Principal"
+
+msgid "settings.bg"
+msgstr "Fond"
+
+msgid "settings.text"
+msgstr "Texte"
+
+msgid "settings.border"
+msgstr "Bordure"
+
+msgid "settings.layout"
+msgstr "Disposition"
+
+msgid "settings.layoutAdaptive"
+msgstr "Adaptatif"
+
+msgid "settings.layoutAdaptiveSub"
+msgstr "Commutation automatique selon la largeur"
+
+msgid "settings.layoutHorizontal"
+msgstr "Horizontal"
+msgid "settings.layoutHorizontalSub"
+msgstr "Panneaux côte à côte"
+
+msgid "settings.layoutVertical"
+msgstr "Vertical"
+msgid "settings.layoutVerticalSub"
+msgstr "Panneaux empilés"
+
+msgid "settings.layoutSingle"
+msgstr "Panneau Unique"
+
+msgid "settings.layoutSingleSub"
+msgstr "Panneau distant uniquement"
+
+msgid "settings.toolbarLayout"
+msgstr "Personnaliser la Barre d'Outils"
+
+msgid "settings.customToolbar"
+msgstr "Personnaliser la Barre d'Outils"
+
+msgid "settings.toolbarLayoutHint"
+msgstr "Glissez pour réorganiser et appliquez immédiatement à l'en-tête du panneau"
+
+msgid "settings.paneLabel"
+msgstr "Étiquette du Terminal"
+
+msgid "settings.addressBar"
+msgstr "Barre d'Adresse"
+
+msgid "settings.toolbar"
+msgstr "Barre d'Outils"
+
+msgid "settings.toolbarItem.back"
+msgstr "Retour"
+
+msgid "settings.toolbarItem.forward"
+msgstr "Avancer"
+
+msgid "settings.toolbarItem.up"
+msgstr "Monter"
+
+msgid "settings.toolbarItem.refresh"
+msgstr "Rafraîchir"
+
+msgid "settings.toolbarItem.home"
+msgstr "Accueil"
+
+msgid "settings.toolbarItem.filter"
+msgstr "Filtrer"
+
+msgid "settings.toolbarItem.bookmark"
+msgstr "Signet"
+
+msgid "settings.resetLayout"
+msgstr "Réinitialiser"
+
+msgid "settings.tableStyle"
+msgstr "Style de Table"
+
+msgid "settings.tableStyleHint"
+msgstr "Astuce : Contrôler via le menu clic droit de l'en-tête de la liste de fichiers"
+
+msgid "settings.hideNativeBtn"
+msgstr "Masquer le bouton SFTP natif"
+
+msgid "settings.openInNewTab"
+msgstr "Ouvrir par défaut dans un nouvel onglet"
+
+msgid "settings.singleWorkspaceInstance"
+msgstr "Instance unique uniquement"
+
+msgid "settings.hotkey"
+msgstr "Raccourci du Panneau"
+
+msgid "settings.hotkeyUnbound"
+msgstr "Définir le Raccourci"
+
+msgid "settings.hotkeyClear"
+msgstr "Effacer"
+
+msgid "settings.hotkeyRecording"
+msgstr "Appuyez sur une combinaison de touches…"
+
+msgid "settings.hotkeyClickToSet"
+msgstr "Cliquez pour définir le raccourci"
+
+msgid "settings.hotkeyConflict"
+msgstr "Conflit avec : {names}"
+
+msgid "settings.hotkeyConflictConfirm"
+msgstr "Le raccourci {keys} est déjà utilisé par : {names}\\nL'attribuer à SFTP+ de toute façon ? (Les deux peuvent s'activer.)"
+
+msgid "settings.hotkeySaved"
+msgstr "Sauvegardé et synchronisé avec Tabby : {keys}"
+
+msgid "settings.hotkeyCleared"
+msgstr "Affectation du raccourci effacée"
+
+msgid "settings.hotkeySaveFailed"
+msgstr "Échec de la sauvegarde du raccourci"
+
+msgid "settings.hotkeyRecordTimeout"
+msgstr "Enregistrement expiré, veuillez réessayer"
+
+msgid "settings.compatibility"
+msgstr "Compatibilité"
+
+msgid "settings.data"
+msgstr "Données"
+
+msgid "settings.export"
+msgstr "Exporter"
+
+msgid "settings.import"
+msgstr "Importer"
+
+msgid "settings.clearAll"
+msgstr "Tout Effacer"
+
+msgid "settings.about"
+msgstr "À Propos"
+
+msgid "settings.version"
+msgstr "Version"
+msgid "settings.buildTime"
+msgstr "Date de Compilation"
+
+msgid "settings.author"
+msgstr "Auteur"
+
+msgid "settings.githubSource"
+msgstr "Source GitHub"
+
+msgid "settings.giveStar"
+msgstr "Donner une Étoile"
+
+msgid "settings.feedback"
+msgstr "Retour d'Information"
+
+msgid "settings.modifyColors"
+msgstr "⚠️ Modifier les Couleurs"
+
+msgid "settings.overwriteConfirm"
+msgstr "Vous êtes en mode Auto/Prédéfini. Les modifications écraseront le schéma de couleurs personnalisé. Continuer ?"
+
+msgid "settings.overwrite"
+msgstr "Écraser"
+
+msgid "settings.clearAllTitle"
+msgstr "⚠️ Effacer Toutes les Données"
+
+msgid "settings.clearAllConfirm"
+msgstr "Cela supprimera tous les signets, journaux de transfert et paramètres. Ne peut pas être annulé !"
+
+msgid "settings.clearAllPrompt"
+msgstr "Veuillez taper DELETE pour confirmer :"
+
+msgid "settings.clear"
+msgstr "Effacer"
+
+msgid "settings.dark"
+msgstr "Sombre"
+
+msgid "settings.light"
+msgstr "Clair"
+
+msgid "settings.invalidFormat"
+msgstr "Format de données invalide."
+
+msgid "settings.importComplete"
+msgstr "Importation terminée."
+
+msgid "settings.importUnavailable"
+msgstr "Impossible d'importer : ConfigService non disponible."
+
+msgid "settings.importFailed"
+msgstr "Échec de l'importation : fichier invalide ou corrompu."
+
+msgid "settings.dataCleared"
+msgstr "Toutes les données ont été effacées"
+
+msgid "file.adjustCol"
+msgstr "Ajuster la Largeur de Colonne"
+
+msgid "file.adjustAllCols"
+msgstr "Ajuster Toutes les Colonnes"
+
+msgid "notify.pathCopied"
+msgstr "{n} chemin(s) copié(s)"
+
+msgid "conflict.sourceFile"
+msgstr "Fichier source"
+
+msgid "conflict.targetFileExists"
+msgstr "Fichier cible (existant)"
+
+msgid "transfer.success"
+msgstr "Réussi"
+
+msgid "settings.closeBookmarkPanel"
+msgstr "Fermer le panneau des signets après sélection"
+
+msgid "layout.mode.auto"
+msgstr "Disposition automatique"
+
+msgid "layout.mode.horizontal"
+msgstr "Disposition horizontale"
+
+msgid "layout.mode.vertical"
+msgstr "Disposition verticale"
+
+msgid "layout.mode.single"
+msgstr "Volet unique (remote uniquement)"
+
+msgid "notify.closeWithTransfers"
+msgstr "{count} transfert(s) en cours. Fermer le panneau interrompra tous les transferts. Continuer ?"
+
+msgid "type.folder"
+msgstr "Dossier"
+
+msgid "type.file"
+msgstr "Fichier"
+
+msgid "pane.exclFolders"
+msgstr ", hors dossiers"
+
+msgid "pane.selectedInfo"
+msgstr " — {n} élément(s) sélectionné(s) ({size})"
+
+msgid "fail.cancelled"
+msgstr "Annulé"
+
+msgid "fail.interrupted"
+msgstr "Déconnecté"
+
+msgid "fail.unknown"
+msgstr "Échec"
+
+msgid "notify.uploadFailed"
+msgstr "Échec de l'envoi : {name}"
+
+msgid "notify.downloadFailed"
+msgstr "Échec du téléchargement : {name}"
+
+msgid "op.renameFailed"
+msgstr "Échec du renommage : {reason}"
+
+msgid "op.mkdirFailed"
+msgstr "Échec de la création du dossier : {reason}"
+
+msgid "op.touchFailed"
+msgstr "Échec de la création du fichier : {reason}"
+
+msgid "op.chmodFailed"
+msgstr "Échec de chmod : {reason}"
+
+msgid "op.failed"
+msgstr "Échec de l'opération : {reason}"
+
+msgid "notify.deleteFailed"
+msgstr "{n} élément(s) n'ont pas pu être supprimé(s) (peut-être utilisé(s) ou sans permission)"
+
+msgid "input.dirExists"
+msgstr "Le dossier existe déjà : {val}"
+
+msgid "input.fileExists"
+msgstr "Le fichier existe déjà : {val}"
+
+msgid "input.fileWhenMkdir"
+msgstr "Un fichier nommé \"{val}\" existe déjà, impossible de créer le dossier"
+
+msgid "input.dirWhenTouch"
+msgstr "Un dossier nommé \"{val}\" existe déjà, impossible de créer le fichier"
+
+msgid "notify.notConnectedUpload"
+msgstr "Non connecté, envoi impossible"
+
+msgid "notify.notConnectedDownload"
+msgstr "Non connecté, téléchargement impossible"
+
+msgid "notify.copied"
+msgstr "{n} élément(s) copié(s)"
+
+msgid "notify.cut"
+msgstr "{n} élément(s) coupé(s)"
+
+msgid "status.disconnected"
+msgstr "Déconnecté"
+
+msgid "status.reconnecting"
+msgstr "Reconnexion…"
+
+msgid "status.reconnect"
+msgstr "Reconnecter"
+
+msgid "app.restoreDefaultSize"
+msgstr "Restaurer la taille par défaut du panneau"
+
+msgid "notify.pasteFailed"
+msgstr "Échec du collage"
+
+msgid "notify.copyFailed"
+msgstr "Échec de la copie : {name}"
+
+msgid "theme.auto"
+msgstr "Auto"
+
+msgid "theme.dark"
+msgstr "Sombre"
+
+msgid "theme.light"
+msgstr "Clair"
+
+msgid "theme.blue"
+msgstr "Bleu"
+
+msgid "theme.green"
+msgstr "Vert"
+
+msgid "theme.purple"
+msgstr "Violet"
+
+msgid "theme.red"
+msgstr "Rouge"
+
+msgid "theme.custom"
+msgstr "Personnalisé"
+
+msgid "pane.back"
+msgstr "Retour"
+
+msgid "pane.forward"
+msgstr "Suivant"
+
+msgid "filter.apply"
+msgstr "Appliquer"
+
+msgid "filter.clear"
+msgstr "Effacer"
+
+msgid "hotkey.togglePanel"
+msgstr "Ouvrir le panneau SFTP+"
+
+
+msgid "conflict.existsSamePane"
+msgstr "Un fichier portant le même nom existe déjà à l'emplacement cible"
+
+msgid "settings.dateFormat"
+msgstr "Format d'heure personnalisé"
+
+msgid "settings.dateFormatHint"
+msgstr "Jetons : YYYY / YY / MM / DD / HH / hh / mm / ss / A (vide = défaut)"
+
+msgid "settings.dateFormatPreview"
+msgstr "Aperçu"
+
+msgid "settings.dateFormatReset"
+msgstr "Réinitialiser par défaut"

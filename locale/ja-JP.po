@@ -1,0 +1,1098 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"Language: ja_JP\n"
+
+msgid "app.title"
+msgstr "SFTP+ ファイルマネージャー"
+
+msgid "app.openSettings"
+msgstr "設定を開く"
+
+msgid "app.open"
+msgstr "SFTP を開く"
+
+msgid "app.close"
+msgstr "閉じる"
+
+msgid "app.maximize"
+msgstr "最大化"
+
+msgid "app.restore"
+msgstr "元に戻す"
+
+msgid "app.confirm"
+msgstr "確認"
+
+msgid "app.cancel"
+msgstr "キャンセル"
+
+msgid "app.delete"
+msgstr "削除"
+
+msgid "app.deleteFile"
+msgstr "ファイルを削除"
+
+msgid "app.deleteFolder"
+msgstr "フォルダを削除"
+
+msgid "app.deleteMultiple"
+msgstr "複数アイテムを削除"
+
+msgid "conflict.title"
+msgstr "ファイル競合"
+
+msgid "conflict.sourceFile"
+msgstr "ソースファイル"
+
+msgid "conflict.localFile"
+msgstr "ローカルファイル"
+
+msgid "conflict.remoteFile"
+msgstr "リモートファイル"
+
+msgid "conflict.size"
+msgstr "サイズ"
+
+msgid "conflict.modified"
+msgstr "更新日時"
+
+msgid "conflict.path"
+msgstr "パス"
+
+msgid "conflict.cancel"
+msgstr "キャンセル"
+
+msgid "conflict.skip"
+msgstr "スキップ"
+
+msgid "conflict.rename"
+msgstr "名前変更"
+
+msgid "conflict.overwrite"
+msgstr "上書き"
+
+msgid "conflict.batch"
+msgstr "一括："
+
+msgid "conflict.skipAll"
+msgstr "すべてスキップ"
+
+msgid "conflict.renameAll"
+msgstr "すべて名前変更"
+
+msgid "conflict.overwriteAll"
+msgstr "すべて上書き"
+
+msgid "conflict.existsLocal"
+msgstr "ローカルに既に存在します"
+
+msgid "conflict.existsRemote"
+msgstr "リモートに既に存在します"
+
+msgid "log.onlySuccess"
+msgstr "成功のみ"
+
+msgid "log.success"
+msgstr "成功"
+
+msgid "log.failed"
+msgstr "失敗"
+
+msgid "fileType.txt"
+msgstr "テキストファイル"
+
+msgid "fileType.log"
+msgstr "ログファイル"
+
+msgid "fileType.md"
+msgstr "マークダウンファイル"
+
+msgid "fileType.json"
+msgstr "JSON ファイル"
+
+msgid "fileType.xml"
+msgstr "XML ファイル"
+
+msgid "fileType.html"
+msgstr "HTML ファイル"
+
+msgid "fileType.css"
+msgstr "CSS ファイル"
+
+msgid "fileType.js"
+msgstr "JavaScript ファイル"
+
+msgid "fileType.ts"
+msgstr "TypeScript ファイル"
+
+msgid "fileType.image"
+msgstr "画像ファイル"
+
+msgid "fileType.video"
+msgstr "動画ファイル"
+
+msgid "fileType.audio"
+msgstr "音声ファイル"
+
+msgid "fileType.archive"
+msgstr "アーカイブファイル"
+
+msgid "fileType.doc"
+msgstr "ドキュメントファイル"
+
+msgid "fileType.code"
+msgstr "コードファイル"
+
+msgid "fileType.data"
+msgstr "データファイル"
+
+msgid "fileType.config"
+msgstr "設定ファイル"
+
+msgid "fileType.cert"
+msgstr "証明書ファイル"
+
+msgid "fileType.executable"
+msgstr "実行ファイル"
+
+msgid "fileType.unknown"
+msgstr "ファイル"
+
+msgid "app.deleteConfirmFile"
+msgstr "このファイルを削除してもよろしいですか？"
+
+msgid "app.deleteConfirmFolder"
+msgstr "このフォルダを削除してもよろしいですか？"
+
+msgid "app.deleteConfirmMultiple"
+msgstr "これらの {count} 個のアイテムを削除してもよろしいですか？"
+
+msgid "app.rename"
+msgstr "名前変更"
+
+msgid "app.refresh"
+msgstr "更新"
+
+msgid "app.upload"
+msgstr "アップロード"
+
+msgid "app.download"
+msgstr "ダウンロード"
+
+msgid "app.newFolder"
+msgstr "新規フォルダ"
+
+msgid "app.newFile"
+msgstr "新規ファイル"
+
+msgid "app.loading"
+msgstr "読み込み中…"
+
+msgid "app.error"
+msgstr "エラー"
+
+msgid "app.success"
+msgstr "成功"
+
+msgid "app.yes"
+msgstr "はい"
+
+msgid "app.no"
+msgstr "いいえ"
+
+msgid "app.all"
+msgstr "すべて"
+
+msgid "app.export"
+msgstr "エクスポート"
+
+msgid "app.clear"
+msgstr "クリア"
+
+msgid "app.optional"
+msgstr "オプション"
+
+msgid "app.settings"
+msgstr "設定"
+
+msgid "app.modeSwitchSsh"
+msgstr "SSH"
+
+msgid "app.modeSwitchSftp"
+msgstr "SFTP"
+
+msgid "app.backToTerminal"
+msgstr "ターミナルに戻る"
+
+msgid "filter.allOps"
+msgstr "すべての操作"
+
+msgid "filter.allStatus"
+msgstr "すべてのステータス"
+
+msgid "filter.allTime"
+msgstr "すべての期間"
+
+msgid "filter.today"
+msgstr "今日"
+
+msgid "filter.last7Days"
+msgstr "最近 7 日間"
+
+msgid "filter.last30Days"
+msgstr "最近 30 日間"
+
+msgid "filter.customRange"
+msgstr "カスタム"
+
+msgid "filter.dateFrom"
+msgstr "開始日"
+
+msgid "filter.dateTo"
+msgstr "終了日"
+
+msgid "pane.local"
+msgstr "ローカル"
+
+msgid "pane.remote"
+msgstr "リモート"
+
+msgid "pane.path"
+msgstr "パス"
+
+msgid "pane.up"
+msgstr "上へ"
+
+msgid "pane.home"
+msgstr "ホーム"
+
+msgid "pane.go"
+msgstr "移動"
+
+msgid "pane.refresh"
+msgstr "更新"
+
+msgid "pane.filter"
+msgstr "フィルタ…"
+
+msgid "pane.filterBtn"
+msgstr "ファイルフィルタ"
+
+msgid "pane.showHidden"
+msgstr "隠しファイルを表示"
+
+msgid "pane.pinFolders"
+msgstr "フォルダを上部に固定"
+
+msgid "view.panelBorder"
+msgstr "パネル枠線"
+
+msgid "view.colBorder"
+msgstr "枠線を表示"
+
+msgid "view.zebra"
+msgstr "ゼブラストライプを表示"
+
+msgid "pane.hideHidden"
+msgstr "隠しファイルを非表示"
+
+msgid "pane.sortByName"
+msgstr "名前順"
+
+msgid "pane.sortBySize"
+msgstr "サイズ順"
+
+msgid "pane.sortByModified"
+msgstr "更新日時順"
+
+msgid "pane.selectAll"
+msgstr "すべて選択"
+
+msgid "pane.selectInvert"
+msgstr "選択反転"
+
+msgid "pane.clearSelection"
+msgstr "選択解除"
+
+msgid "pane.items"
+msgstr "{count} アイテム"
+
+msgid "pane.copyPath"
+msgstr "パスをコピー"
+
+msgid "pane.splitterHintHorizontal"
+msgstr "左右のパネルをドラッグでサイズ調整。ダブルクリックでリセット。"
+
+msgid "pane.splitterHintVertical"
+msgstr "上下のパネルをドラッグでサイズ調整。ダブルクリックでリセット。"
+
+msgid "notify.pathCopied"
+msgstr "{n} 件のパスをコピーしました"
+msgid "pane.openFolder"
+msgstr "フォルダを開く"
+
+msgid "pane.noMatch"
+msgstr "一致するファイルがありません"
+
+msgid "pane.empty"
+msgstr "空のフォルダ"
+
+msgid "pane.errorAccess"
+msgstr "アクセス不可（権限不足またはパスが見つかりません）"
+
+msgid "pane.loading"
+msgstr "読み込み中…"
+
+msgid "path.modeOff"
+msgstr "パスモード：オフ（クリックで切替：記憶、同期）"
+
+msgid "path.modeRemember"
+msgstr "パスモード：記憶（次回復元）"
+
+msgid "path.modeSync"
+msgstr "パスモード：ターミナルと同期（リモートが cwd を追従）"
+
+msgid "path.syncNoCwd"
+msgstr "ターミナルの cwd が報告されていません。再度同期に切り替えて設定してください"
+
+msgid "path.cwdSetupTitle"
+msgstr "ターミナルディレクトリ同期を有効化"
+
+msgid "path.cwdSetupIntro"
+msgstr "SFTP+ が同期するには、Tabby がシェルから OSC 1337 で cwd を報告する必要があります。有効化方法を選択："
+
+msgid "path.cwdSetupSessionHint"
+msgstr "このセッションのみ：現在のターミナルで以下の一時コマンドを実行（シェル再起動後に失われます）"
+
+msgid "path.cwdSetupPermanentHint"
+msgstr "永続的：以下のスニペットをリモートプロファイルに追加し、source してください（検出されたシェルに基づく）"
+
+msgid "path.cwdSetupNote"
+msgstr "キャンセルするとパスモードはオフになります。実行や書き込みは行われません。"
+
+msgid "path.cwdSetupSession"
+msgstr "このセッションのみ"
+
+msgid "path.cwdSetupPermanent"
+msgstr "永続的に書き込む"
+
+msgid "path.cwdSetupDone"
+msgstr "ディレクトリ報告が有効化されました、同期中…"
+
+msgid "path.cwdSetupFailed"
+msgstr "有効化に失敗しました。リモートの権限またはシェルタイプを確認してください"
+
+msgid "file.name"
+msgstr "名前"
+
+msgid "file.type"
+msgstr "種類"
+
+msgid "file.size"
+msgstr "サイズ"
+
+msgid "file.modified"
+msgstr "更新日時"
+
+msgid "file.created"
+msgstr "作成日時"
+
+msgid "file.accessed"
+msgstr "アクセス日時"
+
+msgid "file.permissions"
+msgstr "権限"
+
+msgid "file.owner"
+msgstr "所有者"
+
+msgid "file.group"
+msgstr "グループ"
+
+msgid "file.mode"
+msgstr "モード"
+
+msgid "file.path"
+msgstr "パス"
+
+msgid "file.ext"
+msgstr "拡張子"
+
+msgid "file.columns"
+msgstr "列"
+
+msgid "file.inaccessible"
+msgstr "アクセス不可"
+
+msgid "file.open"
+msgstr "開く"
+
+msgid "file.view"
+msgstr "表示"
+
+msgid "file.edit"
+msgstr "編集"
+
+msgid "file.copy"
+msgstr "コピー"
+
+msgid "file.cut"
+msgstr "切り取り"
+
+msgid "file.paste"
+msgstr "貼り付け"
+
+msgid "file.delete"
+msgstr "削除"
+
+msgid "file.rename"
+msgstr "名前変更"
+
+msgid "file.newFolder"
+msgstr "新規フォルダ"
+
+msgid "file.newFile"
+msgstr "新規ファイル"
+
+msgid "file.properties"
+msgstr "プロパティ"
+
+msgid "file.openWith"
+msgstr "アプリで開く"
+
+msgid "file.showInFolder"
+msgstr "フォルダで表示"
+
+msgid "file.openInSystem"
+msgstr "システムで開く"
+
+msgid "file.editInSystem"
+msgstr "システムで編集"
+
+msgid "viewer.loading"
+msgstr "読み込み中…"
+
+msgid "viewer.loadFailed"
+msgstr "ファイルの読み込みに失敗しました"
+
+msgid "viewer.binaryNotSupported"
+msgstr "バイナリファイルはテキストとして表示・編集できません"
+
+msgid "viewer.tooLarge"
+msgstr "ファイルが大きすぎて開けません"
+
+msgid "viewer.tooLargeView"
+msgstr "ファイルが大きすぎます（{limit} を超過）表示できません"
+
+msgid "viewer.typeNotSupported"
+msgstr "このファイルタイプは表示できません"
+
+msgid "editor.save"
+msgstr "保存"
+
+msgid "editor.saving"
+msgstr "保存中…"
+
+msgid "editor.saveSuccess"
+msgstr "サーバーに保存しました"
+
+msgid "editor.saveFailed"
+msgstr "保存に失敗しました"
+
+msgid "editor.unsaved"
+msgstr "保存されていない変更があります。破棄しますか？"
+
+msgid "editor.tooLarge"
+msgstr "ファイルが大きすぎます（{limit} を超過）編集できません"
+
+msgid "editor.typeNotSupported"
+msgstr "このファイルタイプは編集できません"
+
+msgid "file.adjustCol"
+msgstr "列幅を自動調整"
+
+msgid "file.adjustAllCols"
+msgstr "すべての列幅を自動調整"
+
+msgid "transfer.upload"
+msgstr "アップロード"
+
+msgid "transfer.download"
+msgstr "ダウンロード"
+
+msgid "transfer.edit-upload"
+msgstr "編集保存"
+
+msgid "transfer.edit-download"
+msgstr "編集読込"
+
+msgid "transfer.progress"
+msgstr "進捗"
+
+msgid "transfer.speed"
+msgstr "速度"
+
+msgid "transfer.remaining"
+msgstr "残り"
+
+msgid "transfer.cancel"
+msgstr "キャンセル"
+
+msgid "transfer.closePanel"
+msgstr "転送パネルを閉じる"
+
+msgid "transfer.pause"
+msgstr "一時停止"
+
+msgid "transfer.resume"
+msgstr "再開"
+
+msgid "transfer.cancelAll"
+msgstr "フォルダをキャンセル"
+
+msgid "transfer.cancelCurrent"
+msgstr "現在をキャンセル"
+
+msgid "transfer.paused"
+msgstr "一時停止中"
+
+msgid "transfer.inProgress"
+msgstr "進行中"
+
+msgid "transfer.minimizePanel"
+msgstr "最小化"
+
+msgid "transfer.hidePanel"
+msgstr "非表示"
+
+msgid "transfer.noActiveTransfers"
+msgstr "アクティブな転送はありません"
+
+msgid "transfer.clearCompleted"
+msgstr "完了をクリア"
+
+msgid "transfer.queue"
+msgstr "転送キュー"
+
+msgid "transfer.log"
+msgstr "転送履歴"
+
+msgid "transfer.logEmpty"
+msgstr "転送記録はまだありません"
+
+msgid "transfer.logNoMatch"
+msgstr "一致する記録がありません"
+
+msgid "transfer.logCount"
+msgstr "{total} 件の記録"
+
+msgid "transfer.logCountFiltered"
+msgstr "{total} 件中 {filtered} 件を表示"
+
+msgid "transfer.noTransfers"
+msgstr "アクティブな転送はありません"
+
+msgid "transfer.clearConfirm"
+msgstr "すべての転送記録をクリアしますか？この操作は元に戻せません。"
+
+msgid "transfer.clearTitle"
+msgstr "クリアを確認"
+
+msgid "transfer.replaceConfirm"
+msgstr "ファイルが既に存在します。置き換えますか？"
+
+msgid "transfer.replaceTitle"
+msgstr "置換を確認"
+
+msgid "transfer.deleteConfirm"
+msgstr "選択された {count} 個のアイテムを削除しますか？"
+
+msgid "transfer.deleteTitle"
+msgstr "削除を確認"
+
+msgid "bookmark.title"
+msgstr "ブックマーク"
+
+msgid "bookmark.add"
+msgstr "ブックマークを追加"
+
+msgid "bookmark.addLocal"
+msgstr "ローカル追加"
+
+msgid "bookmark.addGlobal"
+msgstr "グローバル追加"
+
+msgid "bookmark.addCurrentShort"
+msgstr "+ローカル"
+
+msgid "bookmark.addGlobalShort"
+msgstr "+グローバル"
+
+msgid "bookmark.remove"
+msgstr "ブックマークを削除"
+
+msgid "bookmark.edit"
+msgstr "ブックマークを編集"
+
+msgid "bookmark.noBookmarks"
+msgstr "ブックマークはまだありません"
+
+msgid "bookmark.name"
+msgstr "ブックマーク名"
+
+msgid "bookmark.path"
+msgstr "パス"
+
+msgid "bookmark.save"
+msgstr "ブックマークを保存"
+
+msgid "bookmark.global"
+msgstr "グローバルブックマーク"
+
+msgid "bookmark.forConnection"
+msgstr "この接続"
+
+msgid "permission.title"
+msgstr "権限を編集"
+
+msgid "permission.owner"
+msgstr "所有者"
+
+msgid "permission.group"
+msgstr "グループ"
+
+msgid "permission.others"
+msgstr "その他"
+
+msgid "permission.read"
+msgstr "読み取り"
+
+msgid "permission.write"
+msgstr "書き込み"
+
+msgid "permission.execute"
+msgstr "実行"
+
+msgid "permission.mode"
+msgstr "モード（8進数）"
+
+msgid "notify.sftpOpened"
+msgstr "SFTP を開きました"
+
+msgid "notify.noSSHSession"
+msgstr "現在のタブに SSH セッションがありません"
+
+msgid "notify.transferComplete"
+msgstr "転送完了"
+
+msgid "notify.transferFailed"
+msgstr "転送失敗"
+
+msgid "notify.connectionLost"
+msgstr "接続が切断されました"
+
+msgid "notify.connected"
+msgstr "接続先"
+
+msgid "notify.connecting"
+msgstr "接続中"
+
+msgid "notify.sftpConnectFailed"
+msgstr "SFTP 接続に失敗しました。SSH が接続されており、サーバーが SFTP をサポートしていることを確認してください。"
+
+msgid "notify.reconnectNoTerminal"
+msgstr "ターミナルが切断されました。ターミナルをクリックするか任意のキーを押して再接続してください。"
+
+msgid "notify.reconnectFailed"
+msgstr "再接続に失敗しました。ターミナルをクリックするか任意のキーを押して再接続してください。"
+
+msgid "settings.desc"
+msgstr "美しい SFTP ファイルマネージャー：ドラッグ＆ドロップ、ブックマーク、並べ替え、転送ログ、多言語対応。"
+
+msgid "settings.language"
+msgstr "言語"
+
+msgid "settings.followTabby"
+msgstr "Tabby に従う"
+
+msgid "settings.theme"
+msgstr "テーマ"
+
+msgid "settings.primary"
+msgstr "プライマリー"
+
+msgid "settings.bg"
+msgstr "背景"
+
+msgid "settings.text"
+msgstr "テキスト"
+
+msgid "settings.border"
+msgstr "枠線"
+
+msgid "settings.layout"
+msgstr "レイアウト"
+
+msgid "settings.layoutAdaptive"
+msgstr "自動"
+
+msgid "settings.layoutAdaptiveSub"
+msgstr "幅に応じて自動切替"
+
+msgid "settings.layoutHorizontal"
+msgstr "水平"
+
+msgid "settings.layoutHorizontalSub"
+msgstr "左右に並べる"
+
+msgid "settings.layoutVertical"
+msgstr "垂直"
+
+msgid "settings.layoutVerticalSub"
+msgstr "上下に積む"
+
+msgid "settings.layoutSingle"
+msgstr "シングルパネル"
+
+msgid "settings.layoutSingleSub"
+msgstr "リモートパネルのみ"
+
+msgid "settings.toolbarLayout"
+msgstr "ツールバーをカスタマイズ"
+
+msgid "settings.customToolbar"
+msgstr "ツールバーをカスタマイズ"
+
+msgid "settings.toolbarLayoutHint"
+msgstr "ドラッグで並び替え、すぐにパネルヘッダーに適用"
+
+msgid "settings.paneLabel"
+msgstr "ターミナルラベル"
+
+msgid "settings.addressBar"
+msgstr "アドレスバー"
+
+msgid "settings.toolbar"
+msgstr "ツールバー"
+
+msgid "settings.toolbarItem.back"
+msgstr "戻る"
+
+msgid "settings.toolbarItem.forward"
+msgstr "進む"
+
+msgid "settings.toolbarItem.up"
+msgstr "上へ"
+
+msgid "settings.toolbarItem.refresh"
+msgstr "更新"
+
+msgid "settings.toolbarItem.home"
+msgstr "ホーム"
+
+msgid "settings.toolbarItem.filter"
+msgstr "フィルタ"
+
+msgid "settings.toolbarItem.bookmark"
+msgstr "ブックマーク"
+
+msgid "settings.resetLayout"
+msgstr "リセット"
+
+msgid "settings.tableStyle"
+msgstr "テーブルスタイル"
+
+msgid "settings.tableStyleHint"
+msgstr "ヒント：ファイルリストヘッダーの右クリックメニューから制御"
+
+msgid "settings.hideNativeBtn"
+msgstr "ネイティブ SFTP ボタンを非表示"
+
+msgid "settings.openInNewTab"
+msgstr "デフォルトで新規タブで開く"
+
+msgid "settings.singleWorkspaceInstance"
+msgstr "シングルインスタンスのみ"
+
+msgid "settings.hotkey"
+msgstr "パネルホットキー"
+
+msgid "settings.hotkeyUnbound"
+msgstr "ホットキーを設定"
+
+msgid "settings.hotkeyClear"
+msgstr "クリア"
+
+msgid "settings.hotkeyRecording"
+msgstr "キー組み合わせを押してください…"
+
+msgid "settings.hotkeyClickToSet"
+msgstr "クリックしてホットキーを設定"
+
+msgid "settings.hotkeyConflict"
+msgstr "競合：{names}"
+
+msgid "settings.hotkeyConflictConfirm"
+msgstr "ホットキー {keys} は既に {names} で使用されています。
+SFTP+ に割り当てますか？（両方が発火する可能性があります。）"
+
+msgid "settings.hotkeySaved"
+msgstr "保存され Tabby に同期されました：{keys}"
+
+msgid "settings.hotkeyCleared"
+msgstr "ホットキー割り当てがクリアされました"
+
+msgid "settings.hotkeySaveFailed"
+msgstr "ホットキーの保存に失敗しました"
+
+msgid "settings.hotkeyRecordTimeout"
+msgstr "記録がタイムアウトしました、もう一度お試しください"
+
+msgid "settings.compatibility"
+msgstr "互換性"
+
+msgid "settings.data"
+msgstr "データ"
+
+msgid "settings.export"
+msgstr "エクスポート"
+
+msgid "settings.import"
+msgstr "インポート"
+
+msgid "settings.clearAll"
+msgstr "すべてクリア"
+
+msgid "settings.about"
+msgstr "について"
+
+msgid "settings.version"
+msgstr "バージョン"
+
+msgid "settings.buildTime"
+msgstr "ビルド日時"
+
+msgid "settings.author"
+msgstr "作者"
+
+msgid "settings.githubSource"
+msgstr "GitHub ソース"
+
+msgid "settings.giveStar"
+msgstr "スターを付ける"
+
+msgid "settings.feedback"
+msgstr "フィードバック"
+
+msgid "settings.modifyColors"
+msgstr "⚠️ 色を変更"
+
+msgid "settings.overwriteConfirm"
+msgstr "自動/プリセットモードです。変更はカスタム配色を上書きします。続行しますか？"
+
+msgid "settings.overwrite"
+msgstr "上書き"
+
+msgid "settings.clearAllTitle"
+msgstr "⚠️ すべてのデータをクリア"
+
+msgid "settings.clearAllConfirm"
+msgstr "すべてのブックマーク、転送ログ、設定が削除されます。元に戻せません！"
+
+msgid "settings.clearAllPrompt"
+msgstr "確認のため DELETE と入力してください："
+
+msgid "settings.clear"
+msgstr "クリア"
+
+msgid "settings.dark"
+msgstr "ダーク"
+
+msgid "settings.light"
+msgstr "ライト"
+
+msgid "settings.invalidFormat"
+msgstr "無効なデータ形式です。"
+
+msgid "settings.importComplete"
+msgstr "インポート完了。"
+
+msgid "settings.importUnavailable"
+msgstr "インポート不可：ConfigService が利用できません。"
+
+msgid "settings.importFailed"
+msgstr "インポート失敗：無効または破損したファイルです。"
+
+msgid "settings.dataCleared"
+msgstr "すべてのデータをクリアしました"
+
+msgid "conflict.sourceFile"
+msgstr "ソースファイル"
+
+msgid "conflict.targetFileExists"
+msgstr "ターゲットファイル（存在）"
+
+msgid "transfer.success"
+msgstr "成功"
+
+msgid "settings.closeBookmarkPanel"
+msgstr "選択後にブックマークパネルを閉じる"
+
+msgid "layout.mode.auto"
+msgstr "自動レイアウト"
+
+msgid "layout.mode.horizontal"
+msgstr "横向レイアウト"
+
+msgid "layout.mode.vertical"
+msgstr "縦向レイアウト"
+
+msgid "layout.mode.single"
+msgstr "単一ペイン（リモートのみ）"
+
+msgid "notify.closeWithTransfers"
+msgstr "{count} 件の転送が進行中です。パネルを閉じるとすべての転送が中断されます。続行しますか？"
+
+msgid "type.folder"
+msgstr "フォルダ"
+
+msgid "type.file"
+msgstr "ファイル"
+
+msgid "pane.exclFolders"
+msgstr "、フォルダ除く"
+
+msgid "pane.selectedInfo"
+msgstr " — {n} 項目選択済み（{size}）"
+
+msgid "fail.cancelled"
+msgstr "キャンセル済み"
+
+msgid "fail.interrupted"
+msgstr "切断されました"
+
+msgid "fail.unknown"
+msgstr "失敗"
+
+msgid "notify.uploadFailed"
+msgstr "アップロード失敗: {name}"
+
+msgid "notify.downloadFailed"
+msgstr "ダウンロード失敗: {name}"
+
+msgid "op.renameFailed"
+msgstr "名前の変更失敗: {reason}"
+
+msgid "op.mkdirFailed"
+msgstr "ディレクトリ作成失敗: {reason}"
+
+msgid "op.touchFailed"
+msgstr "ファイル作成失敗: {reason}"
+
+msgid "op.chmodFailed"
+msgstr "chmod 失敗: {reason}"
+
+msgid "op.failed"
+msgstr "操作失敗: {reason}"
+
+msgid "notify.deleteFailed"
+msgstr "{n} 項目の削除に失敗しました（使用中または権限がない可能性）"
+
+msgid "input.dirExists"
+msgstr "ディレクトリは既に存在します: {val}"
+
+msgid "input.fileExists"
+msgstr "ファイルは既に存在します: {val}"
+
+msgid "input.fileWhenMkdir"
+msgstr "「{val}」という名前のファイルが既に存在するため、ディレクトリを作成できません"
+
+msgid "input.dirWhenTouch"
+msgstr "「{val}」という名前のディレクトリが既に存在するため、ファイルを作成できません"
+
+msgid "notify.notConnectedUpload"
+msgstr "接続されていません。アップロードできません"
+
+msgid "notify.notConnectedDownload"
+msgstr "接続されていません。ダウンロードできません"
+
+msgid "notify.copied"
+msgstr "{n} 項目をコピーしました"
+
+msgid "notify.cut"
+msgstr "{n} 項目を切り取りました"
+
+msgid "status.disconnected"
+msgstr "切断されました"
+
+msgid "status.reconnecting"
+msgstr "再接続中…"
+
+msgid "status.reconnect"
+msgstr "再接続"
+
+msgid "app.restoreDefaultSize"
+msgstr "パネルの既定サイズに戻す"
+
+msgid "notify.pasteFailed"
+msgstr "貼り付け失敗"
+
+msgid "notify.copyFailed"
+msgstr "コピー失敗: {name}"
+
+msgid "theme.auto"
+msgstr "自動"
+
+msgid "theme.dark"
+msgstr "ダーク"
+
+msgid "theme.light"
+msgstr "ライト"
+
+msgid "theme.blue"
+msgstr "青"
+
+msgid "theme.green"
+msgstr "緑"
+
+msgid "theme.purple"
+msgstr "紫"
+
+msgid "theme.red"
+msgstr "赤"
+
+msgid "theme.custom"
+msgstr "カスタム"
+
+msgid "pane.back"
+msgstr "戻る"
+
+msgid "pane.forward"
+msgstr "進む"
+
+msgid "filter.apply"
+msgstr "適用"
+
+msgid "filter.clear"
+msgstr "クリア"
+
+msgid "hotkey.togglePanel"
+msgstr "SFTP+ パネルを開く"
+
+
+msgid "conflict.existsSamePane"
+msgstr "宛先に同じ名前のファイルが既に存在します"
+
+msgid "settings.dateFormat"
+msgstr "カスタム時刻形式"
+
+msgid "settings.dateFormatHint"
+msgstr "トークン: YYYY / YY / MM / DD / HH / hh / mm / ss / A（空欄 = 既定）"
+
+msgid "settings.dateFormatPreview"
+msgstr "プレビュー"
+
+msgid "settings.dateFormatReset"
+msgstr "既定に戻す"

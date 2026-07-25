@@ -26,6 +26,7 @@ SFTP+ 是 [Tabby Terminal](https://tabby.sh/) 的插件，为 SSH 终端标签�
 | **📌 右键菜单** | 上传/下载、查看/编辑、新建/重命名/删除、复制/剪切/粘贴、刷新、全选/反选；<br />表头右键：列显隐/列宽调整/面板边框与斑马纹切换 |
 | **🔍 过滤排序** | 关键词过滤、多列排序（点击列头）、可配置显示列 |
 | **🧭 路径记忆** | 开关控制，重新打开面板时恢复上次浏览位置 |
+| **🧭 路径跟随** | 可选「与终端同步」模式：打开面板即定位到终端当前目录，终端 `cd` 时远程面板实时跟随（依赖 Tabby OSC 1337 当前目录上报）；默认关闭，可在面板中切换 |
 | **🎨 主题系统** | 7 种预设 + 自定义配色，支持跟随 Tabby 系统主题 |
 | **🌐 国际化** | 中文（简体）与 English，自动检测 Tabby/浏览器语言 |
 | **📦 数据备份** | 一键导出/导入全部数据（书签+日志+设置+路径记忆） |
@@ -82,7 +83,7 @@ SFTP+ 是 [Tabby Terminal](https://tabby.sh/) 的插件，为 SSH 终端标签�
 
 ## 📜 版本历史
 
-最新版本 **v1.1.0**（2026-07-07）— [完整更新日志](CHANGELOG.md)
+最新版本 **v2.0.0**（2026-07-25）— [完整更新日志](CHANGELOG.md)
 
 ---
 
@@ -112,30 +113,28 @@ npm run watch
 npm run build
 ```
 
-构建产物 `dist/index.js` 即为 Tabby 插件包。
+构建产物 `dist/index.js` 即为 Tabby 插件包；`dist/package.json` 由 `scripts/copy-sftp-manifest.mjs` 在构建时从根 `package.json` 自动派生（改写入口、剔除开发期脚本），**无需手工维护**。
 
 ### 项目结构
 
 ```
 tabby-FTPS+/
 ├── docs/                                # 架构与开发文档
+├── scripts/                             # 构建辅助（copy-sftp-manifest 自动生成 dist/package.json）
 ├── src/
 │   ├── index.ts                         # 插件入口（Angular Module 注册）
-│   ├── sftp-floating-panel.component.ts # 主面板（业务编排，模板+逻辑）
-│   ├── sftp-workspace-tab.component.ts  # 工作区独立标签页容器
-│   ├── sftp-terminal-decorator.ts       # 终端工具栏注入 SFTP+ 按钮
-│   ├── panel/                           # 从主面板拆出的子模块
-│   │   ├── sftp-file-pane.component.ts  # 本地/远程文件列表面板
-│   │   ├── sftp-context-menu.component.ts
-│   │   ├── sftp-viewer-dialog.component.ts
-│   │   ├── sftp-editor-dialog.component.ts
-│   │   ├── panel-conflict-resolver.ts
-│   │   ├── panel-transfer-runtime.ts
-│   │   └── …                            # 详见 docs/DEVELOPMENT.md
-│   ├── sftp.service.ts                  # SFTP 连接封装
-│   ├── sftp-transfer-log.service.ts     # 传输日志
-│   └── …
-├── dist/                                # 构建输出（index.js）
+│   ├── tabby-shims.d.ts                 # Tabby 类型声明
+│   ├── services/                        # sftp.service / bookmarks / i18n / transfer-log / config（Tabby 约定目录）
+│   ├── settings/                        # sftp-settings 设置组件（Tabby 约定目录）
+│   ├── tabby/                           # 终端集成：config/hotkey provider、terminal-decorator（工具栏注入按钮）
+│   ├── sftp/                            # SFTP 功能模块
+│   │   ├── sftp-floating-panel.component.ts   # 主面板（业务编排）
+│   │   ├── sftp-workspace-tab.component.ts    # 工作区独立标签页容器
+│   │   ├── components/                  # 视图层(V)：文件列表面板、对话框、右键菜单、冲突处理、传输队列等
+│   │   ├── controllers/                 # 控制器层(C)：列 / 查看器 / 书签控制器
+│   │   └── core/                        # 逻辑/工具/类型：传输、冲突、拖放、剪贴板、路径等
+│   └── tabby-plugin-common/             # 跨插件公共工具（theme / utils）
+├── dist/                                # 构建输出（index.js + package.json）
 ├── package.json
 └── webpack.config.js
 ```
