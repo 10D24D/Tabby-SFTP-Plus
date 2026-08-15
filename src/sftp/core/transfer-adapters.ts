@@ -3,15 +3,7 @@
  * 创建人：DD1024z + Hy3
  * 创建时间：2026-07-16
  * 修改人：DD1024z + Hy3
- * 修改时间：2026-07-25 — B10 下载/写临时文件失败清理临时目录；B8 BufferCollectingDownload 加 maxBytes 溢出硬上限
- * 修改人：DD1024z + Composer
- * 修改时间：2026-07-25 — 收敛面板内 _doUpload/_doDownload 字节级逻辑到本模块（消除双轨）
- * 修改人：DD1024z + Hy3
- * 修改时间：2026-07-25 — B11 上传取消 read() 抛错中断（防 tabby-ssh 把空块当传完、
- *   将半截 .tabby-upload 改名成原始文件名）；取消不再误报"上传失败"
- * 修改人：DD1024z + Hy3
- * 修改时间：2026-07-25 — B13 初始上传改走 raw stream 写 .tabby-upload 临时文件（uploadViaRawToTemp）：
- *   暂停只结束流保留临时文件（供续传）、取消删临时文件保留原文件，彻底规避 tabby-ssh upload() 语义陷阱
+ * 修改时间：2026-07-30 — B14：覆盖上传 rename 兼容不自动覆盖已存在目标的服务端（先删目标再重试）
  * 合并来源：remote-file-transfer, local-transfers
  */
 
@@ -90,6 +82,9 @@ export async function downloadRemoteToBuffer(
   if (size === 0) return Buffer.alloc(0)
   const dl = new BufferCollectingDownload(size, mode, maxBytes)
   await sftpSession.download(remotePath, dl as any)
+  // ★ 2026-08-10：校验完整性——服务器提前结束流时不得静默返回部分内容（查看/编辑会显示残缺文件）
+  if (dl.isCancelled()) throw new Error('Download cancelled')
+  if (!dl.isComplete()) throw new Error('Download incomplete')
   return dl.getBuffer()
 }
 
@@ -186,6 +181,9 @@ export class LocalPathFileUpload {
   private cancelled = false
   private complete = false
   private paused = false
+  /** ★ 2026-08-15 修复 #1：上传失败标记（与 LocalPathFileDownload 对称），
+   *  续传流错误时由外部调用 _markFailed()，避免 UI 僵尸态 */
+  private failed = false
   /** 是否从指定偏移量恢复（续传模式） */
   private resumeMode = false
 
@@ -236,7 +234,10 @@ export class LocalPathFileUpload {
         }
       }
     }
-    const buf = Buffer.alloc(256 * 1024)
+    // ★ 2026-08-10 提速：读块 256KB → 1MB。新版 Tabby（russh）的 upload() 循环每块 await writeAll，
+    //   而 russh-sftp 的 write_all 内部已流水线化（最多 8 个 WRITE 请求在途，不等单块 ACK），
+    //   更大读块 → 更少 JS↔napi 往返与磁盘读系统调用，单文件上传吞吐接近 electerm（fastPut 64×32KB≈2MB 在途）
+    const buf = Buffer.alloc(1024 * 1024)
     const { bytesRead } = await this.fd.read(buf, 0, buf.length, this.position)
     if (bytesRead === 0) {
       this.complete = true
@@ -291,6 +292,17 @@ export class LocalPathFileUpload {
     return this.position
   }
 
+  /** ★ 2026-08-15 修复 #1：上传失败检测（与 LocalPathFileDownload 对称） */
+  isFailed(): boolean {
+    return this.failed
+  }
+
+  /** 外部标记传输失败（raw stream 写错误等）；UI 定时器据此记为失败并移除，避免误报成功或挂死 */
+  async _markFailed(): Promise<void> {
+    this.failed = true
+    await this.close()
+  }
+
   // 进度跟踪（兼容 tabby-core FileTransfer）
   private completedBytesForProgress = 0
 
@@ -310,6 +322,7 @@ export class LocalPathFileDownload {
   private cancelled = false
   private complete = false
   private paused = false
+  private failed = false
   private resumeOffset = 0
 
   constructor(
@@ -346,7 +359,13 @@ export class LocalPathFileDownload {
   async write(buffer: Buffer): Promise<void> {
     // ★ 2026-07-25：B6 修复——取消时主动抛错中断底层 SFTP 下载流，
     //   否则流会持续回调 write()（空写），完成后在 _doDownload 中仍触发 rename 落盘，
-    //   导致"已取消/面板已销毁"却得到文件。暂停（paused）路径在 _doDownload 中会保留 .tmp，不受影响。
+    //   导致"已取消/面板已销毁"却得到文件。
+    // ★ 2026-08-10：暂停同样必须抛错——pause() 关闭 fd 后，在途 chunk 若见 fd=null
+    //   会以 'w' 重新打开（首次下载 resumeOffset=0）截断已下载部分 → 稀疏损坏文件，
+    //   续传后仅大小校验通过即被 rename 成目标。必须先于 cancelled 检查（cancel 紧跟 pause）。
+    if (this.paused) {
+      throw new Error('Transfer paused')
+    }
     if (this.cancelled) {
       throw new Error('Transfer cancelled')
     }
@@ -358,16 +377,16 @@ export class LocalPathFileDownload {
       } catch {
         // ignore - directory may already exist
       }
-      // 续传模式使用 r+（不截断），否则使用 w（新建/截断）
-      const flags = this.resumeOffset > 0 ? 'r+' : 'w'
+      // 续传或已部分写入后重开 fd 时用 r+（不截断）接续，避免 'w' 截断已有内容
+      const resumeAt = this.resumeOffset > 0 ? this.resumeOffset : this.completedBytes
+      const flags = resumeAt > 0 ? 'r+' : 'w'
       this.fd = await fs.promises.open(this.targetPath, flags)
-      // 续传时 seek 到指定位置
-      if (this.resumeOffset > 0) {
-        await this.fd.write(Buffer.alloc(0), 0, 0, this.resumeOffset)
+      if (resumeAt > 0) {
+        await this.fd.write(Buffer.alloc(0), 0, 0, resumeAt)
         // 实际上使用 ftruncate + seek 更好
         // 先调整文件大小到续传点（如果当前文件小于续传点则补零）
         try {
-          await this.fd.truncate(this.resumeOffset)
+          await this.fd.truncate(resumeAt)
         } catch { /* ignore */ }
       }
     }
@@ -397,6 +416,20 @@ export class LocalPathFileDownload {
 
   isCancelled(): boolean {
     return this.cancelled
+  }
+
+  isPaused(): boolean {
+    return this.paused
+  }
+
+  isFailed(): boolean {
+    return this.failed
+  }
+
+  /** 外部标记传输失败（raw stream 读错误等）；UI 定时器据此记为失败并移除，避免误报成功或挂死 */
+  async _markFailed(): Promise<void> {
+    this.failed = true
+    await this.close()
   }
 
   async cancel(): Promise<void> {
@@ -436,6 +469,31 @@ export class LocalPathFileDownload {
 }
 
 // ─── 字节级上传/下载（原 floating-panel._doUpload/_doDownload 收敛至此） ───
+
+/**
+ * ★ 2026-07-30 B14：重命名临时文件为目标路径，兼容"rename 不自动覆盖已存在目标"的 SFTP 服务端。
+ * 现象：覆盖上传时把 `x.tabby-upload` rename 成已存在的 `x`，OpenSSH 会直接覆盖，
+ *       但部分服务端（某些 NAS / 云 SFTP 网关 / ProFTPD mod_sftp 等）的 SSH_FXP_RENAME
+ *       遇到已存在目标会失败 → 上传报"失败"。这里先尝试直接 rename（覆盖语义），
+ *       失败后再尝试"删已存在目标 → 重试 rename"，使覆盖上传在所有服务端都能成功。
+ * 安全：仅在首次 rename 失败时才 unlink 目标；若 unlink 本身失败（目标本就不存在/无权限）
+ *       则保留原始 rename 错误抛出，绝不误删用户文件。
+ */
+async function renameWithOverwrite(rawSftp: any, tempPath: string, remotePath: string): Promise<void> {
+  try {
+    await rawSftp.rename(tempPath, remotePath)
+    return
+  } catch (renameErr) {
+    // ★ 2026-08-10 修复：rename 失败原因未必是"目标已存在"（权限/配额/网关瞬时错误等），
+    //   盲目 unlink(remotePath) 会误删用户原有文件。必须先 stat 确认目标确实存在才 unlink；
+    //   缺少 unlink/stat 能力或目标不存在时抛出原始错误，绝不静默谎报成功（临时文件保留）。
+    if (typeof rawSftp.unlink !== 'function' || typeof rawSftp.stat !== 'function') throw renameErr
+    try { await rawSftp.stat(remotePath) } catch { throw renameErr } // 目标不存在 → 保留原始错误
+    try { await rawSftp.unlink(remotePath) } catch { throw renameErr }
+    await rawSftp.rename(tempPath, remotePath)
+  }
+}
+
 
 export interface TransferCancelRef {
   current: any
@@ -501,9 +559,10 @@ export async function uploadViaRawToTemp(
     writeStream.on('finish', () => {
       // 暂停/取消都不在此改名：暂停保留临时文件供续传；取消已在前述分支删临时文件
       if (up.isPaused() || up.isCancelled?.()) { up.close().catch(() => {}); resolve(); return }
-      const r: any = rawSftp.rename(tempPath, remotePath)
-      if (r && typeof r.then === 'function') r.then(() => { up.close().catch(() => {}); resolve() }).catch((e: unknown) => { safeUnlinkTemp(); up.close().catch(() => {}); reject(e) })
-      else { up.close().catch(() => {}); resolve() }
+      // ★ 2026-07-30 B14：用 renameWithOverwrite 兼容不覆盖已存在目标的服务端（覆盖上传）
+      renameWithOverwrite(rawSftp, tempPath, remotePath)
+        .then(() => { up.close().catch(() => {}); resolve() })
+        .catch((e: unknown) => { safeUnlinkTemp(); up.close().catch(() => {}); reject(e) })
     })
     writeStream.on('error', (err: Error) => {
       if (!up.isCancelled?.()) log.error('Raw upload stream error', err)
@@ -556,12 +615,15 @@ export async function uploadViaRawToTemp(
   })
 }
 
+/** 上传本地文件到远程路径（不含冲突检测）。
+ *  ★ 2026-08-10：返回是否传输完整成功（取消/暂停/失败均为 false），
+ *  供剪切粘贴等调用方在删源前校验，防止"传输失败仍删源"的数据丢失。 */
 export async function uploadLocalFile(
   ctx: ByteTransferContext,
   remotePath: string,
   localPath: string,
   opts: UploadByteOptions = {},
-): Promise<void> {
+): Promise<boolean> {
   const up = new LocalPathFileUpload(localPath)
   if (opts.track && ctx.trackTransfer) {
     ctx.trackTransfer(up, 'upload', remotePath, localPath, opts.logOperation)
@@ -577,26 +639,29 @@ export async function uploadLocalFile(
       // 兜底：无 raw stream 时用标准 upload API（取消即 abort，不支持续传）
       await ctx.session.upload(remotePath, up as any)
     }
-    // ★ 2026-07-25 B13：raw stream 取消时以 resolve() 结束（不抛错），据 cancelled 判定
-    if (up.isCancelled()) {
-      if (opts.track) log.info('Upload cancelled:', localPath)
-      return
+    // ★ 2026-07-25 B13：raw stream 取消/暂停时以 resolve() 结束（不抛错），据状态判定
+    if (up.isCancelled() || up.isPaused()) {
+      if (opts.track) log.info('Upload cancelled/paused:', localPath)
+      return false
     }
     if (opts.track) log.info('Upload completed:', localPath)
+    return true
   } catch (e) {
-    // ★ 2026-07-25 B11：用户主动取消（read() 抛错中断）不算失败，静默返回
-    if (up.isCancelled()) {
-      if (opts.track) log.info('Upload cancelled:', localPath)
-      return
+    // ★ 2026-07-25 B11：用户主动取消（read() 抛错中断）不算失败，但也不是"传输成功"
+    if (up.isCancelled() || up.isPaused()) {
+      if (opts.track) log.info('Upload cancelled/paused:', localPath)
+      return false
     }
     log.error(opts.track ? 'Upload failed' : 'Upload failed (raw)', remotePath, e)
     if (opts.track) ctx.onUploadError?.(remotePath, localPath, e)
+    return false
   } finally {
     if (opts.exposeCancel && ctx.cancelRef) ctx.cancelRef.current = null
   }
 }
 
-/** 下载远程文件到本地路径（.tmp 原子改名；不含冲突检测） */
+/** 下载远程文件到本地路径（.tmp 原子改名；不含冲突检测）。
+ *  ★ 2026-08-10：返回是否传输完整成功（跳过/取消/暂停/失败均为 false），供剪切粘贴删源前校验。 */
 export async function downloadRemoteFile(
   ctx: ByteTransferContext,
   remotePath: string,
@@ -604,10 +669,10 @@ export async function downloadRemoteFile(
   mode?: number,
   size?: number,
   opts: DownloadByteOptions = {},
-): Promise<void> {
+): Promise<boolean> {
   if (ctx.activeDownloadTargets.has(localPath)) {
     log.warn(opts.exposeCancel ? 'skip duplicate concurrent download (raw):' : 'skip duplicate concurrent download:', localPath)
-    return
+    return false
   }
   ctx.activeDownloadTargets.add(localPath)
   try {
@@ -634,7 +699,7 @@ export async function downloadRemoteFile(
         const dl = new LocalPathFileDownload(localPath, mode ?? 0o644, 0)
         ctx.trackTransfer(dl, 'download', remotePath, localPath, opts.logOperation)
       }
-      return
+      return true
     }
 
     const dl = new LocalPathFileDownload(tmpPath, mode ?? 0o644, sz)
@@ -649,7 +714,7 @@ export async function downloadRemoteFile(
       // B6：改名前二次校验，已取消则不落盘
       if (dl.isCancelled()) {
         try { await fsPromises.unlink(tmpPath) } catch { /* ignore */ }
-        return
+        return false
       }
       const localStat = await fsPromises.stat(tmpPath).catch(() => null)
       if (localStat && localStat.size !== sz && sz > 0) {
@@ -657,19 +722,22 @@ export async function downloadRemoteFile(
       }
       await fsPromises.rename(tmpPath, localPath)
       if (opts.track) log.info('Download completed:', remotePath)
+      return true
     } catch (e) {
-      // 暂停：保留 .tmp 供续传
-      if (dl.isCancelled() && (dl as any).paused) {
+      // ★ 2026-08-10：暂停必须最先检查——pause() 关 fd 后 cancel() 才置 cancelled，
+      //   在途 chunk 的 write() 中断抛错到达这里时若先命中 cancelled 分支会误删供续传的 .tmp
+      if (dl.isPaused()) {
         if (opts.track) log.info('Download paused:', remotePath)
-        return
+        return false
       }
       if (dl.isCancelled()) {
         try { await fsPromises.unlink(tmpPath) } catch { /* ignore */ }
-        return
+        return false
       }
       log.error(opts.track ? 'Download failed' : 'Download failed (raw)', remotePath, e)
       try { await fsPromises.unlink(tmpPath) } catch { /* ignore */ }
       if (opts.track) ctx.onDownloadError?.(remotePath, e)
+      return false
     } finally {
       if (opts.exposeCancel && ctx.cancelRef) ctx.cancelRef.current = null
     }

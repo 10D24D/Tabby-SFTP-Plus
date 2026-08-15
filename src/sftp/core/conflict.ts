@@ -3,13 +3,13 @@
  * 创建人：DD1024z + Hy3
  * 创建时间：2026-07-16
  * 修改人：DD1024z + Hy3
- * 修改时间：2026-07-16
+ * 修改时间：2026-08-02 — B21：上传冲突检测支持 attrs 嵌套字段与秒/毫秒判断，加 [check-upload-conflict] 诊断 log；B14：上传冲突检测兼容 stat 返回 bigint/undefined/mtime 单位差异，stat 缺字段时回退 readdir；B24：parseRemoteMtime 过滤 Unix epoch 无效时间
  * 合并来源：conflict-rules, conflict-resolve, sftp-conflict-detector
  */
 
 import * as path from 'path'
 
-import { type ConflictQueueItem, type ConflictFileInfo } from './panel-types'
+import { type ConflictQueueItem, type ConflictFileInfo, type FolderTransferCtx } from './panel-types'
 
 import * as fs from 'fs/promises'
 
@@ -73,6 +73,30 @@ export function buildConflictRenameDirName(dirName: string): string {
   return `${dirName}_${suffix}`
 }
 
+/** Unix epoch 阈值：小于此值的毫秒时间戳视为 1970-01-01 附近的无效时间 */
+const EPOCH_THRESHOLD_MS = 86400000
+
+/** 从 stat / readdir 条目中安全提取远程修改时间（毫秒）。
+ *  兼容字段：modified(Date) > mtime(number) > mtimeMs(number) > attrs.modified/attrs.mtime。
+ *  SFTP 协议 mtime 为秒；当数值小于 1e10（≈2286 年）时视为秒并乘 1000，
+ *  大于等于 1e10 时视为毫秒不再乘。
+ *  过滤落在 Unix epoch 附近的时间（某些 SFTP 服务器对目录 stat 返回 1970-01-01）。 */
+export function parseRemoteMtime(st: any): number | undefined {
+  if (!st) return undefined
+  const raw = st.modified ?? st.mtime ?? st.mtimeMs ?? st.attrs?.modified ?? st.attrs?.mtime
+  if (raw instanceof Date) {
+    const t = raw.getTime()
+    return Number.isFinite(t) && t >= EPOCH_THRESHOLD_MS ? t : undefined
+  }
+  if (raw != null) {
+    const n = Number(raw)
+    if (!Number.isFinite(n) || n <= 0) return undefined
+    const ms = n < 1e10 ? n * 1000 : n
+    return ms >= EPOCH_THRESHOLD_MS ? ms : undefined
+  }
+  return undefined
+}
+
 /**
  * 冲突检测端口 + 冲突解决用例
  * 合并自: conflict-ports.ts, conflict-resolve-ports.ts, conflict-resolve-use-case.ts
@@ -105,10 +129,12 @@ export interface ConflictQueuePort {
 // ─── 冲突解决端口 ───────────────────────────────────────────
 
 export interface ConflictResolveExecutionPort {
-  mergeLocalDirToRemote(localSrc: string, remoteDest: string): Promise<void>
-  downloadRemoteDir(remotePath: string, localDestParent: string, localName?: string): Promise<void>
-  doDownload(remotePath: string, localPath: string, mode?: number, size?: number): Promise<void>
-  doUpload(remotePath: string, localPath: string): Promise<void>
+  // ★ 2026-08-10：传输方法返回 boolean（true=完整成功），剪切删源前必须校验
+  // ★ 2026-08-11：reuseLogEntryId 传入时合并传输复用来源传输记录并自行收尾成败
+  mergeLocalDirToRemote(localSrc: string, remoteDest: string, reuseLogEntryId?: string): Promise<boolean>
+  downloadRemoteDir(remotePath: string, localDestParent: string, localName?: string): Promise<boolean>
+  doDownload(remotePath: string, localPath: string, mode?: number, size?: number): Promise<boolean>
+  doUpload(remotePath: string, localPath: string): Promise<boolean>
   copyLocalDir(src: string, dest: string): Promise<void>
   copyLocalFile(src: string, dest: string): Promise<void>
   copyRemoteDir(srcRemotePath: string, destRemotePath: string, isDirectory: boolean): Promise<void>
@@ -116,6 +142,8 @@ export interface ConflictResolveExecutionPort {
   renameRemote(src: string, dest: string): Promise<void>
   statLocal(path: string): Promise<{ isDirectory: boolean } | null>
   readdirRemote(parentDir: string): Promise<Array<{ name: string; isDirectory: boolean }>>
+  /** ★ 2026-08-11：冲突解决成功后，把已被 finish(false) 误记失败的来源传输记录翻正 */
+  markTransferSucceeded(ctx: FolderTransferCtx): void
   hasSftpSession(): boolean
   /** 删除本地文件（剪切模式冲突解决后清理源文件） */
   unlinkLocal(path: string): Promise<void>
@@ -162,18 +190,34 @@ export interface ConflictResolvePorts {
 export class ConflictResolveUseCase {
   constructor(private readonly ports: ConflictResolvePorts) {}
 
-  async resolve(action: string): Promise<void> {
-    this.ports.ui.hideDialog()
-    const { action: normalized, allMode } = normalizeConflictAction(action)
-    if (allMode) this.ports.queue.setAllMode(allMode)
+  /** ★ 2026-08-15 修复 #3：重入锁——防止 resolve/processNext 并发消费同一条目 */
+  private _processing = false
 
-    const current = this.ports.queue.shift()
+  async resolve(action: string): Promise<void> {
+    if (this._processing) return
+    this._processing = true
+    try {
+      this.ports.ui.hideDialog()
+      const { action: normalized, allMode } = normalizeConflictAction(action)
+      if (allMode) this.ports.queue.setAllMode(allMode)
+
+      const current = this.ports.queue.shift()
     if (!current) {
       await this.processNext()
       return
     }
-    const shouldContinue = await this.applyAction(current, normalized)
+    // ★ 2026-08-10 修复 #11：单项执行抛错（传输失败等）不得中断整个队列，
+    //   也不得阻断后续 processNext（否则批量模式下剩余冲突永远不处理）
+    let shouldContinue = true
+    try {
+      shouldContinue = await this.applyAction(current, normalized)
+    } catch (e) {
+      log.error('Conflict resolve failed for item', current.fileName, e)
+    }
     if (shouldContinue) await this.processNext()
+    } finally {
+      this._processing = false
+    }
   }
 
   async applyAction(
@@ -194,33 +238,40 @@ export class ConflictResolveUseCase {
         return true
       case 'overwrite':
         if (item.isDirectory) {
+          let ok: boolean
           if (item.direction === 'upload') {
-            await exec.mergeLocalDirToRemote(item.localPath, item.remotePath)
+            // ★ 2026-08-11：合并上传复用来源记录并自建进度条目，成败由其收尾，不再翻正
+            ok = await exec.mergeLocalDirToRemote(item.localPath, item.remotePath, item.transferCtx?.logEntryId)
           } else {
-            await exec.downloadRemoteDir(item.remotePath, path.dirname(item.localPath))
+            ok = await exec.downloadRemoteDir(item.remotePath, path.dirname(item.localPath))
+            this._flipTransferLog(item, ok)
           }
-          await this._deleteSourceIfCut(item)
+          await this._deleteSourceIfCut(item, ok)
         } else if (item.isSamePane) {
           const consumed = await this._samePaneOverwrite(item)
           if (!consumed) await this._deleteSourceIfCut(item)
         } else if (item.direction === 'download') {
-          await exec.doDownload(item.remotePath, item.localPath, 0o644, item.remoteFileSize)
-          await this._deleteSourceIfCut(item)
+          const ok = await exec.doDownload(item.remotePath, item.localPath, 0o644, item.remoteFileSize)
+          await this._deleteSourceIfCut(item, ok)
+          this._flipTransferLog(item, ok)
         } else {
-          await exec.doUpload(item.remotePath, item.localPath)
-          await this._deleteSourceIfCut(item)
+          const ok = await exec.doUpload(item.remotePath, item.localPath)
+          await this._deleteSourceIfCut(item, ok)
+          this._flipTransferLog(item, ok)
         }
         return true
       case 'rename': {
         if (item.isDirectory) {
           const newName = buildConflictRenameDirName(item.fileName)
+          let ok: boolean
           if (item.direction === 'upload') {
             const newRemote = path.posix.join(item.remoteDir, newName)
-            await exec.mergeLocalDirToRemote(item.localPath, newRemote)
+            ok = await exec.mergeLocalDirToRemote(item.localPath, newRemote, item.transferCtx?.logEntryId)
           } else {
-            await exec.downloadRemoteDir(item.remotePath, path.dirname(item.localPath), newName)
+            ok = await exec.downloadRemoteDir(item.remotePath, path.dirname(item.localPath), newName)
+            this._flipTransferLog(item, ok)
           }
-          await this._deleteSourceIfCut(item)
+          await this._deleteSourceIfCut(item, ok)
           return true
         }
         const newName = buildConflictRenameName(item.fileName)
@@ -229,45 +280,72 @@ export class ConflictResolveUseCase {
           if (!consumed) await this._deleteSourceIfCut(item)
         } else if (item.direction === 'download') {
           const newLocal = path.join(path.dirname(item.localPath), newName)
-          await exec.doDownload(item.remotePath, newLocal, 0o644, item.remoteFileSize)
-          await this._deleteSourceIfCut(item)
+          const ok = await exec.doDownload(item.remotePath, newLocal, 0o644, item.remoteFileSize)
+          await this._deleteSourceIfCut(item, ok)
+          this._flipTransferLog(item, ok)
         } else {
           const newRemote = path.posix.join(item.remoteDir, newName)
-          await exec.doUpload(newRemote, item.localPath)
-          await this._deleteSourceIfCut(item)
+          const ok = await exec.doUpload(newRemote, item.localPath)
+          await this._deleteSourceIfCut(item, ok)
+          this._flipTransferLog(item, ok)
         }
         return true
       }
     }
   }
 
-  async processNext(): Promise<void> {
-    if (this.ports.queue.length() === 0) {
-      this.ports.queue.resetAllMode()
-      this.ports.queue.resetOriginalTotal()
-      this.ports.ui.clearSelection()
-      if (this.ports.pendingPaste.hasPendingPaste()) {
-        await this.ports.pendingPaste.resumePaste(this.ports.queue.getResolvedKeys())
-        this.ports.queue.clearResolvedKeys()
-      } else {
-        this.ports.ui.refreshPanes()
-      }
-      return
-    }
-
-    if (this.ports.queue.getAllMode() !== 'ask') {
-      const item = this.ports.queue.shift()
-      const mode = this.ports.queue.getAllMode()
-      if (item && mode !== 'ask') await this.applyAction(item, mode)
-      await this.processNext()
-      return
-    }
-
-    this.ports.ui.showNextDialog()
+  /** ★ 2026-08-11：冲突入队时来源传输已被 finish(false) 记失败；覆盖/重命名真正
+   *  传完后把记录翻正，避免「文件都到位了但传输记录显示失败」 */
+  private _flipTransferLog(item: ConflictQueueItem, ok: boolean): void {
+    if (!ok || !item.transferCtx) return
+    try { this.ports.execution.markTransferSucceeded(item.transferCtx) } catch { /* ignore */ }
   }
 
-  private async _deleteSourceIfCut(item: ConflictQueueItem): Promise<void> {
+  async processNext(): Promise<void> {
+    if (this._processing) return
+    this._processing = true
+    try {
+      if (this.ports.queue.length() === 0) {
+        this.ports.queue.resetAllMode()
+        this.ports.queue.resetOriginalTotal()
+        this.ports.ui.clearSelection()
+        if (this.ports.pendingPaste.hasPendingPaste()) {
+          await this.ports.pendingPaste.resumePaste(this.ports.queue.getResolvedKeys())
+          this.ports.queue.clearResolvedKeys()
+        } else {
+          this.ports.ui.refreshPanes()
+        }
+        return
+      }
+
+      if (this.ports.queue.getAllMode() !== 'ask') {
+        const item = this.ports.queue.shift()
+        const mode = this.ports.queue.getAllMode()
+        // ★ 2026-08-10 修复 #11：批量模式下单项失败同样不得中断队列
+        if (item && mode !== 'ask') {
+          try {
+            await this.applyAction(item, mode)
+          } catch (e) {
+            log.error('Conflict resolve failed for item', item.fileName, e)
+          }
+        }
+        await this.processNext()
+        return
+      }
+
+      this.ports.ui.showNextDialog()
+    } finally {
+      this._processing = false
+    }
+  }
+
+  private async _deleteSourceIfCut(item: ConflictQueueItem, transferOk = true): Promise<void> {
     if (item.mode !== 'cut') return
+    // ★ 2026-08-10：传输未完整成功（取消/暂停/失败）时绝不删源，避免剪切数据丢失
+    if (!transferOk) {
+      log.warn('Cut source delete skipped: transfer not completed', item.fileName)
+      return
+    }
     const exec = this.ports.execution
     try {
       if (item.isSamePane) {
@@ -417,24 +495,60 @@ export class SftpConflictDetector implements ConflictDetectionPort {
     if (!session) return null
     const parentDir = path.posix.dirname(remotePath)
     const fileName = path.basename(remotePath)
-    try {
-      if (session.stat) {
-        const st = await session.stat(remotePath)
-        const remoteSize = st.size ?? 0
-        const remoteMtime = st.modified?.getTime?.() ?? (st.mtime ? st.mtime * 1000 : 0)
-        if (filesAreSame(localSize, localMtime, remoteSize, remoteMtime, this.mtimeToleranceMs)) return null
-        return buildUploadConflictInfo(remotePath, localPath, fileName, localSize, localMtime, remoteSize, remoteMtime)
+
+    let remoteSize: number | undefined
+    let remoteMtime: number | undefined
+
+    log.info('[check-upload-conflict] remotePath:', remotePath, 'localSize:', localSize, 'localMtime:', localMtime)
+
+    // 优先 stat（单文件元数据更准确）；兼容 size 为 bigint / undefined、mtime 单位差异
+    if (session.stat) {
+      try {
+        const st = await session.stat(remotePath) as any
+        log.info('[check-upload-conflict] stat result:', JSON.stringify(st))
+        const sz = st?.size ?? st?.attrs?.size
+        const szNum = sz != null ? Number(sz) : undefined
+        const mt = parseRemoteMtime(st)
+        if (szNum != null && Number.isFinite(szNum) && szNum >= 0) remoteSize = szNum
+        if (mt != null) remoteMtime = mt
+      } catch (e) {
+        log.warn('[check-upload-conflict] stat failed:', e)
       }
-      const entries = await session.readdir(parentDir)
-      const found = entries.find(e => e.name === fileName)
-      if (found) {
-        const remoteSize = found.size ?? 0
-        const remoteMtime = found.modified?.getTime?.() ?? 0
-        if (filesAreSame(localSize, localMtime, remoteSize, remoteMtime, this.mtimeToleranceMs)) return null
-        return buildUploadConflictInfo(remotePath, localPath, fileName, localSize, localMtime, remoteSize, remoteMtime)
+    }
+
+    // 回退/补全：父目录 listing（Tabby readdir 的 size/modified 更可靠）。
+    // stat 缺 size 或 mtime 时用 readdir 结果补全，避免读到 0 / 错误时间导致
+    // 冲突对话框显示错误的远程大小/修改时间（issue #8 现象）。
+    if (remoteSize == null || remoteMtime == null) {
+      try {
+        const entries = await session.readdir(parentDir)
+        const found = entries.find(e => e.name === fileName) as any
+        log.info('[check-upload-conflict] readdir found:', found)
+        if (found) {
+          if (remoteSize == null) {
+            const sz = found?.size ?? found?.attrs?.size
+            const szNum = sz != null ? Number(sz) : undefined
+            if (szNum != null && Number.isFinite(szNum)) remoteSize = szNum
+          }
+          if (remoteMtime == null) {
+            const mt = parseRemoteMtime(found)
+            if (mt != null) remoteMtime = mt
+          }
+        }
+      } catch (e) {
+        log.warn('[check-upload-conflict] readdir fallback failed:', e)
       }
-    } catch { /* 文件不存在或无权限，不冲突 */ }
-    return null
+    }
+
+    log.info('[check-upload-conflict] final remoteSize:', remoteSize, 'remoteMtime:', remoteMtime)
+
+    // 两个来源都无法确认远程文件存在 → 不冲突（按"不存在"处理，直接上传覆盖）
+    if (remoteSize == null) return null
+
+    const rs = remoteSize
+    const rm = remoteMtime ?? 0
+    if (filesAreSame(localSize, localMtime, rs, rm, this.mtimeToleranceMs)) return null
+    return buildUploadConflictInfo(remotePath, localPath, fileName, localSize, localMtime, rs, rm)
   }
 
   async checkLocalConflict(
@@ -456,8 +570,12 @@ export class SftpConflictDetector implements ConflictDetectionPort {
     if (!session) return false
     if (session.stat) {
       try {
-        await session.stat(remotePath)
-        return true
+        const st = await session.stat(remotePath) as { isDirectory?: () => boolean } | null
+        // ★ 2026-08-10 修复 #20：stat 分支同样尊重 expectDir，避免把同名文件误判为目录冲突
+        if (expectDir === undefined) return true
+        const isDir = st && typeof st.isDirectory === 'function' ? st.isDirectory() : undefined
+        if (isDir === undefined) return true // 无法判定类型时保守认为存在
+        return expectDir ? isDir : !isDir
       } catch { return false }
     }
     const parentDir = path.posix.dirname(remotePath)

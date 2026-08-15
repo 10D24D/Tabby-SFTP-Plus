@@ -2,8 +2,6 @@
  * 功能描述：SFTP+ file-utils 逻辑聚合模块（由旧 core 多文件合并）
  * 创建人：DD1024z + Hy3
  * 创建时间：2026-07-16
- * 修改人：DD1024z + Hy3
- * 修改时间：2026-07-16
  * 合并来源：file-type-utils, panel-list-utils, panel-format
  */
 

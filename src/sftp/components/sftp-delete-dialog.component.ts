@@ -1,16 +1,7 @@
 ﻿/**
  * SFTP+ 删除确认对话框（从主面板抽离）
  * 修改人：DD1024z + Hy3
- * 修改时间：2026-07-23
- *   新增 @Input toTrash：本地删除时提示"移入回收站"（绿色）或"永久删除不可恢复"（红色），
- *   与面板端 deleteToTrash 联动。
- * 修改人：DD1024z + Deepseek-V4-Pro
  * 修改时间：2026-07-24
- *   修复回车无法确认删除：overlay 加 tabindex="-1" 并在 visible 变 true 时自动 focus，
- *   使回车/Esc 的 keydown 能落到 onKeyDown（此前 overlay 不可聚焦，焦点在面板外，回车无响应）。
- * 修改人：DD1024z + Deepseek-V4-Pro
- * 修改时间：2026-07-24
- *   去掉 overlay 自动聚焦带来的浏览器默认黄色焦点轮廓（focus outline），避免删除框出现突兀黄色边框。
  */
 import { Component, ElementRef, EventEmitter, Input, OnChanges, Output, SimpleChanges, ViewChild } from '@angular/core'
 

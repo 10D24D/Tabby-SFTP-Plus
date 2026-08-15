@@ -3,17 +3,7 @@
  * 创建人：DD1024z + Hy3 preview
  * 创建时间：2026-06-21
  * 修改人：DD1024z + Hy3
- * 修改时间：2026-07-11
- *   修复"共N条只渲染1行"：trackBy 回退 index（旧日志缺 id 时多条折叠成1行）；
- *   根因修复见 sftp-transfer-log.service.ts（load/importLogs 为缺 id 的旧日志补 id）
- * 修改时间：2026-07-12
- *   真因修复"共N条只渲染1行"：根因是 formatSize 对字符串 size 调 .toFixed 抛 TypeError（见 panel-format.ts），
- *   非 trackBy/id 问题；trackBy 回退 index 保留作防御。移除临时探针。
- * 修改人：DD1024z + Hy3
- * 修改时间：2026-07-23
- *   状态图标按 pending 字段分支：进行中显示橙色沙漏 ⏳（带透明度脉动）+"传输中" 标签，
- *   隐藏耗时/速度（duration=0 算出 Infinity/NaN）；完成/失败才显 ✓/✗+耗时。
- *   修复"正在传输的内容在日志中显示下载成功"的体验问题。
+ * 修改时间：2026-08-03
  */
 import { Component, EventEmitter, Input, Output } from '@angular/core'
 
@@ -108,14 +98,14 @@ import { onFileDialogOverlayWheel, onFileDialogScrollableWheel } from './file-di
             </div>
             <div class="log-row-paths">
               <ng-container *ngIf="isUploadLike(entry); else downloadPaths">
-                <span class="log-path-line" [title]="entry.localPath">📁 {{ entry.localPath }}</span>
+                <span class="log-path-line" [title]="entry.localPath">🖥 {{ entry.localPath }}</span>
                 <span class="log-path-arrow">→</span>
-                <span class="log-path-line" [title]="entry.remotePath">☁️ {{ entry.remotePath }}</span>
+                <span class="log-path-line" [title]="entry.remotePath">🌐 {{ entry.remotePath }}</span>
               </ng-container>
               <ng-template #downloadPaths>
-                <span class="log-path-line" [title]="entry.remotePath">☁️ {{ entry.remotePath }}</span>
+                <span class="log-path-line" [title]="entry.remotePath">🌐 {{ entry.remotePath }}</span>
                 <span class="log-path-arrow">→</span>
-                <span class="log-path-line" [title]="entry.localPath">📁 {{ entry.localPath }}</span>
+                <span class="log-path-line" [title]="entry.localPath">🖥 {{ entry.localPath }}</span>
               </ng-template>
               <span class="log-time" *ngIf="entry.startTime">{{ formatLogTime(entry.timestamp) }}</span>
             </div>

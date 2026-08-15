@@ -433,11 +433,20 @@ msgstr "開啟"
 msgid "file.view"
 msgstr "檢視"
 
+msgid "file.viewAsText"
+msgstr "以文字方式檢視"
+
 msgid "file.edit"
 msgstr "編輯"
 
 msgid "file.copy"
 msgstr "複製"
+
+msgid "file.copied"
+msgstr "已複製"
+
+msgid "file.copySelection"
+msgstr "複製選取"
 
 msgid "file.cut"
 msgstr "剪下"
@@ -481,6 +490,9 @@ msgstr "無法載入檔案"
 msgid "viewer.binaryNotSupported"
 msgstr "該檔案為二進位制格式，無法以文本檢視或編輯"
 
+msgid "viewer.binaryShownAsText"
+msgstr "二進位內容以文字顯示（可能無法正確呈現）"
+
 msgid "viewer.tooLarge"
 msgstr "檔案過大，無法開啟"
 
@@ -489,6 +501,12 @@ msgstr "檔案過大（超過 {limit}），無法檢視"
 
 msgid "viewer.typeNotSupported"
 msgstr "不支援檢視此型別檔案"
+
+msgid "viewer.prevImage"
+msgstr "上一張"
+
+msgid "viewer.nextImage"
+msgstr "下一張"
 
 msgid "editor.save"
 msgstr "儲存"
@@ -812,7 +830,7 @@ msgid "settings.hideNativeBtn"
 msgstr "隱藏原生 SFTP 按鈕"
 
 msgid "settings.openInNewTab"
-msgstr "預設新標籤頁開啟"
+msgstr "預設新標籤頁開啟面板"
 
 msgid "settings.singleWorkspaceInstance"
 msgstr "只打開一個例項"
@@ -850,8 +868,8 @@ msgstr "儲存快捷鍵失敗"
 msgid "settings.hotkeyRecordTimeout"
 msgstr "錄製已超時，請重試"
 
-msgid "settings.compatibility"
-msgstr "相容性"
+msgid "settings.other"
+msgstr "功能性"
 
 msgid "settings.data"
 msgstr "資料"
@@ -1096,3 +1114,64 @@ msgstr "預覽"
 
 msgid "settings.dateFormatReset"
 msgstr "恢復預設"
+
+msgid "settings.defaultPathMode"
+msgstr "預設路徑模式"
+
+msgid "settings.pathModeOff"
+msgstr "關閉"
+
+msgid "settings.pathModeRemember"
+msgstr "路徑記憶"
+
+msgid "settings.pathModeSync"
+msgstr "與終端同步"
+
+msgid "settings.defaultShowHidden"
+msgstr "預設顯示隱藏檔案"
+
+msgid "settings.uploadConcurrency"
+msgstr "上傳並行數"
+
+msgid "settings.downloadConcurrency"
+msgstr "下載並行數"
+
+msgid "transfer.queued"
+msgstr "佇列中"
+
+
+msgid "settings.fastMode"
+msgstr "傳輸快速模式"
+
+msgid "settings.fastModeDesc"
+msgstr "傳輸目錄時略過大小預先掃描立即開始：啟動更快，但傳輸中無法計算總大小與百分比進度（只顯示已傳量）"
+
+msgid "file.sizeCalculate"
+msgstr "計算"
+
+msgid "file.sizeCalculating"
+msgstr "計算中…"
+
+msgid "file.sizeCalcFailed"
+msgstr "計算失敗"
+
+msgid "file.folderSizeDetail"
+msgstr "{size}（{count} 個檔案）"
+
+msgid "file.fileProperties"
+msgstr "檔案屬性"
+
+msgid "file.folderProperties"
+msgstr "資料夾屬性"
+
+msgid "settings.hideAuthorInfo"
+msgstr "隱藏外掛作者資訊"
+
+msgid "settings.hideAuthorConfirmText"
+msgstr "隱藏作者資訊前，請先為外掛倉庫點 Star 支持一下。倉庫頁面已在瀏覽器中打開。您的點讚支持是我開發的動力，感謝支持！🙏"
+
+msgid "settings.starredConfirm"
+msgstr "我已點 Star 支持"
+
+msgid "file.location"
+msgstr "位置"

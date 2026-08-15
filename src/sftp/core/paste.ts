@@ -48,10 +48,11 @@ export type PasteEntry = {
 }
 
 export interface PasteTransferPort {
-  uploadFile(remotePath: string, localPath: string): Promise<void>
-  downloadFile(remotePath: string, localPath: string, mode?: number, size?: number): Promise<void>
-  uploadDirectory(localSrc: string, remoteDestParent: string): Promise<void>
-  downloadDirectory(remoteSrc: string, localDestParent: string): Promise<void>
+  // ★ 2026-08-10：返回 boolean（true=完整成功），剪切粘贴删源前必须校验
+  uploadFile(remotePath: string, localPath: string): Promise<boolean>
+  downloadFile(remotePath: string, localPath: string, mode?: number, size?: number): Promise<boolean>
+  uploadDirectory(localSrc: string, remoteDestParent: string): Promise<boolean>
+  downloadDirectory(remoteSrc: string, localDestParent: string): Promise<boolean>
 }
 
 export interface PasteFsPort {
@@ -109,9 +110,15 @@ export class PasteUseCase {
     mode: 'copy' | 'cut',
   ): Promise<boolean> {
     for (const entry of entries) {
+      // ★ 2026-08-10 修复 #4：冲突预检同样净化文件名，防止 ../ 路径穿越参与落点计算
+      const safeName = safeEntryName(entry.name)
+      if (!safeName) {
+        log.warn('skip unsafe paste entry in scanConflicts:', entry.name)
+        continue
+      }
       const destFilePath = destPane === 'local'
-        ? path.join(destPath, entry.name)
-        : path.posix.join(destPath, entry.name)
+        ? path.join(destPath, safeName)
+        : path.posix.join(destPath, safeName)
 
       if (entry.isDirectory) {
         if (source === 'local' && destPane === 'remote') {
@@ -262,10 +269,21 @@ export class PasteUseCase {
   ): Promise<void> {
     if (entry.isDirectory) {
       await this.ports.transfer.uploadDirectory(srcPath, destPath)
+      // ★ 2026-08-10 修复 #1：剪切目录删源前校验目标已存在，避免传输失败/中断后本地源被误删
+      if (mode === 'cut') {
+        if (!await this.ports.conflict.checkRemotePathExists(destFilePath, true)) {
+          throw new Error('Cut-paste aborted: destination directory not found: ' + destFilePath)
+        }
+        await this.ports.fs.deleteLocalRecursive(srcPath)
+      }
     } else {
-      await this.ports.transfer.uploadFile(destFilePath, srcPath)
+      const ok = await this.ports.transfer.uploadFile(destFilePath, srcPath)
+      // ★ 2026-08-10 修复 #1：传输未完整成功（取消/暂停/失败）时绝不删本地源，避免数据丢失
+      if (mode === 'cut') {
+        if (!ok) throw new Error('Cut-paste aborted: upload not completed: ' + srcPath)
+        await this.ports.fs.deleteLocalRecursive(srcPath)
+      }
     }
-    if (mode === 'cut') await this.ports.fs.deleteLocalRecursive(srcPath)
   }
 
   private async _pasteRemoteToLocal(
@@ -295,11 +313,20 @@ export class PasteUseCase {
         return
       }
       await this.ports.transfer.downloadDirectory(srcPath, destPath)
+      // ★ 2026-08-10 修复 #1：剪切目录删远程源前校验本地目标已存在
+      if (mode === 'cut' && this.ports.ui.hasSftpSession()) {
+        if (!await this.ports.fs.localDirExists(destFilePath)) {
+          throw new Error('Cut-paste aborted: destination directory not found: ' + destFilePath)
+        }
+        await this.ports.fs.deleteRemoteRecursive(srcPath)
+      }
     } else {
-      await this.ports.transfer.downloadFile(srcPath, destFilePath, entry.mode, entry.size)
-    }
-    if (mode === 'cut' && this.ports.ui.hasSftpSession()) {
-      await this.ports.fs.deleteRemoteRecursive(srcPath)
+      const ok = await this.ports.transfer.downloadFile(srcPath, destFilePath, entry.mode, entry.size)
+      // ★ 2026-08-10 修复 #1：传输未完整成功时绝不删远程源，避免数据丢失
+      if (mode === 'cut' && this.ports.ui.hasSftpSession()) {
+        if (!ok) throw new Error('Cut-paste aborted: download not completed: ' + srcPath)
+        await this.ports.fs.deleteRemoteRecursive(srcPath)
+      }
     }
   }
 
@@ -348,10 +375,10 @@ export interface PanelPasteHost {
   i18n: { t(key: string, params?: Record<string, string | number>): string }
   notifications: { error?(msg: string, detail: string): void } | null
 
-  uploadFile(remotePath: string, localPath: string): Promise<void>
-  downloadFile(remotePath: string, localPath: string, mode?: number, size?: number): Promise<void>
-  uploadDirectory(localSrc: string, remoteDestParent: string): Promise<void>
-  downloadDirectory(remoteSrc: string, localDestParent: string): Promise<void>
+  uploadFile(remotePath: string, localPath: string): Promise<boolean>
+  downloadFile(remotePath: string, localPath: string, mode?: number, size?: number): Promise<boolean>
+  uploadDirectory(localSrc: string, remoteDestParent: string): Promise<boolean>
+  downloadDirectory(remoteSrc: string, localDestParent: string): Promise<boolean>
 
   checkRemotePathExists(remotePath: string, expectDir?: boolean): Promise<boolean>
   enqueueConflict(item: import('../core/panel-types').ConflictQueueItem): void
@@ -413,7 +440,7 @@ export class PanelPasteAdapter {
       mkdir: async (p: string) => { await (host.sftpSession as any).mkdir(p) },
       readdir: async (p: string) => {
         const entries = await (host.sftpSession as any).readdir(p)
-        return entries.map((e: any) => ({ name: e.name, isDirectory: !!e.isDirectory }))
+        return entries.map((e: any) => ({ name: e.name, isDirectory: !!e.isDirectory, isSymbolicLink: !!e.isSymbolicLink }))
       },
       download: (r: string, l: string) => host.downloadFile(r, l),
       upload: (r: string, l: string) => host.uploadFile(r, l),

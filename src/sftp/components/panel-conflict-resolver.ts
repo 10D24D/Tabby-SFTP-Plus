@@ -1,9 +1,18 @@
+/**
+ * 功能描述：SFTP+ 面板冲突弹窗解析器
+ *   负责把冲突队列首项渲染为 ConflictFileInfo，并在弹窗显示后异步用 stat
+ *   补正远程文件的真实大小与修改时间（readdir / 拖拽 payload 中的元数据不可靠）。
+ * 创建人：DD1024z + Hy3
+ * 创建时间：2026-07-11
+ * 修改人：DD1024z + Hy3
+ * 修改时间：2026-08-02 — B18：修复 stat 返回 mtime 为 number（秒）时误用 .getTime() 导致远程修改时间变成 1970-01-01；B19 增加 attrs 嵌套字段解析与诊断 log；B24：statMtimeToMs 过滤 Unix epoch 无效时间，避免目录正确 modified 被 stat 覆盖
+ */
 import * as fs from 'fs/promises'
 import * as path from 'path'
 
 import { ConflictResolveUseCase, type ConflictResolvePorts } from '../core/conflict'
 import { pasteEntryKey } from '../core/conflict'
-import type { ConflictFileInfo, ConflictQueueItem, LocalEntry, SFTPFile } from '../core/panel-types'
+import type { ConflictFileInfo, ConflictQueueItem, FolderTransferCtx, LocalEntry, SFTPFile } from '../core/panel-types'
 
 import { log } from '../../services/sftp-logger'
 type ConflictActionMode = 'ask' | 'overwrite' | 'skip' | 'rename'
@@ -45,12 +54,14 @@ export interface PanelConflictResolverHost {
     mode: 'copy' | 'cut',
     source: 'local' | 'remote',
   ): Promise<void>
-  doDownload(remotePath: string, localPath: string, mode?: number, size?: number): Promise<void>
-  doUpload(remotePath: string, localPath: string): Promise<void>
-  downloadRemoteDir(remoteDir: string, localDestDir: string, targetPane?: 'local' | 'remote', _top?: any, renameTo?: string): Promise<void>
-  mergeLocalDirToRemote(localSrc: string, remoteDest: string): Promise<void>
+  doDownload(remotePath: string, localPath: string, mode?: number, size?: number): Promise<boolean>
+  doUpload(remotePath: string, localPath: string): Promise<boolean>
+  downloadRemoteDir(remoteDir: string, localDestDir: string, targetPane?: 'local' | 'remote', _top?: any, renameTo?: string): Promise<boolean>
+  mergeLocalDirToRemote(localSrc: string, remoteDest: string, reuseLogEntryId?: string): Promise<boolean>
   copyLocalDir(src: string, dest: string): Promise<void>
   copyRemoteDir(srcRemotePath: string, destRemotePath: string, isDirectory: boolean): Promise<void>
+  /** ★ 2026-08-11：冲突解决成功后翻正来源传输记录（入队时已被误记失败） */
+  markTransferSucceeded(ctx: FolderTransferCtx): void
 }
 
 export { pasteEntryKey }
@@ -85,15 +96,22 @@ export class PanelConflictResolver {
       isSamePane: item.isSamePane ?? false,
       isDirectory: item.isDirectory ?? false,
     }
-    // 异步取远程文件的真值（readdir 元数据不可靠，必须用 stat）
+    // 异步取远程文件的真值（readdir / 拖拽 payload 中的元数据不可靠，必须用 stat）
     const remoteFilePath = item.remotePath || path.posix.join(item.remoteDir, item.fileName)
-    if (remoteFilePath && this.host.sftpSession) {
-      this.host.sftpSession.stat(remoteFilePath).then((st: any) => {
+    log.info('[conflict-dialog] initial remoteMtime:', item.remoteFileMtime, 'remotePath:', remoteFilePath, 'hasStat:', typeof (this.host.sftpSession as any)?.stat)
+    if (remoteFilePath && this.host.sftpSession && typeof (this.host.sftpSession as any).stat === 'function') {
+      (this.host.sftpSession as any).stat(remoteFilePath).then((st: any) => {
         if (!this.host.showConflictDialog || !this.host.conflictData || !st) return
-        this.host.conflictData.remoteSize = st.size ?? 0
-        this.host.conflictData.remoteMtime = st.mtime?.getTime?.() ?? st.modified?.getTime?.() ?? 0
+        log.info('[conflict-dialog] stat result:', JSON.stringify(st))
+        const sz = statSize(st)
+        if (sz != null) this.host.conflictData.remoteSize = sz
+        const mt = statMtimeToMs(st)
+        log.info('[conflict-dialog] parsed remoteMtime:', mt, 'from stat')
+        if (mt != null && mt > 0) this.host.conflictData.remoteMtime = mt
         this.host.cdr.detectChanges()
-      }).catch(() => {})
+      }).catch((e: any) => {
+        log.warn('[conflict-dialog] stat failed:', e?.message ?? e)
+      })
     }
     this.host.showConflictDialog = true
     this.host.cdr.detectChanges()
@@ -107,7 +125,7 @@ export class PanelConflictResolver {
     const host = this.host
     return {
       execution: {
-        mergeLocalDirToRemote: (localSrc, remoteDest) => host.mergeLocalDirToRemote(localSrc, remoteDest),
+        mergeLocalDirToRemote: (localSrc, remoteDest, reuseLogEntryId) => host.mergeLocalDirToRemote(localSrc, remoteDest, reuseLogEntryId),
         downloadRemoteDir: (remotePath, localDestParent, localName) =>
           host.downloadRemoteDir(remotePath, localDestParent, 'local', undefined, localName),
         doDownload: (remotePath, localPath, mode, size) => host.doDownload(remotePath, localPath, mode, size),
@@ -143,6 +161,8 @@ export class PanelConflictResolver {
         unlinkRemote: async (p) => {
           if (host.sftpSession) await host.sftpSession.unlink(p)
         },
+        // ★ 2026-08-11：覆盖/重命名成功后翻正被误记失败的来源传输记录
+        markTransferSucceeded: (ctx) => host.markTransferSucceeded(ctx),
       },
       pendingPaste: {
         hasPendingPaste: () => host.pendingPasteEntries.length > 0,
@@ -198,4 +218,34 @@ export class PanelConflictResolver {
       },
     }
   }
+}
+
+/** 从 sftpSession.stat() 结果中安全提取文件大小（兼容 bigint / attrs 嵌套 / undefined） */
+function statSize(st: any): number | undefined {
+  const v = st?.size ?? st?.attrs?.size
+  if (v == null) return undefined
+  const n = Number(v)
+  return Number.isFinite(n) && n >= 0 ? n : undefined
+}
+
+/** Unix epoch 阈值：小于此值的毫秒时间戳视为 1970-01-01 附近的无效时间 */
+const EPOCH_THRESHOLD_MS = 86400000
+
+/** 从 sftpSession.stat() 结果中安全提取修改时间（毫秒）。
+ *  兼容字段：modified(Date/number/string) > mtime(number) > attrs.mtime/attrs.modified。
+ *  SFTP 协议 mtime 为秒，数值小于 1e10 时乘 1000。
+ *  过滤落在 Unix epoch 附近的时间，避免 stat 对目录返回 1970-01-01 时覆盖已有的正确值。 */
+function statMtimeToMs(st: any): number | undefined {
+  const raw = st?.modified ?? st?.mtime ?? st?.mtimeMs ?? st?.attrs?.modified ?? st?.attrs?.mtime
+  if (raw instanceof Date) {
+    const t = raw.getTime()
+    return Number.isFinite(t) && t >= EPOCH_THRESHOLD_MS ? t : undefined
+  }
+  if (raw != null) {
+    const n = Number(raw)
+    if (!Number.isFinite(n) || n <= 0) return undefined
+    const ms = n < 1e10 ? n * 1000 : n
+    return ms >= EPOCH_THRESHOLD_MS ? ms : undefined
+  }
+  return undefined
 }

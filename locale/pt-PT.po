@@ -625,7 +625,7 @@ msgstr "Dica: Controlar através do menu de contexto do cabeçalho da lista de a
 msgid "settings.hideNativeBtn"
 msgstr "Ocultar botão SFTP nativo"
 msgid "settings.openInNewTab"
-msgstr "Abrir em nova aba por padrão"
+msgstr "Abrir o painel em nova aba por padrão"
 msgid "settings.singleWorkspaceInstance"
 msgstr "Apenas instância única"
 msgid "settings.hotkey"
@@ -651,8 +651,8 @@ msgid "settings.hotkeySaveFailed"
 msgstr "Falha ao salvar tecla de atalho"
 msgid "settings.hotkeyRecordTimeout"
 msgstr "Tempo de gravação esgotado, tente novamente"
-msgid "settings.compatibility"
-msgstr "Compatibilidade"
+msgid "settings.other"
+msgstr "Funcionalidades"
 msgid "settings.data"
 msgstr "Dados"
 msgid "settings.export"
@@ -881,3 +881,64 @@ msgstr "Pré-visualização"
 
 msgid "settings.dateFormatReset"
 msgstr "Repor predefinição"
+
+msgid "settings.defaultPathMode"
+msgstr "Modo de caminho predefinido"
+
+msgid "settings.pathModeOff"
+msgstr "Desativado"
+
+msgid "settings.pathModeRemember"
+msgstr "Memorizar caminho"
+
+msgid "settings.pathModeSync"
+msgstr "Sincronizar com o terminal"
+
+msgid "settings.defaultShowHidden"
+msgstr "Mostrar ficheiros ocultos por predefinição"
+
+msgid "settings.uploadConcurrency"
+msgstr "Envios simultâneos"
+
+msgid "settings.downloadConcurrency"
+msgstr "Descarregamentos simultâneos"
+
+msgid "transfer.queued"
+msgstr "Na fila"
+
+
+msgid "settings.fastMode"
+msgstr "Modo de transferência rápida"
+
+msgid "settings.fastModeDesc"
+msgstr "Inicia transferências de pastas imediatamente sem análise prévia: início mais rápido, mas o tamanho total e o progresso percentual não podem ser apresentados durante a transferência (apenas os bytes transferidos)"
+
+msgid "file.sizeCalculate"
+msgstr "Calcular"
+
+msgid "file.sizeCalculating"
+msgstr "A calcular…"
+
+msgid "file.sizeCalcFailed"
+msgstr "Falha no cálculo"
+
+msgid "file.folderSizeDetail"
+msgstr "{size} ({count} ficheiros)"
+
+msgid "file.fileProperties"
+msgstr "Propriedades do ficheiro"
+
+msgid "file.folderProperties"
+msgstr "Propriedades da pasta"
+
+msgid "settings.hideAuthorInfo"
+msgstr "Ocultar informações do autor do plugin"
+
+msgid "settings.hideAuthorConfirmText"
+msgstr "Antes de ocultar as informações do autor, dê uma estrela ao repositório do plugin. A página do repositório foi aberta no navegador. A sua estrela é a minha motivação para desenvolver — obrigado pelo apoio! 🙏"
+
+msgid "settings.starredConfirm"
+msgstr "Já dei a minha estrela"
+
+msgid "file.location"
+msgstr "Localização"

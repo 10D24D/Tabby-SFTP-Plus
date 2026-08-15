@@ -621,7 +621,7 @@ msgstr "Savet: upravljajte preko desnog klika na zaglavlje liste datoteka"
 msgid "settings.hideNativeBtn"
 msgstr "Sakrij izvorni SFTP dugme"
 msgid "settings.openInNewTab"
-msgstr "Otvori u novoj kartici prema podrazumevanom"
+msgstr "Otvori panel u novoj kartici prema podrazumevanom"
 msgid "settings.singleWorkspaceInstance"
 msgstr "Samo jedna instanca"
 msgid "settings.hotkey"
@@ -648,8 +648,8 @@ msgid "settings.hotkeySaveFailed"
 msgstr "Čuvanje prečice nije uspelo"
 msgid "settings.hotkeyRecordTimeout"
 msgstr "Snimanje je isteklo, pokušajte ponovo"
-msgid "settings.compatibility"
-msgstr "Kompatibilnost"
+msgid "settings.other"
+msgstr "Funkcionalnost"
 msgid "settings.data"
 msgstr "Podaci"
 msgid "settings.export"
@@ -878,3 +878,64 @@ msgstr "Pregled"
 
 msgid "settings.dateFormatReset"
 msgstr "Vrati na podrazumevano"
+
+msgid "settings.defaultPathMode"
+msgstr "Podrazumevani režim putanje"
+
+msgid "settings.pathModeOff"
+msgstr "Isključeno"
+
+msgid "settings.pathModeRemember"
+msgstr "Zapamti putanju"
+
+msgid "settings.pathModeSync"
+msgstr "Sinhronizacija sa terminalom"
+
+msgid "settings.defaultShowHidden"
+msgstr "Podrazumevano prikaži skrivene datoteke"
+
+msgid "settings.uploadConcurrency"
+msgstr "Istovremena slanja"
+
+msgid "settings.downloadConcurrency"
+msgstr "Istovremena preuzimanja"
+
+msgid "transfer.queued"
+msgstr "U redu čekanja"
+
+
+msgid "settings.fastMode"
+msgstr "Brzi režim prenosa"
+
+msgid "settings.fastModeDesc"
+msgstr "Pokreće prenos fascikli odmah bez prethodnog skeniranja: brži početak, ali ukupna veličina i procenat napretka ne mogu se prikazati tokom prenosa (samo preneseni bajtovi)"
+
+msgid "file.sizeCalculate"
+msgstr "Izračunaj"
+
+msgid "file.sizeCalculating"
+msgstr "Izračunavanje…"
+
+msgid "file.sizeCalcFailed"
+msgstr "Izračunavanje nije uspelo"
+
+msgid "file.folderSizeDetail"
+msgstr "{size} ({count} datoteka)"
+
+msgid "file.fileProperties"
+msgstr "Svojstva datoteke"
+
+msgid "file.folderProperties"
+msgstr "Svojstva fascikle"
+
+msgid "settings.hideAuthorInfo"
+msgstr "Sakrij podatke o autoru dodatka"
+
+msgid "settings.hideAuthorConfirmText"
+msgstr "Pre skrivanja podataka o autoru, dajte zvezdicu repozitorijumu dodatka. Stranica repozitorijuma otvorena je u pregledaču. Vaša zvezdica je moja motivacija za razvoj — hvala na podršci! 🙏"
+
+msgid "settings.starredConfirm"
+msgstr "Dao/la sam zvezdicu"
+
+msgid "file.location"
+msgstr "Lokacija"

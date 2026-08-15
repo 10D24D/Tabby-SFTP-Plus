@@ -55,6 +55,9 @@ export type ConflictQueueItem = {
   entryKey?: string
   /** 操作模式：copy 或 cut（剪切模式下操作成功后需删除源文件） */
   mode?: 'copy' | 'cut'
+  /** ★ 2026-08-11：来源传输的上下文（目录传输冲突入队时携带）——冲突解决前条目
+   *  已被 finish(false) 记失败，覆盖/重命名成功后用它把传输记录翻正 */
+  transferCtx?: FolderTransferCtx
 }
 
 export type FolderTransferCtx = {
@@ -79,6 +82,8 @@ export type PanelTransferItem = {
   bytesDone: number
   bytesTotal: number
   paused: boolean
+  /** ★ 2026-08-10：排队占位条目（多选拖拽/下载预注册，尚未真正开始传输） */
+  queued?: boolean
   logEntryId?: string
   isFolder?: boolean
   currentItem?: string

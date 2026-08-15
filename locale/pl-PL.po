@@ -804,7 +804,7 @@ msgid "settings.hideNativeBtn"
 msgstr "Ukryj natywny przycisk SFTP"
 
 msgid "settings.openInNewTab"
-msgstr "Otwórz w nowej karcie domyślnie"
+msgstr "Otwieraj panel w nowej karcie domyślnie"
 
 msgid "settings.singleWorkspaceInstance"
 msgstr "Tylko pojedyncza instancja"
@@ -842,8 +842,8 @@ msgstr "Nie udało się zapisać hotkey"
 msgid "settings.hotkeyRecordTimeout"
 msgstr "Nagrywanie przekroczyło czas, spróbuj ponownie"
 
-msgid "settings.compatibility"
-msgstr "Kompatybilność"
+msgid "settings.other"
+msgstr "Funkcjonalność"
 
 msgid "settings.data"
 msgstr "Dane"
@@ -1087,3 +1087,64 @@ msgstr "Podgląd"
 
 msgid "settings.dateFormatReset"
 msgstr "Przywróć domyślne"
+
+msgid "settings.defaultPathMode"
+msgstr "Domyślny tryb ścieżki"
+
+msgid "settings.pathModeOff"
+msgstr "Wyłączone"
+
+msgid "settings.pathModeRemember"
+msgstr "Zapamiętaj ścieżkę"
+
+msgid "settings.pathModeSync"
+msgstr "Synchronizuj z terminalem"
+
+msgid "settings.defaultShowHidden"
+msgstr "Domyślnie pokazuj ukryte pliki"
+
+msgid "settings.uploadConcurrency"
+msgstr "Jednoczesne wysyłania"
+
+msgid "settings.downloadConcurrency"
+msgstr "Jednoczesne pobierania"
+
+msgid "transfer.queued"
+msgstr "W kolejce"
+
+
+msgid "settings.fastMode"
+msgstr "Tryb szybkiego transferu"
+
+msgid "settings.fastModeDesc"
+msgstr "Rozpoczyna transfer katalogów natychmiast bez wcześniejszego skanowania: szybszy start, ale rozmiar całkowity i postęp procentowy nie mogą być pokazane podczas transferu (tylko przesłane bajty)"
+
+msgid "file.sizeCalculate"
+msgstr "Oblicz"
+
+msgid "file.sizeCalculating"
+msgstr "Obliczanie…"
+
+msgid "file.sizeCalcFailed"
+msgstr "Obliczanie nie powiodło się"
+
+msgid "file.folderSizeDetail"
+msgstr "{size} ({count} plików)"
+
+msgid "file.fileProperties"
+msgstr "Właściwości pliku"
+
+msgid "file.folderProperties"
+msgstr "Właściwości folderu"
+
+msgid "settings.hideAuthorInfo"
+msgstr "Ukryj informacje o autorze wtyczki"
+
+msgid "settings.hideAuthorConfirmText"
+msgstr "Przed ukryciem informacji o autorze dodaj gwiazdkę repozytorium wtyczki. Strona repozytorium została otwarta w przeglądarce. Twoja gwiazdka to moja motywacja do rozwoju — dziękuję za wsparcie! 🙏"
+
+msgid "settings.starredConfirm"
+msgstr "Dodałem/am gwiazdkę"
+
+msgid "file.location"
+msgstr "Lokalizacja"

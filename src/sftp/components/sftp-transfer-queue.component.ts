@@ -27,19 +27,21 @@ import { formatPercent, formatSize } from '../core/file-utils'
             <span *ngIf="t.isFolder">📁</span>
             <span>{{ t.name }}</span>
             <span class="transfer-size" *ngIf="t.bytesTotal > 0">{{ formatSize(t.bytesTotal) }}</span>
+            <span class="transfer-size" *ngIf="!(t.bytesTotal > 0) && t.bytesDone > 0">{{ formatSize(t.bytesDone) }}</span>
             <span class="paused-tag" *ngIf="t.paused">{{ i18n.t('transfer.paused') }}</span>
+            <span class="queued-tag" *ngIf="t.queued" title="{{ i18n.t('transfer.queued') }}">⏳</span>
           </div>
           <div class="transfer-sub" *ngIf="t.isFolder && t.currentItem">
-            {{ t.currentItem }}<span *ngIf="t.currentItemSize != null">  {{ formatSize(t.currentItemSize) }}</span> ({{ t.itemDone }}/{{ t.itemCount }})
+            {{ t.currentItem }}<span *ngIf="t.currentItemSize != null">  {{ formatSize(t.currentItemSize) }}</span> ({{ t.itemDone }}{{ t.itemCount > 0 ? '/' + t.itemCount : '' }})
           </div>
           <div class="bar"><div class="fill" [style.width.%]="t.percent"></div></div>
         </div>
         <div class="transfer-stats">
-          <span>{{ t.speed || '--' }}</span>
-          <span>{{ formatPercent(t.percent) }}%</span>
-          <button *ngIf="!t.paused" class="btn-pause" (click)="pause.emit(t)" title="{{ i18n.t('transfer.pause') }}">⏸</button>
+          <span>{{ t.queued ? '--' : (t.speed || '--') }}</span>
+          <span>{{ t.bytesTotal > 0 ? formatPercent(t.percent) + '%' : '--' }}</span>
+          <button *ngIf="!t.paused && !t.queued" class="btn-pause" (click)="pause.emit(t)" title="{{ i18n.t('transfer.pause') }}">⏸</button>
           <button *ngIf="t.paused" class="btn-resume" (click)="resume.emit(t)" title="{{ i18n.t('transfer.resume') }}">▶</button>
-          <button *ngIf="t.isFolder" class="btn-cancel-current" (click)="cancelCurrent.emit(t)" title="{{ i18n.t('transfer.cancelCurrent') }}">⏹</button>
+          <button *ngIf="t.isFolder && !t.queued" class="btn-cancel-current" (click)="cancelCurrent.emit(t)" title="{{ i18n.t('transfer.cancelCurrent') }}">⏹</button>
           <button *ngIf="!t.isFolder" class="btn-cancel" (click)="cancel.emit(t)" title="{{ i18n.t('transfer.cancel') }}">⏹</button>
           <button *ngIf="t.isFolder" class="btn-cancel" (click)="cancel.emit(t)" title="{{ i18n.t('transfer.cancelAll') }}">✕</button>
         </div>
@@ -59,6 +61,7 @@ import { formatPercent, formatSize } from '../core/file-utils'
       scrollbar-width: thin;
       scrollbar-color: var(--_scroll-thumb, rgba(128,128,128,0.35)) var(--_scroll-track, rgba(128,128,128,0.06));
       position: relative; z-index: 5;
+      overscroll-behavior: contain;
     }
     .transfer {
       display: grid; grid-template-columns: 1fr auto; gap: 8px;
@@ -83,10 +86,16 @@ import { formatPercent, formatSize } from '../core/file-utils'
     .btn-pause { color: var(--_primary); }
     .btn-resume { color: #22c55e; }
     .paused-tag { font-size: 10px; color: #f59e0b; font-weight: 600; margin-left: 4px; }
+    .queued-tag { font-size: 10px; opacity: 0.7; margin-left: 4px; }
     .transfer-header {
       display: flex; align-items: center; justify-content: space-between;
       padding: 2px 8px; font-size: 12px; font-weight: 600;
-      background: var(--_surface); border-radius: 6px 6px 0 0;
+      /* 列表内部滚动时标题栏固定不跟随滚动；底色必须不透明：
+         --_surface 为半透明灰，直接叠加会让滚动中的条目透过来 */
+      position: sticky; top: 0; z-index: 2;
+      border-radius: 6px 6px 0 0;
+      background: linear-gradient(var(--_surface), var(--_surface)),
+                  linear-gradient(var(--_content, #f9fafb), var(--_content, #f9fafb));
     }
     .transfer-header button { background: none; border: none; cursor: pointer; font-size: 14px; opacity: 0.6; padding: 0; line-height: 1; }
     .transfer-header button:hover { opacity: 1; }

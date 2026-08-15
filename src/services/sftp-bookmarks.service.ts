@@ -69,6 +69,14 @@ export class SftpBookmarksService {
       try {
         const target = this.configService.store['tabby-sftp-plus']
         if (target) {
+          // ★ 2026-08-10 修复 #7：按 id 合并后再写，保留其它实例/窗口新增的条目，
+          //   避免整体覆盖丢失（本实例的同 id 条目以本实例为准）
+          const stored: Bookmark[] = Array.isArray(target.bookmarks) ? target.bookmarks : []
+          const merged = new Map<string, Bookmark>(this.bookmarks.filter(b => b?.id).map(b => [b.id, b]))
+          for (const b of stored) {
+            if (b?.id && !merged.has(b.id)) merged.set(b.id, b)
+          }
+          this.bookmarks = [...merged.values()]
           target.bookmarks = this.bookmarks
           this.configService.save()
           return

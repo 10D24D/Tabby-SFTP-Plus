@@ -794,7 +794,7 @@ msgid "settings.hideNativeBtn"
 msgstr "Ocultar botão SFTP nativo"
 
 msgid "settings.openInNewTab"
-msgstr "Abrir em nova aba por padrão"
+msgstr "Abrir o painel em nova aba por padrão"
 
 msgid "settings.singleWorkspaceInstance"
 msgstr "Apenas instância única"
@@ -832,8 +832,8 @@ msgstr "Falha ao salvar tecla de atalho"
 msgid "settings.hotkeyRecordTimeout"
 msgstr "Tempo de gravação esgotado, tente novamente"
 
-msgid "settings.compatibility"
-msgstr "Compatibilidade"
+msgid "settings.other"
+msgstr "Funcionalidades"
 
 msgid "settings.data"
 msgstr "Dados"
@@ -1086,3 +1086,64 @@ msgstr "Pré-visualização"
 
 msgid "settings.dateFormatReset"
 msgstr "Redefinir para padrão"
+
+msgid "settings.defaultPathMode"
+msgstr "Modo de caminho padrão"
+
+msgid "settings.pathModeOff"
+msgstr "Desativado"
+
+msgid "settings.pathModeRemember"
+msgstr "Lembrar caminho"
+
+msgid "settings.pathModeSync"
+msgstr "Sincronizar com o terminal"
+
+msgid "settings.defaultShowHidden"
+msgstr "Mostrar arquivos ocultos por padrão"
+
+msgid "settings.uploadConcurrency"
+msgstr "Uploads simultâneos"
+
+msgid "settings.downloadConcurrency"
+msgstr "Downloads simultâneos"
+
+msgid "transfer.queued"
+msgstr "Na fila"
+
+
+msgid "settings.fastMode"
+msgstr "Modo de transferência rápida"
+
+msgid "settings.fastModeDesc"
+msgstr "Inicia transferências de pastas imediatamente sem verificação prévia: início mais rápido, mas o tamanho total e o progresso percentual não podem ser exibidos durante a transferência (apenas os bytes transferidos)"
+
+msgid "file.sizeCalculate"
+msgstr "Calcular"
+
+msgid "file.sizeCalculating"
+msgstr "Calculando…"
+
+msgid "file.sizeCalcFailed"
+msgstr "Falha no cálculo"
+
+msgid "file.folderSizeDetail"
+msgstr "{size} ({count} arquivos)"
+
+msgid "file.fileProperties"
+msgstr "Propriedades do arquivo"
+
+msgid "file.folderProperties"
+msgstr "Propriedades da pasta"
+
+msgid "settings.hideAuthorInfo"
+msgstr "Ocultar informações do autor do plugin"
+
+msgid "settings.hideAuthorConfirmText"
+msgstr "Antes de ocultar as informações do autor, dê uma estrela ao repositório do plugin. A página do repositório foi aberta no navegador. Sua estrela é minha motivação para desenvolver — obrigado pelo apoio! 🙏"
+
+msgid "settings.starredConfirm"
+msgstr "Já dei minha estrela"
+
+msgid "file.location"
+msgstr "Localização"

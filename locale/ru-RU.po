@@ -801,7 +801,7 @@ msgid "settings.hideNativeBtn"
 msgstr "Скрыть нативную кнопку SFTP"
 
 msgid "settings.openInNewTab"
-msgstr "Открывать по умолчанию в новой вкладке"
+msgstr "Открывать панель по умолчанию в новой вкладке"
 
 msgid "settings.singleWorkspaceInstance"
 msgstr "Только один экземпляр"
@@ -839,8 +839,8 @@ msgstr "Не удалось сохранить горячую клавишу"
 msgid "settings.hotkeyRecordTimeout"
 msgstr "Время записи истекло, попробуйте снова"
 
-msgid "settings.compatibility"
-msgstr "Совместимость"
+msgid "settings.other"
+msgstr "Функциональность"
 
 msgid "settings.data"
 msgstr "Данные"
@@ -1094,3 +1094,64 @@ msgstr "Предпросмотр"
 
 msgid "settings.dateFormatReset"
 msgstr "Сбросить по умолчанию"
+
+msgid "settings.defaultPathMode"
+msgstr "Режим пути по умолчанию"
+
+msgid "settings.pathModeOff"
+msgstr "Выкл."
+
+msgid "settings.pathModeRemember"
+msgstr "Запоминать путь"
+
+msgid "settings.pathModeSync"
+msgstr "Синхронизация с терминалом"
+
+msgid "settings.defaultShowHidden"
+msgstr "Показывать скрытые файлы по умолчанию"
+
+msgid "settings.uploadConcurrency"
+msgstr "Одновременные выгрузки"
+
+msgid "settings.downloadConcurrency"
+msgstr "Одновременные загрузки"
+
+msgid "transfer.queued"
+msgstr "В очереди"
+
+
+msgid "settings.fastMode"
+msgstr "Быстрый режим передачи"
+
+msgid "settings.fastModeDesc"
+msgstr "Запускает передачу папок сразу без предварительного сканирования: быстрее старт, но общий размер и процент выполнения нельзя показать во время передачи (только переданный объём)"
+
+msgid "file.sizeCalculate"
+msgstr "Вычислить"
+
+msgid "file.sizeCalculating"
+msgstr "Вычисление…"
+
+msgid "file.sizeCalcFailed"
+msgstr "Ошибка вычисления"
+
+msgid "file.folderSizeDetail"
+msgstr "{size} ({count} файлов)"
+
+msgid "file.fileProperties"
+msgstr "Свойства файла"
+
+msgid "file.folderProperties"
+msgstr "Свойства папки"
+
+msgid "settings.hideAuthorInfo"
+msgstr "Скрыть информацию об авторе плагина"
+
+msgid "settings.hideAuthorConfirmText"
+msgstr "Прежде чем скрыть информацию об авторе, поставьте звезду репозиторию плагина. Страница репозитория открыта в браузере. Ваша звезда — моя мотивация развивать проект. Спасибо за поддержку! 🙏"
+
+msgid "settings.starredConfirm"
+msgstr "Я поставил(а) звезду"
+
+msgid "file.location"
+msgstr "Расположение"

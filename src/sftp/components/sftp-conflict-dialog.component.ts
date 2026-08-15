@@ -1,5 +1,10 @@
 ﻿/**
  * SFTP+ 文件冲突对话框（从主面板抽离）
+ * 功能描述：上传/下载覆盖冲突确认对话框，展示本地/远程两侧文件大小、修改时间、路径供用户选择
+ * 创建人：DD1024z + Hy3
+ * 创建时间：2026-07-16
+ * 修改人：DD1024z + Hy3
+ * 修改时间：2026-08-02 — conflict-side-title 图标：远程侧 ☁️→🌐、本地侧 📁→🖥
  */
 import { Component, EventEmitter, Input, Output } from '@angular/core'
 
@@ -15,7 +20,12 @@ import { formatDate, formatSize } from '../core/file-utils'
         <div class="conflict-header">
           <span class="conflict-title-icon">⚠️</span>
           <span class="conflict-title-text">{{ i18n.t('conflict.title') }}</span>
-          <span class="conflict-progress" *ngIf="totalIdx > 1">冲突 {{ currIdx }} / {{ totalIdx }}</span>
+          <!-- ★ 2026-08-11：方向徽章——一眼分辨是上传（本地→远程）还是下载（远程→本地）冲突 -->
+          <span class="conflict-direction" *ngIf="directionLabel"
+            [class.dir-upload]="data.direction !== 'download'"
+            [class.dir-download]="data.direction === 'download'">{{ directionLabel }}</span>
+          <!-- ★ 2026-08-10 修复 #24：去掉硬编码中文"冲突"，用语言中性的序号进度（标题已译） -->
+          <span class="conflict-progress" *ngIf="totalIdx > 1">{{ currIdx }} / {{ totalIdx }}</span>
         </div>
         <div class="conflict-desc">
           <span *ngIf="data.isDirectory">📁</span><span *ngIf="!data.isDirectory">📄</span>
@@ -29,7 +39,7 @@ import { formatDate, formatSize } from '../core/file-utils'
         </div>
         <div class="conflict-compare">
           <div class="conflict-side conflict-side-remote">
-            <div class="conflict-side-title">{{ data.isSamePane ? '📄 ' + i18n.t('conflict.sourceFile') : '☁️ ' + i18n.t('conflict.remoteFile') }}</div>
+            <div class="conflict-side-title">{{ data.isSamePane ? '📄 ' + i18n.t('conflict.sourceFile') : '🌐 ' + i18n.t('conflict.remoteFile') }}</div>
             <div class="conflict-file-info">
               <div class="conflict-info-row" [class.conflict-diff]="data.localSize !== data.remoteSize">
                 <span class="conflict-label">{{ i18n.t('conflict.size') }}</span>
@@ -53,7 +63,7 @@ import { formatDate, formatSize } from '../core/file-utils'
             <span class="conflict-vs-line"></span>
           </div>
           <div class="conflict-side conflict-side-local">
-            <div class="conflict-side-title">{{ data.isSamePane ? '📂 ' + i18n.t('conflict.targetFileExists') : '📁 ' + i18n.t('conflict.localFile') }}</div>
+            <div class="conflict-side-title">{{ data.isSamePane ? '📂 ' + i18n.t('conflict.targetFileExists') : '🖥 ' + i18n.t('conflict.localFile') }}</div>
             <div class="conflict-file-info">
               <div class="conflict-info-row" [class.conflict-diff]="data.localSize !== data.remoteSize">
                 <span class="conflict-label">{{ i18n.t('conflict.size') }}</span>
@@ -111,6 +121,9 @@ import { formatDate, formatSize } from '../core/file-utils'
       border-radius: 10px; background: var(--_input-bg, rgba(128,128,128,0.08));
       color: var(--_text); opacity: 0.65; font-weight: 500;
     }
+    .conflict-direction { font-size: 11px; padding: 2px 10px; border-radius: 10px; font-weight: 600; white-space: nowrap; }
+    .dir-upload { background: rgba(76,175,80,0.15); color: #4caf50; }
+    .dir-download { background: rgba(33,150,243,0.15); color: #2196f3; }
     .conflict-desc {
       font-size: 13px; color: var(--_text); opacity: 0.8;
       margin-bottom: 16px; word-break: break-all; padding: 0 2px;
@@ -167,6 +180,18 @@ export class SftpConflictDialogComponent {
 
   formatSize = formatSize
   formatDate = formatDate
+
+  /** ★ 2026-08-11：冲突方向标签（复用既有键拼装，无需新 i18n）：
+   *  上传 → 「⬆ 上传：本地 → 远程」；下载 → 「⬇ 下载：远程 → 本地」；同面板冲突不显示 */
+  get directionLabel(): string {
+    const d = this.data
+    if (!d || d.isSamePane) return ''
+    const local = this.i18n.t('pane.local')
+    const remote = this.i18n.t('pane.remote')
+    return d.direction === 'download'
+      ? `⬇ ${this.i18n.t('transfer.download')}：${remote} → ${local}`
+      : `⬆ ${this.i18n.t('transfer.upload')}：${local} → ${remote}`
+  }
 
   @Input() i18n!: SftpI18nService
 }

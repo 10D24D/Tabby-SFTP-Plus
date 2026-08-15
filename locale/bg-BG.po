@@ -623,7 +623,7 @@ msgstr "Съвет: Управлявайте чрез десен клик вър
 msgid "settings.hideNativeBtn"
 msgstr "Скрий вградения SFTP бутон"
 msgid "settings.openInNewTab"
-msgstr "Отваряй в нов раздел по подразбиране"
+msgstr "Отваряй панела в нов раздел по подразбиране"
 msgid "settings.singleWorkspaceInstance"
 msgstr "Само една инстанция"
 msgid "settings.hotkey"
@@ -650,8 +650,8 @@ msgid "settings.hotkeySaveFailed"
 msgstr "Неуспешен запис на бърз клавиш"
 msgid "settings.hotkeyRecordTimeout"
 msgstr "Записът изтече, опитайте отново"
-msgid "settings.compatibility"
-msgstr "Съвместимост"
+msgid "settings.other"
+msgstr "Функционалност"
 msgid "settings.data"
 msgstr "Данни"
 msgid "settings.export"
@@ -880,3 +880,64 @@ msgstr "Преглед"
 
 msgid "settings.dateFormatReset"
 msgstr "Възстанови по подразбиране"
+
+msgid "settings.defaultPathMode"
+msgstr "Режим на пътя по подразбиране"
+
+msgid "settings.pathModeOff"
+msgstr "Изкл."
+
+msgid "settings.pathModeRemember"
+msgstr "Запомняне на пътя"
+
+msgid "settings.pathModeSync"
+msgstr "Синхронизиране с терминала"
+
+msgid "settings.defaultShowHidden"
+msgstr "Показване на скритите файлове по подразбиране"
+
+msgid "settings.uploadConcurrency"
+msgstr "Едновременни качвания"
+
+msgid "settings.downloadConcurrency"
+msgstr "Едновременни изтегляния"
+
+msgid "transfer.queued"
+msgstr "На опашка"
+
+
+msgid "settings.fastMode"
+msgstr "Бърз режим на пренос"
+
+msgid "settings.fastModeDesc"
+msgstr "Започва преноса на папки веднага без предварително сканиране: по-бързо стартиране, но общият размер и процентът на напредък не могат да се покажат по време на преноса (само пренесените байтове)"
+
+msgid "file.sizeCalculate"
+msgstr "Изчисли"
+
+msgid "file.sizeCalculating"
+msgstr "Изчисляване…"
+
+msgid "file.sizeCalcFailed"
+msgstr "Изчислението е неуспешно"
+
+msgid "file.folderSizeDetail"
+msgstr "{size} ({count} файла)"
+
+msgid "file.fileProperties"
+msgstr "Свойства на файла"
+
+msgid "file.folderProperties"
+msgstr "Свойства на папката"
+
+msgid "settings.hideAuthorInfo"
+msgstr "Скрий информацията за автора на плъгина"
+
+msgid "settings.hideAuthorConfirmText"
+msgstr "Преди да скриете информацията за автора, моля, дайте звезда на хранилището на плъгина. Страницата на хранилището е отворена в браузъра. Вашата звезда е моята мотивация да разработвам — благодаря за подкрепата! 🙏"
+
+msgid "settings.starredConfirm"
+msgstr "Дадох звезда"
+
+msgid "file.location"
+msgstr "Местоположение"

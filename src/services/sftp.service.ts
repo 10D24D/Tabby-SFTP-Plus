@@ -233,6 +233,21 @@ export class SftpConnectionService {
     }
     const SFTP_OPEN_TIMEOUT_MS = 30_000
     const openPromise = sshSession.openSFTP()
+    // ★ 2026-08-10 修复 #15：超时/被取代后，迟到的通道若仍开成功必须主动释放，否则泄漏。
+    //   consumed 记录已被 race 消费（安装或 end）的通道实例，后注册的回调先比对再决定是否 end，
+    //   避免微任务顺序误杀正常通道
+    let consumed: SFTPSessionLike | null = null
+    const raceWinner = openPromise.then((s) => { consumed = s; return s })
+    openPromise.then((late) => {
+      if (consumed === late) return
+      log.warn('late SFTP channel arrived after timeout/supersede, ending it')
+      try {
+        const endResult = (late as { end?: () => unknown }).end?.()
+        if (endResult && typeof (endResult as Promise<unknown>).catch === 'function') {
+          (endResult as Promise<unknown>).catch(() => {})
+        }
+      } catch { /* ignore */ }
+    }).catch(() => { /* open 失败无需处理 */ })
     let timeoutId: ReturnType<typeof setTimeout> | undefined
     const timeoutPromise = new Promise<never>((_, reject) => {
       timeoutId = setTimeout(() => {
@@ -240,12 +255,11 @@ export class SftpConnectionService {
         reject(new Error(`SFTP open timed out after ${SFTP_OPEN_TIMEOUT_MS}ms`))
       }, SFTP_OPEN_TIMEOUT_MS)
     })
-    const promise = Promise.race([openPromise, timeoutPromise])
+    const promise = Promise.race([raceWinner, timeoutPromise])
     this.pending.set(sshSession, promise)
     try {
       const sftpSession = await promise
       // ★ 修复：成功连接后清除超时计时器，避免超时回调在已成功的连接上触发
-      if (timeoutId != null) clearTimeout(timeoutId)
       if (this.getGen(sshSession) !== gen) {
         try {
           const endResult = (sftpSession as { end?: () => unknown }).end?.()
@@ -260,12 +274,18 @@ export class SftpConnectionService {
       this._addRef(sshSession) // ★ B5：首个引用
       return sftpSession
     } finally {
+      // ★ 2026-08-10 修复 #15：无论成败都清理超时定时器，不得只在成功路径清
+      if (timeoutId != null) clearTimeout(timeoutId)
       this.pending.delete(sshSession)
     }
   }
 
   closeForSSHSession(sshSession: SSHSessionLike): void {
     this.pending.delete(sshSession)
+    // ★ 2026-08-10 修复 #6：关闭时立即 bumpGen（而非仅引用归零时）——
+    //   若此刻仍有 pending 的 openSFTP，其迟到结果会因 gen 失配被 end() 释放，
+    //   否则通道既未注册也无人关闭 → 泄漏
+    this.bumpGen(sshSession)
     const sftp = this.sessions.get(sshSession)
     if (!sftp) return
     // ★ B5：引用计数——仅当引用归零才真正结束通道
@@ -276,7 +296,6 @@ export class SftpConnectionService {
     }
     this.refCounts.delete(sshSession)
     this.sessions.delete(sshSession)
-    this.bumpGen(sshSession) // ★ 仅真正关闭时使旧的待连接失效
     try {
       const result = (sftp as { end?: () => unknown }).end?.()
       if (result && typeof (result as Promise<unknown>).catch === 'function') {

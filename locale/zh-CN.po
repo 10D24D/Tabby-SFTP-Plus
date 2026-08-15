@@ -440,11 +440,20 @@ msgstr "打开"
 msgid "file.view"
 msgstr "查看"
 
+msgid "file.viewAsText"
+msgstr "以文本方式查看"
+
 msgid "file.edit"
 msgstr "编辑"
 
 msgid "file.copy"
 msgstr "复制"
+
+msgid "file.copied"
+msgstr "已复制"
+
+msgid "file.copySelection"
+msgstr "复制选中"
 
 msgid "file.cut"
 msgstr "剪切"
@@ -488,6 +497,9 @@ msgstr "无法加载文件"
 msgid "viewer.binaryNotSupported"
 msgstr "该文件为二进制格式，无法以文本查看或编辑"
 
+msgid "viewer.binaryShownAsText"
+msgstr "二进制内容以文本显示（可能无法正确呈现）"
+
 msgid "viewer.tooLarge"
 msgstr "文件过大，无法打开"
 
@@ -496,6 +508,12 @@ msgstr "文件过大（超过 {limit}），无法查看"
 
 msgid "viewer.typeNotSupported"
 msgstr "不支持查看此类型文件"
+
+msgid "viewer.prevImage"
+msgstr "上一张"
+
+msgid "viewer.nextImage"
+msgstr "下一张"
 
 msgid "editor.save"
 msgstr "保存"
@@ -822,7 +840,7 @@ msgid "settings.hideNativeBtn"
 msgstr "隐藏原生 SFTP 按钮"
 
 msgid "settings.openInNewTab"
-msgstr "默认新标签页打开"
+msgstr "默认新标签页打开面板"
 
 msgid "settings.singleWorkspaceInstance"
 msgstr "只打开一个实例"
@@ -863,8 +881,8 @@ msgstr "保存快捷键失败"
 msgid "settings.hotkeyRecordTimeout"
 msgstr "录制已超时，请重试"
 
-msgid "settings.compatibility"
-msgstr "兼容性"
+msgid "settings.other"
+msgstr "功能性"
 
 msgid "settings.data"
 msgstr "数据"
@@ -1109,3 +1127,64 @@ msgstr "预览"
 
 msgid "settings.dateFormatReset"
 msgstr "恢复默认"
+
+msgid "settings.defaultPathMode"
+msgstr "默认路径模式"
+
+msgid "settings.pathModeOff"
+msgstr "关闭"
+
+msgid "settings.pathModeRemember"
+msgstr "路径记忆"
+
+msgid "settings.pathModeSync"
+msgstr "与终端同步"
+
+msgid "settings.defaultShowHidden"
+msgstr "默认显示隐藏文件"
+
+msgid "settings.uploadConcurrency"
+msgstr "上传并发数"
+
+msgid "settings.downloadConcurrency"
+msgstr "下载并发数"
+
+msgid "transfer.queued"
+msgstr "队列中"
+
+
+msgid "settings.fastMode"
+msgstr "传输快速模式"
+
+msgid "settings.fastModeDesc"
+msgstr "传输目录时跳过大小预扫描立即开始：启动更快，但传输中无法计算总大小与百分比进度（只显示已传量）"
+
+msgid "file.sizeCalculate"
+msgstr "计算"
+
+msgid "file.sizeCalculating"
+msgstr "计算中…"
+
+msgid "file.sizeCalcFailed"
+msgstr "计算失败"
+
+msgid "file.folderSizeDetail"
+msgstr "{size}（{count} 个文件）"
+
+msgid "file.fileProperties"
+msgstr "文件属性"
+
+msgid "file.folderProperties"
+msgstr "文件夹属性"
+
+msgid "settings.hideAuthorInfo"
+msgstr "隐藏插件作者信息"
+
+msgid "settings.hideAuthorConfirmText"
+msgstr "隐藏作者信息前，请先为插件仓库点 Star 支持一下。仓库页面已在浏览器中打开。您的点赞支持是我开发的动力，感谢支持！🙏"
+
+msgid "settings.starredConfirm"
+msgstr "我已点 Star 支持"
+
+msgid "file.location"
+msgstr "位置"

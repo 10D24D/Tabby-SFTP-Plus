@@ -4,7 +4,8 @@
  * 创建人：DD1024z + Hy3
  * 创建时间：2026-07-11
  * 修改人：DD1024z + Hy3
- * 修改时间：2026-07-25 — B8 预览下载传 getViewMaxBytes 作为溢出硬上限
+ * 修改时间：2026-08-08 — 图片预览支持同目录图片上一张/下一张切换（viewerImageList/viewerImageIndex/gotoViewerImage）
+ *              2026-08-10 — 新增"以文本方式查看"功能（ctxViewFileAsText/forceText/_fillViewerFromBufferAsText）
  */
 import * as fs from 'fs/promises'
 import * as fsSync from 'fs'
@@ -16,7 +17,7 @@ import {
   isViewableRemoteFileType, isEditableRemoteFileType, isImageFile,
   isBinaryBuffer, bufferToText, bufferToDataUrl,
   isRemoteFileTooLargeForView, isRemoteFileTooLargeForEdit,
-  getViewMaxBytes, formatBytesLimit, EDIT_TEXT_MAX_BYTES,
+  getViewMaxBytes, formatBytesLimit, EDIT_TEXT_MAX_BYTES, VIEW_TEXT_MAX_BYTES,
 } from '../core/file-utils'
 import {
   downloadRemoteToBuffer, downloadRemoteToTempFile, writeTextToFile,
@@ -25,6 +26,10 @@ import {
 import { SftpPanelColumnController } from './panel-column-controller'
 
 import { log } from '../../services/sftp-logger'
+
+/** 图片预览导航用的轻量条目描述（兼容 LocalEntry 与 SFTPFile 的交集字段） */
+type ViewerImageEntry = { name: string; fullPath: string; size?: number; isDirectory?: boolean; mode?: number }
+
 export abstract class SftpPanelViewerController extends SftpPanelColumnController {
   // ===== 跨簇依赖（由子类 SftpFloatingPanel 提供实现/赋值） =====
   protected sftpSession: SFTPSessionLike | null = null
@@ -32,7 +37,7 @@ export abstract class SftpPanelViewerController extends SftpPanelColumnControlle
   protected closeContextMenu(): void { /* overridden by subclass */ }
   protected showToast(_message: string, _ms?: number): void { /* overridden by subclass */ }
   protected async refreshLocal(): Promise<void> { /* overridden by subclass */ }
-  protected async _doUpload(_remotePath: string, _localPath: string, _logOperation?: 'upload' | 'edit-upload'): Promise<void> { /* overridden by subclass */ }
+  protected async _doUpload(_remotePath: string, _localPath: string, _logOperation?: 'upload' | 'edit-upload'): Promise<boolean> { return false /* overridden by subclass */ }
   protected _logEditorTransfer(
     _operation: 'edit-upload' | 'edit-download',
     _remotePath: string,
@@ -56,6 +61,12 @@ export abstract class SftpPanelViewerController extends SftpPanelColumnControlle
   viewerSystemPath = ''
   viewerTempPath = ''
   private _viewerGen = 0
+
+  // 图片预览导航：当前目录图片子集（按当前排序/过滤后的顺序）与当前索引（仅图片模式使用）
+  viewerPane: 'local' | 'remote' = 'local'
+  viewerImageList: ViewerImageEntry[] = []
+  viewerImageIndex = 0
+  get viewerImageCount(): number { return this.viewerImageList.length }
 
   editorVisible = false
   editorLoading = false
@@ -86,6 +97,15 @@ export abstract class SftpPanelViewerController extends SftpPanelColumnControlle
     }
   }
 
+  /** "以文本方式查看"：跳过预定义文件类型检查，强制以文本模式打开 */
+  async ctxViewFileAsText(): Promise<void> {
+    if (this.contextMenuPane === 'local') {
+      await this._viewLocalFileAsText(this.contextMenuEntry as LocalEntry | null)
+    } else {
+      await this._viewRemoteFileAsText(this.contextMenuEntry as SFTPFile | null)
+    }
+  }
+
   async ctxEditFile(): Promise<void> {
     if (this.contextMenuPane === 'local') {
       await this._editLocalFile(this.contextMenuEntry as LocalEntry | null)
@@ -96,6 +116,7 @@ export abstract class SftpPanelViewerController extends SftpPanelColumnControlle
 
   protected async _viewLocalFile(entry: LocalEntry | null): Promise<void> {
     if (!this._prepareViewer(entry, false)) return
+    this._setupViewerImageNav(entry!, 'local')
     try {
       const buf = await readLocalFileToBuffer(entry.fullPath)
       await this._fillViewerFromBuffer(buf, entry.name)
@@ -108,8 +129,25 @@ export abstract class SftpPanelViewerController extends SftpPanelColumnControlle
     }
   }
 
+  /** 以文本方式查看本地文件（跳过文件类型预检查） */
+  protected async _viewLocalFileAsText(entry: LocalEntry | null): Promise<void> {
+    if (!this._prepareViewer(entry, false, true)) return
+    /* 强制文本模式不设置图片导航 */
+    try {
+      const buf = await readLocalFileToBuffer(entry.fullPath)
+      await this._fillViewerFromBufferAsText(buf, entry.name)
+    } catch (e) {
+      this.viewerError = this.i18n.t('viewer.loadFailed')
+      log.error('View local file as text failed', e)
+    } finally {
+      this.viewerLoading = false
+      this.cdr.detectChanges()
+    }
+  }
+
   protected async _viewRemoteFile(entry: SFTPFile | null): Promise<void> {
     if (!this._prepareViewer(entry, true)) return
+    this._setupViewerImageNav(entry!, 'remote')
     const gen = ++this._viewerGen
     try {
       const buf = await downloadRemoteToBuffer(
@@ -134,17 +172,51 @@ export abstract class SftpPanelViewerController extends SftpPanelColumnControlle
     }
   }
 
+  /** 以文本方式查看远程文件（跳过文件类型预检查） */
+  protected async _viewRemoteFileAsText(entry: SFTPFile | null): Promise<void> {
+    if (!this._prepareViewer(entry, true, true)) return
+    /* 强制文本模式不设置图片导航 */
+    const gen = ++this._viewerGen
+    try {
+      const buf = await downloadRemoteToBuffer(
+        this.sftpSession!, entry.fullPath, entry.size ?? 0, entry.mode,
+        VIEW_TEXT_MAX_BYTES,
+      )
+      if (gen !== this._viewerGen) return
+      await this._fillViewerFromBufferAsText(buf, entry.name)
+      await this._cleanupViewerTemp()
+      this.viewerTempPath = await writeBufferToTemp(buf, entry.name)
+      this.viewerSystemPath = this.viewerTempPath
+    } catch (e) {
+      if (gen !== this._viewerGen) return
+      this.viewerError = this.i18n.t('viewer.loadFailed')
+      log.error('View remote file as text failed', e)
+    } finally {
+      if (gen === this._viewerGen) {
+        this.viewerLoading = false
+        this.cdr.detectChanges()
+      }
+    }
+  }
+
   /** 查看器公共校验 + 状态初始化：条目有效性、文件类型、大小限制、viewer 状态重置 */
-  private _prepareViewer(entry: { name: string; fullPath: string; size?: number; isDirectory?: boolean } | null, isRemote: boolean): boolean {
+  private _prepareViewer(entry: { name: string; fullPath: string; size?: number; isDirectory?: boolean } | null, isRemote: boolean, forceText = false): boolean {
     if (!entry || entry.isDirectory) return false
     if (isRemote && (!this.connected || !this.sftpSession)) return false
     this.closeContextMenu()
-    if (!isViewableRemoteFileType(entry.name)) {
+    if (!forceText && !isViewableRemoteFileType(entry.name)) {
       this.showToast(this.i18n.t('viewer.typeNotSupported'))
       return false
     }
     const size = entry.size ?? 0
-    if (isRemoteFileTooLargeForView(entry.name, size)) {
+    if (forceText) {
+      /* 强制文本模式：统一用文本上限 */
+      if (size > VIEW_TEXT_MAX_BYTES) {
+        const limit = formatBytesLimit(VIEW_TEXT_MAX_BYTES)
+        this._showViewerError(entry.name, entry.fullPath, limit, false)
+        return false
+      }
+    } else if (isRemoteFileTooLargeForView(entry.name, size)) {
       const limit = formatBytesLimit(getViewMaxBytes(entry.name))
       this._showViewerError(entry.name, entry.fullPath, limit, isImageFile(entry.name))
       return false
@@ -153,7 +225,7 @@ export abstract class SftpPanelViewerController extends SftpPanelColumnControlle
     this.viewerFileName = entry.name
     this.viewerDisplayPath = entry.fullPath
     if (!isRemote) this.viewerSystemPath = entry.fullPath
-    this.viewerMode = isImageFile(entry.name) ? 'image' : 'text'
+    this.viewerMode = forceText ? 'text' : (isImageFile(entry.name) ? 'image' : 'text')
     this.viewerVisible = true
     this.viewerLoading = true
     return true
@@ -185,6 +257,16 @@ export abstract class SftpPanelViewerController extends SftpPanelColumnControlle
       this.viewerImageUrl = bufferToDataUrl(buf, fileName)
     } else if (isBinaryBuffer(buf)) {
       this.viewerError = this.i18n.t('viewer.binaryNotSupported')
+    } else {
+      this.viewerTextContent = bufferToText(buf).text
+    }
+  }
+
+  /** 强制文本模式填充：始终尝试文本解码，二进制时显示警告 */
+  private async _fillViewerFromBufferAsText(buf: Buffer, fileName: string): Promise<void> {
+    if (isBinaryBuffer(buf)) {
+      this.viewerTextContent = bufferToText(buf).text
+      this.showToast(this.i18n.t('viewer.binaryShownAsText'))
     } else {
       this.viewerTextContent = bufferToText(buf).text
     }
@@ -414,6 +496,16 @@ export abstract class SftpPanelViewerController extends SftpPanelColumnControlle
       }
       open()
     }
+    // ★ 2026-08-10 修复 #22：800ms 窗口内再次打开时，先清理上一轮未触发的监听/定时器，
+    //   否则旧引用被覆盖后永远无法移除 → window keyup 监听泄漏
+    if (this._openPathKeyupHandler) {
+      window.removeEventListener('keyup', this._openPathKeyupHandler, true)
+      this._openPathKeyupHandler = null
+    }
+    if (this._openPathTimeoutId) {
+      clearTimeout(this._openPathTimeoutId)
+      this._openPathTimeoutId = null
+    }
     this._openPathKeyupHandler = (ev: KeyboardEvent): void => {
       if (ev.key === 'Control' || ev.key === 'Meta' || ev.key === 'OS') finish()
     }
@@ -440,13 +532,50 @@ export abstract class SftpPanelViewerController extends SftpPanelColumnControlle
   }
 
   closeViewer(): void {
+    // ★ 2026-08-10 修复 #21：关闭时递增 gen，使在途加载的结果因 gen 失配被丢弃，
+    //   避免关闭后迟到的内容又被写回（下次打开瞬间闪现上一个文件）
+    this._viewerGen++
     this.viewerVisible = false
     this.viewerLoading = false
     this.viewerError = ''
     this.viewerTextContent = ''
     this.viewerImageUrl = ''
     this.viewerSystemPath = ''
+    this.viewerImageList = []
+    this.viewerImageIndex = 0
     this._cleanupViewerTemp().catch(() => {})
+  }
+
+  /** 由子类（SftpFloatingPanel）override：返回当前目录按排序/过滤后的条目列表 */
+  protected getFilteredLocalEntries(): LocalEntry[] { return [] }
+  protected getFilteredRemoteEntries(): SFTPFile[] { return [] }
+
+  /** 计算当前目录图片子集并定位当前查看图片的索引（供上一张/下一张导航） */
+  private _setupViewerImageNav(entry: { name: string; fullPath: string; isDirectory?: boolean }, pane: 'local' | 'remote'): void {
+    this.viewerPane = pane
+    if (!isImageFile(entry.name)) {
+      this.viewerImageList = []
+      this.viewerImageIndex = -1
+      return
+    }
+    const all = pane === 'local' ? this.getFilteredLocalEntries() : this.getFilteredRemoteEntries()
+    const imgs = all.filter(e => !e.isDirectory && isImageFile(e.name))
+    this.viewerImageList = imgs as ViewerImageEntry[]
+    this.viewerImageIndex = imgs.findIndex(e => e.fullPath === entry.fullPath)
+  }
+
+  /** 图片预览：切换到上一张/下一张（offset = -1 上一张，+1 下一张） */
+  async gotoViewerImage(offset: number): Promise<void> {
+    if (this.viewerMode !== 'image' || this.viewerLoading) return
+    const list = this.viewerImageList
+    if (!list.length) return
+    let idx = this.viewerImageIndex + offset
+    idx = Math.max(0, Math.min(list.length - 1, idx))
+    if (idx === this.viewerImageIndex) return
+    const entry = list[idx]
+    this.viewerImageIndex = idx
+    if (this.viewerPane === 'local') await this._viewLocalFile(entry as LocalEntry)
+    else await this._viewRemoteFile(entry as SFTPFile)
   }
 
   onEditorContentChange(value: string): void {

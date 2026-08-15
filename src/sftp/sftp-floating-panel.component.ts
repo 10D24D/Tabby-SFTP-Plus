@@ -4,54 +4,8 @@
  *   双栏文件管理器（本地↔远程）、书签、传输日志、拖拽传输
  * 创建人：DD1024z + Claude
  * 创建时间：2026-06-21
- * 修改人：DD1024z + Deepseek-V4-Flash
- * 修改时间：2026-06-25
- * 修改时间：2026-07-12
- *   修复远程同面板重命名变0B：_doDownload/_doDownloadRaw 在 size 未知时 stat 远程文件获取真实大小，
- *   之前 size??0 把未传 size 当成空文件，LocalPathFileDownload(fileSize=0)→complete=true→不写数据→0B tmp→upload→0B dest
- *   新增 Delete 热键（@HostListener window:keydown），选中文件时弹删除确认框
  * 修改人：DD1024z + Hy3
- * 修改时间：2026-07-21
- *   新增「选中书签后关闭书签面板」兼容选项：书签控制器 gotoBookmark 在 closeBookmarkPanelOnSelect 开启时调用 closeBookmarks()，
- *   并在 ngOnInit / 设置变更回调中读取该开关
- * 修改人：DD1024z + Hy3
- * 修改时间：2026-07-21
- *   浮动面板（非新标签页模式）支持：标题栏拖拽移动、八向缩放手柄、最大化/还原按钮（最小化与关闭之间）；
- *   几何通过把面板宿主切换为绝对定位实现，仅 floating 模式生效，workspace 模式不显示手柄/最大化按钮
- * 修改人：DD1024z + Hy3
- * 修改时间：2026-07-21
- *   面板几何（位置/尺寸/最大化）持久化到全局配置 tabby-sftp-plus.panelGeometry，跨会话生效；
- *   拖拽缩放过程中实时触发布局自适应（窄屏切换/分栏重排）：浮动模式改用面板自身宽度判窄屏，
- *   _onGeomMove 缩放分支与 toggleMaximize 显式调用已 rAF 节流的 _scheduleLayoutRefresh()
- * 修改人：DD1024z + Hy3
- * 修改时间：2026-07-21
- *   ① 快捷键作用域修复：onWindowKeyDown(Delete/F2) 增加 _isPanelActive 闸门；
- *     _isPanelActive 增加面板 DOM 实际可见性检测（getClientRects().length），
- *     使面板最小化/所在 tab 未激活（如打开设置页、切到其它终端 tab）时不响应快捷键。
- *   ② 自定义时间格式本地/远程统一生效：getFilteredLocal/RemoteEntries 命中缓存时
- *     额外比对当前 pattern 与装饰时 pattern，不一致则重算 _cells，
- *     消除初始化时序或缓存窗口导致的本地时间列沿用默认格式的问题。
- * 修改人：DD1024z + Hy3
- * 修改时间：2026-07-23
- *   _startFolderTransfer / _finishFolderTransfer 配合 TransferLogEntry.pending：
- *   add 时 pending=true，finish 时 pending=false。修复"目录传输中日志误显示下载成功 ✓ 0ms"。
- * 修改人：DD1024z + Deepseek-V4-Pro
- * 修改时间：2026-07-24
- *   修复删除确认框回车无法确认：onGlobalKeyDown 在 deleteConfirmVisible 时对称增加 Enter 确认兜底，
- *   并将原 Esc 分支的 deleteConfirmVisible 处理上提到统一分支（避免逻辑分散、与组件 onKeyDown 双保险）。
- * 修改人：DD1024z + Deepseek-V4-Pro
- * 修改时间：2026-07-24
- *   修复远程键盘 Shift+Del 可能弹不出删除确认框/提示：onWindowKeyDown 的 Delete 分支改用
- *   _resolveTargetPane()（按哪侧有选中项判定），不再直接依赖 activePane（键盘选中远程时 activePane 可能仍是 local）。
- * 修改人：DD1024z + Hy3
- * 修改时间：2026-07-25
- *   B7 缓解：远程目录条目数超过阈值（REMOTE_LISTING_ENRICH_LIMIT=20000）时，跳过按条目 stat 的 owner 补全，
- *   避免 N 次网络 stat 风暴把 UI 卡死（渲染级卡顿仍需虚拟滚动，架构级，未做）。
- * 修改人：DD1024z + Hy3
- * 修改时间：2026-07-25
- *   issue #5 处理：保留三模式（off/remember/sync），默认维持 'off'，sync 作为可选模式（用户在面板内切换即可
- *   获得原生 sftp 式"打开即定位终端当前目录并实时跟随"行为，依赖 Tabby OSC 1337 CurrentDir 解析 /
- *   session.getWorkingDirectory）；文档与 CHANGELOG 已说明如何启用，同日构建验证编译通过。
+ * 修改时间：2026-08-02 — B19：onDragStartRemote 增加 modified 诊断 log
  */
 import * as path from 'path'
 import * as fs from 'fs/promises'
@@ -77,7 +31,8 @@ import { PanelFileDnd } from './components/panel-file-dnd'
 import { PanelDropAdapter } from './core/drop'
 import { PanelTransferCoordinator } from './core/transfer-coordinator'
 import { PanelPasteAdapter } from './core/paste'
-import { copyLocalDir, copyRemoteDir, deleteLocalRecursive, deleteRemoteRecursive, tryRemoteCpViaSsh } from './core/fs-ops'
+import { copyLocalDir, copyRemoteDir, deleteLocalRecursive, deleteRemoteRecursive, tryRemoteCpViaSsh, tryRemoteRmViaSsh } from './core/fs-ops'
+import { ConcurrencyLimiter } from './core/concurrency'
 import { trashLocalPath } from './core/trash-local'
 import { PanelConflictResolver } from './components/panel-conflict-resolver'
 import { PanelTransferRuntime } from './core/transfer-coordinator'
@@ -114,7 +69,7 @@ import {
   setDateFormatPattern,
 } from './core/file-utils'
 import { SFTP_PANEL_STYLES } from './components/styles'
-import { IdNameResolver, execSshCommand } from './core/path-utils'
+import { IdNameResolver, execSshCommand, safeEntryName } from './core/path-utils'
 import type { PaneNavAction, PaneSortAction } from './components/sftp-file-pane.component'
 import type { ContextMenuAction, HeaderMenuAction, ColVisibilityState } from './components/sftp-context-menu.component'
 import type { PermField } from './components/sftp-perm-dialog.component'
@@ -371,6 +326,10 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
   detailsVisible = false
   detailsEntry: LocalEntry | SFTPFile | null = null
   detailsIsLocal = false
+  /** ★ 2026-08-11：文件夹大小按需计算的状态与结果（token 防异步过期回填） */
+  detailsCalcState: 'idle' | 'calculating' | 'error' = 'idle'
+  detailsCalcResult: string | null = null
+  detailsCalcToken = 0
 
 
   /** P2-6: 表头右键菜单所需的列可见性快照（模板 [cols] 绑定） */
@@ -425,6 +384,24 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       if (pinLocal !== null) this.pinFoldersLocal = JSON.parse(pinLocal)
       if (pinRemote !== null) this.pinFoldersRemote = JSON.parse(pinRemote)
     } catch { /* 使用默认值 */ }
+    // 显示隐藏文件：优先用眼睛按钮切换过的持久化状态；从未切换过则用设置页「默认显示隐藏文件」
+    try {
+      const keyPrefix = SftpFloatingPanel.TABLE_SETTINGS_KEY
+      const hidLocal = localStorage.getItem(`${keyPrefix}.showHiddenLocal`)
+      const hidRemote = localStorage.getItem(`${keyPrefix}.showHiddenRemote`)
+      const defShow = this._readDefaultShowHidden()
+      const newLocal = hidLocal !== null ? JSON.parse(hidLocal) === true : defShow
+      const newRemote = hidRemote !== null ? JSON.parse(hidRemote) === true : defShow
+      if (newLocal !== this.showHiddenLocal) { this.showHiddenLocal = newLocal; this._invalidateLocalCache() }
+      if (newRemote !== this.showHiddenRemote) { this.showHiddenRemote = newRemote; this._invalidateRemoteCache() }
+    } catch { /* 使用默认值 */ }
+  }
+
+  /** 读取设置页「其它」中的「默认显示隐藏文件」（全局，仅对从未按过眼睛按钮的面板生效） */
+  private _readDefaultShowHidden(): boolean {
+    try {
+      return this.configService?.store?.['tabby-sftp-plus']?.defaultShowHidden === true
+    } catch { return false }
   }
 
   // ========== 列宽调节 ==========
@@ -603,8 +580,46 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       }
       // 兼容旧版 rememberPath 布尔开关
       const legacy = localStorage.getItem(this._profileKey(SftpFloatingPanel.REMEMBER_PATH_KEY))
-      if (legacy === 'true') this.pathMode = 'remember'
+      if (legacy === 'true') {
+        this.pathMode = 'remember'
+        return
+      }
     } catch { /* 使用默认值 */ }
+    // 该连接未单独切换过 → 使用设置页「其它」中配置的默认路径模式
+    this.pathMode = this._readDefaultPathMode()
+  }
+
+  /** 读取设置页「其它」中的默认路径模式（全局，仅对未单独切换过的连接生效） */
+  private _readDefaultPathMode(): PathFollowMode {
+    try {
+      const v = this.configService?.store?.['tabby-sftp-plus']?.defaultPathMode
+      if (v === 'off' || v === 'remember' || v === 'sync') return v
+    } catch { /* ignore */ }
+    return 'off'
+  }
+
+  /** 设置页默认路径模式变更时套用（仅当该连接从未在面板上单独切换过路径模式） */
+  private _applyDefaultPathMode(): void {
+    try {
+      const raw = localStorage.getItem(this._profileKey(SftpFloatingPanel.PATH_MODE_KEY))
+      if (raw === 'off' || raw === 'remember' || raw === 'sync') return // 已单独设置，保持不变
+      const legacy = localStorage.getItem(this._profileKey(SftpFloatingPanel.REMEMBER_PATH_KEY))
+      if (legacy === 'true') return
+    } catch { return }
+    const def = this._readDefaultPathMode()
+    if (def === this.pathMode) return
+    this.pathMode = def
+    // 不调用 savePathMode()：默认值不写 per-host key，连接继续跟随全局默认
+    if (def === 'sync') {
+      this._cwdSetupPrompted = false
+      this._startCwdSync()
+      void this._syncRemoteToTerminalCwd(true)
+    } else {
+      this._stopCwdSync()
+      this.cwdSetupVisible = false
+      this._cwdSetupPrompted = false
+    }
+    if (def === 'remember') this.saveCurrentPath()
   }
 
   private savePathMode(): void {
@@ -1073,7 +1088,9 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
   showTransferLog = false
   transfersMinimized = false  // 传输面板是否最小化（显示小指示器）
   transfersHidden = false     // 传输面板是否完全隐藏（不影响传输继续）
-  paneCustomOrder: Array<'label' | 'path' | 'back' | 'forward' | 'up' | 'refresh' | 'home' | 'filter' | 'bookmark'> = ['label', 'back', 'forward', 'up', 'refresh', 'home', 'path', 'filter', 'bookmark']
+  paneCustomOrder: Array<'label' | 'path' | 'back' | 'forward' | 'up' | 'refresh' | 'home' | 'filter' | 'bookmark' | 'hidden'> = ['label', 'back', 'forward', 'up', 'refresh', 'home', 'path', 'hidden', 'filter', 'bookmark']
+  /** 被隐藏的工具栏项（设置页定制工具栏中取消勾选的项） */
+  paneHiddenItems: string[] = []
   logFilterOp: '' | TransferLogEntry['operation'] = ''
   logFilterStatus: '' | 'success' | 'failed' = ''
   logFilterTimeRange: '' | 'today' | '7d' | '30d' | 'custom' = ''
@@ -1226,6 +1243,7 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       hasConflictQueue: () => panel._conflictQueue.length > 0,
       resetFileDragState: () => panel._resetFileDragState(),
       uploadPathToRemote: (remoteDir, localPath) => panel.uploadPathToRemote(remoteDir, localPath),
+      streamUploadOne: (localPath) => panel._streamUploadOne(localPath),
       streamDownloadOne: (file) => panel._streamDownloadOne(file),
       refreshLocal: () => panel.refreshLocal(),
       refreshRemote: () => panel.refreshRemote(),
@@ -1233,6 +1251,8 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     })
     this._transferCoordinator = new PanelTransferCoordinator({
       get sftpSession() { return panel.sftpSession },
+      // ★ 2026-08-11：tar 打包通道需要 SSH exec（打包/解包）
+      get sshSession() { return panel.sshSession },
       mtimeToleranceMs: SftpFloatingPanel.MTIME_TOLERANCE_MS,
       get localPath() { return panel.localPath },
       enqueueConflict: (item) => {
@@ -1240,18 +1260,24 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
         panel.conflictOriginalTotal = panel._conflictQueue.length
       },
       showConflictDialog: () => panel._showConflictDialog(),
-      calcLocalDirSize: (p) => panel._calcLocalDirSize(p),
-      countLocalDirItems: (p) => panel._countLocalDirItems(p),
-      calcRemoteDirSize: (p) => panel._calcRemoteDirSize(p),
-      countRemoteDirItems: (p) => panel._countRemoteDirItems(p),
-      startFolderTransfer: (name, direction, remotePath, localPath, totalSize, itemCount) => {
+      // ★ 2026-08-11：size/count 合并为单次遍历 + 并发 readdir（原 4 个串行递归函数）
+      scanLocalDir: (p) => panel._scanLocalDir(p),
+      scanRemoteDir: (p) => panel._scanRemoteDir(p),
+      fastMode: () => panel._transferFastMode,
+      downloadTarBall: (remotePath, localPath, size, onProgress, shouldAbort) =>
+        panel._downloadTarBall(remotePath, localPath, size, onProgress, shouldAbort),
+      startFolderTransfer: (name, direction, remotePath, localPath, totalSize, itemCount, reuseLogEntryId) => {
         const { transferEntry: t, startTime, logEntryId } = panel._startFolderTransfer(
-          name, direction, remotePath, localPath, totalSize, itemCount,
+          name, direction, remotePath, localPath, totalSize, itemCount, reuseLogEntryId,
         )
         return { t, startTime, logEntryId, bytesDone: 0, itemDone: 0 }
       },
       finishFolderTransfer: (ctx, success) =>
         panel._finishFolderTransfer(ctx.t, ctx.startTime, ctx.logEntryId, success),
+      // ★ 2026-08-11：tar 打包通道回填传输记录的真实目录大小（初始记的是压缩包大小，易误导）
+      updateFolderLogSize: (ctx, size) => {
+        try { panel.transferLog.update(ctx.logEntryId, { size }) } catch { /* ignore */ }
+      },
       updateFolderProgress: (ctx, bytesDone, currentItem, itemDone, currentItemSize) =>
         panel._updateFolderProgress(ctx.t, bytesDone, currentItem, itemDone, currentItemSize),
       uploadTopLevel: (remotePath, localPath) => panel._doUpload(remotePath, localPath),
@@ -1261,6 +1287,9 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       downloadRaw: (remotePath, localPath, mode, size) =>
         panel._doDownloadRaw(remotePath, localPath, mode, size),
       refreshRemote: () => panel.refreshRemote(),
+      // ★ 2026-08-10：目录内文件级并发复用上传/下载并发数设置（实时生效）
+      dirUploadConcurrency: () => panel._uploadConcurrency,
+      dirDownloadConcurrency: () => panel._downloadConcurrency,
     })
     this._pasteAdapter = new PanelPasteAdapter({
       get sftpSession() { return panel.sftpSession },
@@ -1356,6 +1385,9 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
         panel._transferCoordinator.downloadRemoteDir(remoteDir, localDestDir, top, renameTo),
       mergeLocalDirToRemote: (localSrc, remoteDest) =>
         panel._transferCoordinator.mergeLocalDirToRemote(localSrc, remoteDest),
+      // ★ 2026-08-11：冲突解决成功后翻正来源传输记录（入队时已被 finish(false) 误记失败）；
+      //   _finishFolderTransfer 对已移除的进度条目无副作用，transferLog.update 幂等翻正
+      markTransferSucceeded: (ctx) => panel._finishFolderTransfer(ctx.t, ctx.startTime, ctx.logEntryId, true),
       copyLocalDir: (src, dest) => copyLocalDir(src, dest),
       copyRemoteDir: (srcRemotePath, destRemotePath, isDirectory) => copyRemoteDir(
         srcRemotePath, destRemotePath, isDirectory, {
@@ -1363,7 +1395,7 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
           mkdir: async (p) => { await panel.sftpSession!.mkdir(p) },
           readdir: async (p) => {
             const entries = await panel.sftpSession!.readdir(p)
-            return entries.map(e => ({ name: e.name, isDirectory: !!e.isDirectory }))
+            return entries.map(e => ({ name: e.name, isDirectory: !!e.isDirectory, isSymbolicLink: !!(e as any).isSymbolicLink }))
           },
           download: (r, l) => panel._doDownload(r, l),
           upload: (r, l) => panel._doUpload(r, l),
@@ -1460,6 +1492,7 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       'sftp-plus-local-col-widths': 'paneState/local/colWidths',
       'sftp-plus-remote-col-widths': 'paneState/remote/colWidths',
       'sftp-plus-pane-custom-order': 'paneCustomOrder',
+      'sftp-plus-pane-hidden-items': 'paneHiddenItems',
     }
     return keyMap[key] || null
   }
@@ -1479,6 +1512,12 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
         }
         this.paneCustomOrder = items as any
       }
+      // 保证 'hidden'（眼睛图标项）始终存在，老配置缺该项时插到 'filter' 前面
+      this.paneCustomOrder = this._ensureHiddenItem(this.paneCustomOrder)
+      // 注意：空数组也要赋值（全部重新勾选后隐藏列表为空，必须覆盖旧值才能重新显示）
+      if (Array.isArray(cfg?.paneHiddenItems)) {
+        this.paneHiddenItems = cfg.paneHiddenItems as string[]
+      }
       return
     } catch { /* ignore */ }
     try {
@@ -1487,7 +1526,26 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
         const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
         if (Array.isArray(parsed) && parsed.length) this.paneCustomOrder = parsed as any
       }
+      this.paneCustomOrder = this._ensureHiddenItem(this.paneCustomOrder)
+      const hiddenRaw = this._paneGet('sftp-plus-pane-hidden-items')
+      if (hiddenRaw) {
+        const parsed = typeof hiddenRaw === 'string' ? JSON.parse(hiddenRaw) : hiddenRaw
+        if (Array.isArray(parsed)) this.paneHiddenItems = parsed as string[]
+      }
     } catch { /* ignore */ }
+  }
+
+  /** 保证工具栏顺序中存在 'hidden'（眼睛图标项）：缺失时插到 'filter' 前面（无 filter 则追加末尾） */
+  private _ensureHiddenItem(order: Array<'label' | 'path' | 'back' | 'forward' | 'up' | 'refresh' | 'home' | 'filter' | 'bookmark' | 'hidden'>): Array<'label' | 'path' | 'back' | 'forward' | 'up' | 'refresh' | 'home' | 'filter' | 'bookmark' | 'hidden'> {
+    // 一次性迁移：旧默认顺序（hidden 追加在末尾）→ 新默认顺序（hidden 在 filter 前）；用户自定义过的顺序不动
+    if (order.join(',') === 'label,back,forward,up,refresh,home,path,filter,bookmark,hidden') {
+      return ['label', 'back', 'forward', 'up', 'refresh', 'home', 'path', 'hidden', 'filter', 'bookmark']
+    }
+    if (order.includes('hidden')) return order
+    const next = [...order]
+    const idx = next.indexOf('filter')
+    next.splice(idx >= 0 ? idx : next.length, 0, 'hidden')
+    return next
   }
 
   /** 将面板状态持久化到 Tabby 配置（经统一配置服务落盘） */
@@ -1562,7 +1620,9 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       if (vsaved) this._verticalSplitRatio = Math.max(0.15, Math.min(0.85, parseFloat(vsaved) || 0.5))
       const hsaved = this._paneGet('sftp-plus-horizontal-split-ratio')
       if (hsaved) this._horizontalSplitRatio = Math.max(0.15, Math.min(0.85, parseFloat(hsaved) || 0.5))
-      const lmode = this.configService?.store?.['tabby-sftp-plus']?.layoutMode
+      // ★ 2026-08-15 修复 #5：布局模式应通过 sftpConfig.get() 读取（有 fallback 链），
+      //   而非直接访问 store 顶层属性（迁移后数据在 paneState/layout/mode 嵌套路径）
+      const lmode = this.sftpConfig?.get('paneState/layout/mode')
       if (lmode === 'horizontal' || lmode === 'vertical' || lmode === 'single') this._layoutMode = lmode
 
       this._bindLayoutObservers()
@@ -1592,8 +1652,10 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       this.transferLog.reload()
       this._loadPaneToolbarLayout()
       this._readBehaviorConfig()
+      // 默认路径模式变更 → 未单独切换过的连接即时跟随
+      this._applyDefaultPathMode()
       // 重新读取布局模式并立即应用（同步窄屏判断 + 面板分割）
-      const lmode = this.configService?.store?.['tabby-sftp-plus']?.layoutMode
+      const lmode = this.sftpConfig?.get('paneState/layout/mode')
       if (lmode === 'horizontal' || lmode === 'vertical' || lmode === 'single') this._layoutMode = lmode
       else this._layoutMode = 'auto'
       if (this._layoutMode === 'horizontal') this._isNarrowLayout = false
@@ -1982,7 +2044,22 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
         this._invalidateLocalCache()
         this._invalidateRemoteCache()
       }
+      // ★ 上传/下载并发数（1-10，默认 3）：调高后立即启动更多排队条目
+      const up = Number(cfg?.transferUploadConcurrency)
+      const dl = Number(cfg?.transferDownloadConcurrency)
+      this._uploadConcurrency = this._clampConcurrency(Number.isFinite(up) ? up : 3)
+      this._downloadConcurrency = this._clampConcurrency(Number.isFinite(dl) ? dl : 3)
+      // ★ 2026-08-11：快速模式（跳过目录预扫描，立即开传，代价是没有百分比进度）
+      this._transferFastMode = !!cfg?.transferFastMode
+      this._pumpUploadQueue()
+      this._pumpDownloadQueue()
     } catch { /* ignore */ }
+  }
+
+  /** 并发数范围约束（1-10，非法值回落默认 3） */
+  private _clampConcurrency(v: number): number {
+    if (!Number.isFinite(v)) return 3
+    return Math.min(10, Math.max(1, Math.round(v)))
   }
 
   /** 读取面板几何（位置/尺寸/最大化），全局配置跨会话生效 */
@@ -2353,8 +2430,8 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
   /**
    * 冲突解决：将本地目录合并上传到远程目标路径（覆盖同名文件）
    */
-  async mergeLocalDirToRemote(localSrc: string, remoteDest: string): Promise<void> {
-    return this._transferCoordinator.mergeLocalDirToRemote(localSrc, remoteDest)
+  async mergeLocalDirToRemote(localSrc: string, remoteDest: string, reuseLogEntryId?: string): Promise<boolean> {
+    return this._transferCoordinator.mergeLocalDirToRemote(localSrc, remoteDest, reuseLogEntryId)
   }
 
   private _remoteEnrichOptions(): SftpEnrichOptions {
@@ -3179,9 +3256,15 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     if (!e) return null
     return {
       name: e.name,
+      isFolder: !!e.isDirectory,
       type: e.isDirectory ? this.i18n.t('type.folder') : (this.getFileExt(e.name) || this.i18n.t('type.file')),
+      // ★ 2026-08-11：来源位置标签（本地/远程），属性对话框一眼可辨
+      location: this.detailsIsLocal ? this.i18n.t('pane.local') : this.i18n.t('pane.remote'),
       path: this.getEntryPath(e),
-      size: e.isDirectory ? undefined : this.formatSize(this.getEntrySize(e)),
+      // ★ 2026-08-11：文件夹默认不显示大小，点击「计算」按钮后显示真实值
+      size: e.isDirectory ? (this.detailsCalcResult ?? undefined) : this.formatSize(this.getEntrySize(e)),
+      sizeCalculable: !!e.isDirectory,
+      sizeCalcState: this.detailsCalcState,
       modified: this.formatDate(this.getEntryMtime(e)),
       created: this.getEntryBirthtimeMs(e) ? this.formatDate(this.getEntryBirthtimeMs(e)) : undefined,
       accessed: this.getEntryAtimeMs(e) ? this.formatDate(this.getEntryAtimeMs(e)) : undefined,
@@ -3223,6 +3306,7 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       case 'home': this.goLocalHome(); break
       case 'refresh': void this.refreshLocal(); break
       case 'toggleFilter': this.localFilterVisible = !this.localFilterVisible; break
+      case 'toggleHidden': this.toggleShowHidden('local'); break
     }
   }
 
@@ -3234,6 +3318,7 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       case 'home': this.goRemoteHome(); break
       case 'refresh': void this.refreshRemote(); break
       case 'toggleFilter': this.remoteFilterVisible = !this.remoteFilterVisible; break
+      case 'toggleHidden': this.toggleShowHidden('remote'); break
     }
   }
 
@@ -3248,6 +3333,7 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       case 'delete': this.ctxDelete(); break
       case 'openLocal': this.ctxOpenLocal(); break
       case 'viewFile': void this.ctxViewFile(); break
+      case 'viewAsText': void this.ctxViewFileAsText(); break
       case 'editFile': void this.ctxEditFile(); break
       case 'upload': void this.ctxUpload(); break
       case 'download': void this.ctxDownload(); break
@@ -3551,6 +3637,7 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     this._setCustomDragPreview(ev, src.map(e => ({ name: e.name, isDirectory: e.isDirectory })))
     const cur = this._normRemoteDir(this.remotePath)
     this._fileDnd.setDragSource('remote', src.every(e => this._normRemoteDir(path.posix.dirname(e.fullPath)) === cur))
+    log.info('[dragstart] remote modified:', src.map(e => ({ name: e.name, modified: e.modified, modifiedMs: e.modified?.getTime?.() })))
     const p: DragPayload = { kind: 'remote-paths', paths: src.map(e => ({ remotePath: e.fullPath, name: e.name, isDirectory: e.isDirectory, size: e.size, mode: e.mode, modified: e.modified?.getTime?.() })) }
     ev.dataTransfer?.setData('application/x-sftp-plus', JSON.stringify(p))
 
@@ -3664,91 +3751,121 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
 
   // ========== 文件夹传输进度 ==========
 
-  /** 递归计算本地目录总大小 */
-  private async _calcLocalDirSize(dirPath: string): Promise<number> {
-    let size = 0
-    try {
-      for (const item of await fs.readdir(dirPath, { withFileTypes: true })) {
-        const p = path.join(dirPath, item.name)
+  /** ★ 2026-08-11 提速：递归扫描本地目录，单次遍历同时得出总大小与文件数。
+   *   仅对 readdir 调用限流（并发 8）；目录递归本身不占槽——持槽等待子任务
+   *   会形成 hold-and-wait 死锁（见 concurrency.ts 注释）。 */
+  private async _scanLocalDir(dirPath: string): Promise<{ size: number; count: number }> {
+    const limiter = new ConcurrencyLimiter(8)
+    const scan = async (dir: string): Promise<{ size: number; count: number }> => {
+      let entries: import('fs').Dirent[]
+      try {
+        entries = await limiter.run(() => fs.readdir(dir, { withFileTypes: true }))
+      } catch { return { size: 0, count: 0 } }
+      let size = 0
+      let count = 0
+      const subs: Array<Promise<{ size: number; count: number }>> = []
+      for (const item of entries) {
         if (item.isSymbolicLink()) continue
+        const p = path.join(dir, item.name)
         if (item.isDirectory()) {
-          size += await this._calcLocalDirSize(p)
+          subs.push(scan(p))
         } else {
           const st = await fs.stat(p).catch(() => null)
-          if (st) size += st.size
+          if (st) { size += st.size; count++ }
         }
       }
-    } catch {}
-    return size
+      for (const r of await Promise.all(subs)) { size += r.size; count += r.count }
+      return { size, count }
+    }
+    return scan(dirPath)
   }
 
-  /** 递归计算本地目录文件数 */
-  private async _countLocalDirItems(dirPath: string): Promise<number> {
-    let count = 0
-    try {
-      for (const item of await fs.readdir(dirPath, { withFileTypes: true })) {
-        if (item.isSymbolicLink()) continue
-        if (item.isDirectory()) {
-          count += await this._countLocalDirItems(path.join(dirPath, item.name))
-        } else {
-          count++
-        }
-      }
-    } catch {}
-    return count
-  }
-
-  /** 递归计算远程目录总大小（需要 sftpSession） */
-  private async _calcRemoteDirSize(remotePath: string): Promise<number> {
-    if (!this.sftpSession) return 0
-    let size = 0
-    try {
-      const entries = await this.sftpSession.readdir(remotePath)
+  /** ★ 2026-08-11 提速：递归扫描远程目录，单次遍历同时得出总大小与文件数。
+   *   原实现为 size、count 各一次串行递归遍历（每个子目录一次 readdir 往返挨个等），
+   *   dist 这类深层目录要几百次串行往返才开始传第一个字节。现改为并发 readdir
+   *   （SFTP 请求在同一会话上多路复用），仅 IO 调用占槽、递归不持槽。 */
+  private async _scanRemoteDir(remotePath: string): Promise<{ size: number; count: number }> {
+    const session = this.sftpSession
+    if (!session) return { size: 0, count: 0 }
+    const limiter = new ConcurrencyLimiter(8)
+    const scan = async (dir: string): Promise<{ size: number; count: number }> => {
+      let entries: Array<{ name: string; isDirectory: boolean; size?: number }>
+      try {
+        entries = await limiter.run(() => session.readdir(dir))
+      } catch { return { size: 0, count: 0 } }
+      let size = 0
+      let count = 0
+      const subs: Array<Promise<{ size: number; count: number }>> = []
       for (const e of entries) {
         if (e.isDirectory) {
-          size += await this._calcRemoteDirSize(path.posix.join(remotePath, e.name))
+          subs.push(scan(path.posix.join(dir, e.name)))
         } else {
           size += e.size || 0
-        }
-      }
-    } catch {}
-    return size
-  }
-
-  /** 递归计算远程目录文件数 */
-  private async _countRemoteDirItems(remotePath: string): Promise<number> {
-    if (!this.sftpSession) return 0
-    let count = 0
-    try {
-      const entries = await this.sftpSession.readdir(remotePath)
-      for (const e of entries) {
-        if (e.isDirectory) {
-          count += await this._countRemoteDirItems(path.posix.join(remotePath, e.name))
-        } else {
           count++  // 包括 0 字节文件
         }
       }
-    } catch {}
-    return count
+      for (const r of await Promise.all(subs)) { size += r.size; count += r.count }
+      return { size, count }
+    }
+    return scan(remotePath)
   }
 
-  /** 开始一个文件夹传输（创建进度条目和初始日志） */
+  /** 开始一个文件夹传输（创建进度条目和初始日志）；reuseLogEntryId 传入时复用既有
+   *  传输记录（冲突覆盖合并场景，避免重复条目） */
   private _startFolderTransfer(
     name: string, direction: 'upload' | 'download',
     remotePath: string, localPath: string,
     totalSize: number, itemCount: number,
+    reuseLogEntryId?: string,
   ): { transferEntry: typeof this.transfers[0]; startTime: number; logEntryId: string } {
-    const logEntry = this.transferLog.add({
-      operation: direction,
-      localPath,
-      remotePath,
-      profileName: this.profile?.name || undefined,
-      success: true,
-      size: totalSize,
-      duration: 0,
-      startTime: Date.now(),
-      pending: true,  // ★ 修复：标记进行中，避免日志误显示"下载成功 ✓ 0ms"
-    })
+    // ★ 2026-08-10：认领预注册的排队占位条目（多选拖拽下载的目录），
+    //   原地升级为文件夹条目并复用其日志，避免占位与文件夹条目重复显示
+    const queuedEntry = this.transfers.find(
+      e => e.queued && e.direction === direction && e.localPath === localPath,
+    )
+    if (queuedEntry) {
+      // ★ 2026-08-10 修复：占位条目在排队期间已被取消（竞态窗口内用例已启动）——
+      //   不认领，移除条目与占位日志，并标 _aborted 令用例循环立即终止
+      if (this._transferRuntime.consumeQueuedCancel(direction, localPath)) {
+        this.transfers = this.transfers.filter(x => x !== queuedEntry)
+        if (queuedEntry.logEntryId != null) {
+          try { this.transferLog.remove(queuedEntry.logEntryId) } catch { /* ignore */ }
+        }
+        ;(queuedEntry as any)._aborted = true
+        this.cdr.detectChanges()
+        return { transferEntry: queuedEntry, startTime: Date.now(), logEntryId: queuedEntry.logEntryId! }
+      }
+      Object.assign(queuedEntry, {
+        transfer: null, name, remotePath,
+        percent: 0, speed: '', bytesDone: 0, bytesTotal: totalSize,
+        paused: false, queued: false,
+        isFolder: true, currentItem: '', itemCount, itemDone: 0,
+      })
+      if (queuedEntry.logEntryId != null) {
+        this.transferLog.update(queuedEntry.logEntryId, { size: totalSize, startTime: Date.now() })
+      }
+      this.transfersMinimized = false
+      this.transfersHidden = false
+      this.cdr.detectChanges()
+      return { transferEntry: queuedEntry, startTime: Date.now(), logEntryId: queuedEntry.logEntryId! }
+    }
+    const logEntry = reuseLogEntryId
+      ? { id: reuseLogEntryId }
+      : this.transferLog.add({
+        operation: direction,
+        localPath,
+        remotePath,
+        profileName: this.profile?.name || undefined,
+        success: true,
+        size: totalSize,
+        duration: 0,
+        startTime: Date.now(),
+        pending: true,  // ★ 修复：标记进行中，避免日志误显示"下载成功 ✓ 0ms"
+      })
+    if (reuseLogEntryId) {
+      // 复用既有记录：重置为进行中，完成后由 finish 回填结果
+      try { this.transferLog.update(reuseLogEntryId, { pending: true, success: true, duration: 0, startTime: Date.now() }) } catch { /* ignore */ }
+    }
     const transferEntry = {
       transfer: null, direction, name, remotePath, localPath,
       percent: 0, speed: '', bytesDone: 0, bytesTotal: totalSize,
@@ -3798,7 +3915,11 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
   ): void {
     this.transfers = this.transfers.filter(x => x !== t)
     const now = Date.now()
-    this.transferLog.update(logEntryId, { success, duration: now - startTime, endTime: now, pending: false })
+    // ★ 2026-08-11 快速模式：总量未知（bytesTotal=0）时，完成时用实际已传字节回填日志 size
+    const patch: { success: boolean; duration: number; endTime: number; pending: boolean; size?: number } =
+      { success, duration: now - startTime, endTime: now, pending: false }
+    if (!(t.bytesTotal > 0) && t.bytesDone > 0) patch.size = t.bytesDone
+    this.transferLog.update(logEntryId, patch)
   }
 
   // ========== 传输 ==========
@@ -3814,7 +3935,7 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
   private async uploadPathToRemote(
     remoteDir: string, localPath: string,
     _top?: FolderTransferCtx,
-  ): Promise<void> {
+  ): Promise<boolean> {
     return this._transferCoordinator.uploadPathToRemote(remoteDir, localPath, _top)
   }
 
@@ -3852,18 +3973,18 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     remotePath: string,
     localPath: string,
     logOperation?: 'upload' | 'edit-upload',
-  ): Promise<void> {
-    if (!this.sftpSession) return
-    await uploadLocalFile(this._byteTransferCtx(), remotePath, localPath, {
+  ): Promise<boolean> {
+    if (!this.sftpSession) return false
+    return uploadLocalFile(this._byteTransferCtx(), remotePath, localPath, {
       track: true,
       logOperation,
     })
   }
 
   /** 上传文件（不记录传输日志，文件夹内部使用） */
-  private async _doUploadRaw(remotePath: string, localPath: string): Promise<void> {
-    if (!this.sftpSession) return
-    await uploadLocalFile(this._byteTransferCtx(), remotePath, localPath, {
+  private async _doUploadRaw(remotePath: string, localPath: string): Promise<boolean> {
+    if (!this.sftpSession) return false
+    return uploadLocalFile(this._byteTransferCtx(), remotePath, localPath, {
       exposeCancel: true,
     })
   }
@@ -3875,20 +3996,44 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
    * 修改人：DD1024z + Composer
    * 修改时间：2026-07-25 — 字节级逻辑下沉 transfer-adapters.downloadRemoteFile
    */
-  private async _doDownload(remotePath: string, localPath: string, mode?: number, size?: number): Promise<void> {
-    if (!this.sftpSession) return
-    await downloadRemoteFile(this._byteTransferCtx(), remotePath, localPath, mode, size, {
+  private async _doDownload(remotePath: string, localPath: string, mode?: number, size?: number): Promise<boolean> {
+    if (!this.sftpSession) return false
+    return downloadRemoteFile(this._byteTransferCtx(), remotePath, localPath, mode, size, {
       track: true,
     })
   }
 
   /** 下载文件（不记录传输日志，文件夹内部使用）
    *  ☆ 通过 cancelRef 暴露 dl 引用，供暂停/取消时中断 */
-  private async _doDownloadRaw(remotePath: string, localPath: string, mode?: number, size?: number): Promise<void> {
-    if (!this.sftpSession) return
-    await downloadRemoteFile(this._byteTransferCtx(), remotePath, localPath, mode, size, {
+  private async _doDownloadRaw(remotePath: string, localPath: string, mode?: number, size?: number): Promise<boolean> {
+    if (!this.sftpSession) return false
+    return downloadRemoteFile(this._byteTransferCtx(), remotePath, localPath, mode, size, {
       exposeCancel: true,
     })
+  }
+
+  /** ★ 2026-08-11：tar 打包通道下载 tar 包（不产生 UI 条目）；
+   *   轮询 dl 引用上报进度，shouldAbort 为 true 时中断字节流 */
+  private async _downloadTarBall(
+    remotePath: string,
+    localPath: string,
+    size: number,
+    onProgress?: (bytes: number) => void,
+    shouldAbort?: () => boolean,
+  ): Promise<boolean> {
+    if (!this.sftpSession) return false
+    let dl: LocalPathFileDownload | null = null
+    const timer = setInterval(() => {
+      if (shouldAbort?.() && dl && !dl.isCancelled() && !dl.isPaused()) void dl.cancel()
+      if (dl && onProgress) onProgress(dl.getCompletedBytes())
+    }, 400)
+    try {
+      return await downloadRemoteFile(this._byteTransferCtx(), remotePath, localPath, undefined, size, {
+        onTransfer: (d) => { dl = d },
+      })
+    } finally {
+      clearInterval(timer)
+    }
   }
 
   /** 组装字节级传输上下文（会话 + 守卫 + 进度回调） */
@@ -3982,6 +4127,9 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
 
   cancelTransfer(entry: { transfer: any; logEntryId?: string; paused?: boolean; isFolder?: boolean }): void {
     this._transferRuntime.cancelTransfer(entry)
+    // ★ 2026-08-10：排队占位条目无底层流——不得碰 _cancelRef，
+    //   否则可能误杀其它文件夹传输正在进行的子文件流
+    if ((entry as any).queued) return
     // ★ 2026-07-25：文件夹取消时真正中断正在进行中的子文件（B1）
     if (entry.isFolder) this._cancelRef?.current?.cancel?.()
   }
@@ -4429,12 +4577,27 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
             }
           }
         } else {
-          for (const e of this.pendingLocalDelete) await deleteLocalRecursive(e.fullPath, failed)
+          // ★ 2026-08-11 提速：目录优先 Node 原生 fs.rm（比 JS 层逐文件删快得多），
+          //   失败再回退并发递归以收集失败明细；多项并行，共享同一限制器
+          const delLim = new ConcurrencyLimiter(8)
+          await Promise.all(this.pendingLocalDelete.map(async (e) => {
+            if ((e as any).isDirectory) {
+              try { await fs.rm(e.fullPath, { recursive: true, force: true }); return }
+              catch (err) { log.warn('fs.rm failed, fallback to recursive:', e.fullPath, err) }
+            }
+            await deleteLocalRecursive(e.fullPath, failed, 0, delLim)
+          }))
         }
         await this.refreshLocal(); this.selectedLocal = []
       }
       if (this.pendingRemoteDelete.length && this.sftpSession) {
-        for (const e of this.pendingRemoteDelete) await deleteRemoteRecursive(this.sftpSession, e.fullPath, failed)
+        // ★ 2026-08-11 提速：目录优先服务端 `rm -rf` 整目录删除（SSH exec 可用时），
+        //   不可用/失败自动回退 SFTP 并发递归删除；多项并行，共享同一限制器
+        const delLim = new ConcurrencyLimiter(8)
+        await Promise.all(this.pendingRemoteDelete.map(async (e) => {
+          if ((e as any).isDirectory && await tryRemoteRmViaSsh(this.sshSession, e.fullPath)) return
+          await deleteRemoteRecursive(this.sftpSession, e.fullPath, failed, 0, delLim)
+        }))
         await this.refreshRemote(); this.selectedRemote = []
       }
     } catch (e) { log.error('Delete failed', e) }
@@ -4863,13 +5026,44 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     if (!this.contextMenuEntry) return
     this.detailsEntry = this.contextMenuEntry
     this.detailsIsLocal = this.contextMenuPane === 'local'
+    // ★ 2026-08-11：每次打开重置大小计算状态（token 递增使在途扫描作废）
+    this.detailsCalcState = 'idle'
+    this.detailsCalcResult = null
+    this.detailsCalcToken++
     this.detailsVisible = true
     this.closeContextMenu()
+  }
+
+  /** ★ 2026-08-11：按需计算文件夹真实大小（复用传输预扫描的并发扫描实现） */
+  async onDetailsCalcSize(): Promise<void> {
+    const e = this.detailsEntry
+    if (!e || !e.isDirectory || this.detailsCalcState === 'calculating') return
+    const target = this.getEntryPath(e)
+    const isLocal = this.detailsIsLocal
+    const token = ++this.detailsCalcToken
+    this.detailsCalcState = 'calculating'
+    this.detailsCalcResult = null
+    this.cdr.detectChanges()
+    try {
+      const r = isLocal ? await this._scanLocalDir(target) : await this._scanRemoteDir(target)
+      if (token !== this.detailsCalcToken || !this.detailsVisible) return
+      this.detailsCalcResult = this.i18n.t('file.folderSizeDetail', { size: this.formatSize(r.size), count: r.count })
+      this.detailsCalcState = 'idle'
+    } catch {
+      if (token !== this.detailsCalcToken || !this.detailsVisible) return
+      this.detailsCalcState = 'error'
+    }
+    this.cdr.detectChanges()
   }
 
   canViewEntry(entry: LocalEntry | SFTPFile | null): boolean {
     if (!entry || (entry as any).isDirectory) return false
     return isViewableRemoteFileType(entry.name)
+  }
+  canViewEntryAsText(entry: LocalEntry | SFTPFile | null): boolean {
+    if (!entry || (entry as any).isDirectory) return false
+    /* 非目录且不在预定义可查看列表中 → 允许"以文本方式查看" */
+    return !isViewableRemoteFileType(entry.name)
   }
 
   canEditEntry(entry: LocalEntry | SFTPFile | null): boolean {
@@ -4894,20 +5088,11 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     }
     const items = this.getContextSelection() as LocalEntry[]
     if (!items.length) return
-    const errors: string[] = []
-    for (const e of items) {
-      try {
-        await this.uploadPathToRemote(this.remotePath, e.fullPath)
-      } catch (err) {
-        errors.push(e.name)
-        log.error('ctxUpload failed for', e.fullPath, err)
-      }
-    }
+    // ★ 2026-08-10：并行入队（非串行 await），全部条目立即预注册到传输列表，
+    //   实际并发由 _streamUploadOne 内部调度泵限制
+    await Promise.all(items.map(e => this._streamUploadOne(e.fullPath)))
     await this.refreshRemote()
     this.cdr.detectChanges()
-    if (errors.length) {
-      this.showToast(this.i18n.t('notify.uploadPartialFail', { n: errors.length }) || `${errors.length} 个文件上传失败`, 4000)
-    }
   }
 
   async ctxDownload(): Promise<void> {
@@ -4918,17 +5103,190 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     }
     const items = this.getContextSelection() as SFTPFile[]
     if (!items.length) return
-    for (const p of items) {
-      await this._streamDownloadOne(p)
-    }
+    // ★ 2026-08-10：并行入队（非串行 await），全部条目立即预注册到传输列表，
+    //   实际并发由 _streamDownloadOne 内部调度泵限制
+    await Promise.all(items.map(p => this._streamDownloadOne(p)))
     if (this._conflictQueue.length) this._showConflictDialog()
-    // 传输协调器已负责本地面板更新，无需额外 refreshLocal
+    // ★ 2026-08-11：与上传对称——下载完成后自动刷新本地面板（拖拽路径在 drop.ts 已刷新，
+    //   菜单路径此前漏刷；冲突分支由冲突解决器 refreshPanes 兼顾）
+    await this.refreshLocal()
     this.cdr.detectChanges()
   }
 
-  /** 边下载边检测冲突：无冲突立即传输，有冲突入队等待用户处理 */
-  private async _streamDownloadOne(p: SFTPFile): Promise<void> {
-    return this._transferCoordinator.streamDownloadOne(p)
+  // ========== 下载队列调度（多选拖拽/菜单下载） ==========
+
+  /** 同时进行中的下载数上限（设置页可改，1-10），避免一次拖入大量文件时打开过多 SFTP 读流 */
+  private _downloadConcurrency = 3
+  private _dlActiveCount = 0
+  private _dlQueue: Array<{ file: SFTPFile; entry: PanelTransferItem; finish: () => void }> = []
+
+  /**
+   * 边下载边检测冲突：无冲突立即传输，有冲突入队等待用户处理。
+   * ★ 2026-08-10：调用时先预注册 queued 占位条目，多选/拖拽的全部文件立即出现在
+   *   传输列表中；真正开始传输时由 trackTransfer/_startFolderTransfer 认领占位条目，
+   *   并发由 _downloadConcurrency 限制。
+   */
+  private _streamDownloadOne(p: SFTPFile): Promise<void> {
+    const safeName = safeEntryName(p.name)
+    if (!safeName) {
+      log.warn('skip download with unsafe name:', p.name)
+      return Promise.resolve()
+    }
+    const localTarget = path.join(this.localPath, safeName)
+    const logEntry = this.transferLog.add({
+      operation: 'download',
+      localPath: localTarget,
+      remotePath: p.fullPath,
+      profileName: this.profile?.name || undefined,
+      success: true,
+      size: p.size ?? 0,
+      duration: 0,
+      startTime: Date.now(),
+      pending: true,
+    })
+    const entry: PanelTransferItem = {
+      transfer: null, direction: 'download', name: safeName,
+      remotePath: p.fullPath, localPath: localTarget,
+      percent: 0, speed: '', bytesDone: 0, bytesTotal: p.size ?? 0,
+      paused: false, queued: true, logEntryId: logEntry.id,
+      isFolder: p.isDirectory,
+    }
+    this.transfers.push(entry)
+    this.transfersMinimized = false
+    this.transfersHidden = false
+    this.cdr.detectChanges()
+    return new Promise<void>((resolve) => {
+      const finish = () => {
+        // 传输结束仍处排队态 ⇒ 未真正开始（冲突入队/重复下载被跳过）：移除占位与占位日志
+        if (entry.queued && this.transfers.includes(entry)) this._removeQueuedEntry(entry)
+        resolve()
+      }
+      this._dlQueue.push({ file: p, entry, finish })
+      this._pumpDownloadQueue()
+    })
+  }
+
+  /** 调度泵：活跃下载数未达上限时出队启动下一个 */
+  private _pumpDownloadQueue(): void {
+    while (this._dlActiveCount < this._downloadConcurrency && this._dlQueue.length) {
+      const item = this._dlQueue.shift()!
+      this._dlActiveCount++
+      void this._runQueuedDownload(item)
+    }
+  }
+
+  private async _runQueuedDownload(
+    item: { file: SFTPFile; entry: PanelTransferItem; finish: () => void },
+  ): Promise<void> {
+    try {
+      // 条目可能在排队期间被用户取消/清空 ⇒ 不再执行
+      if (this.transfers.includes(item.entry)) {
+        await this._transferCoordinator.streamDownloadOne(item.file)
+      }
+    } catch (e) {
+      log.error('Queued download failed for', item.file.fullPath, e)
+    } finally {
+      this._dlActiveCount--
+      item.finish()
+      this._pumpDownloadQueue()
+    }
+  }
+
+  /** 移除未真正开始的排队占位条目及其占位日志 */
+  private _removeQueuedEntry(entry: PanelTransferItem): void {
+    this.transfers = this.transfers.filter(x => x !== entry)
+    if (entry.logEntryId != null) {
+      try { this.transferLog.remove(entry.logEntryId) } catch { /* ignore */ }
+    }
+    this.cdr.detectChanges()
+  }
+
+  // ========== 上传队列调度（多选右键/拖拽上传） ==========
+
+  /** 同时进行中的上传数上限（设置页可改，1-10） */
+  private _uploadConcurrency = 3
+  /** ★ 2026-08-11：快速模式（设置页可改）：目录传输跳过预扫描直接开传 */
+  private _transferFastMode = false
+  private _upActiveCount = 0
+  private _upQueue: Array<{ localPath: string; entry: PanelTransferItem; finish: () => void }> = []
+
+  /**
+   * ★ 2026-08-10：与 _streamDownloadOne 对称——调用时先预注册 queued 占位条目，
+   *   多选/拖拽的全部条目立即出现在传输列表中；真正开始传输时由
+   *   trackTransfer/_startFolderTransfer 认领占位条目，并发由 _uploadConcurrency 限制。
+   */
+  private _streamUploadOne(localPath: string): Promise<void> {
+    const base = path.basename(localPath)
+    const safeName = safeEntryName(base)
+    if (!safeName) {
+      log.warn('skip upload with unsafe name:', base)
+      return Promise.resolve()
+    }
+    let isFolder = false
+    let size = 0
+    try {
+      const st = fsSync.statSync(localPath)
+      isFolder = st.isDirectory()
+      size = isFolder ? 0 : (st.size || 0)
+    } catch { /* stat 失败按文件处理，上传时由用例内 lstat 再次校验 */ }
+    const remoteTarget = path.posix.join(this.remotePath, safeName)
+    const logEntry = this.transferLog.add({
+      operation: 'upload',
+      localPath,
+      remotePath: remoteTarget,
+      profileName: this.profile?.name || undefined,
+      success: true,
+      size,
+      duration: 0,
+      startTime: Date.now(),
+      pending: true,
+    })
+    const entry: PanelTransferItem = {
+      transfer: null, direction: 'upload', name: safeName,
+      remotePath: remoteTarget, localPath,
+      percent: 0, speed: '', bytesDone: 0, bytesTotal: size,
+      paused: false, queued: true, logEntryId: logEntry.id,
+      isFolder,
+    }
+    this.transfers.push(entry)
+    this.transfersMinimized = false
+    this.transfersHidden = false
+    this.cdr.detectChanges()
+    return new Promise<void>((resolve) => {
+      const finish = () => {
+        // 传输结束仍处排队态 ⇒ 未真正开始（冲突入队/符号链接被跳过）：移除占位与占位日志
+        if (entry.queued && this.transfers.includes(entry)) this._removeQueuedEntry(entry)
+        resolve()
+      }
+      this._upQueue.push({ localPath, entry, finish })
+      this._pumpUploadQueue()
+    })
+  }
+
+  /** 调度泵：活跃上传数未达上限时出队启动下一个 */
+  private _pumpUploadQueue(): void {
+    while (this._upActiveCount < this._uploadConcurrency && this._upQueue.length) {
+      const item = this._upQueue.shift()!
+      this._upActiveCount++
+      void this._runQueuedUpload(item)
+    }
+  }
+
+  private async _runQueuedUpload(
+    item: { localPath: string; entry: PanelTransferItem; finish: () => void },
+  ): Promise<void> {
+    try {
+      // 条目可能在排队期间被用户取消/清空 ⇒ 不再执行
+      if (this.transfers.includes(item.entry)) {
+        await this.uploadPathToRemote(this.remotePath, item.localPath)
+      }
+    } catch (e) {
+      log.error('Queued upload failed for', item.localPath, e)
+    } finally {
+      this._upActiveCount--
+      item.finish()
+      this._pumpUploadQueue()
+    }
   }
 
 
@@ -5017,7 +5375,7 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     remoteSrc: string, localDest: string, destPane: 'local' | 'remote',
     _top?: FolderTransferCtx,
     _localName?: string,
-  ): Promise<void> {
+  ): Promise<boolean> {
     // ★ 准备取消引用，供暂停时中断正在下载的子文件
     // 修复：不无条件覆盖，避免破坏并发单文件下载的 cancelRef
     if (!this._cancelRef) this._cancelRef = { current: null }

@@ -812,7 +812,7 @@ msgid "settings.hideNativeBtn"
 msgstr "Hide native SFTP button"
 
 msgid "settings.openInNewTab"
-msgstr "Open in new tab by default"
+msgstr "Open panel in new tab by default"
 
 msgid "settings.singleWorkspaceInstance"
 msgstr "Single instance only"
@@ -850,8 +850,8 @@ msgstr "Failed to save hotkey"
 msgid "settings.hotkeyRecordTimeout"
 msgstr "Recording timed out, please try again"
 
-msgid "settings.compatibility"
-msgstr "Compatibility"
+msgid "settings.other"
+msgstr "Functionality"
 
 msgid "settings.data"
 msgstr "Data"
@@ -1240,3 +1240,64 @@ msgstr "Preview"
 
 msgid "settings.dateFormatReset"
 msgstr "Reset to default"
+
+msgid "settings.defaultPathMode"
+msgstr "Default path mode"
+
+msgid "settings.pathModeOff"
+msgstr "Off"
+
+msgid "settings.pathModeRemember"
+msgstr "Remember path"
+
+msgid "settings.pathModeSync"
+msgstr "Sync with terminal"
+
+msgid "settings.defaultShowHidden"
+msgstr "Show hidden files by default"
+
+msgid "settings.uploadConcurrency"
+msgstr "Concurrent uploads"
+
+msgid "settings.downloadConcurrency"
+msgstr "Concurrent downloads"
+
+msgid "transfer.queued"
+msgstr "Queued"
+
+
+msgid "settings.fastMode"
+msgstr "Fast Transfer Mode"
+
+msgid "settings.fastModeDesc"
+msgstr "Skip the size pre-scan and start directory transfers immediately: faster start, but total size and percentage progress cannot be calculated during the transfer (only transferred bytes are shown)"
+
+msgid "file.sizeCalculate"
+msgstr "Calculate"
+
+msgid "file.sizeCalculating"
+msgstr "Calculating…"
+
+msgid "file.sizeCalcFailed"
+msgstr "Calculation failed"
+
+msgid "file.folderSizeDetail"
+msgstr "{size} ({count} files)"
+
+msgid "file.fileProperties"
+msgstr "File properties"
+
+msgid "file.folderProperties"
+msgstr "Folder properties"
+
+msgid "settings.hideAuthorInfo"
+msgstr "Hide plugin author info"
+
+msgid "settings.hideAuthorConfirmText"
+msgstr "Before hiding the author info, please star the plugin repository to show your support. The repository page has been opened in your browser. Your star is what keeps me developing — thank you for your support! 🙏"
+
+msgid "settings.starredConfirm"
+msgstr "I've starred it"
+
+msgid "file.location"
+msgstr "Location"

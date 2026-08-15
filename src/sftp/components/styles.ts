@@ -670,6 +670,10 @@ export const SFTP_PANEL_STYLES = `
       background: color-mix(in srgb, var(--_primary) 77%, transparent) !important;
     }
     .sftp-root .entry:hover:not(.selected):not(.header) { background: color-mix(in srgb, var(--_primary) 57%, transparent); }
+    /* 隐藏文件/文件夹（名称以 . 开头）：内容淡化区分；选中/hover 背景不受影响 */
+    .sftp-root .entry.hidden-entry > span { opacity: 0.5; }
+    .sftp-root .entry.hidden-entry.selected > span,
+    .sftp-root .entry.hidden-entry:hover > span { opacity: 0.75; }
     .sftp-root .entry.header {
       /* 确保表头完全不透明 */
       background: var(--_content);
@@ -1217,6 +1221,9 @@ export const SFTP_PANEL_STYLES = `
 /* ───────── 查看 / 编辑对话框共用布局样式 ───────── */
 export const FILE_DIALOG_SHARED_STYLES = `
   .overlay {
+    /* ★ 2026-08-15 修复 issue #12：查看/编辑对话框在面板较矮、窗口较高时关闭按钮被 panelHost 的 overflow:hidden 裁剪，导致关不掉。
+       根因：.file-dialog-shell 高度用 min(80vh,720px)（基于视口），而遮罩为面板内 absolute，dialog 高度超过面板可视高度即被 panelHost 裁剪。
+       修复：保持面板内遮罩不变，见 .file-dialog-shell 的 max-width/max-height:100% 约束（不超面板，关闭按钮始终可见，内容在 .file-dialog-body 内滚动）。 */
     position: absolute; inset: 0;
     background: rgba(0,0,0,0.6);
     display: flex; align-items: center; justify-content: center; z-index: 110;
@@ -1233,7 +1240,10 @@ export const FILE_DIALOG_SHARED_STYLES = `
   .file-dialog-shell {
     width: min(900px, 92vw);
     height: min(80vh, 720px);
-    max-height: min(80vh, 720px);
+    max-width: 100%;
+    max-height: 100%;
+    /* ★ 2026-08-15 issue #12：max-width/max-height 约束 dialog 不超出面板可视区域（panelHost overflow:hidden），
+       避免关闭按钮被裁剪导致无法关闭；内容多时在 .file-dialog-body 内滚动。 */
     /* ★ 2026-07-25 B14：去掉宽高过渡——窗口缩放/还原/最大化时不再缓慢位移缩小，响应与工具栏一致 */
   }
   .file-dialog-shell.is-maximized {
@@ -1282,6 +1292,7 @@ export const FILE_DIALOG_SHARED_STYLES = `
     word-break: break-all; flex-shrink: 0;
   }
   .file-dialog-body {
+    position: relative;
     flex: 1 1 auto;
     min-height: 0;
     overflow: auto;
@@ -1332,6 +1343,25 @@ export const FILE_DIALOG_SHARED_STYLES = `
   .file-dialog-status {
     padding: 24px; text-align: center; font-size: 13px;
   }
+  /* 加载中：覆盖整个内容区、居中旋转图标，效果对齐面板文件加载（pane-loading） */
+  .file-dialog-loading {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: color-mix(in srgb, var(--_content, var(--body-bg, #1e1e2e)) 92%, transparent);
+    pointer-events: none;
+  }
+  .file-dialog-loading .spinner {
+    width: 24px; height: 24px;
+    border: 3px solid var(--_border, rgba(128,128,128,0.25));
+    border-top-color: var(--_primary, #4dabff);
+    border-radius: 50%;
+    animation: sftp-dialog-spin 0.7s linear infinite;
+  }
+  @keyframes sftp-dialog-spin { to { transform: rotate(360deg); } }
   .file-dialog-error { color: #f44336; }
   .file-dialog-text {
     margin: 0; padding: 12px;
@@ -1370,17 +1400,39 @@ export const FILE_DIALOG_SHARED_STYLES = `
   .file-dialog-image-wrap {
     display: flex; align-items: center; justify-content: center;
     padding: 12px; min-height: 0; flex: 1;
+    position: relative;
   }
   .file-dialog-image {
     max-width: 100%; max-height: 100%;
     object-fit: contain;
   }
+  .image-nav {
+    position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 10px;
+    padding: 5px 10px; border-radius: 999px;
+    background: var(--_content); border: 1px solid var(--_border);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+    z-index: 5;
+  }
+  .image-nav-btn {
+    width: 30px; height: 30px; padding: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    border: 1px solid var(--_border); border-radius: 50%;
+    background: transparent; color: var(--_text); cursor: pointer;
+  }
+  .image-nav-btn svg { width: 16px; height: 16px; }
+  .image-nav-btn:hover:not(:disabled) { background: var(--_hover); }
+  .image-nav-btn:disabled { opacity: 0.4; cursor: default; }
+  .image-nav-pos { font-size: 12px; color: var(--_text); min-width: 52px; text-align: center; user-select: none; }
   .dialog-buttons {
     display: flex; justify-content: flex-end; align-items: center; gap: 8px;
     padding-top: 10px; flex-shrink: 0;
   }
-  .dialog-buttons .file-dialog-system-btn {
+  .dialog-buttons-left {
     margin-right: auto;
+    display: flex; gap: 8px; align-items: center;
+  }
+  .dialog-buttons .file-dialog-system-btn {
     padding: 4px 12px; border-radius: 6px;
     border: 1px solid var(--_border);
     background: var(--_content);

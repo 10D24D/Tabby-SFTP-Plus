@@ -1,17 +1,11 @@
 ﻿/**
  * SFTP+ 设置面板
- * 功能描述：在 Tabby 设置左侧栏注册 SFTP+ 配置入口（语言、主题、布局、兼容性、数据、关于）
+ * 功能描述：在 Tabby 设置左侧栏注册 SFTP+ 配置入口（语言、主题、布局、其它、数据、关于）
  *   支持双存储模式：Tabby 配置（config.yaml）或 浏览器缓存（localStorage）
  * 创建人：DD1024z + Hy3 preview
  * 创建时间：2026-06-21
- * 修改人：DD1024z + Deepseek-V4-Flash
- * 修改时间：2026-06-29
  * 修改人：DD1024z + Hy3
- * 修改时间：2026-07-23
- *   新增「自定义时间格式」兼容设置（兼容性分组）：格式输入框 + 实时预览，含配置读写与导入导出
- * 修改人：DD1024z + Hy3
- * 修改时间：2026-07-21
- *   新增「选中书签后关闭面板」兼容开关（兼容性分组），含配置读写与导入导出
+ * 修改时间：2026-07-29
  */
 import { Component, Injectable, Optional, OnDestroy } from '@angular/core'
 import { SettingsTabProvider } from 'tabby-settings'
@@ -216,10 +210,14 @@ function loadTableSetting(key: string, fallback: boolean): boolean {
             *ngFor="let item of paneCustomOrder"
             draggable="true"
             [class.dragging]="draggingCustomItem === item"
+            [class.hidden]="isPaneItemHidden(item)"
             (dragstart)="onCustomDragStart(item, $event)"
             (dragover)="onCustomDragOver(item, $event)"
             (drop)="onCustomDrop(item, $event)"
             (dragend)="onCustomDragEnd()">
+            <input type="checkbox" class="ss-chip-check" [checked]="!isPaneItemHidden(item)"
+              (mousedown)="$event.stopPropagation()" (dragstart)="$event.stopPropagation()"
+              (change)="togglePaneItemHidden(item)" />
             <span class="ss-layout-chip-handle">⋮⋮</span>
             <span>{{ paneCustomItemLabel(item) }}</span>
           </div>
@@ -243,13 +241,26 @@ function loadTableSetting(key: string, fallback: boolean): boolean {
         <div class="ss-hint">{{ i18n.t('settings.tableStyleHint') }}</div>
       </div>
 
-      <!-- 兼容性 -->
+      <!-- 其它 -->
       <div class="ss-section">
-        <label class="ss-label">{{ i18n.t('settings.compatibility') }}</label>
+        <label class="ss-label">{{ i18n.t('settings.other') }}</label>
         <div class="ss-toggle-wrap">
+          <!-- ★ 2026-08-11：隐藏作者信息开关（开启需点 Star 确认）——与隐藏原生按钮同归功能性分组 -->
+          <label class="ss-toggle-row">
+            <span class="ss-toggle-label">{{ i18n.t('settings.hideAuthorInfo') }}</span>
+            <span class="ss-toggle-track" [class.active]="hideAuthorInfo" (click)="toggleHideAuthorInfo()">
+              <span class="ss-toggle-thumb"></span>
+            </span>
+          </label>
           <label class="ss-toggle-row">
             <span class="ss-toggle-label">{{ i18n.t('settings.hideNativeBtn') }}</span>
             <span class="ss-toggle-track" [class.active]="hideNativeBtn" (click)="toggleHideNativeBtn()">
+              <span class="ss-toggle-thumb"></span>
+            </span>
+          </label>
+          <label class="ss-toggle-row">
+            <span class="ss-toggle-label">{{ i18n.t('settings.closeBookmarkPanel') }}</span>
+            <span class="ss-toggle-track" [class.active]="closeBookmarkPanelOnSelect" (click)="toggleCloseBookmarkPanelOnSelect()">
               <span class="ss-toggle-thumb"></span>
             </span>
           </label>
@@ -266,11 +277,31 @@ function loadTableSetting(key: string, fallback: boolean): boolean {
             </span>
           </label>
           <label class="ss-toggle-row">
-            <span class="ss-toggle-label">{{ i18n.t('settings.closeBookmarkPanel') }}</span>
-            <span class="ss-toggle-track" [class.active]="closeBookmarkPanelOnSelect" (click)="toggleCloseBookmarkPanelOnSelect()">
+            <span class="ss-toggle-label">{{ i18n.t('settings.defaultShowHidden') }}</span>
+            <span class="ss-toggle-track" [class.active]="defaultShowHidden" (click)="toggleDefaultShowHidden()">
               <span class="ss-toggle-thumb"></span>
             </span>
           </label>
+          <div class="ss-toggle-row ss-pathmode-row">
+            <span class="ss-toggle-label">{{ i18n.t('settings.defaultPathMode') }}</span>
+            <div class="ss-segmented">
+              <button type="button" class="ss-segment"
+                [class.active]="defaultPathMode === 'off'"
+                (click)="defaultPathMode = 'off'; saveDefaultPathMode()">
+                {{ i18n.t('settings.pathModeOff') }}
+              </button>
+              <button type="button" class="ss-segment"
+                [class.active]="defaultPathMode === 'remember'"
+                (click)="defaultPathMode = 'remember'; saveDefaultPathMode()">
+                {{ i18n.t('settings.pathModeRemember') }}
+              </button>
+              <button type="button" class="ss-segment"
+                [class.active]="defaultPathMode === 'sync'"
+                (click)="defaultPathMode = 'sync'; saveDefaultPathMode()">
+                {{ i18n.t('settings.pathModeSync') }}
+              </button>
+            </div>
+          </div>
           <div class="ss-toggle-row ss-datefmt-row">
             <span class="ss-toggle-label">{{ i18n.t('settings.dateFormat') }}</span>
             <div class="ss-datefmt-field">
@@ -281,6 +312,7 @@ function loadTableSetting(key: string, fallback: boolean): boolean {
                 [title]="i18n.t('settings.dateFormatReset')">&times;</button>
             </div>
           </div>
+          <!-- ★ 2026-08-11：面板快捷键挪到自定义时间格式下方（按用户要求调整顺序） -->
           <div class="ss-toggle-row ss-hotkey-toggle-row">
             <span class="ss-toggle-label">{{ i18n.t('settings.hotkey') }}</span>
             <div class="ss-hotkey-field"
@@ -303,6 +335,22 @@ function loadTableSetting(key: string, fallback: boolean): boolean {
                 (click)="clearHotkeyBinding(); $event.stopPropagation()" [title]="i18n.t('settings.hotkeyClear')">×</button>
             </div>
           </div>
+          <div class="ss-toggle-row ss-concurrency-row">
+            <span class="ss-toggle-label">{{ i18n.t('settings.uploadConcurrency') }}</span>
+            <input class="ss-concurrency-input" type="number" min="1" max="10" step="1"
+              [(ngModel)]="uploadConcurrency" (change)="saveConcurrency()" />
+          </div>
+          <div class="ss-toggle-row ss-concurrency-row">
+            <span class="ss-toggle-label">{{ i18n.t('settings.downloadConcurrency') }}</span>
+            <input class="ss-concurrency-input" type="number" min="1" max="10" step="1"
+              [(ngModel)]="downloadConcurrency" (change)="saveConcurrency()" />
+          </div>
+          <label class="ss-toggle-row" title="{{ i18n.t('settings.fastModeDesc') }}">
+            <span class="ss-toggle-label">{{ i18n.t('settings.fastMode') }}</span>
+            <span class="ss-toggle-track" [class.active]="transferFastMode" (click)="toggleFastMode()">
+              <span class="ss-toggle-thumb"></span>
+            </span>
+          </label>
         </div>
         <div class="ss-hint ss-hotkey-conflict" *ngIf="hotkeyConflictNames">
           {{ i18n.t('settings.hotkeyConflict', { names: hotkeyConflictNames }) }}
@@ -330,7 +378,8 @@ function loadTableSetting(key: string, fallback: boolean): boolean {
         <div class="ss-about-row">
           <span class="ss-about-item">{{ i18n.t('settings.version') }}: {{ pkgVersion }}</span>
           <span class="ss-about-item">{{ i18n.t('settings.buildTime') }}: {{ formatBuildTime() }}</span>
-          <span class="ss-about-item">{{ i18n.t('settings.author') }}: DD1024z</span>
+          <!-- ★ 2026-08-11：作者信息可按需隐藏（开启需点 Star 确认） -->
+          <span class="ss-about-item" *ngIf="!hideAuthorInfo">{{ i18n.t('settings.author') }}: DD1024z</span>
         </div>
         <div class="ss-about-row ss-about-links">
           <span class="ss-about-link" (click)="openGithub()">
@@ -383,6 +432,22 @@ function loadTableSetting(key: string, fallback: boolean): boolean {
         </div>
       </div>
 
+      <!-- ★ 2026-08-11：隐藏作者信息确认弹窗（点击开启时已自动打开仓库链接） -->
+      <div class="ss-overlay" *ngIf="showHideAuthorConfirm" (click)="cancelHideAuthor()"
+        [style.background]="isDarkMode ? 'rgba(0,0,0,0.5)' : 'rgba(128,128,128,0.2)'">
+        <div class="ss-edit-modal" [class.ss-dark]="isDarkMode" [class.ss-light]="!isDarkMode" (click)="$event.stopPropagation()">
+          <div class="ss-edit-title">⭐ {{ i18n.t('settings.hideAuthorInfo') }}</div>
+          <div class="ss-edit-field">
+            <p>{{ i18n.t('settings.hideAuthorConfirmText') }}</p>
+            <span class="ss-about-link" (click)="openGithub()">⭐ {{ i18n.t('settings.giveStar') }}</span>
+          </div>
+          <div class="ss-edit-footer">
+            <button class="ss-btn" (click)="confirmHideAuthor()">{{ i18n.t('settings.starredConfirm') }}</button>
+            <button class="ss-btn" (click)="cancelHideAuthor()">{{ i18n.t('app.cancel') }}</button>
+          </div>
+        </div>
+      </div>
+
     </div>
   `,
   styles: [`
@@ -402,6 +467,21 @@ function loadTableSetting(key: string, fallback: boolean): boolean {
       color-scheme: inherit;
     }
     .ss-select option { color: initial; }
+    .ss-pathmode-row { display:flex; align-items:center; justify-content:space-between; }
+    .ss-segmented {
+      display:inline-flex; align-items:center;
+      border:1px solid rgba(128,128,128,0.25); border-radius:6px;
+      overflow:hidden; background:rgba(128,128,128,0.08);
+    }
+    .ss-segment {
+      appearance:none; border:none; background:transparent;
+      padding:5px 14px; font-size:13px; color:inherit;
+      cursor:pointer; outline:none; line-height:1.4;
+      transition: background .12s, color .12s;
+    }
+    .ss-segment + .ss-segment { border-left:1px solid rgba(128,128,128,0.2); }
+    .ss-segment:hover { background:rgba(128,128,128,0.12); }
+    .ss-segment.active { background:rgba(128,128,128,0.35); }
     .ss-select:focus { border-color: var(--primary-color, #3b82f6); }
     .ss-auto-badge { opacity:.85; color: var(--primary-color, #3b82f6); font-size:11px; }
 
@@ -499,6 +579,15 @@ function loadTableSetting(key: string, fallback: boolean): boolean {
     }
     .ss-datefmt-clear:hover { opacity: .9; background: rgba(128,128,128,0.14); }
     .ss-datefmt-hint { margin-top: 2px; line-height: 1.6; }
+    .ss-concurrency-row { gap: 12px; cursor: default; }
+    .ss-concurrency-input {
+      width: 64px; padding: 6px 8px; border-radius: 6px;
+      border: 1px solid rgba(128,128,128,0.28);
+      background: rgba(128,128,128,0.06);
+      color: inherit; font-size: 13px; outline: none;
+      text-align: center; box-sizing: border-box;
+    }
+    .ss-concurrency-input:focus { border-color: var(--primary-color, #3b82f6); }
     .ss-hotkey-row {
       display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:8px;
     }
@@ -691,6 +780,9 @@ function loadTableSetting(key: string, fallback: boolean): boolean {
       user-select: none;
     }
     .ss-layout-chip.dragging { opacity: 0.5; }
+    .ss-layout-chip.hidden { opacity: 0.45; border-style: dotted; }
+    .ss-layout-chip.hidden .ss-layout-chip-handle { opacity: .3; }
+    .ss-chip-check { width: 14px; height: 14px; margin: 0; cursor: pointer; }
     .ss-layout-chip-handle { opacity: .5; letter-spacing: -1px; }
     .ss-btn-ghost { padding: 6px 12px; font-size: 12px; }
 
@@ -901,6 +993,12 @@ export class SftpSettingsTabComponent implements OnDestroy {
   /** 隐藏原生 SFTP 按钮 */
   hideNativeBtn = load('hideNativeBtn', false)
 
+  /** 默认路径模式（off/remember/sync）：对未在面板上单独切换过的连接生效 */
+  defaultPathMode: 'off' | 'remember' | 'sync' = load('defaultPathMode', 'off') as 'off' | 'remember' | 'sync'
+
+  /** 默认显示隐藏文件：对从未按过眼睛按钮的面板生效 */
+  defaultShowHidden = load('defaultShowHidden', false)
+
   /** 热键录制状态 */
   hotkeyRecording = false
   hotkeyRecordingPreview = ''
@@ -937,8 +1035,19 @@ export class SftpSettingsTabComponent implements OnDestroy {
   dateFormat = load('dateFormat', '') || DEFAULT_DATE_FORMAT
   /** 默认时间格式 */
   readonly defaultDateFormat = DEFAULT_DATE_FORMAT
-  paneCustomOrder: Array<'label' | 'path' | 'back' | 'forward' | 'up' | 'refresh' | 'home' | 'filter' | 'bookmark'> = ['label', 'back', 'forward', 'up', 'refresh', 'home', 'path', 'filter', 'bookmark']
-  draggingCustomItem: 'label' | 'path' | 'back' | 'forward' | 'up' | 'refresh' | 'home' | 'filter' | 'bookmark' | null = null
+  /** 同时进行的上传/下载数上限（1-10，默认 3） */
+  uploadConcurrency = 3
+  downloadConcurrency = 3
+  /** ★ 2026-08-11：快速模式：目录传输跳过预扫描直接开传（无百分比进度） */
+  transferFastMode = false
+  /** ★ 2026-08-11：隐藏关于区的插件作者信息（开启需点 Star 确认） */
+  hideAuthorInfo = false
+  /** 隐藏作者信息确认弹窗是否显示 */
+  showHideAuthorConfirm = false
+  paneCustomOrder: Array<'label' | 'path' | 'back' | 'forward' | 'up' | 'refresh' | 'home' | 'filter' | 'bookmark' | 'hidden'> = ['label', 'back', 'forward', 'up', 'refresh', 'home', 'path', 'hidden', 'filter', 'bookmark']
+  /** 被隐藏的工具栏项（设置页定制工具栏中取消勾选的项） */
+  paneHiddenItems: string[] = []
+  draggingCustomItem: 'label' | 'path' | 'back' | 'forward' | 'up' | 'refresh' | 'home' | 'filter' | 'bookmark' | 'hidden' | null = null
 
   /** 主题颜色修改确认弹窗 */
   showThemeColorConfirm = false
@@ -1237,6 +1346,8 @@ export class SftpSettingsTabComponent implements OnDestroy {
       if (cfg.tableColBorders !== undefined) this.showColBorders = cfg.tableColBorders as boolean
       if (cfg.tableZebra !== undefined) this.showZebra = cfg.tableZebra as boolean
       if (cfg.hideNativeSFTPButton !== undefined) this.hideNativeBtn = cfg.hideNativeSFTPButton as boolean
+      if (cfg.defaultPathMode === 'off' || cfg.defaultPathMode === 'remember' || cfg.defaultPathMode === 'sync') this.defaultPathMode = cfg.defaultPathMode
+      if (cfg.defaultShowHidden !== undefined) this.defaultShowHidden = cfg.defaultShowHidden === true
       if (cfg.openInNewTabByDefault !== undefined) this.openInNewTabByDefault = cfg.openInNewTabByDefault as boolean
       if (cfg.singleWorkspaceInstance !== undefined) this.singleWorkspaceInstance = cfg.singleWorkspaceInstance as boolean
       if (cfg.closeBookmarkPanelOnSelect !== undefined) this.closeBookmarkPanelOnSelect = cfg.closeBookmarkPanelOnSelect as boolean
@@ -1244,7 +1355,31 @@ export class SftpSettingsTabComponent implements OnDestroy {
         this.dateFormat = (cfg.dateFormat as string) || DEFAULT_DATE_FORMAT
         setDateFormatPattern(this.dateFormat)
       }
+      if (typeof cfg.transferUploadConcurrency === 'number') this.uploadConcurrency = this._clampConcurrency(cfg.transferUploadConcurrency)
+      if (typeof cfg.transferDownloadConcurrency === 'number') this.downloadConcurrency = this._clampConcurrency(cfg.transferDownloadConcurrency)
+      if (cfg.transferFastMode !== undefined) this.transferFastMode = cfg.transferFastMode === true
+      if (cfg.hideAuthorInfo !== undefined) this.hideAuthorInfo = cfg.hideAuthorInfo === true
       if (Array.isArray(cfg.paneCustomOrder) && cfg.paneCustomOrder.length) this.paneCustomOrder = cfg.paneCustomOrder as any
+      // 一次性迁移：旧默认顺序（hidden 追加在末尾）→ 新默认顺序（hidden 在 filter 前）；用户自定义过的顺序不动
+      if (this.paneCustomOrder.join(',') === 'label,back,forward,up,refresh,home,path,filter,bookmark,hidden') {
+        this.paneCustomOrder = ['label', 'back', 'forward', 'up', 'refresh', 'home', 'path', 'hidden', 'filter', 'bookmark']
+      }
+      // 保证 'hidden'（眼睛图标项）始终存在于顺序中：缺失时插到 'filter' 前面（无 filter 则追加末尾）
+      if (!this.paneCustomOrder.includes('hidden')) {
+        const next = [...this.paneCustomOrder]
+        const idx = next.indexOf('filter')
+        next.splice(idx >= 0 ? idx : next.length, 0, 'hidden')
+        this.paneCustomOrder = next
+      }
+      // 注意：空数组也要赋值（全部重新勾选后隐藏列表为空，必须覆盖旧值），仅当 config 无该字段时才回退 localStorage
+      if (Array.isArray(cfg.paneHiddenItems)) {
+        this.paneHiddenItems = cfg.paneHiddenItems as string[]
+      } else {
+        try {
+          const raw = localStorage.getItem('sftp-plus-pane-hidden-items')
+          if (raw) { const parsed = JSON.parse(raw); if (Array.isArray(parsed)) this.paneHiddenItems = parsed as string[] }
+        } catch { /* ignore */ }
+      }
     } catch { /* ignore */ }
   }
 
@@ -1253,6 +1388,7 @@ export class SftpSettingsTabComponent implements OnDestroy {
    */
   private async _saveToConfig(): Promise<void> {
     try { localStorage.setItem('sftp-plus-pane-custom-order', JSON.stringify(this.paneCustomOrder)) } catch {}
+    try { localStorage.setItem('sftp-plus-pane-hidden-items', JSON.stringify(this.paneHiddenItems)) } catch {}
     if (!this.configService) return
     try {
       const target = this.configService.store['tabby-sftp-plus']
@@ -1267,11 +1403,18 @@ export class SftpSettingsTabComponent implements OnDestroy {
       target.tableColBorders = this.showColBorders
       target.tableZebra = this.showZebra
       target.hideNativeSFTPButton = this.hideNativeBtn
+      target.defaultPathMode = this.defaultPathMode
+      target.defaultShowHidden = this.defaultShowHidden
       target.openInNewTabByDefault = this.openInNewTabByDefault
       target.singleWorkspaceInstance = this.singleWorkspaceInstance
       target.closeBookmarkPanelOnSelect = this.closeBookmarkPanelOnSelect
       target.dateFormat = this.dateFormat
+      target.transferUploadConcurrency = this.uploadConcurrency
+      target.transferDownloadConcurrency = this.downloadConcurrency
+      target.transferFastMode = this.transferFastMode
+      target.hideAuthorInfo = this.hideAuthorInfo
       target.paneCustomOrder = this.paneCustomOrder
+      target.paneHiddenItems = this.paneHiddenItems
       await this.configService.save()
     } catch (e) {
       log.error('Failed to save to config', e)
@@ -1404,6 +1547,20 @@ export class SftpSettingsTabComponent implements OnDestroy {
     this.notifyPanels()
   }
 
+  /** 保存默认路径模式 */
+  saveDefaultPathMode(): void {
+    if (this.defaultPathMode !== 'off' && this.defaultPathMode !== 'remember' && this.defaultPathMode !== 'sync') this.defaultPathMode = 'off'
+    this._saveToConfig()
+    this.notifyPanels()
+  }
+
+  /** 切换默认显示隐藏文件 */
+  toggleDefaultShowHidden(): void {
+    this.defaultShowHidden = !this.defaultShowHidden
+    this._saveToConfig()
+    this.notifyPanels()
+  }
+
   /** 切换工具栏入口默认在新标签页打开 */
   toggleOpenInNewTabByDefault(): void {
     this.openInNewTabByDefault = !this.openInNewTabByDefault
@@ -1433,6 +1590,48 @@ export class SftpSettingsTabComponent implements OnDestroy {
     this._saveToConfig()
     this.notifyPanels()
   }
+
+  /** 并发数范围约束（1-10，非法值回落默认 3） */
+  private _clampConcurrency(v: unknown): number {
+    const n = Number(v)
+    if (!Number.isFinite(n)) return 3
+    return Math.min(10, Math.max(1, Math.round(n)))
+  }
+
+  /** 保存上传/下载并发数（input change 触发） */
+  saveConcurrency(): void {
+    this.uploadConcurrency = this._clampConcurrency(this.uploadConcurrency)
+    this.downloadConcurrency = this._clampConcurrency(this.downloadConcurrency)
+    this._saveToConfig()
+    this.notifyPanels()
+  }
+
+  /** ★ 2026-08-11：切换快速模式（目录传输跳过预扫描）；实时通知面板，新发起的传输立即生效 */
+  toggleFastMode(): void {
+    this.transferFastMode = !this.transferFastMode
+    this._saveToConfig()
+    this.notifyPanels()
+  }
+
+  /** ★ 2026-08-11：切换隐藏作者信息：关闭直接生效；开启需确认（先打开仓库链接，
+   *   用户点「我已点 Star 支持」后才隐藏） */
+  toggleHideAuthorInfo(): void {
+    if (this.hideAuthorInfo) {
+      this.hideAuthorInfo = false
+      this._saveToConfig()
+      return
+    }
+    this.openGithub()
+    this.showHideAuthorConfirm = true
+  }
+
+  confirmHideAuthor(): void {
+    this.showHideAuthorConfirm = false
+    this.hideAuthorInfo = true
+    this._saveToConfig()
+  }
+
+  cancelHideAuthor(): void { this.showHideAuthorConfirm = false }
 
   /** 清空按钮：恢复为默认时间格式并立即保存生效 */
   resetDateFormat(): void {
@@ -1515,13 +1714,30 @@ export class SftpSettingsTabComponent implements OnDestroy {
     this.notifyPanels()
   }
 
-  paneCustomItemLabel(item: 'label' | 'path' | 'back' | 'forward' | 'up' | 'refresh' | 'home' | 'filter' | 'bookmark'): string {
+  paneCustomItemLabel(item: 'label' | 'path' | 'back' | 'forward' | 'up' | 'refresh' | 'home' | 'filter' | 'bookmark' | 'hidden'): string {
     if (item === 'label') return this.i18n.t('settings.paneLabel')
     if (item === 'path') return this.i18n.t('settings.addressBar')
+    if (item === 'hidden') return this.i18n.t('pane.showHidden')
     return this.i18n.t(`settings.toolbarItem.${item}`)
   }
 
-  onCustomDragStart(item: 'label' | 'path' | 'back' | 'forward' | 'up' | 'refresh' | 'home' | 'filter' | 'bookmark', event: DragEvent): void {
+  /** 某项工具栏项是否被隐藏（设置页取消勾选） */
+  isPaneItemHidden(item: string): boolean {
+    return this.paneHiddenItems.includes(item)
+  }
+
+  /** 切换某项工具栏项的显示/隐藏，并持久化 */
+  togglePaneItemHidden(item: string): void {
+    if (this.paneHiddenItems.includes(item)) {
+      this.paneHiddenItems = this.paneHiddenItems.filter(i => i !== item)
+    } else {
+      this.paneHiddenItems = [...this.paneHiddenItems, item]
+    }
+    this._saveToConfig()
+    this.notifyPanels()
+  }
+
+  onCustomDragStart(item: 'label' | 'path' | 'back' | 'forward' | 'up' | 'refresh' | 'home' | 'filter' | 'bookmark' | 'hidden', event: DragEvent): void {
     this.draggingCustomItem = item
     if (event.dataTransfer) {
       event.dataTransfer.effectAllowed = 'move'
@@ -1529,12 +1745,12 @@ export class SftpSettingsTabComponent implements OnDestroy {
     }
   }
 
-  onCustomDragOver(_target: 'label' | 'path' | 'back' | 'forward' | 'up' | 'refresh' | 'home' | 'filter' | 'bookmark', event: DragEvent): void {
+  onCustomDragOver(_target: 'label' | 'path' | 'back' | 'forward' | 'up' | 'refresh' | 'home' | 'filter' | 'bookmark' | 'hidden', event: DragEvent): void {
     event.preventDefault()
     if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'
   }
 
-  onCustomDrop(target: 'label' | 'path' | 'back' | 'forward' | 'up' | 'refresh' | 'home' | 'filter' | 'bookmark', event: DragEvent): void {
+  onCustomDrop(target: 'label' | 'path' | 'back' | 'forward' | 'up' | 'refresh' | 'home' | 'filter' | 'bookmark' | 'hidden', event: DragEvent): void {
     event.preventDefault()
     const source = this.draggingCustomItem || (event.dataTransfer?.getData('text/plain') as any)
     if (!source || source === target) return
@@ -1557,7 +1773,8 @@ export class SftpSettingsTabComponent implements OnDestroy {
   onCustomDragEnd(): void { this.draggingCustomItem = null }
 
   resetPaneLayout(): void {
-    this.paneCustomOrder = ['label', 'back', 'forward', 'up', 'refresh', 'home', 'path', 'filter', 'bookmark']
+    this.paneCustomOrder = ['label', 'back', 'forward', 'up', 'refresh', 'home', 'path', 'hidden', 'filter', 'bookmark']
+    this.paneHiddenItems = []
     this._saveToConfig()
     this.notifyPanels()
   }
@@ -1592,11 +1809,18 @@ export class SftpSettingsTabComponent implements OnDestroy {
           data.tableColBorders = cfg.tableColBorders ?? true
           data.tableZebra = cfg.tableZebra ?? true
           data.hideNativeSFTPButton = cfg.hideNativeSFTPButton ?? false
+          data.defaultPathMode = cfg.defaultPathMode ?? 'off'
+          data.defaultShowHidden = cfg.defaultShowHidden ?? false
           data.openInNewTabByDefault = cfg.openInNewTabByDefault ?? false
           data.singleWorkspaceInstance = cfg.singleWorkspaceInstance ?? true
           data.closeBookmarkPanelOnSelect = cfg.closeBookmarkPanelOnSelect ?? false
           data.dateFormat = cfg.dateFormat ?? ''
-          data.paneCustomOrder = cfg.paneCustomOrder ?? ['label', 'back', 'forward', 'up', 'refresh', 'home', 'path', 'filter', 'bookmark']
+          data.transferUploadConcurrency = cfg.transferUploadConcurrency ?? 3
+          data.transferDownloadConcurrency = cfg.transferDownloadConcurrency ?? 3
+          data.transferFastMode = cfg.transferFastMode ?? false
+          data.hideAuthorInfo = cfg.hideAuthorInfo ?? false
+          data.paneCustomOrder = cfg.paneCustomOrder ?? ['label', 'back', 'forward', 'up', 'refresh', 'home', 'path', 'hidden', 'filter', 'bookmark']
+          data.paneHiddenItems = cfg.paneHiddenItems ?? []
           // 导出书签、路径记忆（传输日志以 localStorage 为准，见下方）
           if (cfg.bookmarks?.length) data.bookmarks = cfg.bookmarks
           if (cfg.pathMemory && Object.keys(cfg.pathMemory).length) data.pathMemory = cfg.pathMemory
@@ -1621,11 +1845,18 @@ export class SftpSettingsTabComponent implements OnDestroy {
     data.tableColBorders = loadTableSetting('colBorders', false)
     data.tableZebra = loadTableSetting('zebra', true)
     data.hideNativeSFTPButton = load('hideNativeBtn', false)
+    data.defaultPathMode = load('defaultPathMode', 'off')
+    data.defaultShowHidden = load('defaultShowHidden', false)
     data.openInNewTabByDefault = load('openInNewTabByDefault', false)
     data.singleWorkspaceInstance = load('singleWorkspaceInstance', true)
     data.closeBookmarkPanelOnSelect = load('closeBookmarkPanelOnSelect', false)
     data.dateFormat = load('dateFormat', '')
-    try { data.paneCustomOrder = JSON.parse(localStorage.getItem('sftp-plus-pane-custom-order') || '["label","back","forward","up","refresh","home","path","filter","bookmark"]') } catch { data.paneCustomOrder = ['label', 'back', 'forward', 'up', 'refresh', 'home', 'path', 'filter', 'bookmark'] }
+    data.transferUploadConcurrency = 3
+    data.transferDownloadConcurrency = 3
+    data.transferFastMode = false
+    data.hideAuthorInfo = false
+    try { data.paneCustomOrder = JSON.parse(localStorage.getItem('sftp-plus-pane-custom-order') || '["label","back","forward","up","refresh","home","path","hidden","filter","bookmark"]') } catch { data.paneCustomOrder = ['label', 'back', 'forward', 'up', 'refresh', 'home', 'path', 'hidden', 'filter', 'bookmark'] }
+    try { data.paneHiddenItems = JSON.parse(localStorage.getItem('sftp-plus-pane-hidden-items') || '[]') } catch { data.paneHiddenItems = [] }
     // 尝试从 localStorage 读取书签和传输日志
     try {
       const bkm = localStorage.getItem('sftp-plus-bookmarks-v2')
@@ -1706,11 +1937,18 @@ export class SftpSettingsTabComponent implements OnDestroy {
           if (data.tableColBorders !== undefined) target.tableColBorders = data.tableColBorders
           if (data.tableZebra !== undefined) target.tableZebra = data.tableZebra
           if (data.hideNativeSFTPButton !== undefined) target.hideNativeSFTPButton = data.hideNativeSFTPButton
+          if (data.defaultPathMode !== undefined) target.defaultPathMode = data.defaultPathMode
+          if (data.defaultShowHidden !== undefined) target.defaultShowHidden = data.defaultShowHidden
           if (data.openInNewTabByDefault !== undefined) target.openInNewTabByDefault = data.openInNewTabByDefault
           if (data.singleWorkspaceInstance !== undefined) target.singleWorkspaceInstance = data.singleWorkspaceInstance
           if (data.closeBookmarkPanelOnSelect !== undefined) target.closeBookmarkPanelOnSelect = data.closeBookmarkPanelOnSelect
           if (data.dateFormat !== undefined) target.dateFormat = data.dateFormat
+          if (data.transferUploadConcurrency !== undefined) target.transferUploadConcurrency = data.transferUploadConcurrency
+          if (data.transferDownloadConcurrency !== undefined) target.transferDownloadConcurrency = data.transferDownloadConcurrency
+          if (data.transferFastMode !== undefined) target.transferFastMode = data.transferFastMode
+          if (data.hideAuthorInfo !== undefined) target.hideAuthorInfo = data.hideAuthorInfo
           if (data.paneCustomOrder !== undefined) target.paneCustomOrder = data.paneCustomOrder
+          if (data.paneHiddenItems !== undefined) target.paneHiddenItems = data.paneHiddenItems
           // 导入书签
           if (data.bookmarks !== undefined) target.bookmarks = data.bookmarks
           this.configService.save()

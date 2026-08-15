@@ -4,7 +4,7 @@
  * 创建人：DD1024z + Hy3
  * 创建时间：2026-07-11
  * 修改人：DD1024z + Hy3
- * 修改时间：2026-07-11
+ * 修改时间：2026-07-29
  */
 import { ChangeDetectorRef, ElementRef, NgZone } from '@angular/core'
 import { SftpI18nService } from '../../services/sftp-i18n.service'
@@ -387,9 +387,11 @@ export class SftpPanelColumnController {
   toggleShowHidden(pane: 'local' | 'remote'): void {
     if (pane === 'local') {
       this.showHiddenLocal = !this.showHiddenLocal
+      try { localStorage.setItem(`${SftpPanelColumnController.TABLE_SETTINGS_KEY}.showHiddenLocal`, JSON.stringify(this.showHiddenLocal)) } catch {}
       this._invalidateLocalCache()
     } else {
       this.showHiddenRemote = !this.showHiddenRemote
+      try { localStorage.setItem(`${SftpPanelColumnController.TABLE_SETTINGS_KEY}.showHiddenRemote`, JSON.stringify(this.showHiddenRemote)) } catch {}
       this._invalidateRemoteCache()
     }
     this.headerMenuVisible = false

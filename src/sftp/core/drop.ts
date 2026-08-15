@@ -3,7 +3,7 @@
  * 创建人：DD1024z + Hy3
  * 创建时间：2026-07-16
  * 修改人：DD1024z + Hy3
- * 修改时间：2026-07-16
+ * 修改时间：2026-08-02 — B19：_toSftpFile 增加 modified 无效 fallback 与诊断 log
  * 合并来源：drop-rules, drop-use-case, panel-drop-adapter, panel-file-drop-parser
  */
 
@@ -90,7 +90,9 @@ export interface DropContextPort {
 }
 
 export interface DropTransferPort {
-  uploadToRemote(remoteDir: string, localPath: string): Promise<void>
+  uploadToRemote(remoteDir: string, localPath: string): Promise<boolean>
+  /** 上传入队：预注册占位条目 + 并发调度（与下载对称） */
+  streamUploadOne(localPath: string): Promise<void>
   downloadRemoteEntry(entry: RemoteDropEntry): Promise<void>
 }
 
@@ -168,12 +170,17 @@ export class DropUseCase {
     if (!ctx.isConnected() || !ctx.hasSftpSession()) return false
 
     if (payload.kind === 'local-paths' && targetPane === 'remote') {
-      for (const p of payload.paths) {
+      // ★ 2026-08-10：并行入队（非串行 await）——面板侧会预注册全部排队条目并
+      //   限制实际并发；此前串行等待每个文件传完才进下一个，传输列表永远只显示 1 项
+      await Promise.all(payload.paths.map(async (p) => {
         try {
-          await this.ports.transfer.uploadToRemote(ctx.getRemotePath(), p.fullPath)
+          await this.ports.transfer.streamUploadOne(p.fullPath)
         } catch (e) {
           log.error('Upload failed for', p.fullPath, e)
         }
+      }))
+      if (this.ports.conflict.hasPendingConflicts()) {
+        this.ports.conflict.showConflictDialog()
       }
       await this.ports.pane.refreshRemote()
       this.ports.pane.clearLocalSelection()
@@ -182,13 +189,17 @@ export class DropUseCase {
     }
 
     if (payload.kind === 'remote-paths' && targetPane === 'local') {
-      for (const p of payload.paths) {
+      log.info('[drop] remote→local payload.paths.length:', payload.paths.length)
+      // ★ 2026-08-10：并行入队（非串行 await）——面板侧会预注册全部排队条目并
+      //   限制实际并发；此前串行等待每个文件传完才进下一个，传输列表永远只显示 1 项
+      await Promise.all(payload.paths.map(async (p, i) => {
+        log.info('[drop] downloading remote entry #' + i + ':', p.name, p.remotePath, 'isDir:', p.isDirectory)
         try {
           await this.ports.transfer.downloadRemoteEntry(p)
         } catch (e) {
           log.error('Download failed for', p.remotePath, e)
         }
-      }
+      }))
       if (this.ports.conflict.hasPendingConflicts()) {
         this.ports.conflict.showConflictDialog()
       }
@@ -214,8 +225,16 @@ export class DropUseCase {
 
     if (targetPane === 'remote') {
       if (!ctx.isConnected() || !ctx.hasSftpSession()) return
-      for (const p of osPaths) {
-        await this.ports.transfer.uploadToRemote(ctx.getRemotePath(), p)
+      // ★ 2026-08-10：并行入队（非串行 await），全部条目立即预注册到传输列表
+      await Promise.all(osPaths.map(async (p) => {
+        try {
+          await this.ports.transfer.streamUploadOne(p)
+        } catch (e) {
+          log.error('Upload failed for', p, e)
+        }
+      }))
+      if (this.ports.conflict.hasPendingConflicts()) {
+        this.ports.conflict.showConflictDialog()
       }
       await this.ports.pane.refreshRemote()
       return
@@ -246,7 +265,8 @@ export interface PanelDropHost {
   selectedRemote: unknown[]
   hasConflictQueue(): boolean
   resetFileDragState(): void
-  uploadPathToRemote(remoteDir: string, localPath: string): Promise<void>
+  uploadPathToRemote(remoteDir: string, localPath: string): Promise<boolean>
+  streamUploadOne(localPath: string): Promise<void>
   streamDownloadOne(file: SFTPFile): Promise<void>
   refreshLocal(): Promise<unknown>
   refreshRemote(): Promise<unknown>
@@ -278,6 +298,7 @@ export class PanelDropAdapter {
       },
       transfer: {
         uploadToRemote: (remoteDir, localPath) => host.uploadPathToRemote(remoteDir, localPath),
+        streamUploadOne: (localPath) => host.streamUploadOne(localPath),
         downloadRemoteEntry: (entry) => host.streamDownloadOne(this._toSftpFile(entry)),
       },
       pane: {
@@ -306,6 +327,10 @@ export class PanelDropAdapter {
   }
 
   private _toSftpFile(entry: RemoteDropEntry): SFTPFile {
+    const mtime = entry.modified
+    log.info('[drop] _toSftpFile modified raw:', mtime, 'name:', entry.name)
+    // 若拖拽 payload 里的 modified 为 0/缺失，用当前时间占位；真正的准确时间由下载用例 stat 兜底
+    const modified = (mtime != null && mtime > 0) ? new Date(mtime) : new Date()
     return {
       name: entry.name,
       fullPath: entry.remotePath,
@@ -313,7 +338,7 @@ export class PanelDropAdapter {
       isSymlink: false,
       mode: entry.mode ?? 0o644,
       size: entry.size ?? 0,
-      modified: entry.modified != null ? new Date(entry.modified) : new Date(),
+      modified,
     } as SFTPFile
   }
 
@@ -405,7 +430,8 @@ export async function getDroppedOsPaths(ev: DragEvent): Promise<string[]> {
       const tmpPath = path.join(tmpDir, file.name)
       try {
         const buf = Buffer.from(await file.arrayBuffer())
-        if (buf.length === 0 && file.size === 0) continue
+        // ★ 2026-08-10 修复 #19：0 字节也是合法空文件，照常落盘传输，不得静默丢弃
+        //   （文件夹占位项在 arrayBuffer() 阶段会抛错被 catch 跳过，无需靠 size 判断）
         await fs.writeFile(tmpPath, buf)
         tmpPaths.push(tmpPath)
       } catch { /* 跳过无法读取的文件（含文件夹占位项） */ }
@@ -416,14 +442,28 @@ export async function getDroppedOsPaths(ev: DragEvent): Promise<string[]> {
   // 策略3: text/uri-list 回退（处理 Windows file:///C:/path 格式）
   const uriList = dt.getData('text/uri-list') || ''
   const uris = uriList.split(/\r?\n/g).map(x => x.trim()).filter(x => x && !x.startsWith('#'))
-  return uris.map(x => {
-    if (!x.startsWith('file://')) return x
-    const raw = decodeURIComponent(x.slice('file://'.length)) // 去掉 file://
+  const out: string[] = []
+  for (const x of uris) {
+    // ★ 2026-08-10 修复 #19：非 file:// URI（http:// 等）不是本地路径，直接丢弃，
+    //   此前会把 URL 当路径去读本地文件 → 上传报错
+    if (!x.startsWith('file://')) {
+      log.warn('[drop] skip non-file URI in uri-list:', x)
+      continue
+    }
+    let raw: string
+    try {
+      raw = decodeURIComponent(x.slice('file://'.length)) // 去掉 file://
+    } catch {
+      // ★ 2026-08-10 修复 #19：非法百分号编码时回退未解码路径，避免 URIError 中断整个拖放
+      raw = x.slice('file://'.length)
+    }
     // Windows: file:///C:/path → /C:/path → 去掉开头的 /，保持 Drive letter
     if (/^\/[a-zA-Z]:/.test(raw)) {
-      return raw.slice(1).replace(/\//g, '\\')
+      out.push(raw.slice(1).replace(/\//g, '\\'))
+    } else {
+      out.push(raw)
     }
-    return raw
-  })
+  }
+  return out
 }
 

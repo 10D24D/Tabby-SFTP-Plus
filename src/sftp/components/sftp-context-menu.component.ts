@@ -1,8 +1,8 @@
 ﻿/**
  * SFTP+ 右键菜单（文件列表 + 表头列配置）
  * 修改人：DD1024z + Hy3
- * 修改时间：2026-07-12
- *   重命名/删除菜单项增加快捷键提示（F2 / Del）
+ * 修改时间：2026-07-12 — 重命名/删除菜单项增加快捷键提示（F2 / Del）
+ *              2026-08-10 — 新增"以文本方式查看"菜单项（viewAsText，对未预定义文件类型显示）
  */
 import { Component, EventEmitter, Input, Output, ViewChild, ElementRef, AfterViewInit, OnChanges, SimpleChanges } from '@angular/core'
 
@@ -10,7 +10,7 @@ import { SftpI18nService } from '../../services/sftp-i18n.service'
 
 export type ContextMenuAction =
   | 'newFolder' | 'newFile' | 'rename' | 'delete'
-  | 'openLocal' | 'viewFile' | 'editFile' | 'upload' | 'download'
+  | 'openLocal' | 'viewFile' | 'viewAsText' | 'editFile' | 'upload' | 'download'
   | 'revealInExplorer' | 'chmod' | 'details'
   | 'copy' | 'cut' | 'paste' | 'refresh' | 'selectAll' | 'selectInvert' | 'copyPath'
 
@@ -47,6 +47,7 @@ export type ColVisibilityState = {
       <!-- 2. 打开 / 查看 / 编辑 / 在资源管理器中显示 -->
       <div class="ctx-item" (click)="menuAction.emit('openLocal')" *ngIf="hasLocalOpen">{{ i18n.t('file.open') }}</div>
       <div class="ctx-item" (click)="menuAction.emit('viewFile')" *ngIf="hasView">{{ i18n.t('file.view') }}</div>
+      <div class="ctx-item" (click)="menuAction.emit('viewAsText')" *ngIf="hasViewAsText">{{ i18n.t('file.viewAsText') }}</div>
       <div class="ctx-item" (click)="menuAction.emit('editFile')" *ngIf="hasEdit">{{ i18n.t('file.edit') }}</div>
       <div class="ctx-item" (click)="menuAction.emit('revealInExplorer')" *ngIf="hasLocalReveal">{{ i18n.t('file.showInFolder') }}</div>
       <div class="ctx-sep" *ngIf="sepBeforeClipboard"></div>
@@ -164,6 +165,7 @@ export class SftpContextMenuComponent implements OnChanges {
   @Input() clipboardHasEntries = false
   @Input() canView = false
   @Input() canEdit = false
+  @Input() canViewAsText = false
   @Input() canTransfer = false
   @Input() modKey = 'Ctrl'
   @Input() isZh = true
@@ -177,6 +179,11 @@ export class SftpContextMenuComponent implements OnChanges {
 
   get hasView(): boolean {
     return this.singleSelected && !!this.entry && !this.entry.isDirectory && this.canView
+  }
+
+  /** 未预定义文件类型的"以文本方式查看"：非目录 + 不在可查看列表中 */
+  get hasViewAsText(): boolean {
+    return this.singleSelected && !!this.entry && !this.entry.isDirectory && this.canViewAsText && !this.canView
   }
 
   get hasEdit(): boolean {

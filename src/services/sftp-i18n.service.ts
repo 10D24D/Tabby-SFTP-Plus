@@ -42,6 +42,15 @@ const afZAPo = require('../../locale/af-ZA.po')
 const zhTWPo = require('../../locale/zh-TW.po')
 
 /**
+ * ★ 2026-08-10 修复 #17：反转义 po 字符串（\" \\ \n \t 等）。
+ * 此前不反转义，含 \" 的译文会多出反斜杠甚至截断显示。
+ * 单次遍历处理，避免替换顺序导致 \\n 被误解为换行。
+ */
+function unescapePo(s: string): string {
+  return s.replace(/\\(.)/g, (_, c: string) => (c === 'n' ? '\n' : c === 't' ? '\t' : c))
+}
+
+/**
  * 解析 GNU gettext .po 文件内容为 key-value 映射
  */
 function parsePo(content: string): Record<string, string> {
@@ -55,7 +64,7 @@ function parsePo(content: string): Record<string, string> {
   for (const line of lines) {
     if (line.startsWith('msgid ')) {
       if (currentKey && currentValue) {
-        translations[currentKey] = currentValue
+        translations[unescapePo(currentKey)] = unescapePo(currentValue)
       }
       currentKey = line.slice(7, -1) // remove msgid "..."
       currentValue = ''
@@ -79,7 +88,7 @@ function parsePo(content: string): Record<string, string> {
 
   // 最后一条
   if (currentKey && currentValue) {
-    translations[currentKey] = currentValue
+    translations[unescapePo(currentKey)] = unescapePo(currentValue)
   }
 
   return translations

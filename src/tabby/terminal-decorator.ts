@@ -5,28 +5,7 @@
  * 创建人：DD1024z + Claude
  * 创建时间：2026-06-21
  * 修改人：DD1024z + Hy3
- * 修改人：DD1024z + Hy3
  * 修改时间：2026-07-25
- *   浮动面板 overlay 改为挂到 document.body + position: fixed，但尺寸/位置严格贴合
- *   当前 terminal pane 的 getBoundingClientRect()；各 overlay 互不重叠的 pane 矩形内，
- *   靠 DOM 追加顺序（后开的天然在上）即可区分层叠，不再使用硬编码高 z-index，避免盖过
- *    Tabby 自身弹窗。同时保留标签切换/隐藏时 overlay 自动消失，避免 body 挂载导致跨
- *   tab 残留。
- *   此前尝试的 absolute inset:0 因各 pane 形成独立层叠上下文，无法跨 pane 比较 z-index，
- *   故改用 fixed 但限制在 pane 矩形内（不铺满 viewport，不盖标签栏/分屏/工具栏）。
- *   B16-2 根治"面板随窗口还原缓慢缩小"：面板打开期间监听 window resize，resize
- *   时给 <html> 挂 sftp-plus-suppress-transition 类（!important 关闭全站过渡/动画），
- *   resize 停止 250ms 后摘除——瞬时压掉 Tabby 布局容器的尺寸补间，面板即时吸附；
- *   关闭面板时解绑监听并摘类（_bindResizeSuppression/__sftpPlusResizeCleanup）。
- *   新增 SSH 断开检测：终端关闭后禁用 SFTP+ 入口按钮
- *   替换 emoji 图标为 SVG 图标
- *   注入 CSS 规则隐藏原生 SFTP 按钮（设置项: hideNativeSFTPButton）
- *   替换文件夹图标为 Bootstrap Icons folder2-open
- *   修复隐藏原生SFTP按钮：扩大选择器匹配范围（title通配 + data属性 + 文本内容）
- *     取消隐藏时恢复被隐藏的原生按钮
- *   替换文件夹图标为新的 SVG 图标
- *   隐藏原生SFTP按钮改为精确匹配 button[title="SFTP" i]
- *   修复「偶发漏隐藏」：CSS 选择器改为属性存在即匹配；工具栏 MutationObserver 内防抖补扫一次隐藏
  */
 import { Injectable, Injector, ComponentFactoryResolver, ApplicationRef, NgZone, Optional } from '@angular/core'
 import { TerminalDecorator } from 'tabby-terminal'
@@ -379,6 +358,36 @@ export class SftpTerminalDecorator extends TerminalDecorator {
     const handler = () => this._applyNativeBtnHideRule()
     window.addEventListener('sftp-plus-settings-changed', handler)
     this.subscribeUntilDetached(terminal, { unsubscribe: () => window.removeEventListener('sftp-plus-settings-changed', handler) })
+  }
+
+  /**
+   * ★ 2026-08-10 修复 #5：终端销毁（关闭 tab / 断开重连）时必须同步销毁挂在
+   *   document.body 上的浮动面板，否则 overlay/rAF 同步循环/resize 监听泄漏，
+   *   面板残留在页面上且组件生命周期不再受控。
+   */
+  override detach(terminal: any): void {
+    try {
+      const hostEl = this._resolveHostEl(terminal)
+      const cmpRef = hostEl ? (hostEl as any).__sftpPlusCmpRef : null
+      if (hostEl && cmpRef) {
+        this.zone.run(() => {
+          try { (hostEl as any).__sftpPlusStopRectSync?.() } catch { /* ignore */ }
+          try { delete (hostEl as any).__sftpPlusStopRectSync } catch { /* ignore */ }
+          try { (hostEl as any).__sftpPlusResizeCleanup?.() } catch { /* ignore */ }
+          try { delete (hostEl as any).__sftpPlusResizeCleanup } catch { /* ignore */ }
+          try { cmpRef.destroy() } catch { /* ignore */ }
+          try { (hostEl as any).__sftpPlusOverlay?.remove() } catch { /* ignore */ }
+          try { delete (hostEl as any).__sftpPlusOpen } catch { /* ignore */ }
+          try { delete (hostEl as any).__sftpPlusMinimized } catch { /* ignore */ }
+          try { delete (hostEl as any).__sftpPlusOverlay } catch { /* ignore */ }
+          try { delete (hostEl as any).__sftpPlusCmpRef } catch { /* ignore */ }
+        })
+        log.info('Panel destroyed on terminal detach')
+      }
+    } catch (e) {
+      log.warn('detach cleanup failed', e)
+    }
+    super.detach(terminal)
   }
 
   private _openInNewTabByDefault(): boolean {

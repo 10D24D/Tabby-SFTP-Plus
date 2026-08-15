@@ -26,6 +26,9 @@ export class SftpConfigService {
   private _migrated = false
   /** 内存级缓存，区分"编辑中但不立即落盘" */
   private _cache: Record<string, any> = {}
+  /** ★ 2026-08-10 修复 #16：ConfigService 不可用时的兜底存储，
+   *   避免 set() 写入临时对象后静默丢失（get 永远读不回） */
+  private _localRoot: Record<string, any> = {}
 
   constructor(@Optional() private configService?: ConfigService) {
     this._migrateIfNeeded()
@@ -35,7 +38,7 @@ export class SftpConfigService {
 
   /** 获取 tabby-sftp-plus 根对象（若不存在则初始化） */
   private get root(): Record<string, any> {
-    if (!this.configService?.store) return {}
+    if (!this.configService?.store) return this._localRoot
     const storeKey = 'tabby-sftp-plus'
     if (!(storeKey in this.configService.store)) {
       this.configService.store[storeKey] = {}
@@ -56,11 +59,10 @@ export class SftpConfigService {
     const newVal = this._getByPath(this.root, path)
     if (newVal !== undefined) return newVal
     // 3. 双读回退
+    // ★ 2026-08-10 修复 #16：回退读结果不再永久缓存——_cache 从不失效，
+    //   store 被外部更新（迁移/其它实例/重载）后会一直返回陈旧值
     const oldVal = this._fallbackRead(path)
-    if (oldVal !== undefined) {
-      this._cache[path] = oldVal
-      return oldVal
-    }
+    if (oldVal !== undefined) return oldVal
     return fallback
   }
 
@@ -107,8 +109,9 @@ export class SftpConfigService {
     this._migrated = true
     const paneState = this.root.paneState
     if (!paneState || typeof paneState !== 'object') return
-    // 已迁移过的标志：layout / perHost 子对象存在
-    if (typeof paneState.layout === 'object' || typeof paneState.perHost === 'object') return
+    // 已迁移过的标志：layout / perHost 子对象均存在
+    // ★ 2026-08-15 修复 #6：OR → AND，避免仅 layout 已迁移时跳过 perHost 迁移
+    if (typeof paneState.layout === 'object' && typeof paneState.perHost === 'object') return
 
     this._migratePerHost(paneState)
     this._migrateLayout(paneState)

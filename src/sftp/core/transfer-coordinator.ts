@@ -3,21 +3,8 @@
  * 创建人：DD1024z + Hy3
  * 创建时间：2026-07-16
  * 修改人：DD1024z + Hy3
- * 修改时间：2026-07-16
+ * 修改时间：2026-08-02 — B19：SftpTransferPort 实现 stat 方法，支持 attrs 嵌套字段
  * 合并来源：panel-transfer-coordinator, panel-transfer-runtime
- * 修改人：DD1024z + Hy3
- * 修改时间：2026-07-23
- *   trackTransfer 与所有 finish/cancel/disconnect/stall/catch 的 transferLog.update
- *   均补 pending 标记：add 时 pending=true（sz>0 时），update 完成时 pending=false，
- *   与 sftp-transfer-log.service 新增字段对齐，修复日志"传输中误显示成功"bug。
- * 修改人：DD1024z + Hy3
- * 修改时间：2026-07-25 — B12 取消下载清理半截 .tmp：
- *   ① cancelTransfer/clearTransfers 对"暂停态"下载删除孤儿 .tmp；
- *   ② _resumeTransfer 下载分支与 _rawReadLoop 在"取消（非暂停）"时删除 .tmp 并退出。
- * 修改人：DD1024z + Hy3
- * 修改时间：2026-07-25 — B13 上传改走 raw stream（uploadViaRawToTemp 写 .tabby-upload 临时文件）：
- *   暂停只结束流保留临时文件（供续传）、取消删临时文件保留原文件；初始与续传语义统一，
- *   故 pauseTransfer 对单文件上传不再调 cancel()；cancelTransfer/clearTransfers 补删暂停态上传孤儿 .tabby-upload。
  */
 
 import * as fs from 'fs/promises'
@@ -38,6 +25,9 @@ import * as path from 'path'
 
 import { LocalPathFileDownload, LocalPathFileUpload, uploadViaRawToTemp } from './transfer-adapters'
 
+import { TarChannel } from './tar-channel'
+
+import { execSshCommand } from './path-utils'
 
 import { log } from '../../services/sftp-logger'
 ﻿/**
@@ -47,14 +37,17 @@ import { log } from '../../services/sftp-logger'
 
 export interface PanelTransferHost {
   sftpSession: unknown
+  /** ★ 2026-08-11：SSH 会话（tar 打包通道经 exec 打包/解包；可为 null） */
+  sshSession?: unknown
   mtimeToleranceMs: number
   localPath: string
   enqueueConflict(item: ConflictQueueItem): void
   showConflictDialog(): void
-  calcLocalDirSize(dirPath: string): Promise<number>
-  countLocalDirItems(dirPath: string): Promise<number>
-  calcRemoteDirSize(remotePath: string): Promise<number>
-  countRemoteDirItems(remotePath: string): Promise<number>
+  /** ★ 2026-08-11：单次遍历同时得出总大小与文件数（原 4 个串行递归函数） */
+  scanLocalDir(dirPath: string): Promise<{ size: number; count: number }>
+  scanRemoteDir(remotePath: string): Promise<{ size: number; count: number }>
+  /** ★ 2026-08-11：快速模式（实时读设置）：目录传输跳过预扫描直接开传，代价是没有百分比进度 */
+  fastMode?(): boolean
   startFolderTransfer(
     name: string,
     direction: 'upload' | 'download',
@@ -62,8 +55,12 @@ export interface PanelTransferHost {
     localPath: string,
     totalSize: number,
     itemCount: number,
+    /** ★ 2026-08-11：复用既有传输记录条目（冲突覆盖合并用） */
+    reuseLogEntryId?: string,
   ): FolderTransferCtx
   finishFolderTransfer(ctx: FolderTransferCtx, success: boolean): void
+  /** ★ 2026-08-11：回填传输记录的真实目录大小（tar 打包通道用） */
+  updateFolderLogSize(ctx: FolderTransferCtx, size: number): void
   updateFolderProgress(
     ctx: FolderTransferCtx,
     bytesDone: number,
@@ -71,11 +68,23 @@ export interface PanelTransferHost {
     itemDone: number,
     currentItemSize?: number,
   ): void
-  uploadTopLevel(remotePath: string, localPath: string): Promise<void>
-  uploadRaw(remotePath: string, localPath: string): Promise<void>
-  downloadTopLevel(remotePath: string, localPath: string, mode?: number, size?: number): Promise<void>
-  downloadRaw(remotePath: string, localPath: string, mode?: number, size?: number): Promise<void>
+  // ★ 2026-08-10：传输方法返回 boolean（true=完整成功），供剪切粘贴删源前校验
+  uploadTopLevel(remotePath: string, localPath: string): Promise<boolean>
+  uploadRaw(remotePath: string, localPath: string): Promise<boolean>
+  downloadTopLevel(remotePath: string, localPath: string, mode?: number, size?: number): Promise<boolean>
+  downloadRaw(remotePath: string, localPath: string, mode?: number, size?: number): Promise<boolean>
   refreshRemote(): Promise<unknown>
+  /** ★ 2026-08-10：目录内文件级并发数（1-10，实时读设置）；可选，缺省回落默认 3 */
+  dirUploadConcurrency?(): number
+  dirDownloadConcurrency?(): number
+  /** ★ 2026-08-11：tar 通道下载 tar 包（不产生 UI 条目）；onProgress 上报字节，shouldAbort 为 true 时中断 */
+  downloadTarBall(
+    remotePath: string,
+    localPath: string,
+    size: number,
+    onProgress?: (bytes: number) => void,
+    shouldAbort?: () => boolean,
+  ): Promise<boolean>
 }
 
 export class PanelTransferCoordinator {
@@ -91,21 +100,28 @@ export class PanelTransferCoordinator {
       host.mtimeToleranceMs,
     )
     const ports = this._buildPorts()
-    this.downloadDirUseCase = new DownloadDirUseCase(ports, this._remoteStats())
+    this.downloadDirUseCase = new DownloadDirUseCase(
+      ports, this._remoteStats(), () => host.dirDownloadConcurrency?.(), () => !!host.fastMode?.(),
+    )
     this.downloadOneUseCase = new DownloadOneUseCase(ports, {
       getLocalPath: () => host.localPath,
       downloadDir: (remoteSrc, localDest) => this.downloadRemoteDir(remoteSrc, localDest),
     })
-    this.uploadUseCase = new UploadPathUseCase(ports)
+    this.uploadUseCase = new UploadPathUseCase(ports, () => host.dirUploadConcurrency?.(), () => !!host.fastMode?.())
     this.mergeLocalDirUseCase = new MergeLocalDirUseCase({
       localFs: ports.localFs,
       sftp: ports.sftp,
       execution: ports.execution,
       refreshRemote: () => host.refreshRemote(),
+      // ★ 2026-08-11：合并覆盖也要有「传输中」面板（此前无进度条目，用户以为没在传）；
+      //   非快速模式预扫描得真实总量，与常规目录上传一致
+      folder: ports.folder,
+      scanLocalDir: (dirPath) => host.scanLocalDir(dirPath),
+      fastMode: () => !!host.fastMode?.(),
     })
   }
 
-  uploadPathToRemote(remoteDir: string, localPath: string, top?: FolderTransferCtx): Promise<void> {
+  uploadPathToRemote(remoteDir: string, localPath: string, top?: FolderTransferCtx): Promise<boolean> {
     return this.uploadUseCase.execute(remoteDir, localPath, top)
   }
 
@@ -118,12 +134,12 @@ export class PanelTransferCoordinator {
     localDest: string,
     top?: FolderTransferCtx,
     localName?: string,
-  ): Promise<void> {
+  ): Promise<boolean> {
     return this.downloadDirUseCase.execute(remoteSrc, localDest, top, localName)
   }
 
-  mergeLocalDirToRemote(localSrc: string, remoteDest: string): Promise<void> {
-    return this.mergeLocalDirUseCase.execute(localSrc, remoteDest)
+  mergeLocalDirToRemote(localSrc: string, remoteDest: string, reuseLogEntryId?: string): Promise<boolean> {
+    return this.mergeLocalDirUseCase.execute(localSrc, remoteDest, true, reuseLogEntryId)
   }
 
   checkUploadConflict(
@@ -151,9 +167,54 @@ export class PanelTransferCoordinator {
   private _remoteStats(): RemoteDirStatsPort {
     const host = this.host
     return {
-      calcDirSize: (p) => host.calcRemoteDirSize(p),
-      countDirItems: (p) => host.countRemoteDirItems(p),
+      scanDir: (p) => host.scanRemoteDir(p),
     }
+  }
+
+  /** ★ 2026-08-11：组装 tar 打包通道（仅目标不存在的全新传输时由用例启用） */
+  private _tarChannel(): TarChannel {
+    const host = this.host
+    return new TarChannel({
+      hasSsh: () => !!host.sshSession,
+      exec: (cmd, timeoutMs) => execSshCommand(host.sshSession, cmd, timeoutMs),
+      uploadFile: async (localPath, remotePath, onProgress, shouldAbort) => {
+        const raw = host.sftpSession as any
+        if (!raw) return false
+        const up = new LocalPathFileUpload(localPath)
+        const timer = setInterval(() => {
+          if (shouldAbort?.() && !up.isCancelled()) void up.cancel()
+          onProgress?.(up.getCompletedBytes())
+        }, 400)
+        try {
+          // ★ 2026-08-11 修复：新版 Tabby（russh）的 SFTPSession 无 createWriteStream，
+          //   直接调 uploadViaRawToTemp 会同步抛 TypeError 导致打包通道必败；
+          //   与 uploadLocalFile 同款能力探测，无 raw stream 时回退标准 upload() API
+          if (typeof raw.createWriteStream === 'function') {
+            await uploadViaRawToTemp(raw, remotePath, up, 0)
+          } else {
+            await raw.upload(remotePath, up)
+          }
+          return !up.isCancelled() && !up.isPaused() && up.isComplete()
+        } catch (e) {
+          log.warn('tar channel tarball upload failed:', remotePath, e)
+          return false
+        } finally {
+          clearInterval(timer)
+          up.close().catch(() => {})
+        }
+      },
+      downloadFile: (remotePath, localPath, size, onProgress, shouldAbort) =>
+        host.downloadTarBall(remotePath, localPath, size, onProgress, shouldAbort),
+      remoteUnlink: async (p) => {
+        try { await (host.sftpSession as any).unlink(p) } catch { /* ignore */ }
+      },
+      // ★ 2026-08-11：本地扫描开销低，复用合并遍历的 scanLocalDir 取真实目录大小
+      scanLocalSize: (p) => host.scanLocalDir(p).then(s => s?.size ?? 0).catch(() => 0),
+      // ★ 2026-08-11：下载进度按真实大小显示；快速模式跳过远端扫描（尊重其提速语义）
+      scanRemoteSize: (p) => host.fastMode?.()
+        ? Promise.resolve(0)
+        : host.scanRemoteDir(p).then(s => s?.size ?? 0).catch(() => 0),
+    })
   }
 
   private _buildPorts(): TransferUseCasePorts {
@@ -168,8 +229,7 @@ export class PanelTransferCoordinator {
         const entries = await fs.readdir(p, { withFileTypes: true })
         return entries.map(e => ({ name: e.name, isSymbolicLink: e.isSymbolicLink() }))
       },
-      calcDirSize: (p) => host.calcLocalDirSize(p),
-      countDirItems: (p) => host.countLocalDirItems(p),
+      scanDir: (p) => host.scanLocalDir(p),
       pathExists: (p) => fs.stat(p).then(() => true).catch(() => false),
       mkdirRecursive: async (p) => { try { await fs.mkdir(p, { recursive: true }) } catch {} },
     }
@@ -188,10 +248,32 @@ export class PanelTransferCoordinator {
           modified: e.modified,
         }))
       },
+      stat: async (remotePath) => {
+        const session = host.sftpSession as any
+        if (!session?.stat) return null
+        try {
+          const st = await session.stat(remotePath)
+          if (!st) return null
+          return {
+            name: path.posix.basename(remotePath),
+            isDirectory: !!st.isDirectory,
+            size: st.size ?? st.attrs?.size,
+            mode: st.mode ?? st.attrs?.permissions ?? st.attrs?.mode,
+            modified: st.modified ?? st.mtime ?? st.mtimeMs ?? st.attrs?.modified ?? st.attrs?.mtime,
+            mtime: st.mtime ?? st.attrs?.mtime,
+            attrs: st.attrs,
+          }
+        } catch (e: any) {
+          if (e?.code === 'ENOENT' || /not exist/i.test(String(e?.message))) return null
+          log.warn('sftp stat failed in transfer coordinator:', remotePath, e?.message)
+          return null
+        }
+      },
     }
     const folder: FolderTransferPort = {
       start: (...args) => host.startFolderTransfer(...args),
       finish: (ctx, success) => host.finishFolderTransfer(ctx, success),
+      updateLogSize: (ctx, size) => host.updateFolderLogSize(ctx, size),
       updateProgress: (...args) => host.updateFolderProgress(...args),
       markHadConflict: (ctx) => { ctx.hadConflict = true },
       isAborted: (ctx) => !!(ctx.t as any)?._aborted,
@@ -224,6 +306,8 @@ export class PanelTransferCoordinator {
       folder,
       execution,
       conflictDetection: this.conflictDetection,
+      // ★ 2026-08-11：tar 打包通道（用例层仅在目标不存在时启用）
+      tarChannel: this._tarChannel(),
       conflictQueue,
     }
   }
@@ -238,6 +322,7 @@ export interface PanelTransferRuntimeHost {
   transferLog: {
     add(input: any): { id: string }
     update(id: string, patch: any): void
+    remove(id: string): boolean
     getAll(): any[]
   }
   profile?: { name?: string }
@@ -258,7 +343,41 @@ export class PanelTransferRuntime {
   private _transferTimer: ReturnType<typeof setInterval> | null = null
   private _trackedTransferCount = 0
 
+  /**
+   * ★ 2026-08-10 修复：排队条目取消的"粘性标记"（key=direction|localPath → 取消时刻）。
+   * 竞态：_runQueuedUpload/Download 已通过 transfers.includes 检查开始执行，但尚未走到
+   * trackTransfer 认领（中间隔着冲突检测 stat 等 RTT）；此时用户取消 queued 条目只删了 UI 条目，
+   * 传输继续 → trackTransfer 找不到占位会新建条目 → "取消失败"（文件照传、条目再现）。
+   * 认领前消费此标记：命中则直接 abort 底层传输且不建条目。短 TTL 避免误伤后续重新发起的同名传输。
+   */
+  private _queuedCancelKeys = new Map<string, number>()
+  private static readonly QUEUED_CANCEL_TTL_MS = 10_000
+
   constructor(private readonly host: PanelTransferRuntimeHost) {}
+
+  private _queuedCancelKey(direction: string, localPath: string): string {
+    return direction + '|' + localPath
+  }
+
+  /** 记录一次排队条目的取消（供 trackTransfer/_startFolderTransfer 认领前拦截） */
+  recordQueuedCancel(direction?: string, localPath?: string): void {
+    if (!direction || !localPath) return
+    this._queuedCancelKeys.set(this._queuedCancelKey(direction, localPath), Date.now())
+    if (this._queuedCancelKeys.size > 100) {
+      const first = this._queuedCancelKeys.keys().next().value
+      if (first !== undefined) this._queuedCancelKeys.delete(first)
+    }
+  }
+
+  /** 消费粘性取消标记：true=该传输在排队期间已被取消，调用方应立即 abort 且不建条目 */
+  consumeQueuedCancel(direction?: string, localPath?: string): boolean {
+    if (!direction || !localPath) return false
+    const key = this._queuedCancelKey(direction, localPath)
+    const ts = this._queuedCancelKeys.get(key)
+    if (ts == null) return false
+    this._queuedCancelKeys.delete(key)
+    return Date.now() - ts <= PanelTransferRuntime.QUEUED_CANCEL_TTL_MS
+  }
 
   async trackTransfer(
     t: any,
@@ -267,11 +386,46 @@ export class PanelTransferRuntime {
     localPath: string,
     logOperation?: 'upload' | 'download' | 'edit-upload' | 'edit-download',
   ): Promise<void> {
+    // ★ 2026-08-10 修复：排队期间已被取消（竞态窗口内传输已启动）——
+    //   直接 abort 底层传输且不认领/新建条目，避免"取消后文件照传、条目再现"
+    if (this.consumeQueuedCancel(direction, localPath)) {
+      try { await t.cancel?.() } catch { /* ignore */ }
+      return
+    }
     // ★ 修复：getSize 可能是异步的（LocalPathFileUpload 返回 Promise<number>），
     //   必须 await，否则 bytesTotal 会被设成 Promise → percent 计算为 NaN → 进度条宽度崩、百分比恒为 0
     const sz = (await Promise.resolve(t.getSize?.())) || 0
     const profileName = this.host.profile?.name || undefined
     const operation = logOperation ?? direction
+
+    // ★ 2026-08-10：认领预注册的排队占位条目（多选拖拽/下载）——复用占位条目与日志，
+    //   避免占位条目与实际传输条目重复显示
+    const claimed = this.host.transfers.find(
+      e => e.queued && e.direction === direction && e.localPath === localPath,
+    )
+    if (claimed) {
+      if (sz === 0) {
+        // 空文件立即完成：移除占位并收尾日志
+        this.host.transfers = this.host.transfers.filter(x => x !== claimed)
+        if (claimed.logEntryId != null) {
+          this.host.transferLog.update(claimed.logEntryId, { success: true, duration: 0, endTime: Date.now(), pending: false })
+        }
+        return
+      }
+      claimed.transfer = t
+      claimed.queued = false
+      claimed.bytesTotal = sz
+      claimed.bytesDone = 0
+      claimed.percent = 0
+      if (claimed.logEntryId != null) {
+        this.host.transferLog.update(claimed.logEntryId, { size: sz, startTime: Date.now() })
+      }
+      const claimNow = Date.now()
+      this._transferMeta.set(claimed, { prevBytes: 0, prevTime: claimNow, startTime: claimNow, lastProgressTime: claimNow })
+      this._trackedTransferCount++
+      this._startTransferTimer()
+      return
+    }
 
     const logEntry = this.host.transferLog.add({
       operation,
@@ -293,7 +447,9 @@ export class PanelTransferRuntime {
     const entry: PanelTransferItem = {
       transfer: t,
       direction,
-      name: t.getName(),
+      // ★ 2026-08-10：下载走 .tmp 原子落盘、上传走 .tabby-upload，getName() 会带临时后缀，
+      //   展示层统一剥离，避免传输列表显示 xxx.tmp
+      name: String(t.getName()).replace(/\.(tmp|tabby-upload)$/, ''),
       remotePath,
       localPath,
       percent: 0,
@@ -312,6 +468,16 @@ export class PanelTransferRuntime {
   }
 
   cancelTransfer(entry: { transfer: any; logEntryId?: string; paused?: boolean; isFolder?: boolean }): void {
+    // ★ 2026-08-10：排队占位条目尚未开始传输——直接移除条目并删掉占位日志（不产生"已取消"记录）。
+    //   同时记粘性取消标记：若传输已过调度检查正在启动（尚未认领），trackTransfer/认领处会拦截 abort
+    if ((entry as any).queued) {
+      this.recordQueuedCancel((entry as any).direction, (entry as any).localPath)
+      this.host.transfers = this.host.transfers.filter(x => x !== entry)
+      if (entry.logEntryId != null) {
+        try { this.host.transferLog.remove(entry.logEntryId) } catch { /* ignore */ }
+      }
+      return
+    }
     if (entry.transfer) {
       try {
         if (typeof entry.transfer.cancel === 'function') entry.transfer.cancel()
@@ -366,7 +532,17 @@ export class PanelTransferRuntime {
   private _cleanupPausedUploadTmp(entry: any): void {
     if (entry?.isFolder || !entry?.paused) return
     if (entry.direction !== 'upload' || !entry.remotePath) return
-    try { fsSync.unlinkSync(entry.remotePath + '.tabby-upload') } catch { /* 不存在或已改名 */ }
+    // ★ 2026-08-10 修复：remotePath 是远程 POSIX 路径，必须用 SFTP 会话删除。
+    //   旧实现用本地 fsSync.unlinkSync：Windows 上被解析为当前盘符相对路径，
+    //   远程孤儿临时文件永远无法清理，还可能误删本地同名文件。
+    const session = this.host.sftpSession
+    if (!session || typeof session.unlink !== 'function') return
+    try {
+      const p = session.unlink(entry.remotePath + '.tabby-upload')
+      if (p && typeof (p as Promise<void>).catch === 'function') {
+        (p as Promise<void>).catch(() => { /* 不存在或已改名 */ })
+      }
+    } catch { /* ignore */ }
   }
 
   /**
@@ -380,6 +556,7 @@ export class PanelTransferRuntime {
    *      resume 又起新传输 → 两个传输同时写同一文件 → 数据损坏。
    */
   async pauseTransfer(entry: any): Promise<void> {
+    if (entry.queued) return  // ★ 2026-08-10：排队条目无底层传输对象，不可暂停
     if (entry.paused) return
     if (entry.isFolder) {
       // ★ 文件夹暂停：只设标记不cancel当前子文件，等当前文件完成后在下一文件开始前停，
@@ -414,6 +591,7 @@ export class PanelTransferRuntime {
    *   startTime=original ⇒ 日志耗时包含暂停时长 ⇒ 虚高。
    */
   async resumeTransfer(entry: any): Promise<void> {
+    if (entry.queued) return  // ★ 2026-08-10：排队条目无底层传输对象，不可续传
     if (!entry.paused) return
     if (entry.isFolder) {
       delete (entry as any)._paused
@@ -459,6 +637,13 @@ export class PanelTransferRuntime {
   clearTransfers(): void {
     const now = Date.now()
     for (const t of this.host.transfers) {
+      // ★ 2026-08-10：排队占位条目从未开始传输，直接删除占位日志而非标记 interrupted
+      if ((t as any).queued) {
+        if (t.logEntryId) {
+          try { this.host.transferLog.remove(t.logEntryId) } catch { /* ignore */ }
+        }
+        continue
+      }
       // 同步更新日志状态，避免 pending:true 残留
       if (t.logEntryId) {
         try {
@@ -512,20 +697,20 @@ export class PanelTransferRuntime {
       const t = entry.transfer
       try {
         if (!this.host.connected) {
-          if (!entry.paused) {
-            try {
-              if (typeof t.cancel === 'function') t.cancel()
-              else if (typeof t.destroy === 'function') t.destroy()
-            } catch { /* ignore */ }
-            toRemove.push(entry)
-            this.host.transferLog.update(entry.logEntryId!, {
-              success: false,
-              duration: Date.now() - meta.startTime,
-              endTime: Date.now(),
-              failReason: 'interrupted',
-              pending: false,
-            })
-          }
+          // ★ 2026-08-15 修复 #2：断连后暂停传输也无法恢复（SFTP 会话已丢失），
+          //   一并清理避免 UI 永久僵尸
+          try {
+            if (typeof t.cancel === 'function') t.cancel()
+            else if (typeof t.destroy === 'function') t.destroy()
+          } catch { /* ignore */ }
+          toRemove.push(entry)
+          this.host.transferLog.update(entry.logEntryId!, {
+            success: false,
+            duration: Date.now() - meta.startTime,
+            endTime: Date.now(),
+            failReason: 'interrupted',
+            pending: false,
+          })
           continue
         }
         if (entry.paused) { entry.speed = ''; continue }
@@ -571,14 +756,15 @@ export class PanelTransferRuntime {
           })
           continue
         }
-        if (t.isComplete?.() || t.isCancelled?.() || entry.percent >= 100) {
+        if (t.isComplete?.() || t.isCancelled?.() || t.isFailed?.() || entry.percent >= 100) {
           // 兜底：若速率窗口未触发（极快传输 <500ms 完成），用总平均速度填充，避免最后仍显示 '--'
           if (!entry.speed && done > 0) {
             const dur = Math.max(1, now - meta.startTime)
             entry.speed = this.host.formatSpeed(done, dur)
           }
           toRemove.push(entry)
-          const finalSuccess = !t.isCancelled?.()
+          // ★ 2026-08-10：失败标记（raw 读错误等）也计入失败，避免非取消类错误被误报成功
+          const finalSuccess = !t.isCancelled?.() && !t.isFailed?.()
           this.host.transferLog.update(entry.logEntryId!, { success: finalSuccess, duration: now - meta.startTime, endTime: now, failReason: finalSuccess ? undefined : 'error', pending: false })
         }
       } catch {
@@ -630,14 +816,25 @@ export class PanelTransferRuntime {
       let up: LocalPathFileUpload
       if (hasRawStream) {
         up = new LocalPathFileUpload(localPath, remoteOffset)
-        uploadViaRawToTemp(rawSftp, remotePath, up, remoteOffset)
+        // ★ 2026-08-10：补 catch——流错误时避免 unhandled rejection（对比非 raw 分支已有 catch）
+        // ★ 2026-08-15 修复 #1：流失败时标记 failed，避免 UI 僵尸态（最长等 15 分钟 stall 超时）
+        uploadViaRawToTemp(rawSftp, remotePath, up, remoteOffset).catch(async (e: unknown) => {
+          if (!up.isCancelled?.() && !up.isPaused()) {
+            try { await up._markFailed?.() } catch {}
+            log.error('Resume raw upload failed', e)
+          }
+        })
       } else {
         // 标准 upload API 不支持远端 offset；传入本地 offset 会只上传后缀并截断目标。
         // 因此不支持 raw stream 时必须完整重传，优先保证数据完整性。
         remoteOffset = 0
         up = new LocalPathFileUpload(localPath)
-        this.host.sftpSession.upload(remotePath, up as any).catch((e: any) => {
-          if (!up.isCancelled?.()) log.error('Resume upload failed', e)
+        // ★ 2026-08-15 修复 #1：标准 upload 失败也标记 failed
+        this.host.sftpSession.upload(remotePath, up as any).catch(async (e: any) => {
+          if (!up.isCancelled?.()) {
+            try { await up._markFailed?.() } catch {}
+            log.error('Resume upload failed', e)
+          }
         })
       }
       const percent = totalSize > 0 ? Math.min(99, Math.round((remoteOffset / totalSize) * 100)) : 0
@@ -700,7 +897,8 @@ export class PanelTransferRuntime {
       if (offset > 0) fsSync.ftruncateSync(localFd, offset)
     } catch (e) {
       log.error('Raw download open error', e)
-      try { (dl as any)._markComplete?.() } catch {}
+      // ★ 2026-08-10：打开失败记为失败而非完成，避免传输日志误报成功
+      try { (dl as any)._markFailed?.() } catch {}
       return
     }
     const readStream = rawSftp.createReadStream(remotePath, { start: offset })
@@ -790,6 +988,8 @@ export class PanelTransferRuntime {
         const stat = fsSync.statSync(tmpPath)
         if (totalSize > 0 && stat.size !== totalSize) {
           log.error(`Raw resume size mismatch: expected ${totalSize}, got ${stat.size}`)
+          // ★ 2026-08-10：大小不匹配记为失败，避免传输条目挂到 15 分钟 stall 超时才移除
+          try { await dl._markFailed?.() } catch {}
           return
         }
         fsSync.renameSync(tmpPath, localPath)
@@ -797,12 +997,22 @@ export class PanelTransferRuntime {
         dl._markComplete?.()
       } catch (e) {
         log.error('Raw resume rename failed', e)
+        try { await dl._markFailed?.() } catch {}
       }
     } catch (e) {
-      log.error('Raw resume error', e)
-      // 确保下载对象被正确关闭并标记完成，避免 UI 卡死 15 分钟
+      // ★ 2026-08-10 修复：区分取消/暂停/真错误。
+      //   旧实现无条件 _markComplete() 导致非取消类错误（读错误/权限）被记为成功；
+      //   且取消时 dl.write() 抛错直接进 catch，跳过了 .tmp 清理。
       try { await dl.close() } catch {}
-      try { dl._markComplete?.() } catch {}
+      if (dl.isCancelled?.() && !(dl as any).paused) {
+        // 取消（非暂停）：删除半截 .tmp
+        try { fsSync.unlinkSync(tmpPath) } catch { /* ignore */ }
+      } else if ((dl as any).paused) {
+        // 暂停：保留 .tmp 供下次续传，不标记完成/失败
+      } else {
+        log.error('Raw resume error', e)
+        try { await dl._markFailed?.() } catch {}
+      }
     } finally {
       if (handle) {
         try {

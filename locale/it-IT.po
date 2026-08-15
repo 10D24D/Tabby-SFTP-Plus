@@ -795,7 +795,7 @@ msgid "settings.hideNativeBtn"
 msgstr "Nascondi pulsante SFTP nativo"
 
 msgid "settings.openInNewTab"
-msgstr "Apri in nuova scheda per impostazione predefinita"
+msgstr "Apri il pannello in nuova scheda per impostazione predefinita"
 
 msgid "settings.singleWorkspaceInstance"
 msgstr "Solo istanza singola"
@@ -833,8 +833,8 @@ msgstr "Impossibile salvare il tasto di scelta rapida"
 msgid "settings.hotkeyRecordTimeout"
 msgstr "Registrazione scaduta, riprova"
 
-msgid "settings.compatibility"
-msgstr "Compatibilità"
+msgid "settings.other"
+msgstr "Funzionalità"
 
 msgid "settings.data"
 msgstr "Dati"
@@ -1087,3 +1087,64 @@ msgstr "Anteprima"
 
 msgid "settings.dateFormatReset"
 msgstr "Ripristina predefinito"
+
+msgid "settings.defaultPathMode"
+msgstr "Modalità percorso predefinita"
+
+msgid "settings.pathModeOff"
+msgstr "Disattivato"
+
+msgid "settings.pathModeRemember"
+msgstr "Ricorda percorso"
+
+msgid "settings.pathModeSync"
+msgstr "Sincronizza con il terminale"
+
+msgid "settings.defaultShowHidden"
+msgstr "Mostra file nascosti per impostazione predefinita"
+
+msgid "settings.uploadConcurrency"
+msgstr "Caricamenti simultanei"
+
+msgid "settings.downloadConcurrency"
+msgstr "Download simultanei"
+
+msgid "transfer.queued"
+msgstr "In coda"
+
+
+msgid "settings.fastMode"
+msgstr "Modalità trasferimento veloce"
+
+msgid "settings.fastModeDesc"
+msgstr "Avvia i trasferimenti di cartelle immediatamente senza scansione preliminare: avvio più rapido, ma dimensione totale e avanzamento percentuale non possono essere mostrati durante il trasferimento (solo i byte trasferiti)"
+
+msgid "file.sizeCalculate"
+msgstr "Calcola"
+
+msgid "file.sizeCalculating"
+msgstr "Calcolo in corso…"
+
+msgid "file.sizeCalcFailed"
+msgstr "Calcolo non riuscito"
+
+msgid "file.folderSizeDetail"
+msgstr "{size} ({count} file)"
+
+msgid "file.fileProperties"
+msgstr "Proprietà del file"
+
+msgid "file.folderProperties"
+msgstr "Proprietà della cartella"
+
+msgid "settings.hideAuthorInfo"
+msgstr "Nascondi informazioni sull'autore del plugin"
+
+msgid "settings.hideAuthorConfirmText"
+msgstr "Prima di nascondere le informazioni sull'autore, metti una stella al repository del plugin. La pagina del repository è stata aperta nel browser. La tua stella è la mia motivazione per sviluppare — grazie per il supporto! 🙏"
+
+msgid "settings.starredConfirm"
+msgstr "Ho messo la stella"
+
+msgid "file.location"
+msgstr "Posizione"

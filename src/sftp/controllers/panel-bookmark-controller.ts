@@ -4,10 +4,7 @@
  * 创建人：DD1024z + Hy3
  * 创建时间：2026-07-11
  * 修改人：DD1024z + Hy3
- * 修改时间：2026-07-11
- * 修改人：DD1024z + Hy3
  * 修改时间：2026-07-21
- *   新增「选中书签后关闭书签面板」兼容选项：gotoBookmark 在 closeBookmarkPanelOnSelect 开启时调用 closeBookmarks() 关闭书签弹窗（不动整个 SFTP+ 面板）
  */
 import * as path from 'path'
 import { Bookmark, SftpBookmarksService } from '../../services/sftp-bookmarks.service'
@@ -269,9 +266,16 @@ export abstract class SftpPanelBookmarkController extends SftpPanelViewerControl
     const toAllIdx = all.findIndex(b => b.id === targetItem.id)
     if (fromAllIdx < 0 || toAllIdx < 0) return
 
-    // 如果向下拖 (from < to)，先移除 fromAllIdx 后 toAllIdx 会偏移 1，
-    // reorder 内部 splice(from,1) + splice(to,0,item) 需要修正目标索引
-    const adjustedTo = fromAllIdx < toAllIdx ? toAllIdx - 1 : toAllIdx
+    // ★ 2026-08-10 修复 #9：落点必须参与计算——拖到目标上半部=插到目标前，
+    //   下半部=插到目标后（此前 dragOverBottom 只影响提示线，落点永远等同"目标前"）。
+    //   reorder 内部先 splice(from,1) 再 splice(to,0,item)：向下拖时目标索引需 -1 修正
+    let adjustedTo: number
+    if (fromAllIdx < toAllIdx) {
+      adjustedTo = dropBottom ? toAllIdx : toAllIdx - 1
+    } else {
+      adjustedTo = dropBottom ? toAllIdx + 1 : toAllIdx
+    }
+    if (adjustedTo === fromAllIdx) return // 落点等效原位，无需移动
     this.bookmarks.reorder(fromAllIdx, adjustedTo)
   }
 }

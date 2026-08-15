@@ -623,7 +623,7 @@ msgstr "Порада: керуйте через клацання правою к
 msgid "settings.hideNativeBtn"
 msgstr "Сховати рідну кнопку SFTP"
 msgid "settings.openInNewTab"
-msgstr "Відкривати в новій вкладці за замовчуванням"
+msgstr "Відкривати панель у новій вкладці за замовчуванням"
 msgid "settings.singleWorkspaceInstance"
 msgstr "Лише одна інстанція"
 msgid "settings.hotkey"
@@ -650,8 +650,8 @@ msgid "settings.hotkeySaveFailed"
 msgstr "Не вдалося зберегти гарячу клавішу"
 msgid "settings.hotkeyRecordTimeout"
 msgstr "Час запису вичерпано, спробуйте знову"
-msgid "settings.compatibility"
-msgstr "Сумісність"
+msgid "settings.other"
+msgstr "Функціональність"
 msgid "settings.data"
 msgstr "Дані"
 msgid "settings.export"
@@ -880,3 +880,64 @@ msgstr "Попередній перегляд"
 
 msgid "settings.dateFormatReset"
 msgstr "Скинути до типового"
+
+msgid "settings.defaultPathMode"
+msgstr "Режим шляху за замовчуванням"
+
+msgid "settings.pathModeOff"
+msgstr "Вимк."
+
+msgid "settings.pathModeRemember"
+msgstr "Запам'ятовувати шлях"
+
+msgid "settings.pathModeSync"
+msgstr "Синхронізація з терміналом"
+
+msgid "settings.defaultShowHidden"
+msgstr "Показувати приховані файли за замовчуванням"
+
+msgid "settings.uploadConcurrency"
+msgstr "Одночасні вивантаження"
+
+msgid "settings.downloadConcurrency"
+msgstr "Одночасні завантаження"
+
+msgid "transfer.queued"
+msgstr "У черзі"
+
+
+msgid "settings.fastMode"
+msgstr "Швидкий режим передачі"
+
+msgid "settings.fastModeDesc"
+msgstr "Запускає передачу папок одразу без попереднього сканування: швидший старт, але загальний розмір і відсоток виконання не можна показати під час передачі (лише переданий обсяг)"
+
+msgid "file.sizeCalculate"
+msgstr "Обчислити"
+
+msgid "file.sizeCalculating"
+msgstr "Обчислення…"
+
+msgid "file.sizeCalcFailed"
+msgstr "Помилка обчислення"
+
+msgid "file.folderSizeDetail"
+msgstr "{size} ({count} файлів)"
+
+msgid "file.fileProperties"
+msgstr "Властивості файлу"
+
+msgid "file.folderProperties"
+msgstr "Властивості папки"
+
+msgid "settings.hideAuthorInfo"
+msgstr "Приховати інформацію про автора плагіна"
+
+msgid "settings.hideAuthorConfirmText"
+msgstr "Перш ніж приховати інформацію про автора, поставте зірку репозиторію плагіна. Сторінку репозиторію відкрито у браузері. Ваша зірка — моя мотивація розвивати проєкт. Дякую за підтримку! 🙏"
+
+msgid "settings.starredConfirm"
+msgstr "Я поставив(-ла) зірку"
+
+msgid "file.location"
+msgstr "Розташування"

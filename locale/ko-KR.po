@@ -801,7 +801,7 @@ msgid "settings.hideNativeBtn"
 msgstr "네이티브 SFTP 버 숨기기"
 
 msgid "settings.openInNewTab"
-msgstr "기본적으로 새 탭에서 열기"
+msgstr "기본적으로 새 탭에서 패널 열기"
 
 msgid "settings.singleWorkspaceInstance"
 msgstr "단일 인스턴스만"
@@ -839,8 +839,8 @@ msgstr "핫키 저장 실패"
 msgid "settings.hotkeyRecordTimeout"
 msgstr "기록 시간 초과, 다시 시도하세요"
 
-msgid "settings.compatibility"
-msgstr "호환성"
+msgid "settings.other"
+msgstr "기능"
 
 msgid "settings.data"
 msgstr "데이터"
@@ -1094,3 +1094,64 @@ msgstr "미리보기"
 
 msgid "settings.dateFormatReset"
 msgstr "기본값으로 재설정"
+
+msgid "settings.defaultPathMode"
+msgstr "기본 경로 모드"
+
+msgid "settings.pathModeOff"
+msgstr "끄기"
+
+msgid "settings.pathModeRemember"
+msgstr "경로 기억"
+
+msgid "settings.pathModeSync"
+msgstr "터미널과 동기화"
+
+msgid "settings.defaultShowHidden"
+msgstr "기본적으로 숨김 파일 표시"
+
+msgid "settings.uploadConcurrency"
+msgstr "동시 업로드 수"
+
+msgid "settings.downloadConcurrency"
+msgstr "동시 다운로드 수"
+
+msgid "transfer.queued"
+msgstr "대기 중"
+
+
+msgid "settings.fastMode"
+msgstr "빠른 전송 모드"
+
+msgid "settings.fastModeDesc"
+msgstr "디렉터리 전송 시 크기 사전 검사를 건너뛰고 즉시 시작: 시작은 빠르지만 전송 중 총 크기와 진행률을 계산할 수 없음(전송된 양만 표시)"
+
+msgid "file.sizeCalculate"
+msgstr "계산"
+
+msgid "file.sizeCalculating"
+msgstr "계산 중…"
+
+msgid "file.sizeCalcFailed"
+msgstr "계산 실패"
+
+msgid "file.folderSizeDetail"
+msgstr "{size} ({count}개 파일)"
+
+msgid "file.fileProperties"
+msgstr "파일 속성"
+
+msgid "file.folderProperties"
+msgstr "폴더 속성"
+
+msgid "settings.hideAuthorInfo"
+msgstr "플러그인 제작자 정보 숨기기"
+
+msgid "settings.hideAuthorConfirmText"
+msgstr "제작자 정보를 숨기기 전에 플러그인 저장소에 Star를 눌러 응원해 주세요. 저장소 페이지가 브라우저에서 열렸습니다. 여러분의 Star가 개발의 원동력입니다. 응원해 주셔서 감사합니다! 🙏"
+
+msgid "settings.starredConfirm"
+msgstr "Star를 눌렀습니다"
+
+msgid "file.location"
+msgstr "위치"

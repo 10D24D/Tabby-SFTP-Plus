@@ -623,7 +623,7 @@ msgstr "Tips: Styr via högerklick på fil listans rubrik"
 msgid "settings.hideNativeBtn"
 msgstr "Dölj inbyggd SFTP-knapp"
 msgid "settings.openInNewTab"
-msgstr "Öppna i ny flik som standard"
+msgstr "Öppna panelen i ny flik som standard"
 msgid "settings.singleWorkspaceInstance"
 msgstr "Endast en instans"
 msgid "settings.hotkey"
@@ -650,8 +650,8 @@ msgid "settings.hotkeySaveFailed"
 msgstr "Kunde inte spara genväg"
 msgid "settings.hotkeyRecordTimeout"
 msgstr "Inspelningstiden löpte ut, försök igen"
-msgid "settings.compatibility"
-msgstr "Kompatibilitet"
+msgid "settings.other"
+msgstr "Funktionalitet"
 msgid "settings.data"
 msgstr "Data"
 msgid "settings.export"
@@ -879,3 +879,64 @@ msgstr "Förhandsgranskning"
 
 msgid "settings.dateFormatReset"
 msgstr "Återställ standard"
+
+msgid "settings.defaultPathMode"
+msgstr "Standardläge för sökväg"
+
+msgid "settings.pathModeOff"
+msgstr "Av"
+
+msgid "settings.pathModeRemember"
+msgstr "Kom ihåg sökväg"
+
+msgid "settings.pathModeSync"
+msgstr "Synka med terminalen"
+
+msgid "settings.defaultShowHidden"
+msgstr "Visa dolda filer som standard"
+
+msgid "settings.uploadConcurrency"
+msgstr "Samtidiga uppladdningar"
+
+msgid "settings.downloadConcurrency"
+msgstr "Samtidiga nedladdningar"
+
+msgid "transfer.queued"
+msgstr "I kö"
+
+
+msgid "settings.fastMode"
+msgstr "Snabbt överföringsläge"
+
+msgid "settings.fastModeDesc"
+msgstr "Startar katalogöverföringar direkt utan föregående skanning: snabbare start, men total storlek och procentuellt förlopp kan inte visas under överföringen (bara överförda byte)"
+
+msgid "file.sizeCalculate"
+msgstr "Beräkna"
+
+msgid "file.sizeCalculating"
+msgstr "Beräknar…"
+
+msgid "file.sizeCalcFailed"
+msgstr "Beräkningen misslyckades"
+
+msgid "file.folderSizeDetail"
+msgstr "{size} ({count} filer)"
+
+msgid "file.fileProperties"
+msgstr "Filegenskaper"
+
+msgid "file.folderProperties"
+msgstr "Mappegenskaper"
+
+msgid "settings.hideAuthorInfo"
+msgstr "Dölj pluginförfattarinformation"
+
+msgid "settings.hideAuthorConfirmText"
+msgstr "Innan du döljer författarinformationen, ge gärna pluginförrådet en stjärna. Förrådssidan har öppnats i webbläsaren. Din stjärna är min motivation att utveckla — tack för ditt stöd! 🙏"
+
+msgid "settings.starredConfirm"
+msgstr "Jag har gett en stjärna"
+
+msgid "file.location"
+msgstr "Plats"

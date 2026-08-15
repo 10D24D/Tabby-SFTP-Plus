@@ -4,24 +4,8 @@
  *   存储到 localStorage，避免污染 Tabby 配置文件
  * 创建人：DD1024z + Claude
  * 创建时间：2026-06-21
- * 修改人：DD1024z + Deepseek-V4-Pro
- * 修改时间：2026-07-01
- *   添加日志限制（上限1000条）、按类型/状态筛选、JSON导出功能
- *   传输日志按连接配置隔离（clearProfile）
- *   改为 localStorage 存储，不再写入 Tabby config.yaml
- *   添加 startTime / endTime 字段
- * 修改人：DD1024z + Hy3
- * 修改时间：2026-07-11
- *   修复"共N条只渲染1行"：_sanitizeIds 在 load/importLogs 时为缺失/重复 id 的旧日志补 id，
- *   配合对话框 trackBy 回退 index，避免 *ngFor 把多条折叠成1行
- * 修改时间：2026-07-12
- *   真因修复"共N条只渲染1行"：_sanitizeIds 同时强转 size/duration/timestamp 等数字字段，
- *   旧日志这些字段可能被序列化成字符串，导致 formatSize 的 .toFixed 抛 TypeError → *ngFor 该行被丢弃
  * 修改人：DD1024z + Hy3
  * 修改时间：2026-07-23
- *   新增可选字段 pending：传输进行中为 true（add 时即写入，完成/取消时才 update），
- *   修复"传输中误显示下载成功 ✓ 0ms"——旧实现 add 时即写入 success=true/duration=0，
- *   完成才 update，期间日志一直显示成功；新增 pending 后日志可区分进行中/已完成。
  */
 import { Injectable, Optional } from '@angular/core'
 import { ConfigService } from 'tabby-core'
@@ -49,6 +33,13 @@ export type TransferLogEntry = {
 
 const STORAGE_KEY = 'sftp-plus-transfer-logs'
 const MAX_LOGS = 1000
+// ★ 2026-08-10 修复 #9：tombstone（已删 id 持久化清单）。
+//   修复 #7 的 save() 合并逻辑会把 localStorage 中现存条目合并回内存——
+//   导致 remove/clear/clearProfile 刚删掉的条目在下一次 save 时原地复活（"记录无法清除"、
+//   "取消排队传输后日志残留'传输中'"）。删除操作把 id 记入 tombstone 并持久化，
+//   save() 合并时跳过这些 id，删除才能真正落盘（多窗口场景同样生效）。
+const TOMBSTONE_KEY = 'sftp-plus-transfer-logs-deleted'
+const MAX_TOMBSTONES = 1000
 
 function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).substring(2, 8)
@@ -58,6 +49,11 @@ function generateId(): string {
 export class SftpTransferLogService {
   private logs: TransferLogEntry[] = []
   private _loaded = false
+  /** 已删除条目 id 清单（尾部较新）：save() 合并时跳过，防止删除被复活 */
+  private _tombstones: string[] = []
+  /** 僵尸 pending 清理只在应用启动（首次构造）时执行一次：
+   *  reload()（打开日志对话框/多面板同步）时本实例可能有进行中的长传输，不得误清 */
+  private _bootReaped = false
 
   constructor(@Optional() private configService?: ConfigService) {
     this.load()
@@ -66,6 +62,7 @@ export class SftpTransferLogService {
   private load(): void {
     if (this._loaded) return
     this._loaded = true
+    this._loadTombstones()
     // 从 localStorage 加载
     try {
       const raw = localStorage.getItem(STORAGE_KEY)
@@ -73,7 +70,7 @@ export class SftpTransferLogService {
         const parsed = JSON.parse(raw)
         if (Array.isArray(parsed)) {
           this.logs = this._sanitizeIds(parsed)
-          this._reapStaleEntries()
+          this._reapStaleEntriesOnce()
           return
         }
       }
@@ -84,7 +81,7 @@ export class SftpTransferLogService {
         const cfg = this.configService.store['tabby-sftp-plus']
         if (cfg && Array.isArray(cfg.transferLogs) && cfg.transferLogs.length > 0) {
           this.logs = this._sanitizeIds([...cfg.transferLogs])
-          this._reapStaleEntries()
+          this._reapStaleEntriesOnce()
           // 迁移后彻底删除 config 中的 transferLogs（传输日志只存 localStorage）
           delete cfg.transferLogs
           try { this.configService.save() } catch {}
@@ -97,14 +94,25 @@ export class SftpTransferLogService {
   }
 
   /**
-   * 清理残留的"传输中"条目：应用重启后，所有 pending=true 的条目都是上次中断遗留的，
-   * 标记为 interrupted 避免面板永远显示"传输中"。
+   * 清理残留的"传输中"条目：服务构造（应用启动）时本实例必然没有任何进行中的传输，
+   * pending=true 的条目都是上次异常退出/卡死（如目录并发死锁）遗留的僵尸记录。
+   * ★ 2026-08-10 修复 #8：短阈值（10min）兜底清理——仅可能误伤其它窗口刚开始的
+   *   超长传输，属可接受代价；原 24h 阈值让当天遗留的僵尸记录整天显示"传输中"。
    */
+  private _reapStaleEntriesOnce(): void {
+    if (this._bootReaped) return
+    this._bootReaped = true
+    this._reapStaleEntries()
+  }
+
   private _reapStaleEntries(): void {
+    const REAP_PENDING_MAX_AGE_MS = 10 * 60 * 1000 // 10min：启动时超过该时长的 pending 必为遗留
     let changed = false
     const now = Date.now()
     for (const entry of this.logs) {
       if (entry.pending) {
+        const age = now - (entry.startTime ?? entry.timestamp)
+        if (!Number.isFinite(age) || age < REAP_PENDING_MAX_AGE_MS) continue
         entry.pending = false
         entry.success = false
         entry.failReason = 'interrupted'
@@ -138,7 +146,51 @@ export class SftpTransferLogService {
     })
   }
 
+  private _loadTombstones(): void {
+    try {
+      const raw = localStorage.getItem(TOMBSTONE_KEY)
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        if (Array.isArray(parsed)) {
+          this._tombstones = parsed.filter((x: unknown) => typeof x === 'string').slice(-MAX_TOMBSTONES)
+        }
+      }
+    } catch { /* ignore */ }
+  }
+
+  private _saveTombstones(): void {
+    try { localStorage.setItem(TOMBSTONE_KEY, JSON.stringify(this._tombstones)) } catch { /* ignore */ }
+  }
+
+  private _tombstone(id: string | null | undefined): void {
+    if (!id || this._tombstones.includes(id)) return
+    this._tombstones.push(id)
+    if (this._tombstones.length > MAX_TOMBSTONES) {
+      this._tombstones.splice(0, this._tombstones.length - MAX_TOMBSTONES)
+    }
+  }
+
   private save(): void {
+    // ★ 2026-08-10 修复 #7：写入前与存储中现有记录按 id 合并，避免多实例/多面板
+    //   整体覆盖丢失其它实例新增的条目；合并后按时间戳排序保持时序。
+    // ★ 2026-08-10 修复 #9：合并时跳过 tombstone 中的 id——否则 remove/clear/clearProfile
+    //   刚删掉的条目会被存储中的旧数据复活（"记录无法清除"的根因）
+    const deleted = new Set(this._tombstones)
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY)
+      if (raw) {
+        const stored = JSON.parse(raw)
+        if (Array.isArray(stored)) {
+          const merged = new Map<string, TransferLogEntry>(
+            this.logs.filter(l => l?.id && !deleted.has(l.id)).map(l => [l.id, l]),
+          )
+          for (const l of stored) {
+            if (l?.id && !deleted.has(l.id) && !merged.has(l.id)) merged.set(l.id, l)
+          }
+          this.logs = [...merged.values()].sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0))
+        }
+      }
+    } catch { /* 存储不可读时按当前内存数据写入 */ }
     // 保留最近 MAX_LOGS 条记录
     if (this.logs.length > MAX_LOGS) {
       this.logs = this.logs.slice(-MAX_LOGS)
@@ -153,6 +205,7 @@ export class SftpTransferLogService {
         serialized = JSON.stringify(this.logs)
       }
       localStorage.setItem(STORAGE_KEY, serialized)
+      this._saveTombstones()
     } catch (e) { log.warn('localStorage save failed', e) }
   }
 
@@ -169,6 +222,8 @@ export class SftpTransferLogService {
       timestamp: Date.now(),
     }
     this.logs.push(fullEntry)
+    const _name = (entry.remotePath || entry.localPath || '').split('/').pop() || (entry.localPath || '').split(/[\\/]/).pop() || '?'
+    log.info('[transfer-log] add #' + this.logs.length + ' op=' + entry.operation + ' profile=' + (entry.profileName ?? '∅') + ' file=' + _name + ' pending=' + !!entry.pending)
     this.save()
     return fullEntry
   }
@@ -183,6 +238,21 @@ export class SftpTransferLogService {
     const idx = this.logs.findIndex(l => l.id === id)
     if (idx < 0) return false
     Object.assign(this.logs[idx], updates)
+    this.save()
+    return true
+  }
+
+  /**
+   * 删除指定日志条目
+   * 功能描述：用于清理从未真正开始的排队占位日志（冲突/跳过/取消），避免日志污染
+   * 创建人：DD1024z + Hy3
+   * 创建时间：2026-08-10
+   */
+  remove(id: string): boolean {
+    const idx = this.logs.findIndex(l => l.id === id)
+    if (idx < 0) return false
+    this.logs.splice(idx, 1)
+    this._tombstone(id)
     this.save()
     return true
   }
@@ -218,7 +288,9 @@ export class SftpTransferLogService {
       result = result.filter(l => !l.pending && l.success === options.success)
     }
     if (options?.profileName) {
-      result = result.filter(l => l.profileName === options.profileName)
+      // 仅排除「明确归属其他连接」的记录；无 profile 归属（旧日志/未关联）仍显示，
+      // 避免某条传输记录的 profileName 为空时被当前连接筛选误排除（导致「2 次传输只显示 1 条」）
+      result = result.filter(l => !l.profileName || l.profileName === options.profileName)
     }
     if (options?.since !== undefined) {
       result = result.filter(l => l.timestamp >= options.since!)
@@ -236,13 +308,33 @@ export class SftpTransferLogService {
    * 创建时间：2026-06-21
    */
   clear(): void {
+    // ★ 2026-08-10 修复 #9：不再直接 removeItem——先 tombstone 全部 id 再经 save() 写空，
+    //   保证其它窗口后续 save() 合并时也不会把已清记录复活
+    for (const l of this.logs) this._tombstone(l.id)
     this.logs = []
-    localStorage.removeItem(STORAGE_KEY)
+    this.save()
   }
 
   /** 从备份数据导入日志（覆盖当前记录） */
   importLogs(logs: TransferLogEntry[]): void {
-    this.logs = Array.isArray(logs) ? this._sanitizeIds(logs).slice(-MAX_LOGS) : []
+    const imported = Array.isArray(logs) ? this._sanitizeIds(logs).slice(-MAX_LOGS) : []
+    const keep = new Set(imported.map(l => l.id))
+    // 覆盖语义：不在导入集中的旧条目（内存 + 存储）一律 tombstone，防止 save() 合并复活
+    for (const l of this.logs) {
+      if (!keep.has(l.id)) this._tombstone(l.id)
+    }
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY)
+      if (raw) {
+        const stored = JSON.parse(raw)
+        if (Array.isArray(stored)) {
+          for (const l of stored) {
+            if (l?.id && !keep.has(l.id)) this._tombstone(l.id)
+          }
+        }
+      }
+    } catch { /* ignore */ }
+    this.logs = imported
     this.save()
   }
 
@@ -260,6 +352,10 @@ export class SftpTransferLogService {
    * 创建时间：2026-06-25
    */
   clearProfile(profileName: string): void {
+    // ★ 2026-08-10 修复 #9：被清除的条目记入 tombstone，否则 save() 合并会立即复活
+    for (const l of this.logs) {
+      if (l.profileName === profileName) this._tombstone(l.id)
+    }
     this.logs = this.logs.filter(l => l.profileName !== profileName)
     this.save()
   }

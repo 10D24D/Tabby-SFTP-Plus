@@ -1,5 +1,10 @@
 ﻿/**
  * SFTP+ 文件列表面板（本地/远程共用）
+ * 功能描述：本地/远程文件列表面板，负责路径栏、工具栏、文件列表渲染与交互
+ * 创建人：DD1024z + Hy3
+ * 创建时间：2026-07-29
+ * 修改人：DD1024z + Hy3
+ * 修改时间：2026-07-29
  */
 import { Component, ElementRef, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges } from '@angular/core'
 
@@ -7,7 +12,7 @@ import { SftpI18nService } from '../../services/sftp-i18n.service'
 
 export type PaneNavAction =
   | 'back' | 'forward' | 'up' | 'home' | 'refresh'
-  | 'toggleFilter'
+  | 'toggleFilter' | 'toggleHidden'
 
 export type PaneSortAction = { col: string }
 
@@ -15,7 +20,7 @@ export type PaneSortAction = { col: string }
   selector: 'sftp-file-pane',
   template: `
     <div class="pane" (mousedown)="onPaneAreaMouseDown($event)">
-      <div class="pane-title">
+      <div class="pane-title" *ngIf="resolvedPaneCustomOrder.length">
         <ng-container *ngFor="let item of resolvedPaneCustomOrder">
           <span *ngIf="item === 'label'" class="pane-label">{{ labelIcon }} {{ paneLabel }}</span>
           <div *ngIf="item === 'path'" class="pane-path">
@@ -33,7 +38,7 @@ export type PaneSortAction = { col: string }
             [disabled]="isToolbarActionDisabled(item)"
             [title]="toolbarActionTitle(item)"
             class="icon-btn pane-toolbar-btn"
-            [class.toggle-btn]="item === 'filter' || item === 'bookmark'"
+            [class.toggle-btn]="item === 'filter' || item === 'bookmark' || item === 'hidden'"
             [class.filter-toggle-btn]="item === 'filter'"
             [class.bm-btn]="item === 'bookmark'"
             [class.active]="isToolbarActionActive(item)"
@@ -45,6 +50,7 @@ export type PaneSortAction = { col: string }
             <svg *ngIf="item === 'home'" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5L8 3l5 4.5V13a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V7.5z"/><path d="M6.5 14V10h3v4"/></svg>
             <svg *ngIf="item === 'filter'" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3h12l-4.5 5.5v4l-3 1.5v-5.5L2 3z"/></svg>
             <svg *ngIf="item === 'bookmark'" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2.2L9.71 6.05 13.9 6.48 10.77 9.3 11.64 13.42 8 11.31 4.36 13.42 5.23 9.3 2.1 6.48 6.29 6.05 8 2.2z"/></svg>
+            <svg *ngIf="item === 'hidden'" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 8s2.2-4.2 6.5-4.2S14.5 8 14.5 8 12.3 12.2 8 12.2 1.5 8 1.5 8z"/><circle cx="8" cy="8" r="2.2"/></svg>
           </button>
         </ng-container>
       </div>
@@ -108,6 +114,7 @@ export type PaneSortAction = { col: string }
             (dblclick)="entryDblClick.emit({ entry: e, event: $event })"
             (contextmenu)="entryContextMenu.emit({ entry: e, event: $event })"
             [class.selected]="isSelected(e)"
+            [class.hidden-entry]="isHiddenEntry(e)"
             [draggable]="draggable && isSelected(e)"
             (dragstart)="entryDragStart.emit({ entry: e, event: $event })"
             (dragend)="entryDragEnd.emit()"
@@ -167,7 +174,11 @@ export class SftpFilePaneComponent {
   @Input() selectionInfo = ''
   @Input() isZh = true
   @Input() isLocal = true
-  @Input() paneCustomOrder: Array<'label' | 'path' | 'back' | 'forward' | 'up' | 'refresh' | 'home' | 'filter' | 'bookmark'> = ['label', 'back', 'forward', 'up', 'refresh', 'home', 'path', 'filter', 'bookmark']
+  @Input() paneCustomOrder: Array<'label' | 'path' | 'back' | 'forward' | 'up' | 'refresh' | 'home' | 'filter' | 'bookmark' | 'hidden'> = ['label', 'back', 'forward', 'up', 'refresh', 'home', 'path', 'hidden', 'filter', 'bookmark']
+  /** 被隐藏的工具栏项（设置页定制工具栏中取消勾选的项） */
+  @Input() paneHiddenItems: string[] = []
+  /** 当前面板是否显示隐藏文件（眼睛图标按钮的激活态） */
+  @Input() showHidden = false
   @Input() colHeaderLabelFn: (col: string) => string = (c) => c
   @Input() colValueFn: (col: string, e: any) => string = () => ''
   @Input() isSelectedFn: (e: any) => boolean = () => false
@@ -216,40 +227,50 @@ export class SftpFilePaneComponent {
 
   @Input() i18n!: SftpI18nService
 
-  get resolvedPaneCustomOrder(): Array<'label' | 'path' | 'back' | 'forward' | 'up' | 'refresh' | 'home' | 'filter' | 'bookmark'> {
-    const allowed: Array<'label' | 'path' | 'back' | 'forward' | 'up' | 'refresh' | 'home' | 'filter' | 'bookmark'> = ['label', 'path', 'back', 'forward', 'up', 'refresh', 'home', 'filter', 'bookmark']
+  get resolvedPaneCustomOrder(): Array<'label' | 'path' | 'back' | 'forward' | 'up' | 'refresh' | 'home' | 'filter' | 'bookmark' | 'hidden'> {
+    const allowed: Array<'label' | 'path' | 'back' | 'forward' | 'up' | 'refresh' | 'home' | 'filter' | 'bookmark' | 'hidden'> = ['label', 'path', 'back', 'forward', 'up', 'refresh', 'home', 'hidden', 'filter', 'bookmark']
+    // 先只按合法项过滤顺序：仅当配置损坏（无任何合法项）时才兜底回默认全量
     const order = this.paneCustomOrder.filter((x): x is any => allowed.includes(x as any))
-    return order.length ? order : allowed
+    const base = order.length ? order : allowed
+    // 再按用户勾选过滤：全部取消勾选时允许返回空数组（工具栏整体不显示）
+    return base.filter(x => !this.paneHiddenItems.includes(x))
   }
 
-  isToolbarItem(item: string): item is 'back' | 'forward' | 'up' | 'refresh' | 'home' | 'filter' | 'bookmark' {
-    return ['back', 'forward', 'up', 'refresh', 'home', 'filter', 'bookmark'].includes(item)
+  isToolbarItem(item: string): item is 'back' | 'forward' | 'up' | 'refresh' | 'home' | 'filter' | 'bookmark' | 'hidden' {
+    return ['back', 'forward', 'up', 'refresh', 'home', 'filter', 'bookmark', 'hidden'].includes(item)
   }
 
-  onToolbarAction(action: 'back' | 'forward' | 'up' | 'refresh' | 'home' | 'filter' | 'bookmark', event: MouseEvent): void {
+  onToolbarAction(action: 'back' | 'forward' | 'up' | 'refresh' | 'home' | 'filter' | 'bookmark' | 'hidden', event: MouseEvent): void {
     if (action === 'bookmark') {
       event.stopPropagation()
       this.toggleBookmarks.emit(event)
       return
     }
+    if (action === 'hidden') {
+      event.stopPropagation()
+      this.nav.emit('toggleHidden')
+      return
+    }
     this.nav.emit(action === 'filter' ? 'toggleFilter' : action)
   }
 
-  isToolbarActionDisabled(action: 'back' | 'forward' | 'up' | 'refresh' | 'home' | 'filter' | 'bookmark'): boolean {
+  isToolbarActionDisabled(action: 'back' | 'forward' | 'up' | 'refresh' | 'home' | 'filter' | 'bookmark' | 'hidden'): boolean {
     if (action === 'back') return !this.canBack
     if (action === 'forward') return !this.canForward
     if (action === 'up') return !this.canUp
     if (action === 'refresh' || action === 'home') return this.refreshDisabled
+    if (action === 'hidden') return false
     return false
   }
 
-  isToolbarActionActive(action: 'back' | 'forward' | 'up' | 'refresh' | 'home' | 'filter' | 'bookmark'): boolean {
+  isToolbarActionActive(action: 'back' | 'forward' | 'up' | 'refresh' | 'home' | 'filter' | 'bookmark' | 'hidden'): boolean {
     if (action === 'filter') return this.filterVisible || !!this.filterActive
     if (action === 'bookmark') return this.bookmarksActive
+    if (action === 'hidden') return this.showHidden
     return false
   }
 
-  toolbarActionTitle(action: 'back' | 'forward' | 'up' | 'refresh' | 'home' | 'filter' | 'bookmark'): string {
+  toolbarActionTitle(action: 'back' | 'forward' | 'up' | 'refresh' | 'home' | 'filter' | 'bookmark' | 'hidden'): string {
     // 读预算缓存（_rebuildLabels 在语言切换时更新），避免每次变更检测重复 i18n.t()
     return this._toolbarTitles[action] || ''
   }
@@ -287,7 +308,7 @@ export class SftpFilePaneComponent {
     this._toolbarTitles = {
       back: t('pane.back'), forward: t('pane.forward'), up: t('pane.up'),
       refresh: t('pane.refresh'), home: t('pane.home'), filter: t('pane.filterBtn'),
-      bookmark: t('bookmark.title'),
+      bookmark: t('bookmark.title'), hidden: t('pane.showHidden'),
     }
     // 预算所有可能列的表头文案（按 col 查表，列增减/重排无需重算）
     const cols = ['name', 'size', 'date', 'created', 'perms', 'mode', 'access', 'owner', 'group', 'path', 'ext']
@@ -381,6 +402,11 @@ export class SftpFilePaneComponent {
 
   inaccessiblePrefix(e: any): string {
     return this.isLocal && e.inaccessible ? '* ' : ''
+  }
+
+  /** 是否为隐藏文件/文件夹（与 filterByHidden 同规则：名称以 '.' 开头），列表中淡化显示 */
+  isHiddenEntry(e: any): boolean {
+    return typeof e?.name === 'string' && e.name.startsWith('.')
   }
 
   onSortCol(col: string): void {

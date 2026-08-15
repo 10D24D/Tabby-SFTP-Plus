@@ -790,7 +790,7 @@ msgid "settings.hideNativeBtn"
 msgstr "Skjul nativ SFTP-knap"
 
 msgid "settings.openInNewTab"
-msgstr "Åbn i ny fane som standard"
+msgstr "Åbn panelet i ny fane som standard"
 
 msgid "settings.singleWorkspaceInstance"
 msgstr "Kun enkelt instans"
@@ -827,8 +827,8 @@ msgstr "Fejlede at gemme hotkey"
 msgid "settings.hotkeyRecordTimeout"
 msgstr "Optagelse timeout, prøv igen"
 
-msgid "settings.compatibility"
-msgstr "Kompatibilitet"
+msgid "settings.other"
+msgstr "Funktionalitet"
 
 msgid "settings.data"
 msgstr "Data"
@@ -1069,3 +1069,64 @@ msgstr "Forhåndsvisning"
 
 msgid "settings.dateFormatReset"
 msgstr "Nulstil til standard"
+
+msgid "settings.defaultPathMode"
+msgstr "Standardtilstand for sti"
+
+msgid "settings.pathModeOff"
+msgstr "Fra"
+
+msgid "settings.pathModeRemember"
+msgstr "Husk sti"
+
+msgid "settings.pathModeSync"
+msgstr "Synkroniser med terminal"
+
+msgid "settings.defaultShowHidden"
+msgstr "Vis skjulte filer som standard"
+
+msgid "settings.uploadConcurrency"
+msgstr "Samtidige uploads"
+
+msgid "settings.downloadConcurrency"
+msgstr "Samtidige downloads"
+
+msgid "transfer.queued"
+msgstr "I kø"
+
+
+msgid "settings.fastMode"
+msgstr "Hurtig overførselstilstand"
+
+msgid "settings.fastModeDesc"
+msgstr "Starter mappeoverførsler straks uden forudgående scanning: hurtigere start, men samlet størrelse og procentvis fremdrift kan ikke vises under overførslen (kun overførte bytes)"
+
+msgid "file.sizeCalculate"
+msgstr "Beregn"
+
+msgid "file.sizeCalculating"
+msgstr "Beregner…"
+
+msgid "file.sizeCalcFailed"
+msgstr "Beregning mislykkedes"
+
+msgid "file.folderSizeDetail"
+msgstr "{size} ({count} filer)"
+
+msgid "file.fileProperties"
+msgstr "Filegenskaber"
+
+msgid "file.folderProperties"
+msgstr "Mappeegenskaber"
+
+msgid "settings.hideAuthorInfo"
+msgstr "Skjul plugin-forfatteroplysninger"
+
+msgid "settings.hideAuthorConfirmText"
+msgstr "Før du skjuler forfatteroplysningerne, giv venligst plugin-lageret en stjerne. Lagersiden er åbnet i din browser. Din stjerne er min motivation til at udvikle — tak for din støtte! 🙏"
+
+msgid "settings.starredConfirm"
+msgstr "Jeg har givet en stjerne"
+
+msgid "file.location"
+msgstr "Placering"

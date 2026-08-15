@@ -811,7 +811,7 @@ msgid "settings.hideNativeBtn"
 msgstr "ネイティブ SFTP ボタンを非表示"
 
 msgid "settings.openInNewTab"
-msgstr "デフォルトで新規タブで開く"
+msgstr "デフォルトで新規タブでパネルを開く"
 
 msgid "settings.singleWorkspaceInstance"
 msgstr "シングルインスタンスのみ"
@@ -850,8 +850,8 @@ msgstr "ホットキーの保存に失敗しました"
 msgid "settings.hotkeyRecordTimeout"
 msgstr "記録がタイムアウトしました、もう一度お試しください"
 
-msgid "settings.compatibility"
-msgstr "互換性"
+msgid "settings.other"
+msgstr "機能"
 
 msgid "settings.data"
 msgstr "データ"
@@ -1096,3 +1096,64 @@ msgstr "プレビュー"
 
 msgid "settings.dateFormatReset"
 msgstr "既定に戻す"
+
+msgid "settings.defaultPathMode"
+msgstr "既定のパスモード"
+
+msgid "settings.pathModeOff"
+msgstr "オフ"
+
+msgid "settings.pathModeRemember"
+msgstr "パス記憶"
+
+msgid "settings.pathModeSync"
+msgstr "ターミナルと同期"
+
+msgid "settings.defaultShowHidden"
+msgstr "隠しファイルをデフォルトで表示"
+
+msgid "settings.uploadConcurrency"
+msgstr "同時アップロード数"
+
+msgid "settings.downloadConcurrency"
+msgstr "同時ダウンロード数"
+
+msgid "transfer.queued"
+msgstr "キュー待ち"
+
+
+msgid "settings.fastMode"
+msgstr "高速転送モード"
+
+msgid "settings.fastModeDesc"
+msgstr "ディレクトリ転送時にサイズの事前スキャンを省略して即座に開始：開始は速いが、転送中に総サイズと進捗率は表示できない（転送済み量のみ表示）"
+
+msgid "file.sizeCalculate"
+msgstr "計算"
+
+msgid "file.sizeCalculating"
+msgstr "計算中…"
+
+msgid "file.sizeCalcFailed"
+msgstr "計算に失敗しました"
+
+msgid "file.folderSizeDetail"
+msgstr "{size}（{count} 個のファイル）"
+
+msgid "file.fileProperties"
+msgstr "ファイルのプロパティ"
+
+msgid "file.folderProperties"
+msgstr "フォルダーのプロパティ"
+
+msgid "settings.hideAuthorInfo"
+msgstr "プラグイン作者情報を非表示"
+
+msgid "settings.hideAuthorConfirmText"
+msgstr "作者情報を非表示にする前に、プラグインのリポジトリに Star を付けて応援してください。リポジトリページはブラウザで開かれました。あなたの Star が開発の励みになります。応援ありがとうございます！🙏"
+
+msgid "settings.starredConfirm"
+msgstr "Star を付けた"
+
+msgid "file.location"
+msgstr "場所"

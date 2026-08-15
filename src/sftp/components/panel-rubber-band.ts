@@ -110,6 +110,9 @@ export class PanelRubberBand {
 
   dispose(): void {
     this.cleanup()
+    // ★ 2026-08-10 修复 #23：dispose 同样清理 click 抑制定时器，
+    //   否则面板销毁后定时器回调仍会执行（引用残留/迟到状态变更）
+    this.clearClickSuppress()
     if (this._rbContextMenuSuppressTimer) {
       clearTimeout(this._rbContextMenuSuppressTimer)
       this._rbContextMenuSuppressTimer = null

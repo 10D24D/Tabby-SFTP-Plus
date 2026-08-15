@@ -802,7 +802,7 @@ msgid "settings.hideNativeBtn"
 msgstr "Skrýt nativní tlačítko SFTP"
 
 msgid "settings.openInNewTab"
-msgstr "Otevřít v nové kartě jako výchozí"
+msgstr "Otevřít panel v nové kartě jako výchozí"
 
 msgid "settings.singleWorkspaceInstance"
 msgstr "Pouze jedna instance"
@@ -839,8 +839,8 @@ msgstr "Uložení hotkey selhalo"
 msgid "settings.hotkeyRecordTimeout"
 msgstr "Nahrávání vypršelo, zkuste to znovu"
 
-msgid "settings.compatibility"
-msgstr "Kompatibilita"
+msgid "settings.other"
+msgstr "Funkčnost"
 
 msgid "settings.data"
 msgstr "Data"
@@ -1083,3 +1083,64 @@ msgstr "Náhled"
 
 msgid "settings.dateFormatReset"
 msgstr "Obnovit výchozí"
+
+msgid "settings.defaultPathMode"
+msgstr "Výchozí režim cesty"
+
+msgid "settings.pathModeOff"
+msgstr "Vypnuto"
+
+msgid "settings.pathModeRemember"
+msgstr "Zapamatovat cestu"
+
+msgid "settings.pathModeSync"
+msgstr "Synchronizovat s terminálem"
+
+msgid "settings.defaultShowHidden"
+msgstr "Ve výchozím nastavení zobrazovat skryté soubory"
+
+msgid "settings.uploadConcurrency"
+msgstr "Souběžná nahrávání"
+
+msgid "settings.downloadConcurrency"
+msgstr "Souběžná stahování"
+
+msgid "transfer.queued"
+msgstr "Ve frontě"
+
+
+msgid "settings.fastMode"
+msgstr "Režim rychlého přenosu"
+
+msgid "settings.fastModeDesc"
+msgstr "Spustí přenos adresáře okamžitě bez předchozího skenování: rychlejší start, ale celkovou velikost a procentuální průběh nelze během přenosu zobrazit (jen přenesené bajty)"
+
+msgid "file.sizeCalculate"
+msgstr "Vypočítat"
+
+msgid "file.sizeCalculating"
+msgstr "Vypočítávání…"
+
+msgid "file.sizeCalcFailed"
+msgstr "Výpočet se nezdařil"
+
+msgid "file.folderSizeDetail"
+msgstr "{size} ({count} souborů)"
+
+msgid "file.fileProperties"
+msgstr "Vlastnosti souboru"
+
+msgid "file.folderProperties"
+msgstr "Vlastnosti složky"
+
+msgid "settings.hideAuthorInfo"
+msgstr "Skrýt informace o autorovi pluginu"
+
+msgid "settings.hideAuthorConfirmText"
+msgstr "Než skryjete informace o autorovi, dejte prosím hvězdičku repozitáři pluginu. Stránka repozitáře byla otevřena v prohlížeči. Vaše hvězdička je mou motivací k vývoji — děkuji za podporu! 🙏"
+
+msgid "settings.starredConfirm"
+msgstr "Dal(a) jsem hvězdičku"
+
+msgid "file.location"
+msgstr "Umístění"

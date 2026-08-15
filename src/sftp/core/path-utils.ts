@@ -15,6 +15,7 @@ import { exec } from 'child_process'
 
 import { promisify } from 'util'
 
+import { log } from '../../services/sftp-logger'
 
 /**
  * uid/gid → 用户名/组名 解析（本地 /etc 与远程 getent）
@@ -132,8 +133,9 @@ export function resolveGroupDisplay(
   return name != null ? String(name) : undefined
 }
 
-/** 通过 Tabby SSH 会话执行单次命令并收集 stdout */
-export async function execSshCommand(sshSession: unknown, command: string): Promise<string> {
+/** 通过 Tabby SSH 会话执行单次命令并收集 stdout；timeoutMs 缺省 12s，
+ *  长耗时命令（如 rm -rf 巨型目录）可调大 */
+export async function execSshCommand(sshSession: unknown, command: string, timeoutMs = 12000): Promise<string> {
   const ssh = (sshSession as { ssh?: {
     openSessionChannel?: () => Promise<unknown>
     activateChannel?: (ch: unknown) => Promise<{
@@ -145,44 +147,65 @@ export async function execSshCommand(sshSession: unknown, command: string): Prom
   } })?.ssh
   if (!ssh?.openSessionChannel || !ssh.activateChannel) return ''
 
-  let channel: Awaited<ReturnType<NonNullable<typeof ssh.activateChannel>>> | null = null
-  try {
-    const newCh = await ssh.openSessionChannel()
-    channel = await ssh.activateChannel(newCh)
-    await channel.requestExec(command)
+  // ★ 2026-08-11 修复：exec 通道在 SFTP 大流量传输刚结束后偶尔拿不到任何输出
+  //   （通道开关太快/通道复用竞争），导致 tar 通道 OK 标记漏检——实际解包成功却误报失败。
+  //   空输出对带标记命令属异常信号：整体重试一次（重新开通道）再定性
+  const execOnce = async (): Promise<string> => {
+    let channel: Awaited<ReturnType<NonNullable<typeof ssh.activateChannel>>> | null = null
+    try {
+      const newCh = await ssh.openSessionChannel()
+      channel = await ssh.activateChannel(newCh)
+      await channel.requestExec(command)
 
-    const chunks: Uint8Array[] = []
-    let channelClosed = false
-    await new Promise<void>((resolve, reject) => {
-      let settled = false
-      const done = () => {
-        if (settled) return
-        settled = true
-        resolve()
-      }
-      const sub = channel!.data$.subscribe({
-        next: d => chunks.push(d),
-        error: err => { settled = true; reject(err) },
-      })
-      channel!.closed$.subscribe(() => {
-        channelClosed = true
-        sub.unsubscribe()
-        done()
-      })
-      setTimeout(() => {
-        if (!channelClosed) {
-          try { void channel?.close() } catch { /* ignore */ }
+      const chunks: Uint8Array[] = []
+      let channelClosed = false
+      await new Promise<void>((resolve, reject) => {
+        // ★ 2026-08-10 修复 #25：超时定时器保存句柄并在结束时统一清理，
+        //   data$ / closed$ 订阅在所有结束路径（正常关闭/出错/超时）都 unsubscribe
+        let settled = false
+        let timer: ReturnType<typeof setTimeout> | null = null
+        let dataSub: { unsubscribe: () => void } | null = null
+        let closedSub: { unsubscribe: () => void } | null = null
+        const done = (err?: unknown) => {
+          if (settled) return
+          settled = true
+          if (timer != null) clearTimeout(timer)
+          try { dataSub?.unsubscribe() } catch { /* ignore */ }
+          try { closedSub?.unsubscribe() } catch { /* ignore */ }
+          if (err !== undefined) reject(err)
+          else resolve()
         }
-        done()
-      }, 12000)
-    })
+        dataSub = channel!.data$.subscribe({
+          next: d => chunks.push(d),
+          error: err => done(err),
+        })
+        closedSub = channel!.closed$.subscribe(() => {
+          channelClosed = true
+          done()
+        })
+        timer = setTimeout(() => {
+          if (!channelClosed) {
+            try { void channel?.close() } catch { /* ignore */ }
+          }
+          done()
+        }, timeoutMs)
+      })
 
-    return Buffer.concat(chunks.map(c => Buffer.from(c))).toString('utf8')
-  } catch {
-    return ''
-  } finally {
-    try { await channel?.close() } catch { /* ignore */ }
+      return Buffer.concat(chunks.map(c => Buffer.from(c))).toString('utf8')
+    } catch {
+      return ''
+    } finally {
+      try { await channel?.close() } catch { /* ignore */ }
+    }
   }
+
+  const first = await execOnce()
+  if (first !== '') return first
+  // 空输出重试：稍候重开通道再执行一次（幂等探测类命令可安全重放）
+  await new Promise(r => setTimeout(r, 300))
+  const second = await execOnce()
+  if (second === '') log.warn(`execSshCommand empty output (retried): ${command.slice(0, 80)}`)
+  return second
 }
 
 export async function loadRemoteIdMaps(sshSession: unknown): Promise<IdMaps> {
@@ -245,7 +268,9 @@ export class IdNameResolver {
       return Promise.resolve()
     }
     this.localLoading = loadWindowsIdMapsAsync().then(maps => {
-      this.maps = maps
+      // ★ 2026-08-10 修复 #25：本地映射异步到达时可能已有远程映射（mergeMaps），
+      //   整体覆盖 this.maps 会丢失远程 uid/gid 映射 → 改为并入现有 maps
+      this.mergeMaps(maps)
       this.localLoaded = true
     }).finally(() => {
       this.localLoading = null

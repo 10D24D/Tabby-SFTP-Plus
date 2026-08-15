@@ -789,7 +789,7 @@ msgid "settings.hideNativeBtn"
 msgstr "Masquer le bouton SFTP natif"
 
 msgid "settings.openInNewTab"
-msgstr "Ouvrir par défaut dans un nouvel onglet"
+msgstr "Ouvrir le panneau par défaut dans un nouvel onglet"
 
 msgid "settings.singleWorkspaceInstance"
 msgstr "Instance unique uniquement"
@@ -827,8 +827,8 @@ msgstr "Échec de la sauvegarde du raccourci"
 msgid "settings.hotkeyRecordTimeout"
 msgstr "Enregistrement expiré, veuillez réessayer"
 
-msgid "settings.compatibility"
-msgstr "Compatibilité"
+msgid "settings.other"
+msgstr "Fonctionnalités"
 
 msgid "settings.data"
 msgstr "Données"
@@ -1081,3 +1081,64 @@ msgstr "Aperçu"
 
 msgid "settings.dateFormatReset"
 msgstr "Réinitialiser par défaut"
+
+msgid "settings.defaultPathMode"
+msgstr "Mode de chemin par défaut"
+
+msgid "settings.pathModeOff"
+msgstr "Désactivé"
+
+msgid "settings.pathModeRemember"
+msgstr "Mémoriser le chemin"
+
+msgid "settings.pathModeSync"
+msgstr "Synchroniser avec le terminal"
+
+msgid "settings.defaultShowHidden"
+msgstr "Afficher les fichiers cachés par défaut"
+
+msgid "settings.uploadConcurrency"
+msgstr "Téléversements simultanés"
+
+msgid "settings.downloadConcurrency"
+msgstr "Téléchargements simultanés"
+
+msgid "transfer.queued"
+msgstr "En file d'attente"
+
+
+msgid "settings.fastMode"
+msgstr "Mode de transfert rapide"
+
+msgid "settings.fastModeDesc"
+msgstr "Démarre les transferts de dossiers immédiatement sans analyse préalable : démarrage plus rapide, mais la taille totale et la progression en pourcentage ne peuvent pas être affichées pendant le transfert (seuls les octets transférés le sont)"
+
+msgid "file.sizeCalculate"
+msgstr "Calculer"
+
+msgid "file.sizeCalculating"
+msgstr "Calcul en cours…"
+
+msgid "file.sizeCalcFailed"
+msgstr "Échec du calcul"
+
+msgid "file.folderSizeDetail"
+msgstr "{size} ({count} fichiers)"
+
+msgid "file.fileProperties"
+msgstr "Propriétés du fichier"
+
+msgid "file.folderProperties"
+msgstr "Propriétés du dossier"
+
+msgid "settings.hideAuthorInfo"
+msgstr "Masquer les informations sur l'auteur du plugin"
+
+msgid "settings.hideAuthorConfirmText"
+msgstr "Avant de masquer les informations sur l'auteur, merci d'ajouter une étoile au dépôt du plugin. La page du dépôt a été ouverte dans votre navigateur. Votre étoile est ma motivation pour développer — merci pour votre soutien ! 🙏"
+
+msgid "settings.starredConfirm"
+msgstr "J'ai mis une étoile"
+
+msgid "file.location"
+msgstr "Emplacement"

@@ -2,6 +2,64 @@
 
 All notable changes to **tabby-sftp-plus** will be documented in this file.
 
+## [2.0.1] — 2026-08-15
+
+### ✨ 新增
+
+- **目录内文件级并发** — 新增 `ConcurrencyLimiter`（`src/sftp/core/concurrency.ts`），目录内多文件并行传输，并发数 1-10 可调（默认 3），复用现有 `transferUploadConcurrency` / `transferDownloadConcurrency` 设置。ssh2 SFTP 按请求 ID 多路复用，无需多开连接。
+- **tar 打包传输通道** — 海量小文件目录走「本地 `tar czf` → SFTP 单文件传输 → 对端 `tar xzf`」路径，大幅减少网络往返。三态返回值（`success`/`fallback`/`failed`）保证安全回退。仅目标不存在（全新传输）时启用，合并/覆盖场景保留逐文件通道。
+- **批量删除提速** — 远程目录优先 SSH exec `rm -rf`（单引号转义 + OK 标记校验，超时 60s），失败回退并发 SFTP 递归删除；本地目录优先 `fs.rm(recursive)`。同级子项并发，叶子 IO 限流 8。
+- **传输并发设置** — 设置页新增「上传并发数」「下载并发数」滑块（1-10），改设置即时生效无需重启。
+- **快速模式** — `transferFastMode` 设置项（默认关）。开启后目录传输跳过预扫描直接开传，进度显示已传字节 + 文件数（无百分比），适合已知目录大小的场景。
+- **默认路径模式** — `defaultPathMode` 设置（`off` / `remember` / `sync`），新连接首次打开面板时自动应用。
+- **默认显示隐藏文件** — `defaultShowHidden` 设置，新连接首次打开面板时自动应用。
+- **工具栏自定义** — `paneCustomOrder` 支持拖拽排序工具栏项；`paneHiddenItems` 支持隐藏不常用的工具栏按钮。
+- **隐藏作者信息** — `hideAuthorInfo` 设置项，开启前弹出 Star 确认弹窗（仓库页面自动在浏览器打开）。
+- **面板快捷键** — 新增面板快捷键设置项，支持录制/清除/冲突提示。
+- **属性对话框增强** — 文件夹新增「计算大小」按钮（递归统计真实大小）；标题动态显示「本地/远程 · 文件夹/文件」；新增「位置」行（本地/远程标识，主题色加粗）。
+- **冲突方向标识** — 冲突对话框标题旁显示方向徽章：⬆ 上传（本地→远程，绿色）/ ⬇ 下载（远程→本地，蓝色），复用既有 i18n 键拼装，24 语言自动生效。
+- **合并覆盖进度面板** — 冲突覆盖合并时创建「传输中」进度条目（非快速模式预扫描得真实总量+百分比），复用来源传输日志条目避免重复记录。
+- **图片预览导航** — 查看器打开图片时自动加载同目录图片列表，支持上一张/下一张按钮 + 键盘左右箭头切换，显示当前位置（N / 总数）。
+- **复制 / 复制选中** — 查看器与编辑器均新增「复制」按钮（文本模式复制全文、图片模式复制图片到剪贴板）；有选中文本时额外显示「复制选中」按钮，复制后短暂显示「已复制」反馈。
+- **以文本方式查看** — 右键菜单新增「以文本方式查看」，跳过文件类型预检查强制文本解码，适用于未知扩展名或需要查看原始内容的场景。
+
+### 🐛 修复
+
+- **续传上传失败 UI 僵尸态** — `LocalPathFileUpload` 新增 `failed` 状态 + `_markFailed()` 方法（与 `LocalPathFileDownload` 对称），续传流错误时标记失败，避免 UI 冻结最长 15 分钟 stall 超时。
+- **断连后暂停传输永久僵尸** — `_tickAllTransfers` 断连分支不再跳过暂停条目，一并 cancel + 记失败。
+- **冲突队列重入保护** — `resolve()` / `processNext()` 加 `_processing` 锁，防止并发消费同一条目。
+- **覆盖上传/下载后传输记录误标失败** — 冲突项携带 `transferCtx`，覆盖/重命名成功后幂等翻正传输记录；跳过/取消保持失败语义。
+- **tar 通道偶发误报失败** — `execSshCommand` 空输出时等 300ms 重开通道重试一次，两次都空才记 warn（含命令前 80 字符便于追查）。
+- **合并覆盖无进度面板/忽略快速模式** — `MergeLocalDirUseCase` 创建进度条目 + 尊重 `fastMode` 设置 + `topCtx` 透传聚合子目录进度。
+- **终端关闭后面板泄漏** — `terminal-decorator.ts` 重写 `detach()` 清理浮动面板 overlay/rAF 循环/resize 监听。
+- **多面板书签并发写入丢失** — `save()` 按 id 合并后再写，保留其它实例/窗口新增的条目。
+- **布局模式设置不生效** — 改用 `sftpConfig.get('paneState/layout/mode')` 读取（有 fallback 链），替代直接访问 `store` 顶层属性。
+- **迁移守卫 OR 跳过部分迁移** — `typeof layout === 'object' || typeof perHost === 'object'` 改为 `&&`，确保两个子对象均存在时才跳过迁移。
+- **HTML 模板重复 `[i18n]` 绑定** — 删除本地面板、远程面板、传输日志、右键菜单各一处重复绑定。
+- **「复制选中」按钮点击无效** — 查看器/编辑器的「复制选中」按钮受 `*ngIf="hasSelectionText"` 控制，点击时 `mousedown` 导致 textarea 失焦 → `onTextareaBlur()` 置 `hasSelectionText=false` → 按钮从 DOM 移除 → `click` 永远不触发。修复：按钮加 `(mousedown)="$event.preventDefault()"` 阻止失焦。
+
+### 🎨 改进
+
+- **预扫描提速** — 4 个串行递归函数（`calcDirSize` + `countDirItems` × 2）合并为 2 个单次遍历（`scanLocalDir` / `scanRemoteDir`）；`readdir` 改用 `ConcurrencyLimiter(8)` 并发，仅 IO 调用占槽、目录递归不持槽。
+- **传输日志 tombstone 机制** — 删除操作记入 `tombstones` 集合，`save()` 合并时跳过，防止删除被复活。僵尸日志清理阈值 24h→10min，仅应用启动首次构造时执行一次。
+- **SSH exec 空输出重试** — 适用于所有 SSH exec 调用（tar xzf/rm -rf/wc -c/command -v tar/id 映射），均为幂等操作。
+- **设置面板布局优化** — 隐藏作者开关挪到功能性分组首位；快速模式说明行删除（保留 title 悬停）；面板快捷键挪到自定义时间格式下方。
+- **Star 确认弹窗文案** — 追加「您的点赞支持是我开发的动力，感谢支持！」（24 语言本地化感谢语）。
+
+### 🔧 技术 / 构建
+
+- **`tabby-plugin-common` 共享模块** — 抽离 `theme.ts` / `utils.ts` 到独立包，CI 可独立构建；构建脚本路径收敛到仓库内（`scripts/check-common-sync.mjs` + `scripts/copy-sftp-manifest.mjs`）。
+- **GitHub Actions 发布** — `publish.yml` 增加 `push:tags` 触发，打 tag 即自动发布到 npm。
+- **i18n 辅助脚本** — 新增 12 个脚本（`add-*-i18n.mjs` / `update-*-i18n.mjs`），支持幂等追加/替换 24 语言 .po 文件。
+- 版本号 bump 至 **2.0.1**。
+
+### ⚠️ 已知限制
+
+- tar 通道仅用于目标不存在的全新传输；合并/覆盖场景必须保留逐文件通道（冲突检测依赖）。
+- 快速模式下目录传输无百分比进度（总量未知），仅显示已传字节 + 文件数。
+
+---
+
 ## [2.0.0] — 2026-07-25
 
 ### ✨ 新增

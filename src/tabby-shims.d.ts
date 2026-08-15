@@ -163,6 +163,7 @@ declare module 'tabby-core' {
 declare module 'tabby-terminal' {
   export class TerminalDecorator {
     attach(terminal: any): void
+    detach(terminal: any): void
     subscribeUntilDetached(terminal: any, sub: any): void
   }
   export class BaseTerminalTabComponent {

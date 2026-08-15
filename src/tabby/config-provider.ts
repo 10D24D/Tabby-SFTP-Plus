@@ -5,11 +5,7 @@
  * 创建人：DD1024z + Deepseek-V4-Flash
  * 创建时间：2026-06-29
  * 修改人：DD1024z + Hy3
- * 修改时间：2026-07-23
- *   - 新增 dateFormat 字段（兼容性：自定义时间格式）
- * 修改人：DD1024z + Deepseek-V4-Flash
- * 修改时间：2026-06-29
- *   - 新增 bookmarks、pathMemory 字段
+ * 修改时间：2026-07-29
  */
 import { ConfigProvider } from 'tabby-core'
 import type { Locale } from '../services/sftp-i18n.service'
@@ -27,13 +23,27 @@ export interface SftpPlusPluginConfig {
   tableColBorders: boolean
   tableZebra: boolean
   hideNativeSFTPButton: boolean
+  /** 默认路径模式（off/remember/sync）：对未在面板上单独切换过的连接生效 */
+  defaultPathMode: 'off' | 'remember' | 'sync'
+  /** 默认显示隐藏文件：对从未按过眼睛按钮的面板生效 */
+  defaultShowHidden: boolean
   openInNewTabByDefault: boolean
   singleWorkspaceInstance: boolean
   /** 兼容选项：选中书签后自动关闭整个浮动面板 */
   closeBookmarkPanelOnSelect: boolean
   /** 兼容选项：自定义时间格式（空串 = 默认 YYYY-MM-DD HH:mm:ss） */
   dateFormat: string
-  paneCustomOrder: Array<'label' | 'path' | 'back' | 'forward' | 'up' | 'refresh' | 'home' | 'filter' | 'bookmark'>
+  /** 同时进行的上传数上限（1-10，默认 3）：顶层条目之间与目录内文件级均受此限制 */
+  transferUploadConcurrency: number
+  /** 同时进行的下载数上限（1-10，默认 3）：顶层条目之间与目录内文件级均受此限制 */
+  transferDownloadConcurrency: number
+  /** ★ 2026-08-11：快速模式：目录传输跳过预扫描直接开传（无百分比进度） */
+  transferFastMode: boolean
+  /** ★ 2026-08-11：隐藏关于区的插件作者信息 */
+  hideAuthorInfo: boolean
+  paneCustomOrder: Array<'label' | 'path' | 'back' | 'forward' | 'up' | 'refresh' | 'home' | 'filter' | 'bookmark' | 'hidden'>
+  /** 被隐藏的工具栏项 */
+  paneHiddenItems: string[]
   bookmarks: any[]
   pathMemory: Record<string, any>
   transferLogs: any[]
@@ -57,11 +67,18 @@ export function defaultSftpPlusConfig(): SftpPlusPluginConfig {
     tableColBorders: false,
     tableZebra: false,
     hideNativeSFTPButton: false,
+    defaultPathMode: 'off',
+    defaultShowHidden: false,
     openInNewTabByDefault: false,
     singleWorkspaceInstance: true,
     closeBookmarkPanelOnSelect: false,
     dateFormat: '',
-    paneCustomOrder: ['label', 'back', 'forward', 'up', 'refresh', 'home', 'path', 'filter', 'bookmark'],
+    transferUploadConcurrency: 3,
+    transferDownloadConcurrency: 3,
+    transferFastMode: false,
+    hideAuthorInfo: false,
+    paneCustomOrder: ['label', 'back', 'forward', 'up', 'refresh', 'home', 'path', 'hidden', 'filter', 'bookmark'],
+    paneHiddenItems: [],
     bookmarks: [],
     pathMemory: {},
     transferLogs: [],

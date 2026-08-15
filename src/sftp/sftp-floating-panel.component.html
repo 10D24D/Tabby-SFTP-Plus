@@ -139,6 +139,8 @@
           [isLocal]="true"
           [pathInput]="localPathInput"
           [paneCustomOrder]="paneCustomOrder"
+          [paneHiddenItems]="paneHiddenItems"
+          [showHidden]="showHiddenLocal"
           (pathInputChange)="localPathInput = $event"
           (pathEnter)="goToLocalPathInput()"
           (pathBlur)="onLocalPathBlur()"
@@ -163,7 +165,6 @@
           [sortBy]="localSortBy"
           [sortAsc]="localSortAsc"
           [selectionInfo]="getLocalSelectionInfo()"
-          [i18n]="i18n"
           [colHeaderLabelFn]="colHeaderLabelFn"
           [colValueFn]="colValueFn"
           [isSelectedFn]="isLocalSelectedFn"
@@ -215,6 +216,8 @@
           [isLocal]="false"
           [pathInput]="remotePathInput"
           [paneCustomOrder]="paneCustomOrder"
+          [paneHiddenItems]="paneHiddenItems"
+          [showHidden]="showHiddenRemote"
           (pathInputChange)="remotePathInput = $event"
           (pathEnter)="goToRemotePathInput()"
           (pathBlur)="onRemotePathBlur()"
@@ -244,7 +247,6 @@
           [sortAsc]="remoteSortAsc"
           [draggable]="connected"
           [selectionInfo]="getRemoteSelectionInfo()"
-          [i18n]="i18n"
           [colHeaderLabelFn]="colHeaderLabelFn"
           [colValueFn]="colValueFn"
           [isSelectedFn]="isRemoteSelectedFn"
@@ -378,7 +380,6 @@
         [activeTransferCount]="transfers.length"
         [transfersHidden]="transfersHidden"
         [transfersMinimized]="transfersMinimized"
-        [i18n]="i18n"
         (close)="showTransferLog = false"
         (filterOpChange)="logFilterOp = $event"
         (filterStatusChange)="logFilterStatus = $event"
@@ -413,9 +414,9 @@
         [clipboardHasEntries]="clipboardEntries.length > 0"
         [canView]="canViewEntry(contextMenuEntry)"
         [canEdit]="canEditEntry(contextMenuEntry)"
+        [canViewAsText]="canViewEntryAsText(contextMenuEntry)"
         [canTransfer]="connected"
         [modKey]="modKey"
-        [i18n]="i18n"
         [headerVisible]="headerMenuVisible"
         [headerX]="headerMenuX"
         [headerY]="headerMenuY"
@@ -454,7 +455,8 @@
         [visible]="detailsVisible"
         [display]="detailsDisplay"
         (confirm)="detailsVisible = false"
-        (cancel)="detailsVisible = false">
+        (cancel)="detailsVisible = false"
+        (calcSize)="onDetailsCalcSize()">
       </sftp-details-dialog>
 
       <sftp-viewer-dialog
@@ -468,7 +470,11 @@
         [imageUrl]="viewerImageUrl"
         [error]="viewerError"
         [showSystemAction]="viewerShowSystemAction"
+        [imageIndex]="viewerImageIndex"
+        [imageCount]="viewerImageCount"
         (systemAction)="openViewerInSystem()"
+        (prevImage)="gotoViewerImage(-1)"
+        (nextImage)="gotoViewerImage(1)"
         (close)="closeViewer()">
       </sftp-viewer-dialog>
 

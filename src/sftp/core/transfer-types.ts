@@ -3,7 +3,7 @@
  * 创建人：DD1024z + Hy3
  * 创建时间：2026-07-16
  * 修改人：DD1024z + Hy3
- * 修改时间：2026-07-16
+ * 修改时间：2026-08-02 — B19：SftpTransferPort 增加 stat 方法；SftpDirEntry 扩展 mtime/attrs 字段
  * 合并来源：transfer-ports, transfer-rules
  */
 
@@ -26,14 +26,17 @@ export type SftpDirEntry = {
   isDirectory: boolean
   size?: number
   mode?: number
-  modified?: Date
+  modified?: Date | number | string
+  mtime?: number
+  /** 某些 SFTP 后端把元数据放在 attrs 子对象里 */
+  attrs?: { mtime?: number; modified?: Date | number | string; size?: number }
 }
 
 export interface LocalTransferFsPort {
   lstat(localPath: string): Promise<Stats | null>
   listChildren(localPath: string): Promise<Array<{ name: string; isSymbolicLink: boolean }>>
-  calcDirSize(localPath: string): Promise<number>
-  countDirItems(localPath: string): Promise<number>
+  /** ★ 2026-08-11：单次遍历同时得出总大小与文件数（原 calcDirSize/countDirItems 两次遍历） */
+  scanDir(localPath: string): Promise<{ size: number; count: number }>
   pathExists(localPath: string): Promise<boolean>
   mkdirRecursive(localPath: string): Promise<void>
 }
@@ -42,11 +45,22 @@ export interface SftpTransferPort {
   hasSession(): boolean
   mkdir(remotePath: string): Promise<void>
   readdir(remoteSrc: string): Promise<SftpDirEntry[]>
+  /** 取单个远程文件元数据；返回 null 表示文件不存在或无法访问 */
+  stat(remotePath: string): Promise<SftpDirEntry | null>
 }
 
 export interface RemoteDirStatsPort {
-  calcDirSize(remotePath: string): Promise<number>
-  countDirItems(remotePath: string): Promise<number>
+  /** ★ 2026-08-11：单次遍历同时得出总大小与文件数（并发 readdir） */
+  scanDir(remotePath: string): Promise<{ size: number; count: number }>
+}
+
+/** ★ 2026-08-11：tar 打包通道结果三态（见 tar-channel.ts 头注） */
+export type TarChannelResult = 'fallback' | 'success' | 'failed'
+
+export interface TarChannelPort {
+  /** 目标不存在时尝试打包上传；'fallback' 表示未接管，调用方回退逐文件通道 */
+  tryUploadDir(localPath: string, remoteTarget: string, folder: FolderTransferPort, name: string): Promise<TarChannelResult>
+  tryDownloadDir(remoteSrc: string, localDest: string, folder: FolderTransferPort, name: string): Promise<TarChannelResult>
 }
 
 export interface FolderTransferPort {
@@ -57,8 +71,12 @@ export interface FolderTransferPort {
     localPath: string,
     totalSize: number,
     itemCount: number,
+    /** ★ 2026-08-11：复用既有传输记录条目（冲突覆盖合并时不新建日志，避免重复记录） */
+    reuseLogEntryId?: string,
   ): FolderTransferCtx
   finish(ctx: FolderTransferCtx, success: boolean): void
+  /** ★ 2026-08-11：回填传输记录的真实目录大小（tar 打包通道初始记的是压缩包大小，易误导） */
+  updateLogSize?(ctx: FolderTransferCtx, size: number): void
   updateProgress(
     ctx: FolderTransferCtx,
     bytesDone: number,
@@ -74,15 +92,16 @@ export interface FolderTransferPort {
 }
 
 export interface TransferExecutionPort {
-  uploadTopLevel(remotePath: string, localPath: string): Promise<void>
-  uploadRaw(remotePath: string, localPath: string): Promise<void>
-  downloadTopLevel(remotePath: string, localPath: string, mode?: number, size?: number): Promise<void>
-  downloadRaw(remotePath: string, localPath: string, mode?: number, size?: number): Promise<void>
+  /** ★ 2026-08-10：返回是否传输完整成功，供用例层正确统计失败/守护剪切删源 */
+  uploadTopLevel(remotePath: string, localPath: string): Promise<boolean>
+  uploadRaw(remotePath: string, localPath: string): Promise<boolean>
+  downloadTopLevel(remotePath: string, localPath: string, mode?: number, size?: number): Promise<boolean>
+  downloadRaw(remotePath: string, localPath: string, mode?: number, size?: number): Promise<boolean>
 }
 
 export interface DownloadOnePort {
   getLocalPath(): string
-  downloadDir(remoteSrc: string, localDest: string): Promise<void>
+  downloadDir(remoteSrc: string, localDest: string): Promise<boolean>
 }
 
 export interface TransferUseCasePorts {
@@ -92,6 +111,8 @@ export interface TransferUseCasePorts {
   execution: TransferExecutionPort
   conflictDetection: import('./conflict').ConflictDetectionPort
   conflictQueue: import('./conflict').ConflictQueuePort
+  /** ★ 2026-08-11：可选 tar 打包通道（仅目标不存在的全新传输时启用） */
+  tarChannel?: TarChannelPort
 }
 
 export type { SFTPFile }

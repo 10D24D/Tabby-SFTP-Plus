@@ -807,7 +807,7 @@ msgid "settings.hideNativeBtn"
 msgstr "Yerel SFTP butonunu gizle"
 
 msgid "settings.openInNewTab"
-msgstr "Varsayılan olarak yeni sekmede aç"
+msgstr "Varsayılan olarak paneli yeni sekmede aç"
 
 msgid "settings.singleWorkspaceInstance"
 msgstr "Sadece tek instance"
@@ -845,8 +845,8 @@ msgstr "Kısayol tuşu kaydetme başarısız"
 msgid "settings.hotkeyRecordTimeout"
 msgstr "Kayıt zaman aşımına uğradı, lütfen tekrar deneyin"
 
-msgid "settings.compatibility"
-msgstr "Uyumluluk"
+msgid "settings.other"
+msgstr "İşlevsellik"
 
 msgid "settings.data"
 msgstr "Veri"
@@ -1091,3 +1091,64 @@ msgstr "Önizleme"
 
 msgid "settings.dateFormatReset"
 msgstr "Varsayılana sıfırla"
+
+msgid "settings.defaultPathMode"
+msgstr "Varsayılan yol modu"
+
+msgid "settings.pathModeOff"
+msgstr "Kapalı"
+
+msgid "settings.pathModeRemember"
+msgstr "Yolu hatırla"
+
+msgid "settings.pathModeSync"
+msgstr "Terminal ile senkronize"
+
+msgid "settings.defaultShowHidden"
+msgstr "Gizli dosyaları varsayılan olarak göster"
+
+msgid "settings.uploadConcurrency"
+msgstr "Eş zamanlı yüklemeler"
+
+msgid "settings.downloadConcurrency"
+msgstr "Eş zamanlı indirmeler"
+
+msgid "transfer.queued"
+msgstr "Kuyrukta"
+
+
+msgid "settings.fastMode"
+msgstr "Hızlı aktarım modu"
+
+msgid "settings.fastModeDesc"
+msgstr "Dizin aktarımlarını ön tarama olmadan hemen başlatır: daha hızlı başlar, ancak aktarım sırasında toplam boyut ve yüzde ilerleme gösterilemez (yalnızca aktarılan baytlar)"
+
+msgid "file.sizeCalculate"
+msgstr "Hesapla"
+
+msgid "file.sizeCalculating"
+msgstr "Hesaplanıyor…"
+
+msgid "file.sizeCalcFailed"
+msgstr "Hesaplama başarısız"
+
+msgid "file.folderSizeDetail"
+msgstr "{size} ({count} dosya)"
+
+msgid "file.fileProperties"
+msgstr "Dosya özellikleri"
+
+msgid "file.folderProperties"
+msgstr "Klasör özellikleri"
+
+msgid "settings.hideAuthorInfo"
+msgstr "Eklenti yazarı bilgilerini gizle"
+
+msgid "settings.hideAuthorConfirmText"
+msgstr "Yazar bilgilerini gizlemeden önce lütfen eklenti deposuna bir yıldız verin. Depo sayfası tarayıcınızda açıldı. Yıldızınız geliştirmeye devam etme motivasyonumdur — desteğiniz için teşekkürler! 🙏"
+
+msgid "settings.starredConfirm"
+msgstr "Yıldız verdim"
+
+msgid "file.location"
+msgstr "Konum"

@@ -623,7 +623,7 @@ msgstr "Wenk: Beheer via regterklik-kieslys op lêerlys se kop"
 msgid "settings.hideNativeBtn"
 msgstr "Versteek inheemse SFTP-knoppie"
 msgid "settings.openInNewTab"
-msgstr "Open in nuwe oortjie as standaard"
+msgstr "Maak paneel in nuwe oortjie oop as standaard"
 msgid "settings.singleWorkspaceInstance"
 msgstr "Slegs een instansie"
 msgid "settings.hotkey"
@@ -650,8 +650,8 @@ msgid "settings.hotkeySaveFailed"
 msgstr "Kon nie sneltoets stoor nie"
 msgid "settings.hotkeyRecordTimeout"
 msgstr "Opname verstryk, probeer weer"
-msgid "settings.compatibility"
-msgstr "Verenigbaarheid"
+msgid "settings.other"
+msgstr "Funksionaliteit"
 msgid "settings.data"
 msgstr "Data"
 msgid "settings.export"
@@ -880,3 +880,64 @@ msgstr "Voorskou"
 
 msgid "settings.dateFormatReset"
 msgstr "Herstel verstek"
+
+msgid "settings.defaultPathMode"
+msgstr "Verstek padmodus"
+
+msgid "settings.pathModeOff"
+msgstr "Af"
+
+msgid "settings.pathModeRemember"
+msgstr "Onthou pad"
+
+msgid "settings.pathModeSync"
+msgstr "Sinkroniseer met terminaal"
+
+msgid "settings.defaultShowHidden"
+msgstr "Wys verborge lêers by verstek"
+
+msgid "settings.uploadConcurrency"
+msgstr "Gelyktydige oplaaie"
+
+msgid "settings.downloadConcurrency"
+msgstr "Gelyktydige aflaaie"
+
+msgid "transfer.queued"
+msgstr "In waglys"
+
+
+msgid "settings.fastMode"
+msgstr "Vinnige oordragmodus"
+
+msgid "settings.fastModeDesc"
+msgstr "Begin gids-oordragte onmiddellik sonder vooraf skandering: vinniger begin, maar totale grootte en persentasie-vordering kan nie tydens die oordrag gewys word nie (slegs oorgedraagre bytes)"
+
+msgid "file.sizeCalculate"
+msgstr "Bereken"
+
+msgid "file.sizeCalculating"
+msgstr "Bereken tans…"
+
+msgid "file.sizeCalcFailed"
+msgstr "Berekening het misluk"
+
+msgid "file.folderSizeDetail"
+msgstr "{size} ({count} lêers)"
+
+msgid "file.fileProperties"
+msgstr "Lêereienskappe"
+
+msgid "file.folderProperties"
+msgstr "Vouereienskappe"
+
+msgid "settings.hideAuthorInfo"
+msgstr "Versteek inprop-outeurinligting"
+
+msgid "settings.hideAuthorConfirmText"
+msgstr "Voordat jy die outeurinligting versteek, gee asseblief 'n ster aan die inprop-bewaarplek. Die bewaarplekblad is in jou blaaier oopgemaak. Jou ster is my motivasie om te ontwikkel — dankie vir jou ondersteuning! 🙏"
+
+msgid "settings.starredConfirm"
+msgstr "Ek het 'n ster gegee"
+
+msgid "file.location"
+msgstr "Ligging"

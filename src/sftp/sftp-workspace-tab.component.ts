@@ -94,7 +94,10 @@ export class SftpWorkspaceTabComponent extends BaseTabComponent implements After
     if (this.closingFromPanel) return true
     const panel = this.panelRef?.instance
     if (panel && (panel as any).transfers?.length > 0) {
-      return window.confirm((panel as any).i18n?.t('workspace.closeWithTransfers') || '有正在进行的传输，确定要关闭吗？')
+      // ★ 2026-08-10 修复 #10：改用已存在的 notify.closeWithTransfers（带 {count} 参数），
+      //   workspace.closeWithTransfers 在所有 locale 中都不存在，永远回退到硬编码中文
+      const count = (panel as any).transfers.length
+      return window.confirm((panel as any).i18n?.t('notify.closeWithTransfers', { count }) || '有正在进行的传输，确定要关闭吗？')
     }
     return true
   }

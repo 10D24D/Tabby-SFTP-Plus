@@ -797,7 +797,7 @@ msgid "settings.hideNativeBtn"
 msgstr "Sembunyikan tombol SFTP asli"
 
 msgid "settings.openInNewTab"
-msgstr "Buka di tab baru secara default"
+msgstr "Buka panel di tab baru secara default"
 
 msgid "settings.singleWorkspaceInstance"
 msgstr "Hanya instance tunggal"
@@ -834,8 +834,8 @@ msgstr "Gagal menyimpan hotkey"
 msgid "settings.hotkeyRecordTimeout"
 msgstr "Perekaman habis waktu, silakan coba lagi"
 
-msgid "settings.compatibility"
-msgstr "Kompatibilitas"
+msgid "settings.other"
+msgstr "Fungsionalitas"
 
 msgid "settings.data"
 msgstr "Data"
@@ -1079,3 +1079,64 @@ msgstr "Pratinjau"
 
 msgid "settings.dateFormatReset"
 msgstr "Setel ulang ke bawaan"
+
+msgid "settings.defaultPathMode"
+msgstr "Mode jalur bawaan"
+
+msgid "settings.pathModeOff"
+msgstr "Nonaktif"
+
+msgid "settings.pathModeRemember"
+msgstr "Ingat jalur"
+
+msgid "settings.pathModeSync"
+msgstr "Sinkron dengan terminal"
+
+msgid "settings.defaultShowHidden"
+msgstr "Tampilkan file tersembunyi secara default"
+
+msgid "settings.uploadConcurrency"
+msgstr "Unggahan simultan"
+
+msgid "settings.downloadConcurrency"
+msgstr "Unduhan simultan"
+
+msgid "transfer.queued"
+msgstr "Dalam antrean"
+
+
+msgid "settings.fastMode"
+msgstr "Mode transfer cepat"
+
+msgid "settings.fastModeDesc"
+msgstr "Memulai transfer direktori segera tanpa pemindaian awal: mulai lebih cepat, tetapi ukuran total dan progres persentase tidak dapat ditampilkan selama transfer (hanya byte yang ditransfer)"
+
+msgid "file.sizeCalculate"
+msgstr "Hitung"
+
+msgid "file.sizeCalculating"
+msgstr "Menghitung…"
+
+msgid "file.sizeCalcFailed"
+msgstr "Gagal menghitung"
+
+msgid "file.folderSizeDetail"
+msgstr "{size} ({count} file)"
+
+msgid "file.fileProperties"
+msgstr "Properti file"
+
+msgid "file.folderProperties"
+msgstr "Properti folder"
+
+msgid "settings.hideAuthorInfo"
+msgstr "Sembunyikan info pembuat plugin"
+
+msgid "settings.hideAuthorConfirmText"
+msgstr "Sebelum menyembunyikan info pembuat, berikan bintang ke repositori plugin. Halaman repositori telah dibuka di browser. Bintang Anda adalah motivasi saya dalam mengembangkan — terima kasih atas dukungannya! 🙏"
+
+msgid "settings.starredConfirm"
+msgstr "Saya sudah memberi bintang"
+
+msgid "file.location"
+msgstr "Lokasi"

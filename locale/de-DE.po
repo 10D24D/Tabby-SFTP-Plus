@@ -793,7 +793,7 @@ msgid "settings.hideNativeBtn"
 msgstr "Nativen SFTP-Button ausblenden"
 
 msgid "settings.openInNewTab"
-msgstr "Standardmäßig in neuem Tab öffnen"
+msgstr "Panel standardmäßig in neuem Tab öffnen"
 
 msgid "settings.singleWorkspaceInstance"
 msgstr "Nur einzelne Instanz"
@@ -831,8 +831,8 @@ msgstr "Hotkey-Speichern fehlgeschlagen"
 msgid "settings.hotkeyRecordTimeout"
 msgstr "Aufnahme abgelaufen, bitte versuchen Sie es erneut"
 
-msgid "settings.compatibility"
-msgstr "Kompatibilität"
+msgid "settings.other"
+msgstr "Funktionalität"
 
 msgid "settings.data"
 msgstr "Daten"
@@ -1086,3 +1086,64 @@ msgstr "Vorschau"
 
 msgid "settings.dateFormatReset"
 msgstr "Auf Standard zurücksetzen"
+
+msgid "settings.defaultPathMode"
+msgstr "Standard-Pfadmodus"
+
+msgid "settings.pathModeOff"
+msgstr "Aus"
+
+msgid "settings.pathModeRemember"
+msgstr "Pfad merken"
+
+msgid "settings.pathModeSync"
+msgstr "Mit Terminal synchronisieren"
+
+msgid "settings.defaultShowHidden"
+msgstr "Versteckte Dateien standardmäßig anzeigen"
+
+msgid "settings.uploadConcurrency"
+msgstr "Gleichzeitige Uploads"
+
+msgid "settings.downloadConcurrency"
+msgstr "Gleichzeitige Downloads"
+
+msgid "transfer.queued"
+msgstr "In Warteschlange"
+
+
+msgid "settings.fastMode"
+msgstr "Schneller Übertragungsmodus"
+
+msgid "settings.fastModeDesc"
+msgstr "Startet Verzeichnisübertragungen sofort ohne Größen-Vorscan: schnellerer Start, aber Gesamtgröße und Prozentfortschritt können während der Übertragung nicht angezeigt werden (nur übertragene Bytes)"
+
+msgid "file.sizeCalculate"
+msgstr "Berechnen"
+
+msgid "file.sizeCalculating"
+msgstr "Wird berechnet…"
+
+msgid "file.sizeCalcFailed"
+msgstr "Berechnung fehlgeschlagen"
+
+msgid "file.folderSizeDetail"
+msgstr "{size} ({count} Dateien)"
+
+msgid "file.fileProperties"
+msgstr "Dateieigenschaften"
+
+msgid "file.folderProperties"
+msgstr "Ordner-Eigenschaften"
+
+msgid "settings.hideAuthorInfo"
+msgstr "Plugin-Autoreninformationen ausblenden"
+
+msgid "settings.hideAuthorConfirmText"
+msgstr "Bevor Sie die Autoreninformationen ausblenden, geben Sie dem Plugin-Repository bitte einen Star. Die Repository-Seite wurde im Browser geöffnet. Ihr Star ist meine Motivation für die Entwicklung — vielen Dank für Ihre Unterstützung! 🙏"
+
+msgid "settings.starredConfirm"
+msgstr "Ich habe einen Star gegeben"
+
+msgid "file.location"
+msgstr "Ort"
