@@ -1,14 +1,18 @@
 # GitHub Actions → npm 自动发布
-# 触发条件：创建 Release 时自动发布到 npm
+# 触发条件：创建 GitHub Release 时自动发布到 npm
 # 使用 npm Trusted Publisher（OIDC），无需 Token，绕过 2FA
+#
+# 发布流程：
+#   1. git push && git push --tags
+#   2. 在 GitHub 仓库页面创建 Release（关联已有 tag）
+#   3. Release published 事件触发本 workflow，自动发布到 npm
+#
+# 注意：仅通过 release 事件触发，避免 push tag + create Release 导致重复执行。
 name: Publish npm package
 
 on:
   release:
     types: [published]
-  push:
-    tags:
-      - 'v*'
   workflow_dispatch:
 
 permissions:
