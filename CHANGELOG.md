@@ -2,6 +2,24 @@
 
 All notable changes to **tabby-sftp-plus** will be documented in this file.
 
+## [2.0.2] — 2026-08-22
+
+### 🐛 修复
+
+- **批量覆盖/跳过/重命名只剩第一条被处理（重入锁回归）** — 2026-08-15 引入的 `_processing` 重入锁使 `resolve('overwrite-all'/'skip-all'/'rename-all')` 持锁调用 `processNext()` 时被守卫直接拦截，导致批量模式下**仅第一条被处理、剩余队列静默卡死**（冲突对话框已隐藏、传输进度不动）。修复：拆出无锁的 `_drainQueue()` 递归排空整个队列，`resolve` / `processNext` 仅持锁后调用它。
+- **上传冲突检测逐文件 stat（性能）** — 同目录多文件上传原每个文件独立 `stat` + `readdir`，N 个文件 = N 次网络往返。修复：按 `parentDir` 缓存一次 `readdir` 结果（并发单飞），目录内所有文件复用同一份 listing，仅在 listing 缺 `size`/`mtime` 字段时对该单文件回退 `stat`。
+- **Backspace 在终端被面板抢去做路径回退（issue #13 P4）** — `document:keydown` 全局监听的「历史后退」原硬编码为普通 `Backspace` 且未走 `panelHotkeys` 配置，焦点落在终端 xterm 时仍触发 `localBack()/remoteBack()` 并 `preventDefault()` 吞掉删字。修复：历史后退纳入 `panelHotkeys.back` 配置（默认 `Backspace`、可改键/清空禁用），且**仅在面板自身获得焦点时生效**；焦点在终端时 `Backspace` 正常删字。
+
+### ✨ 新增
+
+- **面板热键 `back`（历史后退）** — 设置页「面板操作热键」新增 `back` 项，与 `delete`/`rename`/`refresh`/`up` 一同可在设置页录制/清除/改键；24 语言自动回退英文基线。
+- **文件/文件夹打开方式** — 新增 `openOnClick` 设置：`double`（默认，双击打开）或 `single`（单击打开）；单击模式下双击仍可用。
+- **查看器不支持时系统打开** — 新增 `openUnsupportedInSystem` 开关（默认开）：查看器无法预览的文件改用系统默认程序打开，而非仅提示不支持。
+- **面板操作热键改键 UI** — `delete`/`rename`/`refresh`/`up`/`back` 全部可在设置页录制/清除/改键（key 为空 = 禁用），`back` 默认 `Backspace`、`up` 默认 `Shift+Backspace`。
+- **右键菜单顺序自定义** — 新增 `contextMenuOrder` 配置，右键文件菜单改为数据驱动渲染，按配置数组顺序过滤可见项；设置页可调整顺序并重置。
+- **传输设置子分类** — 设置页新增「传输设置」子分类，归并上传/下载并发数与快速传输模式；`fastMode` 中文标签改为「快速传输模式」。
+- **书签当前路径高亮** — 书签悬浮菜单中，路径与当前面板目录一致的书签项高亮（本地路径按 Windows 大小写不敏感匹配）。
+
 ## [2.0.1] — 2026-08-15
 
 ### ✨ 新增

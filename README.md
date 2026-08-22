@@ -36,13 +36,25 @@ SFTP+ 是 [Tabby Terminal](https://tabby.sh/) 的插件，为 SSH 终端标签�
 
 ## 🖥️ 界面导览
 
-![SFTP+ 操作面板](assets/SFTP-Plus_UI_Panel.png) 
+| ![SFTP+ 操作面板](assets/SFTP-Plus_UI_Panel.png) | ![SFTP+ 设置界面](assets/SFTP-Plus_UI_Config.png) |
+| :---------------------------------------------: | :---------------------------------------------: |
 
-![SFTP+ 设置界面](assets/SFTP-Plus_UI_Config.png) 
+### 界面分区
+
+| 区域 | 说明 |
+|------|------|
+| **标题栏** | 插件名称、当前 SSH 连接信息、布局切换、传输日志入口、最小化/关闭 |
+| **左/右面板** | 各自独立浏览，支持路径输入、导航按钮、书签、过滤 |
+| **文件列表** | 显示文件和目录，支持多列排序、列宽拖拽、列顺序调整 |
+| **底部操作栏** | 显示选中项数量和总大小 |
+| **传输队列** | 实时展示上传/下载进度、速度、剩余时间，支持暂停/继续/取消 |
+| **书签弹窗** | 按「连接书签」和「全局书签」分组，支持拖拽排序和快速跳转 |
+| **右键菜单** | 文件/表头右键弹出，提供完整文件操作和列配置入口 |
+| **传输日志** | 历史记录弹窗，支持类型筛选、成功/失败过滤、JSON 导出 |
 
 ---
 
-## ⚙️ 安装
+## 📥 安装
 
 1. 确保已安装 [Tabby Terminal](https://tabby.sh/)
 2. 在 Tabby 设置中配置插件目录
@@ -106,7 +118,7 @@ SFTP+ 是 [Tabby Terminal](https://tabby.sh/) 的插件，为 SSH 终端标签�
 
 ## 📜 版本历史
 
-最新版本 **v2.0.1**（2026-08-15）— [完整更新日志](CHANGELOG.md)
+最新版本 **v2.0.2**（2026-08-22）— [完整更新日志](CHANGELOG.md)
 
 ---
 
@@ -174,10 +186,24 @@ tabby-FTPS+/
 - 贡献代码：Fork 项目并提交 Pull Request 🚀
 - 喜欢 SFTP+？可以帮忙点个 [⭐ Star](https://github.com/10D24D/Tabby-SFTP-Plus) 支持一下！
 
+您的点赞与 Star 是我持续开发的动力，感谢支持！❤️
+
+## 🙏 特别鸣谢
+
+SFTP+ 的成长离不开基石项目与社区用户的支持，在此特别感谢：
+
+- [Tabby](https://tabby.sh/) — 强大的跨平台终端，SFTP+ 得以在其生态内运行
+- [SFTP（SSH File Transfer Protocol）](https://en.wikipedia.org/wiki/SSH_File_Transfer_Protocol) — 底层文件传输协议，本插件的远程文件管理能力构建于此之上
+- [@fweiger](https://github.com/fweiger) — Issue #13 提交了详尽的使用体验优化建议（单击/双击交互、右键菜单排序、快捷键聚焦等），多项已落地 v2.0.2
+- [@HarpyWar](https://github.com/HarpyWar) — Issue #3 反馈热键设置页异常，已修复
+- [@xingkongxiademodeng](https://github.com/xingkongxiademodeng) — Issue #10 指出目录上传串行无并发的性能瓶颈，为并发传输优化提供方向
+- [@Hanzo-Huang](https://github.com/Hanzo-Huang) — Issue #5 提出「获取当前工作目录」功能建议，已实现
+- 同时感谢 [@webbrain-one](https://github.com/webbrain-one)、[@JayceVane](https://github.com/JayceVane) 提交 Pull Request 的贡献尝试
+
 ## 📝 许可协议
 
 SFTP+ 遵循 [MIT](LICENSE) 开源协议。欢迎使用、修改和分享，但请遵守协议条款。
 
 ## ⚠️ 免责声明
 
-SFTP+ 是一个免费的开源项目。使用本插件即表示你同意承担相关风险。开发者不对因使用插件导致的任何问题或损失负责。
+SFTP+ 是一个免费的开源项目，主要使用 AI 辅助生成，难免存在一些 BUG 缺陷，作者无法保证功能代码验证到位。使用本插件即表示你同意承担相关风险，开发者不对因使用插件导致的任何问题或损失负责，请酌情使用。

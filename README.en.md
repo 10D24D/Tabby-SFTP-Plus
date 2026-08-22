@@ -54,7 +54,7 @@ SFTP+ is a plugin for [Tabby Terminal](https://tabby.sh/) that adds a **dual-pan
 
 ---
 
-## ⚙️ Installation
+## 📥 Installation
 
 1. Make sure [Tabby Terminal](https://tabby.sh/) is installed
 2. Configure the plugin directory in Tabby settings
@@ -116,7 +116,7 @@ Path: Settings → Data Backup → Export / Import
 
 ## 📜 Changelog
 
-Latest: **v2.0.1** (2026-08-15) — [Full changelog](CHANGELOG.md)
+Latest: **v2.0.2** (2026-08-22) — [Full changelog](CHANGELOG.md)
 
 ---
 
@@ -183,10 +183,24 @@ Contributions are always welcome! The plugin was conceived by the author (DD1024
 - Contribute code: Fork the project and submit a Pull Request 🚀
 - Like SFTP+? Give it a [⭐ Star](https://github.com/10D24D/Tabby-SFTP-Plus) to show your support!
 
+Your stars and support are what keep me developing — thank you! ❤️
+
+## 🙏 Special Thanks
+
+SFTP+ would not have grown without the foundational projects and the community's support. Special thanks to:
+
+- [Tabby](https://tabby.sh/) — the powerful cross-platform terminal that hosts this plugin
+- [SFTP (SSH File Transfer Protocol)](https://en.wikipedia.org/wiki/SSH_File_Transfer_Protocol) — the underlying file transfer protocol this plugin's remote file management is built upon
+- [@fweiger](https://github.com/fweiger) — Issue #13: a detailed UX optimization report (click/double-click interaction, right-click menu ordering, hotkey focus, etc.); several points shipped in v2.0.2
+- [@HarpyWar](https://github.com/HarpyWar) — Issue #3: reported a broken hotkey settings page; fixed
+- [@xingkongxiademodeng](https://github.com/xingkongxiademodeng) — Issue #10: flagged the serial (non-concurrent) directory upload bottleneck, guiding the concurrency optimization
+- [@Hanzo-Huang](https://github.com/Hanzo-Huang) — Issue #5: suggested "get current working directory" like native SFTP; implemented
+- Thanks also to [@webbrain-one](https://github.com/webbrain-one) and [@JayceVane](https://github.com/JayceVane) for their Pull Request attempts
+
 ## 📝 License
 
 SFTP+ is licensed under the [MIT](LICENSE) license. Feel free to use, modify, and share it — just comply with the terms.
 
 ## ⚠️ Disclaimer
 
-SFTP+ is a free and open-source project. By using this plugin, you agree to assume all associated risks. The developer shall not be held liable for any problems or losses arising from its use.
+SFTP+ is a free and open-source project, primarily built with AI-assisted generation, so bugs and defects are inevitable. The author cannot guarantee that all features and code have been thoroughly verified. By using this plugin, you agree to assume the associated risks. The developer shall not be held liable for any problems or losses arising from its use. Please use it at your own discretion.
