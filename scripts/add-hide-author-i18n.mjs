@@ -16,8 +16,8 @@ const localeDir = path.join(__dirname, '..', 'locale')
 // ---- 既有键：整体替换译文 ----
 const REPLACE = {
   'settings.fastMode': {
-    'zh-CN': '传输快速模式',
-    'zh-TW': '傳輸快速模式',
+    'zh-CN': '快速传输模式',
+    'zh-TW': '快速傳輸模式',
     'en-US': 'Fast Transfer Mode',
     'en-GB': 'Fast Transfer Mode',
     'ja-JP': '高速転送モード',
