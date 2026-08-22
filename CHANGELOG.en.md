@@ -2,7 +2,7 @@
 
 All notable changes to **tabby-sftp-plus** will be documented in this file.
 
-| [中文](CHANGELOG.md) | [English](CHANGELOG.en.md) |
+| [中文](https://github.com/10D24D/Tabby-SFTP-Plus/blob/main/CHANGELOG.md) | [English](https://github.com/10D24D/Tabby-SFTP-Plus/blob/main/CHANGELOG.en.md) |
 
 ### [2.0.2] — 2026-08-22
 
