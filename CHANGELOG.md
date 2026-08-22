@@ -2,6 +2,8 @@
 
 All notable changes to **tabby-sftp-plus** will be documented in this file.
 
+| [中文](CHANGELOG.md) | [English](CHANGELOG.en.md) |
+
 ## [2.0.2] — 2026-08-22
 
 ### 🐛 修复
