@@ -941,3 +941,88 @@ msgstr "Ek het 'n ster gegee"
 
 msgid "file.location"
 msgstr "Ligging"
+
+msgid "app.trashHint"
+msgstr "Skuif na herwinningsbak"
+
+msgid "app.permDeleteHint"
+msgstr "Permanent uitvee (kan nie ongedaan gemaak word nie)"
+
+msgid "file.viewAsText"
+msgstr "Kyk as teks"
+
+msgid "file.copied"
+msgstr "Gekopieer"
+
+msgid "file.copySelection"
+msgstr "Kopieer seleksie"
+
+msgid "viewer.binaryShownAsText"
+msgstr "Binêre inhoud as teks gewys (mag dalk nie korrek vertoon nie)"
+
+msgid "viewer.prevImage"
+msgstr "Vorige beeld"
+
+msgid "viewer.nextImage"
+msgstr "Volgende beeld"
+
+msgid "editor.saveSuccessLocal"
+msgstr "Gestoor"
+
+msgid "settings.interaction"
+msgstr "Interaksie"
+
+msgid "settings.openOnClick"
+msgstr "Open lêer/map met"
+
+msgid "settings.clickDouble"
+msgstr "Dubbelklik"
+
+msgid "settings.clickSingle"
+msgstr "Enkelklik"
+
+msgid "settings.openOnClickHint"
+msgstr "Enkelklik maak lêers/mappe direk oop; dubbelklik werk steeds in enkelklik-modus."
+
+msgid "settings.openUnsupportedInSystem"
+msgstr "Maak nie-ondersteunde lêers met stelselprogram oop"
+
+msgid "settings.openUnsupportedInSystemDesc"
+msgstr "Lêers wat die leser nie kan hanteer nie (bv. .pdf/.docx) word met die stelsel se verstekprogram oopgemaak in plaas van om 'n boodskap te wys dat hulle nie ondersteun word nie."
+
+msgid "settings.transferSection"
+msgstr "Oordrag"
+
+msgid "settings.hotkeys"
+msgstr "Snelkye"
+
+msgid "settings.resetPanelHotkeys"
+msgstr "Herstel na verstek"
+
+msgid "settings.phk.delete"
+msgstr "Vee uit"
+
+msgid "settings.phk.rename"
+msgstr "Hernoem"
+
+msgid "settings.phk.refresh"
+msgstr "Herlaai"
+
+msgid "settings.phk.up"
+msgstr "Op (ouergids)"
+
+msgid "settings.phk.back"
+msgstr "Terug (geskiedenis)"
+
+msgid "settings.panelHotkeyConflict"
+msgstr "Snelky {keys} word reeds deur 'n ander aksie gebruik"
+
+msgid "settings.customContextMenu"
+msgstr "Pas regterklik-kieslys aan"
+
+msgid "settings.resetMenu"
+msgstr "Herstel kieslysorde"
+
+msgid "notify.trashFailed"
+msgstr "{n} item(e) kon nie na herwinningsbak geskuif word nie (nie uitgevee nie; probeer Shift+Delete vir permanente uitveë)"
+

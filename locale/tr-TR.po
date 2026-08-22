@@ -1152,3 +1152,88 @@ msgstr "Yıldız verdim"
 
 msgid "file.location"
 msgstr "Konum"
+
+msgid "app.trashHint"
+msgstr "Geri dönüşüm kutusuna taşı"
+
+msgid "app.permDeleteHint"
+msgstr "Kalıcı olarak sil (geri alınamaz)"
+
+msgid "file.viewAsText"
+msgstr "Metin olarak görüntüle"
+
+msgid "file.copied"
+msgstr "Kopyalandı"
+
+msgid "file.copySelection"
+msgstr "Seçimi kopyala"
+
+msgid "viewer.binaryShownAsText"
+msgstr "İkili içerik metin olarak gösteriliyor (doğru görüntülenmeyebilir)"
+
+msgid "viewer.prevImage"
+msgstr "Önceki görsel"
+
+msgid "viewer.nextImage"
+msgstr "Sonraki görsel"
+
+msgid "editor.saveSuccessLocal"
+msgstr "Kaydedildi"
+
+msgid "settings.interaction"
+msgstr "Etkileşim"
+
+msgid "settings.openOnClick"
+msgstr "Dosya/klasör açma"
+
+msgid "settings.clickDouble"
+msgstr "Çift tıklama"
+
+msgid "settings.clickSingle"
+msgstr "Tek tıklama"
+
+msgid "settings.openOnClickHint"
+msgstr "Tek tıklama dosyaları/klasörleri doğrudan açar; tek tıklama modunda çift tıklama da çalışmaya devam eder."
+
+msgid "settings.openUnsupportedInSystem"
+msgstr "Desteklenmeyen dosyaları sistem uygulamasıyla aç"
+
+msgid "settings.openUnsupportedInSystemDesc"
+msgstr "Görüntüleyicinin işleyemediği dosyalar (.pdf/.docx gibi) desteklenmeyen format mesajı göstermek yerine sistemin varsayılan uygulamasıyla açılır."
+
+msgid "settings.transferSection"
+msgstr "Aktarım"
+
+msgid "settings.hotkeys"
+msgstr "Kısayollar"
+
+msgid "settings.resetPanelHotkeys"
+msgstr "Varsayılana sıfırla"
+
+msgid "settings.phk.delete"
+msgstr "Sil"
+
+msgid "settings.phk.rename"
+msgstr "Yeniden adlandır"
+
+msgid "settings.phk.refresh"
+msgstr "Yenile"
+
+msgid "settings.phk.up"
+msgstr "Yukarı (üst klasör)"
+
+msgid "settings.phk.back"
+msgstr "Geri (geçmiş)"
+
+msgid "settings.panelHotkeyConflict"
+msgstr "{keys} kısayolu zaten başka bir eylem tarafından kullanılıyor"
+
+msgid "settings.customContextMenu"
+msgstr "Sağ tık menüsünü özelleştir"
+
+msgid "settings.resetMenu"
+msgstr "Menü sırasını sıfırla"
+
+msgid "notify.trashFailed"
+msgstr "{n} öğe geri dönüşüm kutusuna taşınamadı (silinmedi; kalıcı silme için Shift+Delete deneyin)"
+

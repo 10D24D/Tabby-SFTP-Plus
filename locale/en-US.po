@@ -884,6 +884,60 @@ msgstr "Recording timed out, please try again"
 msgid "settings.other"
 msgstr "Functionality"
 
+msgid "settings.interaction"
+msgstr "Interaction"
+
+msgid "settings.openOnClick"
+msgstr "Open file/folder on"
+
+msgid "settings.clickDouble"
+msgstr "Double click"
+
+msgid "settings.clickSingle"
+msgstr "Single click"
+
+msgid "settings.openOnClickHint"
+msgstr "Single click opens files/folders directly; double click still works in single-click mode."
+
+msgid "settings.openUnsupportedInSystem"
+msgstr "Open unsupported files with system app"
+
+msgid "settings.openUnsupportedInSystemDesc"
+msgstr "Files the viewer cannot handle (e.g. .pdf/.docx) will be opened with the OS default app instead of showing an \"unsupported\" message."
+
+msgid "settings.transferSection"
+msgstr "Transfer"
+
+msgid "settings.hotkeys"
+msgstr "Hotkeys"
+
+msgid "settings.resetPanelHotkeys"
+msgstr "Reset to defaults"
+
+msgid "settings.phk.delete"
+msgstr "Delete"
+
+msgid "settings.phk.rename"
+msgstr "Rename"
+
+msgid "settings.phk.refresh"
+msgstr "Refresh"
+
+msgid "settings.phk.up"
+msgstr "Go up (parent dir)"
+
+msgid "settings.phk.back"
+msgstr "Back (history)"
+
+msgid "settings.panelHotkeyConflict"
+msgstr "Hotkey {keys} is already used by another action"
+
+msgid "settings.customContextMenu"
+msgstr "Customize right-click menu"
+
+msgid "settings.resetMenu"
+msgstr "Reset menu order"
+
 msgid "settings.data"
 msgstr "Data"
 

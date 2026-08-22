@@ -939,3 +939,88 @@ msgstr "Dao/la sam zvezdicu"
 
 msgid "file.location"
 msgstr "Lokacija"
+
+msgid "app.trashHint"
+msgstr "Premesti u korpu"
+
+msgid "app.permDeleteHint"
+msgstr "Trajno obriši (ne može se poništiti)"
+
+msgid "file.viewAsText"
+msgstr "Pregledaj kao tekst"
+
+msgid "file.copied"
+msgstr "Kopirano"
+
+msgid "file.copySelection"
+msgstr "Kopiraj selekciju"
+
+msgid "viewer.binaryShownAsText"
+msgstr "Binarni sadržaj prikazan kao tekst (možda se neće ispravno prikazati)"
+
+msgid "viewer.prevImage"
+msgstr "Prethodna slika"
+
+msgid "viewer.nextImage"
+msgstr "Sledeća slika"
+
+msgid "editor.saveSuccessLocal"
+msgstr "Sačuvano"
+
+msgid "settings.interaction"
+msgstr "Interakcija"
+
+msgid "settings.openOnClick"
+msgstr "Otvori fajl/folder pomoću"
+
+msgid "settings.clickDouble"
+msgstr "Dvostruki klik"
+
+msgid "settings.clickSingle"
+msgstr "Jednostruki klik"
+
+msgid "settings.openOnClickHint"
+msgstr "Jednostruki klik direktno otvara fajlove/foldere; dvostruki klik i dalje radi u režimu jednostrukog klika."
+
+msgid "settings.openUnsupportedInSystem"
+msgstr "Otvori nepodržane fajlove sistemskom aplikacijom"
+
+msgid "settings.openUnsupportedInSystemDesc"
+msgstr "Fajlovi koje pregledač ne može obraditi (npr. .pdf/.docx) biće otvoreni podrazumevanom sistemskom aplikacijom umesto prikaza poruke o nepodržanom formatu."
+
+msgid "settings.transferSection"
+msgstr "Transfer"
+
+msgid "settings.hotkeys"
+msgstr "Prečice"
+
+msgid "settings.resetPanelHotkeys"
+msgstr "Vrati na podrazumevano"
+
+msgid "settings.phk.delete"
+msgstr "Obriši"
+
+msgid "settings.phk.rename"
+msgstr "Preimenuj"
+
+msgid "settings.phk.refresh"
+msgstr "Osveži"
+
+msgid "settings.phk.up"
+msgstr "Gore (nadređeni folder)"
+
+msgid "settings.phk.back"
+msgstr "Nazad (istorija)"
+
+msgid "settings.panelHotkeyConflict"
+msgstr "Prečica {keys} se već koristi za drugu radnju"
+
+msgid "settings.customContextMenu"
+msgstr "Prilagodi meni desnim klikom"
+
+msgid "settings.resetMenu"
+msgstr "Vrati redosled menija"
+
+msgid "notify.trashFailed"
+msgstr "{n} stavki nije uspelo da se premesti u korpu (nije obrisano; pokušajte Shift+Delete za trajno brisanje)"
+

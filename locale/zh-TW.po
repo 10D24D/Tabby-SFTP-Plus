@@ -871,6 +871,57 @@ msgstr "錄製已超時，請重試"
 msgid "settings.other"
 msgstr "功能性"
 
+msgid "settings.interaction"
+msgstr "互動設定"
+
+msgid "settings.openOnClick"
+msgstr "檔案/資料夾開啟方式"
+
+msgid "settings.clickDouble"
+msgstr "雙擊開啟"
+
+msgid "settings.clickSingle"
+msgstr "單擊開啟"
+
+msgid "settings.openOnClickHint"
+msgstr "開啟單擊後直接開啟檔案/資料夾；單擊模式下雙擊依然可用。"
+
+msgid "settings.openUnsupportedInSystem"
+msgstr "查看器不支援時系統開啟"
+
+msgid "settings.openUnsupportedInSystemDesc"
+msgstr "查看器不支援的檔案（如 .pdf/.docx 等）將使用系統預設程式開啟，而非彈出不支援提示。"
+
+msgid "settings.transferSection"
+msgstr "傳輸設定"
+
+msgid "settings.hotkeys"
+msgstr "熱鍵"
+
+msgid "settings.resetPanelHotkeys"
+msgstr "恢復預設"
+
+msgid "settings.phk.delete"
+msgstr "刪除"
+
+msgid "settings.phk.rename"
+msgstr "重新命名"
+
+msgid "settings.phk.refresh"
+msgstr "重新整理"
+
+msgid "settings.phk.up"
+msgstr "回上級目錄"
+
+msgid "settings.panelHotkeyConflict"
+msgstr "熱鍵 {keys} 已被其它動作占用"
+
+msgid "settings.customContextMenu"
+msgstr "定制右鍵選單"
+
+msgid "settings.resetMenu"
+msgstr "重設選單順序"
+
 msgid "settings.data"
 msgstr "資料"
 
@@ -1141,7 +1192,7 @@ msgstr "佇列中"
 
 
 msgid "settings.fastMode"
-msgstr "傳輸快速模式"
+msgstr "快速傳輸模式"
 
 msgid "settings.fastModeDesc"
 msgstr "傳輸目錄時略過大小預先掃描立即開始：啟動更快，但傳輸中無法計算總大小與百分比進度（只顯示已傳量）"
@@ -1175,3 +1226,19 @@ msgstr "我已點 Star 支持"
 
 msgid "file.location"
 msgstr "位置"
+
+msgid "app.trashHint"
+msgstr "將移入回收站"
+
+msgid "app.permDeleteHint"
+msgstr "永久刪除，不可恢復"
+
+msgid "editor.saveSuccessLocal"
+msgstr "已儲存"
+
+msgid "settings.phk.back"
+msgstr "返回（歷史）"
+
+msgid "notify.trashFailed"
+msgstr "{n} 項移入回收站失敗，檔案未被刪除（可嘗試 Shift+Delete 永久刪除）"
+

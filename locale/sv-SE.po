@@ -940,3 +940,88 @@ msgstr "Jag har gett en stjärna"
 
 msgid "file.location"
 msgstr "Plats"
+
+msgid "app.trashHint"
+msgstr "Flytta till papperskorgen"
+
+msgid "app.permDeleteHint"
+msgstr "Radera permanent (kan inte ångras)"
+
+msgid "file.viewAsText"
+msgstr "Visa som text"
+
+msgid "file.copied"
+msgstr "Kopierat"
+
+msgid "file.copySelection"
+msgstr "Kopiera markering"
+
+msgid "viewer.binaryShownAsText"
+msgstr "Binärt innehåll visas som text (visas kanske inte korrekt)"
+
+msgid "viewer.prevImage"
+msgstr "Föregående bild"
+
+msgid "viewer.nextImage"
+msgstr "Nästa bild"
+
+msgid "editor.saveSuccessLocal"
+msgstr "Sparat"
+
+msgid "settings.interaction"
+msgstr "Interaktion"
+
+msgid "settings.openOnClick"
+msgstr "Öppna fil/mapp med"
+
+msgid "settings.clickDouble"
+msgstr "Dubbelklick"
+
+msgid "settings.clickSingle"
+msgstr "Enkelklick"
+
+msgid "settings.openOnClickHint"
+msgstr "Enkelklick öppnar filer/mappar direkt; dubbelklick fungerar fortfarande i enkelklicksläge."
+
+msgid "settings.openUnsupportedInSystem"
+msgstr "Öppna filer som inte stöds med systemapp"
+
+msgid "settings.openUnsupportedInSystemDesc"
+msgstr "Filer som visningsprogrammet inte kan hantera (t.ex. .pdf/.docx) öppnas med systemets standardapp istället för att visa ett meddelande om att de inte stöds."
+
+msgid "settings.transferSection"
+msgstr "Överföring"
+
+msgid "settings.hotkeys"
+msgstr "Snabbtangenter"
+
+msgid "settings.resetPanelHotkeys"
+msgstr "Återställ till standard"
+
+msgid "settings.phk.delete"
+msgstr "Ta bort"
+
+msgid "settings.phk.rename"
+msgstr "Byt namn"
+
+msgid "settings.phk.refresh"
+msgstr "Uppdatera"
+
+msgid "settings.phk.up"
+msgstr "Upp (överordnad mapp)"
+
+msgid "settings.phk.back"
+msgstr "Tillbaka (historik)"
+
+msgid "settings.panelHotkeyConflict"
+msgstr "Snabbtangent {keys} används redan av en annan åtgärd"
+
+msgid "settings.customContextMenu"
+msgstr "Anpassa högerklicksmenyn"
+
+msgid "settings.resetMenu"
+msgstr "Återställ menyposition"
+
+msgid "notify.trashFailed"
+msgstr "{n} objekt kunde inte flyttas till papperskorgen (inte borttagna; prova Shift+Delete för permanent borttagning)"
+

@@ -1130,3 +1130,88 @@ msgstr "Jeg har givet en stjerne"
 
 msgid "file.location"
 msgstr "Placering"
+
+msgid "app.trashHint"
+msgstr "Flyt til papirkurven"
+
+msgid "app.permDeleteHint"
+msgstr "Slet permanent (kan ikke fortrydes)"
+
+msgid "file.viewAsText"
+msgstr "Vis som tekst"
+
+msgid "file.copied"
+msgstr "Kopieret"
+
+msgid "file.copySelection"
+msgstr "Kopier markering"
+
+msgid "viewer.binaryShownAsText"
+msgstr "Binært indhold vist som tekst (vises muligvis ikke korrekt)"
+
+msgid "viewer.prevImage"
+msgstr "Forrige billede"
+
+msgid "viewer.nextImage"
+msgstr "Næste billede"
+
+msgid "editor.saveSuccessLocal"
+msgstr "Gemt"
+
+msgid "settings.interaction"
+msgstr "Interaktion"
+
+msgid "settings.openOnClick"
+msgstr "Åbn fil/mappe med"
+
+msgid "settings.clickDouble"
+msgstr "Dobbeltklik"
+
+msgid "settings.clickSingle"
+msgstr "Enkeltklik"
+
+msgid "settings.openOnClickHint"
+msgstr "Enkeltklik åbner filer/mapper direkte; dobbeltklik virker stadig i enkeltkliks-tilstand."
+
+msgid "settings.openUnsupportedInSystem"
+msgstr "Åbn filer, der ikke understøttes, med systemapp"
+
+msgid "settings.openUnsupportedInSystemDesc"
+msgstr "Filer som fremviseren ikke kan håndtere (f.eks. .pdf/.docx) åbnes med systemets standardapp i stedet for at vise en meddelelse om, at de ikke understøttes."
+
+msgid "settings.transferSection"
+msgstr "Overførsel"
+
+msgid "settings.hotkeys"
+msgstr "Hastetaster"
+
+msgid "settings.resetPanelHotkeys"
+msgstr "Nulstil til standard"
+
+msgid "settings.phk.delete"
+msgstr "Slet"
+
+msgid "settings.phk.rename"
+msgstr "Omdøb"
+
+msgid "settings.phk.refresh"
+msgstr "Opdater"
+
+msgid "settings.phk.up"
+msgstr "Op (overordnet mappe)"
+
+msgid "settings.phk.back"
+msgstr "Tilbage (historik)"
+
+msgid "settings.panelHotkeyConflict"
+msgstr "Hastetast {keys} bruges allerede af en anden handling"
+
+msgid "settings.customContextMenu"
+msgstr "Tilpas højrekliksmenuen"
+
+msgid "settings.resetMenu"
+msgstr "Nulstil menurækkefølge"
+
+msgid "notify.trashFailed"
+msgstr "{n} element(er) kunne ikke flyttes til papirkurven (ikke slettet; prøv Shift+Delete for permanent sletning)"
+

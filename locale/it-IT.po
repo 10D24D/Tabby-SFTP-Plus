@@ -1148,3 +1148,88 @@ msgstr "Ho messo la stella"
 
 msgid "file.location"
 msgstr "Posizione"
+
+msgid "app.trashHint"
+msgstr "Sposta nel cestino"
+
+msgid "app.permDeleteHint"
+msgstr "Elimina definitivamente (non annullabile)"
+
+msgid "file.viewAsText"
+msgstr "Visualizza come testo"
+
+msgid "file.copied"
+msgstr "Copiato"
+
+msgid "file.copySelection"
+msgstr "Copia selezione"
+
+msgid "viewer.binaryShownAsText"
+msgstr "Contenuto binario visualizzato come testo (potrebbe non essere visualizzato correttamente)"
+
+msgid "viewer.prevImage"
+msgstr "Immagine precedente"
+
+msgid "viewer.nextImage"
+msgstr "Immagine successiva"
+
+msgid "editor.saveSuccessLocal"
+msgstr "Salvato"
+
+msgid "settings.interaction"
+msgstr "Interazione"
+
+msgid "settings.openOnClick"
+msgstr "Apri file/cartella con"
+
+msgid "settings.clickDouble"
+msgstr "Doppio clic"
+
+msgid "settings.clickSingle"
+msgstr "Clic singolo"
+
+msgid "settings.openOnClickHint"
+msgstr "Il clic singolo apre direttamente file/cartelle; il doppio clic continua a funzionare in modalità clic singolo."
+
+msgid "settings.openUnsupportedInSystem"
+msgstr "Apri i file non supportati con l'app di sistema"
+
+msgid "settings.openUnsupportedInSystemDesc"
+msgstr "I file che il visualizzatore non può gestire (es. .pdf/.docx) verranno aperti con l'app predefinita del sistema invece di mostrare un messaggio di mancata compatibilità."
+
+msgid "settings.transferSection"
+msgstr "Trasferimento"
+
+msgid "settings.hotkeys"
+msgstr "Tasti rapidi"
+
+msgid "settings.resetPanelHotkeys"
+msgstr "Ripristina predefiniti"
+
+msgid "settings.phk.delete"
+msgstr "Elimina"
+
+msgid "settings.phk.rename"
+msgstr "Rinomina"
+
+msgid "settings.phk.refresh"
+msgstr "Aggiorna"
+
+msgid "settings.phk.up"
+msgstr "Su (cartella superiore)"
+
+msgid "settings.phk.back"
+msgstr "Indietro (cronologia)"
+
+msgid "settings.panelHotkeyConflict"
+msgstr "Il tasto rapido {keys} è già usato da un'altra azione"
+
+msgid "settings.customContextMenu"
+msgstr "Personalizza il menu contestuale"
+
+msgid "settings.resetMenu"
+msgstr "Ripristina l'ordine del menu"
+
+msgid "notify.trashFailed"
+msgstr "{n} elemento/i non sono stati spostati nel cestino (non eliminati; prova Shift+Canc per l'eliminazione definitiva)"
+

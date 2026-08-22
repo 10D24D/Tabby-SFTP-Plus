@@ -941,3 +941,88 @@ msgstr "Я поставив(-ла) зірку"
 
 msgid "file.location"
 msgstr "Розташування"
+
+msgid "app.trashHint"
+msgstr "Перемістити в кошик"
+
+msgid "app.permDeleteHint"
+msgstr "Остаточно видалити (не можна скасувати)"
+
+msgid "file.viewAsText"
+msgstr "Переглянути як текст"
+
+msgid "file.copied"
+msgstr "Скопійовано"
+
+msgid "file.copySelection"
+msgstr "Копіювати виділене"
+
+msgid "viewer.binaryShownAsText"
+msgstr "Двійковий вміст показано як текст (може відображатися некоректно)"
+
+msgid "viewer.prevImage"
+msgstr "Попередне зображення"
+
+msgid "viewer.nextImage"
+msgstr "Наступне зображення"
+
+msgid "editor.saveSuccessLocal"
+msgstr "Збережено"
+
+msgid "settings.interaction"
+msgstr "Взаємодія"
+
+msgid "settings.openOnClick"
+msgstr "Відкрити файл/папку за допомогою"
+
+msgid "settings.clickDouble"
+msgstr "Подвійний клік"
+
+msgid "settings.clickSingle"
+msgstr "Одинарний клік"
+
+msgid "settings.openOnClickHint"
+msgstr "Одинарний клік відкриває файли/папки безпосередньо; подвійний клік продовжує працювати в режимі одинарного кліка."
+
+msgid "settings.openUnsupportedInSystem"
+msgstr "Відкривати непідтримувані файли системною програмою"
+
+msgid "settings.openUnsupportedInSystemDesc"
+msgstr "Файли, які переглядач не може обробити (напр. .pdf/.docx), будуть відкриті програмою системи за замовчуванням замість повідомлення про непідтримуваний формат."
+
+msgid "settings.transferSection"
+msgstr "Передача"
+
+msgid "settings.hotkeys"
+msgstr "Гарячі клавіші"
+
+msgid "settings.resetPanelHotkeys"
+msgstr "Скинути до типових"
+
+msgid "settings.phk.delete"
+msgstr "Видалити"
+
+msgid "settings.phk.rename"
+msgstr "Перейменувати"
+
+msgid "settings.phk.refresh"
+msgstr "Оновити"
+
+msgid "settings.phk.up"
+msgstr "Вгору (батьківська папка)"
+
+msgid "settings.phk.back"
+msgstr "Назад (історія)"
+
+msgid "settings.panelHotkeyConflict"
+msgstr "Гарячу клавішу {keys} вже використовує інша дія"
+
+msgid "settings.customContextMenu"
+msgstr "Налаштувати контекстне меню"
+
+msgid "settings.resetMenu"
+msgstr "Скинути порядок меню"
+
+msgid "notify.trashFailed"
+msgstr "{n} елемент(ів) не вдалося перемістити в кошик (не видалено; спробуйте Shift+Delete для остаточного видалення)"
+

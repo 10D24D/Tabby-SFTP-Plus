@@ -1147,3 +1147,88 @@ msgstr "Ya le di una estrella"
 
 msgid "file.location"
 msgstr "Ubicación"
+
+msgid "app.trashHint"
+msgstr "Mover a la papelera"
+
+msgid "app.permDeleteHint"
+msgstr "Eliminar permanentemente (no se puede deshacer)"
+
+msgid "file.viewAsText"
+msgstr "Ver como texto"
+
+msgid "file.copied"
+msgstr "Copiado"
+
+msgid "file.copySelection"
+msgstr "Copiar selección"
+
+msgid "viewer.binaryShownAsText"
+msgstr "Contenido binario mostrado como texto (puede no mostrarse correctamente)"
+
+msgid "viewer.prevImage"
+msgstr "Imagen anterior"
+
+msgid "viewer.nextImage"
+msgstr "Imagen siguiente"
+
+msgid "editor.saveSuccessLocal"
+msgstr "Guardado"
+
+msgid "settings.interaction"
+msgstr "Interacción"
+
+msgid "settings.openOnClick"
+msgstr "Abrir archivo/carpeta con"
+
+msgid "settings.clickDouble"
+msgstr "Doble clic"
+
+msgid "settings.clickSingle"
+msgstr "Clic simple"
+
+msgid "settings.openOnClickHint"
+msgstr "El clic simple abre archivos/carpetas directamente; el doble clic sigue funcionando en modo clic simple."
+
+msgid "settings.openUnsupportedInSystem"
+msgstr "Abrir archivos no compatibles con la app del sistema"
+
+msgid "settings.openUnsupportedInSystemDesc"
+msgstr "Los archivos que el visor no puede manejar (p. ej. .pdf/.docx) se abrirán con la aplicación predeterminada del sistema en lugar de mostrar un mensaje de no compatibilidad."
+
+msgid "settings.transferSection"
+msgstr "Transferencia"
+
+msgid "settings.hotkeys"
+msgstr "Teclas de acceso rápido"
+
+msgid "settings.resetPanelHotkeys"
+msgstr "Restablecer valores predeterminados"
+
+msgid "settings.phk.delete"
+msgstr "Eliminar"
+
+msgid "settings.phk.rename"
+msgstr "Renombrar"
+
+msgid "settings.phk.refresh"
+msgstr "Actualizar"
+
+msgid "settings.phk.up"
+msgstr "Subir (carpeta superior)"
+
+msgid "settings.phk.back"
+msgstr "Atrás (historial)"
+
+msgid "settings.panelHotkeyConflict"
+msgstr "La tecla de acceso rápido {keys} ya la usa otra acción"
+
+msgid "settings.customContextMenu"
+msgstr "Personalizar el menú contextual"
+
+msgid "settings.resetMenu"
+msgstr "Restablecer el orden del menú"
+
+msgid "notify.trashFailed"
+msgstr "{n} elemento(s) no se pudieron mover a la papelera (no eliminados; prueba Shift+Supr para eliminación permanente)"
+

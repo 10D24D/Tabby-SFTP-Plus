@@ -884,6 +884,57 @@ msgstr "录制已超时，请重试"
 msgid "settings.other"
 msgstr "功能性"
 
+msgid "settings.interaction"
+msgstr "交互设置"
+
+msgid "settings.openOnClick"
+msgstr "文件/文件夹打开方式"
+
+msgid "settings.clickDouble"
+msgstr "双击打开"
+
+msgid "settings.clickSingle"
+msgstr "单击打开"
+
+msgid "settings.openOnClickHint"
+msgstr "开启单击后直接打开文件/文件夹；单击模式下双击依然可用。"
+
+msgid "settings.openUnsupportedInSystem"
+msgstr "查看器不支持时系统打开"
+
+msgid "settings.openUnsupportedInSystemDesc"
+msgstr "查看器不支持的文件（如 .pdf/.docx 等）将使用系统默认程序打开，而非弹出不支持提示。"
+
+msgid "settings.transferSection"
+msgstr "传输设置"
+
+msgid "settings.hotkeys"
+msgstr "热键"
+
+msgid "settings.resetPanelHotkeys"
+msgstr "恢复默认"
+
+msgid "settings.phk.delete"
+msgstr "删除"
+
+msgid "settings.phk.rename"
+msgstr "重命名"
+
+msgid "settings.phk.refresh"
+msgstr "刷新"
+
+msgid "settings.phk.up"
+msgstr "返回上级目录"
+
+msgid "settings.panelHotkeyConflict"
+msgstr "热键 {keys} 已被其它动作占用"
+
+msgid "settings.customContextMenu"
+msgstr "定制右键菜单"
+
+msgid "settings.resetMenu"
+msgstr "重置菜单顺序"
+
 msgid "settings.data"
 msgstr "数据"
 
@@ -1154,7 +1205,7 @@ msgstr "队列中"
 
 
 msgid "settings.fastMode"
-msgstr "传输快速模式"
+msgstr "快速传输模式"
 
 msgid "settings.fastModeDesc"
 msgstr "传输目录时跳过大小预扫描立即开始：启动更快，但传输中无法计算总大小与百分比进度（只显示已传量）"
@@ -1188,3 +1239,7 @@ msgstr "我已点 Star 支持"
 
 msgid "file.location"
 msgstr "位置"
+
+msgid "settings.phk.back"
+msgstr "返回（历史）"
+

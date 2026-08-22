@@ -1142,3 +1142,88 @@ msgstr "J'ai mis une étoile"
 
 msgid "file.location"
 msgstr "Emplacement"
+
+msgid "app.trashHint"
+msgstr "Déplacer vers la corbeille"
+
+msgid "app.permDeleteHint"
+msgstr "Suppression définitive (irréversible)"
+
+msgid "file.viewAsText"
+msgstr "Afficher en tant que texte"
+
+msgid "file.copied"
+msgstr "Copié"
+
+msgid "file.copySelection"
+msgstr "Copier la sélection"
+
+msgid "viewer.binaryShownAsText"
+msgstr "Contenu binaire affiché en texte (peut ne pas s'afficher correctement)"
+
+msgid "viewer.prevImage"
+msgstr "Image précédente"
+
+msgid "viewer.nextImage"
+msgstr "Image suivante"
+
+msgid "editor.saveSuccessLocal"
+msgstr "Enregistré"
+
+msgid "settings.interaction"
+msgstr "Interaction"
+
+msgid "settings.openOnClick"
+msgstr "Ouvrir le fichier/dossier avec"
+
+msgid "settings.clickDouble"
+msgstr "Double-clic"
+
+msgid "settings.clickSingle"
+msgstr "Clic simple"
+
+msgid "settings.openOnClickHint"
+msgstr "Le clic simple ouvre directement les fichiers/dossiers ; le double-clic reste fonctionnel en mode clic simple."
+
+msgid "settings.openUnsupportedInSystem"
+msgstr "Ouvrir les fichiers non pris en charge avec l'application système"
+
+msgid "settings.openUnsupportedInSystemDesc"
+msgstr "Les fichiers que la visionneuse ne peut pas gérer (ex. .pdf/.docx) seront ouverts avec l'application par défaut du système au lieu d'afficher un message indiquant qu'ils ne sont pas pris en charge."
+
+msgid "settings.transferSection"
+msgstr "Transfert"
+
+msgid "settings.hotkeys"
+msgstr "Raccourcis clavier"
+
+msgid "settings.resetPanelHotkeys"
+msgstr "Réinitialiser aux valeurs par défaut"
+
+msgid "settings.phk.delete"
+msgstr "Supprimer"
+
+msgid "settings.phk.rename"
+msgstr "Renommer"
+
+msgid "settings.phk.refresh"
+msgstr "Actualiser"
+
+msgid "settings.phk.up"
+msgstr "Monter (dossier parent)"
+
+msgid "settings.phk.back"
+msgstr "Retour (historique)"
+
+msgid "settings.panelHotkeyConflict"
+msgstr "Le raccourci {keys} est déjà utilisé par une autre action"
+
+msgid "settings.customContextMenu"
+msgstr "Personnaliser le menu contextuel"
+
+msgid "settings.resetMenu"
+msgstr "Réinitialiser l'ordre du menu"
+
+msgid "notify.trashFailed"
+msgstr "{n} élément(s) n'ont pas pu être déplacés vers la corbeille (non supprimés ; essayez Maj+Suppr pour une suppression définitive)"
+

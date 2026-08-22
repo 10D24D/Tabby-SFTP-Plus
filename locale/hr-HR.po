@@ -941,3 +941,88 @@ msgstr "Dao/la sam zvjezdicu"
 
 msgid "file.location"
 msgstr "Lokacija"
+
+msgid "app.trashHint"
+msgstr "Premjesti u koš za smeće"
+
+msgid "app.permDeleteHint"
+msgstr "Trajno izbriši (ne može se poništiti)"
+
+msgid "file.viewAsText"
+msgstr "Pregledaj kao tekst"
+
+msgid "file.copied"
+msgstr "Kopirano"
+
+msgid "file.copySelection"
+msgstr "Kopiraj odabir"
+
+msgid "viewer.binaryShownAsText"
+msgstr "Binarni sadržaj prikazan kao tekst (možda se neće ispravno prikazati)"
+
+msgid "viewer.prevImage"
+msgstr "Prethodna slika"
+
+msgid "viewer.nextImage"
+msgstr "Sljedeća slika"
+
+msgid "editor.saveSuccessLocal"
+msgstr "Spremljeno"
+
+msgid "settings.interaction"
+msgstr "Interakcija"
+
+msgid "settings.openOnClick"
+msgstr "Otvori datoteku/mapu pomoću"
+
+msgid "settings.clickDouble"
+msgstr "Dvostruki klik"
+
+msgid "settings.clickSingle"
+msgstr "Jednostruki klik"
+
+msgid "settings.openOnClickHint"
+msgstr "Jednostruki klik izravno otvara datoteke/mape; dvostruki klik i dalje radi u načinu jednostrukog klika."
+
+msgid "settings.openUnsupportedInSystem"
+msgstr "Otvori nepodržane datoteke sistemskom aplikacijom"
+
+msgid "settings.openUnsupportedInSystemDesc"
+msgstr "Datoteke koje preglednik ne može obraditi (npr. .pdf/.docx) otvorit će se zadanom sistemskom aplikacijom umjesto prikaza poruke o nepodržanom formatu."
+
+msgid "settings.transferSection"
+msgstr "Prijenos"
+
+msgid "settings.hotkeys"
+msgstr "Prečaci"
+
+msgid "settings.resetPanelHotkeys"
+msgstr "Vrati na zadano"
+
+msgid "settings.phk.delete"
+msgstr "Izbriši"
+
+msgid "settings.phk.rename"
+msgstr "Preimenuj"
+
+msgid "settings.phk.refresh"
+msgstr "Osvježi"
+
+msgid "settings.phk.up"
+msgstr "Gore (nadređena mapa)"
+
+msgid "settings.phk.back"
+msgstr "Natrag (povijest)"
+
+msgid "settings.panelHotkeyConflict"
+msgstr "Prečac {keys} već koristi druga radnja"
+
+msgid "settings.customContextMenu"
+msgstr "Prilagodi izbornik desnim klikom"
+
+msgid "settings.resetMenu"
+msgstr "Vrati redoslijed izbornika"
+
+msgid "notify.trashFailed"
+msgstr "{n} stavki nije uspjelo premjestiti u koš za smeće (nije izbrisano; pokušajte Shift+Delete za trajno brisanje)"
+

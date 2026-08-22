@@ -1155,3 +1155,88 @@ msgstr "Я поставил(а) звезду"
 
 msgid "file.location"
 msgstr "Расположение"
+
+msgid "app.trashHint"
+msgstr "Переместить в корзину"
+
+msgid "app.permDeleteHint"
+msgstr "Удалить навсегда (нельзя отменить)"
+
+msgid "file.viewAsText"
+msgstr "Просмотр как текст"
+
+msgid "file.copied"
+msgstr "Скопировано"
+
+msgid "file.copySelection"
+msgstr "Копировать выделенное"
+
+msgid "viewer.binaryShownAsText"
+msgstr "Двоичные данные показаны как текст (может отображаться некорректно)"
+
+msgid "viewer.prevImage"
+msgstr "Предыдущее изображение"
+
+msgid "viewer.nextImage"
+msgstr "Следующее изображение"
+
+msgid "editor.saveSuccessLocal"
+msgstr "Сохранено"
+
+msgid "settings.interaction"
+msgstr "Взаимодействие"
+
+msgid "settings.openOnClick"
+msgstr "Открывать файл/папку по"
+
+msgid "settings.clickDouble"
+msgstr "Двойной щелчок"
+
+msgid "settings.clickSingle"
+msgstr "Одиночный щелчок"
+
+msgid "settings.openOnClickHint"
+msgstr "Одиночный щелчок открывает файлы/папки напрямую; двойной щелчок также работает в режиме одиночного щелчка."
+
+msgid "settings.openUnsupportedInSystem"
+msgstr "Открывать неподдерживаемые файлы системной программой"
+
+msgid "settings.openUnsupportedInSystemDesc"
+msgstr "Файлы, которые средство просмотра не может обработать (напр. .pdf/.docx), будут открыты программой по умолчанию вместо вывода сообщения о неподдерживаемом формате."
+
+msgid "settings.transferSection"
+msgstr "Передача"
+
+msgid "settings.hotkeys"
+msgstr "Горячие клавиши"
+
+msgid "settings.resetPanelHotkeys"
+msgstr "Сбросить по умолчанию"
+
+msgid "settings.phk.delete"
+msgstr "Удалить"
+
+msgid "settings.phk.rename"
+msgstr "Переименовать"
+
+msgid "settings.phk.refresh"
+msgstr "Обновить"
+
+msgid "settings.phk.up"
+msgstr "Вверх (родительская папка)"
+
+msgid "settings.phk.back"
+msgstr "Назад (история)"
+
+msgid "settings.panelHotkeyConflict"
+msgstr "Сочетание клавиш {keys} уже используется другой действием"
+
+msgid "settings.customContextMenu"
+msgstr "Настроить контекстное меню"
+
+msgid "settings.resetMenu"
+msgstr "Сбросить порядок меню"
+
+msgid "notify.trashFailed"
+msgstr "{n} объект(ов) не удалось переместить в корзину (не удалены; попробуйте Shift+Delete для окончательного удаления)"
+

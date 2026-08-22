@@ -1157,3 +1157,88 @@ msgstr "Star を付けた"
 
 msgid "file.location"
 msgstr "場所"
+
+msgid "app.trashHint"
+msgstr "ごみ箱に移動"
+
+msgid "app.permDeleteHint"
+msgstr "完全に削除（元に戻せません）"
+
+msgid "file.viewAsText"
+msgstr "テキストとして表示"
+
+msgid "file.copied"
+msgstr "コピーしました"
+
+msgid "file.copySelection"
+msgstr "選択範囲をコピー"
+
+msgid "viewer.binaryShownAsText"
+msgstr "バイナリ内容をテキストとして表示（正しく表示されない場合があります）"
+
+msgid "viewer.prevImage"
+msgstr "前の画像"
+
+msgid "viewer.nextImage"
+msgstr "次の画像"
+
+msgid "editor.saveSuccessLocal"
+msgstr "保存しました"
+
+msgid "settings.interaction"
+msgstr "操作"
+
+msgid "settings.openOnClick"
+msgstr "ファイル/フォルダを開く（方法）"
+
+msgid "settings.clickDouble"
+msgstr "ダブルクリック"
+
+msgid "settings.clickSingle"
+msgstr "シングルクリック"
+
+msgid "settings.openOnClickHint"
+msgstr "シングルクリックでファイル/フォルダを直接開きます。シングルクリックモードでもダブルクリックは引き続き機能します。"
+
+msgid "settings.openUnsupportedInSystem"
+msgstr "非対応ファイルをシステムのアプリで開く"
+
+msgid "settings.openUnsupportedInSystemDesc"
+msgstr "ビュアが払えないファイル（.pdf/.docx など）は、非対応である旗のメッセージを表示する代わりに、OS の悰定のアプリで開きます。"
+
+msgid "settings.transferSection"
+msgstr "転送"
+
+msgid "settings.hotkeys"
+msgstr "ホットキー"
+
+msgid "settings.resetPanelHotkeys"
+msgstr "悯定値に戻す"
+
+msgid "settings.phk.delete"
+msgstr "削除"
+
+msgid "settings.phk.rename"
+msgstr "名前の変更"
+
+msgid "settings.phk.refresh"
+msgstr "更新"
+
+msgid "settings.phk.up"
+msgstr "上へ（親フォルダ）"
+
+msgid "settings.phk.back"
+msgstr "戻る（履歴）"
+
+msgid "settings.panelHotkeyConflict"
+msgstr "ホットキー {keys} は別の操作ですでに使用されています"
+
+msgid "settings.customContextMenu"
+msgstr "右クリックメニューのカスタマイズ"
+
+msgid "settings.resetMenu"
+msgstr "メニュー順序をリセット"
+
+msgid "notify.trashFailed"
+msgstr "{n} 個の項目をごみ箱に移動できませんでした（削除されていません。完全に削除するには Shift+Delete を試してください）"
+

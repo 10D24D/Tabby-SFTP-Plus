@@ -942,3 +942,88 @@ msgstr "Já dei a minha estrela"
 
 msgid "file.location"
 msgstr "Localização"
+
+msgid "app.trashHint"
+msgstr "Mover para a reciclagem"
+
+msgid "app.permDeleteHint"
+msgstr "Eliminar permanentemente (não pode ser anulado)"
+
+msgid "file.viewAsText"
+msgstr "Ver como texto"
+
+msgid "file.copied"
+msgstr "Copiado"
+
+msgid "file.copySelection"
+msgstr "Copiar seleção"
+
+msgid "viewer.binaryShownAsText"
+msgstr "Conteúdo binário apresentado como texto (pode não ser apresentado corretamente)"
+
+msgid "viewer.prevImage"
+msgstr "Imagem anterior"
+
+msgid "viewer.nextImage"
+msgstr "Imagem seguinte"
+
+msgid "editor.saveSuccessLocal"
+msgstr "Guardado"
+
+msgid "settings.interaction"
+msgstr "Interação"
+
+msgid "settings.openOnClick"
+msgstr "Abrir ficheiro/pasta com"
+
+msgid "settings.clickDouble"
+msgstr "Duplo clique"
+
+msgid "settings.clickSingle"
+msgstr "Clique simples"
+
+msgid "settings.openOnClickHint"
+msgstr "O clique simples abre ficheiros/pastas diretamente; o duplo clique continua a funcionar no modo de clique simples."
+
+msgid "settings.openUnsupportedInSystem"
+msgstr "Abrir ficheiros não suportados com a app do sistema"
+
+msgid "settings.openUnsupportedInSystemDesc"
+msgstr "Ficheiros que o visualizador não consegue abrir (ex. .pdf/.docx) serão abertos com a app predefinida do sistema em vez de mostrar uma mensagem de formato não suportado."
+
+msgid "settings.transferSection"
+msgstr "Transferência"
+
+msgid "settings.hotkeys"
+msgstr "Teclas de atalho"
+
+msgid "settings.resetPanelHotkeys"
+msgstr "Restaurar predefinições"
+
+msgid "settings.phk.delete"
+msgstr "Eliminar"
+
+msgid "settings.phk.rename"
+msgstr "Renomear"
+
+msgid "settings.phk.refresh"
+msgstr "Atualizar"
+
+msgid "settings.phk.up"
+msgstr "Subir (pasta superior)"
+
+msgid "settings.phk.back"
+msgstr "Recuar (histórico)"
+
+msgid "settings.panelHotkeyConflict"
+msgstr "A tecla de atalho {keys} já é usada por outra ação"
+
+msgid "settings.customContextMenu"
+msgstr "Personalizar o menu de contexto"
+
+msgid "settings.resetMenu"
+msgstr "Restaurar ordem do menu"
+
+msgid "notify.trashFailed"
+msgstr "{n} item(ns) falharam ao mover para a reciclagem (não eliminados; tente Shift+Delete para eliminação permanente)"
+

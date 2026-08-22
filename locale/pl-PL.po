@@ -1148,3 +1148,88 @@ msgstr "Dodałem/am gwiazdkę"
 
 msgid "file.location"
 msgstr "Lokalizacja"
+
+msgid "app.trashHint"
+msgstr "Przenieś do kosza"
+
+msgid "app.permDeleteHint"
+msgstr "Usuń trwale (nie można cofnąć)"
+
+msgid "file.viewAsText"
+msgstr "Pokaż jako tekst"
+
+msgid "file.copied"
+msgstr "Skopiowano"
+
+msgid "file.copySelection"
+msgstr "Kopiuj zaznaczenie"
+
+msgid "viewer.binaryShownAsText"
+msgstr "Zawartość binarna wyświetlana jako tekst (może nie być wyświetlana poprawnie)"
+
+msgid "viewer.prevImage"
+msgstr "Poprzedni obraz"
+
+msgid "viewer.nextImage"
+msgstr "Następny obraz"
+
+msgid "editor.saveSuccessLocal"
+msgstr "Zapisano"
+
+msgid "settings.interaction"
+msgstr "Interakcja"
+
+msgid "settings.openOnClick"
+msgstr "Otwórz plik/folder przez"
+
+msgid "settings.clickDouble"
+msgstr "Podwójne kliknięcie"
+
+msgid "settings.clickSingle"
+msgstr "Pojedyncze kliknięcie"
+
+msgid "settings.openOnClickHint"
+msgstr "Pojedyncze kliknięcie otwiera bezpośrednio pliki/foldery; podwójne kliknięcie nadal działa w trybie pojedynczego kliknięcia."
+
+msgid "settings.openUnsupportedInSystem"
+msgstr "Otwórz nieobsługiwane pliki za pomocą aplikacji systemowej"
+
+msgid "settings.openUnsupportedInSystemDesc"
+msgstr "Pliki, których przeglądarka nie obsługuje (np. .pdf/.docx), zostaną otwarte domyślną aplikacją systemu zamiast wyświetlać komunikat o braku obsługi."
+
+msgid "settings.transferSection"
+msgstr "Transfer"
+
+msgid "settings.hotkeys"
+msgstr "Skróty klawiszowe"
+
+msgid "settings.resetPanelHotkeys"
+msgstr "Przywróć domyślne"
+
+msgid "settings.phk.delete"
+msgstr "Usuń"
+
+msgid "settings.phk.rename"
+msgstr "Zmień nazwę"
+
+msgid "settings.phk.refresh"
+msgstr "Odśwież"
+
+msgid "settings.phk.up"
+msgstr "W górę (folder nadrzędny)"
+
+msgid "settings.phk.back"
+msgstr "Wstecz (historia)"
+
+msgid "settings.panelHotkeyConflict"
+msgstr "Skrót klawiszowy {keys} jest już używany przez inną akcję"
+
+msgid "settings.customContextMenu"
+msgstr "Dostosuj menu kontekstowe"
+
+msgid "settings.resetMenu"
+msgstr "Przywróć kolejność menu"
+
+msgid "notify.trashFailed"
+msgstr "{n} element(ów) nie udało się przenieść do kosza (nie usunięto; spróbuj Shift+Delete, aby usunąć trwale)"
+

@@ -1147,3 +1147,88 @@ msgstr "Ich habe einen Star gegeben"
 
 msgid "file.location"
 msgstr "Ort"
+
+msgid "app.trashHint"
+msgstr "In den Papierkorb verschieben"
+
+msgid "app.permDeleteHint"
+msgstr "Endgültig löschen (kann nicht rückgängig gemacht werden)"
+
+msgid "file.viewAsText"
+msgstr "Als Text anzeigen"
+
+msgid "file.copied"
+msgstr "Kopiert"
+
+msgid "file.copySelection"
+msgstr "Auswahl kopieren"
+
+msgid "viewer.binaryShownAsText"
+msgstr "Binärinhalt als Text angezeigt (wird möglicherweise nicht korrekt dargestellt)"
+
+msgid "viewer.prevImage"
+msgstr "Vorheriges Bild"
+
+msgid "viewer.nextImage"
+msgstr "Nächstes Bild"
+
+msgid "editor.saveSuccessLocal"
+msgstr "Gespeichert"
+
+msgid "settings.interaction"
+msgstr "Interaktion"
+
+msgid "settings.openOnClick"
+msgstr "Datei/Ordner öffnen per"
+
+msgid "settings.clickDouble"
+msgstr "Doppelklick"
+
+msgid "settings.clickSingle"
+msgstr "Einfachklick"
+
+msgid "settings.openOnClickHint"
+msgstr "Einfachklick öffnet Dateien/Ordner direkt; Doppelklick funktioniert im Einfachklick-Modus weiterhin."
+
+msgid "settings.openUnsupportedInSystem"
+msgstr "Nicht unterstützte Dateien mit System-App öffnen"
+
+msgid "settings.openUnsupportedInSystemDesc"
+msgstr "Dateien, die der Betrachter nicht verarbeiten kann (z. B. .pdf/.docx), werden mit der Standard-App des Systems geöffnet, statt eine Meldung über fehlende Unterstützung anzuzeigen."
+
+msgid "settings.transferSection"
+msgstr "Übertragung"
+
+msgid "settings.hotkeys"
+msgstr "Tastenkürzel"
+
+msgid "settings.resetPanelHotkeys"
+msgstr "Auf Standard zurücksetzen"
+
+msgid "settings.phk.delete"
+msgstr "Löschen"
+
+msgid "settings.phk.rename"
+msgstr "Umbenennen"
+
+msgid "settings.phk.refresh"
+msgstr "Aktualisieren"
+
+msgid "settings.phk.up"
+msgstr "Nach oben (übergeordneter Ordner)"
+
+msgid "settings.phk.back"
+msgstr "Zurück (Verlauf)"
+
+msgid "settings.panelHotkeyConflict"
+msgstr "Tastenkürzel {keys} wird bereits von einer anderen Aktion verwendet"
+
+msgid "settings.customContextMenu"
+msgstr "Kontextmenü anpassen"
+
+msgid "settings.resetMenu"
+msgstr "Menüreihenfolge zurücksetzen"
+
+msgid "notify.trashFailed"
+msgstr "{n} Element(e) konnten nicht in den Papierkorb verschoben werden (nicht gelöscht; versuchen Sie Umschalt+Entf für dauerhaftes Löschen)"
+

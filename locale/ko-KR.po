@@ -1155,3 +1155,88 @@ msgstr "Star를 눌렀습니다"
 
 msgid "file.location"
 msgstr "위치"
+
+msgid "app.trashHint"
+msgstr "휴지통으로 이동"
+
+msgid "app.permDeleteHint"
+msgstr "영구 삭제(취소 불가)"
+
+msgid "file.viewAsText"
+msgstr "텍스트로 보기"
+
+msgid "file.copied"
+msgstr "복사됨"
+
+msgid "file.copySelection"
+msgstr "선택 영역 복사"
+
+msgid "viewer.binaryShownAsText"
+msgstr "바이너리 내용을 텍스트로 표시(정상적으로 표시되지 않을 수 있음)"
+
+msgid "viewer.prevImage"
+msgstr "이전 이미지"
+
+msgid "viewer.nextImage"
+msgstr "다음 이미지"
+
+msgid "editor.saveSuccessLocal"
+msgstr "저장됨"
+
+msgid "settings.interaction"
+msgstr "상호작용"
+
+msgid "settings.openOnClick"
+msgstr "파일/폴더 열기 방식"
+
+msgid "settings.clickDouble"
+msgstr "더블 클릭"
+
+msgid "settings.clickSingle"
+msgstr "단일 클릭"
+
+msgid "settings.openOnClickHint"
+msgstr "단일 클릭으로 파일/폴더를 바로 엽니다. 단일 클릭 모드에서도 더블 클릭은 계속 동작합니다."
+
+msgid "settings.openUnsupportedInSystem"
+msgstr "지원되지 않는 파일을 시스템 앱으로 열기"
+
+msgid "settings.openUnsupportedInSystemDesc"
+msgstr "뷰어가 처리할 수 없는 파일(.pdf/.docx 등)은 지원되지 않는다는 메시지를 표시하는 대신 OS 기본 앱으로 엽니다."
+
+msgid "settings.transferSection"
+msgstr "전송"
+
+msgid "settings.hotkeys"
+msgstr "단축키"
+
+msgid "settings.resetPanelHotkeys"
+msgstr "기본값으로 재설정"
+
+msgid "settings.phk.delete"
+msgstr "삭제"
+
+msgid "settings.phk.rename"
+msgstr "이름 바꾸기"
+
+msgid "settings.phk.refresh"
+msgstr "새로 고침"
+
+msgid "settings.phk.up"
+msgstr "위로 (상위 폴더)"
+
+msgid "settings.phk.back"
+msgstr "뒤로 (기록)"
+
+msgid "settings.panelHotkeyConflict"
+msgstr "단축키 {keys} 는 이미 다른 동작에서 사용 중입니다"
+
+msgid "settings.customContextMenu"
+msgstr "마우스 오른쪽 버튼 메뉴 사용자 지정"
+
+msgid "settings.resetMenu"
+msgstr "메뉴 순서 재설정"
+
+msgid "notify.trashFailed"
+msgstr "{n}개 항목을 휴지통으로 이동하지 못했습니다(삭제되지 않음. 영구 삭제하려면 Shift+Delete를 누르세요)"
+

@@ -1144,3 +1144,88 @@ msgstr "Dal(a) jsem hvězdičku"
 
 msgid "file.location"
 msgstr "Umístění"
+
+msgid "app.trashHint"
+msgstr "Přesunout do koše"
+
+msgid "app.permDeleteHint"
+msgstr "Trvale smazat (nelze vrátit)"
+
+msgid "file.viewAsText"
+msgstr "Zobrazit jako text"
+
+msgid "file.copied"
+msgstr "Zkopírováno"
+
+msgid "file.copySelection"
+msgstr "Kopírovat výběr"
+
+msgid "viewer.binaryShownAsText"
+msgstr "Binární obsah zobrazen jako text (nemusí se zobrazit správně)"
+
+msgid "viewer.prevImage"
+msgstr "Předchozí obrázek"
+
+msgid "viewer.nextImage"
+msgstr "Další obrázek"
+
+msgid "editor.saveSuccessLocal"
+msgstr "Uložno"
+
+msgid "settings.interaction"
+msgstr "Interakce"
+
+msgid "settings.openOnClick"
+msgstr "Otevřít soubor/složku pomocí"
+
+msgid "settings.clickDouble"
+msgstr "Dvojité kliknutí"
+
+msgid "settings.clickSingle"
+msgstr "Jednoduché kliknutí"
+
+msgid "settings.openOnClickHint"
+msgstr "Jednoduché kliknutí otevírá soubory/složky přímo; dvojité kliknutí stále funguje v režimu jednoduchého kliknutí."
+
+msgid "settings.openUnsupportedInSystem"
+msgstr "Otevírat nepodporované soubory systémovou aplikací"
+
+msgid "settings.openUnsupportedInSystemDesc"
+msgstr "Soubory, které prohlížeč nezvládne zpracovat (např. .pdf/.docx), se otevřou výchozí systémovou aplikací místo zobrazení zprávy o nepodporovaném formátu."
+
+msgid "settings.transferSection"
+msgstr "Přenos"
+
+msgid "settings.hotkeys"
+msgstr "Klávesové zkratky"
+
+msgid "settings.resetPanelHotkeys"
+msgstr "Obnovit výchozí"
+
+msgid "settings.phk.delete"
+msgstr "Smazat"
+
+msgid "settings.phk.rename"
+msgstr "Přejmenovat"
+
+msgid "settings.phk.refresh"
+msgstr "Obnovit"
+
+msgid "settings.phk.up"
+msgstr "Nahoru (nadřazená složka)"
+
+msgid "settings.phk.back"
+msgstr "Zpět (historie)"
+
+msgid "settings.panelHotkeyConflict"
+msgstr "Klávesová zkratka {keys} je již používána jinou akcí"
+
+msgid "settings.customContextMenu"
+msgstr "Přizpůsobit kontextové menu"
+
+msgid "settings.resetMenu"
+msgstr "Obnovit pořadí menu"
+
+msgid "notify.trashFailed"
+msgstr "{n} položek se nepodařilo přesunout do koše (nesmazáno; zkuste Shift+Delete pro trvalé smazání)"
+

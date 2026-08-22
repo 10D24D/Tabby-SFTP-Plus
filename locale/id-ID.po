@@ -1140,3 +1140,88 @@ msgstr "Saya sudah memberi bintang"
 
 msgid "file.location"
 msgstr "Lokasi"
+
+msgid "app.trashHint"
+msgstr "Pindahkan ke tempat sampah"
+
+msgid "app.permDeleteHint"
+msgstr "Hapus permanen (tidak dapat dibatalkan)"
+
+msgid "file.viewAsText"
+msgstr "Tampilkan sebagai teks"
+
+msgid "file.copied"
+msgstr "Tersalin"
+
+msgid "file.copySelection"
+msgstr "Salin pilihan"
+
+msgid "viewer.binaryShownAsText"
+msgstr "Konten biner ditampilkan sebagai teks (mungkin tidak ditampilkan dengan benar)"
+
+msgid "viewer.prevImage"
+msgstr "Gambar sebelumnya"
+
+msgid "viewer.nextImage"
+msgstr "Gambar berikutnya"
+
+msgid "editor.saveSuccessLocal"
+msgstr "Tersimpan"
+
+msgid "settings.interaction"
+msgstr "Interaksi"
+
+msgid "settings.openOnClick"
+msgstr "Buka file/folder dengan"
+
+msgid "settings.clickDouble"
+msgstr "Klik ganda"
+
+msgid "settings.clickSingle"
+msgstr "Klik tunggal"
+
+msgid "settings.openOnClickHint"
+msgstr "Klik tunggal membuka file/folder secara langsung; klik ganda tetap berfungsi dalam mode klik tunggal."
+
+msgid "settings.openUnsupportedInSystem"
+msgstr "Buka file yang tidak didukung dengan aplikasi sistem"
+
+msgid "settings.openUnsupportedInSystemDesc"
+msgstr "File yang tidak dapat diproses oleh penampil (mis. .pdf/.docx) akan dibuka dengan aplikasi bawaan sistem alih-alih menampilkan pesan bahwa format tidak didukung."
+
+msgid "settings.transferSection"
+msgstr "Transfer"
+
+msgid "settings.hotkeys"
+msgstr "Pintasan"
+
+msgid "settings.resetPanelHotkeys"
+msgstr "Kembalikan ke bawaan"
+
+msgid "settings.phk.delete"
+msgstr "Hapus"
+
+msgid "settings.phk.rename"
+msgstr "Ganti nama"
+
+msgid "settings.phk.refresh"
+msgstr "Segarkan"
+
+msgid "settings.phk.up"
+msgstr "Naik (folder induk)"
+
+msgid "settings.phk.back"
+msgstr "Kembali (riwayat)"
+
+msgid "settings.panelHotkeyConflict"
+msgstr "Pintasan {keys} sudah digunakan oleh tindakan lain"
+
+msgid "settings.customContextMenu"
+msgstr "Sesuaikan menu klik kanan"
+
+msgid "settings.resetMenu"
+msgstr "Atur ulang urutan menu"
+
+msgid "notify.trashFailed"
+msgstr "{n} item gagal dipindahkan ke tempat sampah (tidak dihapus; coba Shift+Delete untuk penghapusan permanen)"
+

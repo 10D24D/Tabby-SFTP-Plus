@@ -941,3 +941,88 @@ msgstr "Дадох звезда"
 
 msgid "file.location"
 msgstr "Местоположение"
+
+msgid "app.trashHint"
+msgstr "Премести в кошчето"
+
+msgid "app.permDeleteHint"
+msgstr "Окончателно изтриване (не може да се отмени)"
+
+msgid "file.viewAsText"
+msgstr "Преглед като текст"
+
+msgid "file.copied"
+msgstr "Копирано"
+
+msgid "file.copySelection"
+msgstr "Копирай селекцията"
+
+msgid "viewer.binaryShownAsText"
+msgstr "Двоично съдържание, показано като текст (може да не се изобрази правилно)"
+
+msgid "viewer.prevImage"
+msgstr "Предишно изображение"
+
+msgid "viewer.nextImage"
+msgstr "Следващо изображение"
+
+msgid "editor.saveSuccessLocal"
+msgstr "Запазено"
+
+msgid "settings.interaction"
+msgstr "Взаимодействие"
+
+msgid "settings.openOnClick"
+msgstr "Отваряне на файл/папка с"
+
+msgid "settings.clickDouble"
+msgstr "Двоен клик"
+
+msgid "settings.clickSingle"
+msgstr "Единичен клик"
+
+msgid "settings.openOnClickHint"
+msgstr "Единичният клик отваря файловете/папките директно; двойният клик продължава да работи в режим на единичен клик."
+
+msgid "settings.openUnsupportedInSystem"
+msgstr "Отваряй неподдържани файлове с системно приложение"
+
+msgid "settings.openUnsupportedInSystemDesc"
+msgstr "Файлове, които прегледвачът не може да обработи (напр. .pdf/.docx), ще се отворят с приложението по подразбиране на системата вместо вместо съобщение, че не се поддържат."
+
+msgid "settings.transferSection"
+msgstr "Трансфер"
+
+msgid "settings.hotkeys"
+msgstr "Клавишни комбинации"
+
+msgid "settings.resetPanelHotkeys"
+msgstr "Възстанови по подразбиране"
+
+msgid "settings.phk.delete"
+msgstr "Изтриване"
+
+msgid "settings.phk.rename"
+msgstr "Преименуване"
+
+msgid "settings.phk.refresh"
+msgstr "Опресняване"
+
+msgid "settings.phk.up"
+msgstr "Нагоре (родителска папка)"
+
+msgid "settings.phk.back"
+msgstr "Назад (история)"
+
+msgid "settings.panelHotkeyConflict"
+msgstr "Клавишната комбинация {keys} вече се използва от друго действие"
+
+msgid "settings.customContextMenu"
+msgstr "Персонализирай контекстното меню"
+
+msgid "settings.resetMenu"
+msgstr "Възстанови реда на менюто"
+
+msgid "notify.trashFailed"
+msgstr "{n} елемент(а) не можаха да бъдат преместени в кошчето (не са изтрити; опитайте Shift+Delete за окончателно изтриване)"
+
