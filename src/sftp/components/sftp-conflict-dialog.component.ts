@@ -43,7 +43,7 @@ import { formatDate, formatSize } from '../core/file-utils'
             <div class="conflict-file-info">
               <div class="conflict-info-row" [class.conflict-diff]="data.localSize !== data.remoteSize">
                 <span class="conflict-label">{{ i18n.t('conflict.size') }}</span>
-                <span class="conflict-val">{{ formatSize(data.remoteSize) }}</span>
+                <span class="conflict-val">{{ formatSizeWithPrecision(data.remoteSize, data.localSize) }}</span>
                 <span class="conflict-diff-dot" *ngIf="data.localSize !== data.remoteSize">≠</span>
               </div>
               <div class="conflict-info-row" [class.conflict-diff]="data.localMtime !== data.remoteMtime">
@@ -67,7 +67,7 @@ import { formatDate, formatSize } from '../core/file-utils'
             <div class="conflict-file-info">
               <div class="conflict-info-row" [class.conflict-diff]="data.localSize !== data.remoteSize">
                 <span class="conflict-label">{{ i18n.t('conflict.size') }}</span>
-                <span class="conflict-val">{{ formatSize(data.localSize) }}</span>
+                <span class="conflict-val">{{ formatSizeWithPrecision(data.localSize, data.remoteSize) }}</span>
                 <span class="conflict-diff-dot" *ngIf="data.localSize !== data.remoteSize">≠</span>
               </div>
               <div class="conflict-info-row" [class.conflict-diff]="data.localMtime !== data.remoteMtime">
@@ -180,6 +180,15 @@ export class SftpConflictDialogComponent {
 
   formatSize = formatSize
   formatDate = formatDate
+
+  /** ★ 2026-08-17：格式化后相同但字节数不同时，括号内显示精确值 */
+  formatSizeWithPrecision(bytes: number, otherBytes: number): string {
+    const formatted = formatSize(bytes)
+    if (bytes !== otherBytes && formatted === formatSize(otherBytes)) {
+      return `${formatted} (${bytes.toLocaleString()} B)`
+    }
+    return formatted
+  }
 
   /** ★ 2026-08-11：冲突方向标签（复用既有键拼装，无需新 i18n）：
    *  上传 → 「⬆ 上传：本地 → 远程」；下载 → 「⬇ 下载：远程 → 本地」；同面板冲突不显示 */

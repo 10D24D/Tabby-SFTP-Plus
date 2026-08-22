@@ -3,7 +3,7 @@
  * 创建人：DD1024z + Hy3
  * 创建时间：2026-07-16
  * 修改人：DD1024z + Hy3
- * 修改时间：2026-08-02 — B21：上传冲突检测支持 attrs 嵌套字段与秒/毫秒判断，加 [check-upload-conflict] 诊断 log；B14：上传冲突检测兼容 stat 返回 bigint/undefined/mtime 单位差异，stat 缺字段时回退 readdir；B24：parseRemoteMtime 过滤 Unix epoch 无效时间
+ * 修改时间：2026-08-22 — 修复①重入锁 bug（fork #2 / 上游回归）：2026-08-15 引入的 _processing 锁使「Overwrite All/Skip All/Rename All」批量模式只剩第一条被处理、剩余队列静默卡死；拆出无锁 _drainQueue() 递归排空，resolve/processNext 仅持锁后调用它。修复②上传冲突检测逐文件 stat（fork #8）：改按 parentDir 缓存 listing + 并发单飞，目录内所有文件复用一份 readdir，仅 listing 缺字段时对该单文件回退 stat
  * 合并来源：conflict-rules, conflict-resolve, sftp-conflict-detector
  */
 
@@ -202,22 +202,60 @@ export class ConflictResolveUseCase {
       if (allMode) this.ports.queue.setAllMode(allMode)
 
       const current = this.ports.queue.shift()
-    if (!current) {
-      await this.processNext()
-      return
-    }
-    // ★ 2026-08-10 修复 #11：单项执行抛错（传输失败等）不得中断整个队列，
-    //   也不得阻断后续 processNext（否则批量模式下剩余冲突永远不处理）
-    let shouldContinue = true
-    try {
-      shouldContinue = await this.applyAction(current, normalized)
-    } catch (e) {
-      log.error('Conflict resolve failed for item', current.fileName, e)
-    }
-    if (shouldContinue) await this.processNext()
+      if (!current) {
+        // 理论上不会走到（dialog 已弹出说明有项）；直接排空收尾
+        await this._drainQueue()
+        return
+      }
+      // ★ 2026-08-10 修复 #11：单项执行抛错（传输失败等）不得中断整个队列，
+      //   也不得阻断后续排队（否则批量模式下剩余冲突永远不处理）
+      let shouldContinue = true
+      try {
+        shouldContinue = await this.applyAction(current, normalized)
+      } catch (e) {
+        log.error('Conflict resolve failed for item', current.fileName, e)
+      }
+      // ★ 2026-08-22 修复重入锁 bug（fork 报 #2 / 上游回归）：processNext 自带 _processing 守卫，
+      //   若在此持锁调用会被守卫直接 return，导致「Overwrite All / Skip All / Rename All」只剩第一条被处理、
+      //   剩余队列静默卡死（dialog 已隐藏、进度不动）。改为调用 _drainQueue（不重复加锁）递归排空整个队列。
+      if (shouldContinue) await this._drainQueue()
     } finally {
       this._processing = false
     }
+  }
+
+  /** ★ 2026-08-22：真正的队列排空逻辑。递归消费时不重复加 _processing 锁，
+   *  仅由 resolve / processNext 在已持有 _processing 期间调用，避免批量模式被锁拦截。 */
+  private async _drainQueue(): Promise<void> {
+    if (this.ports.queue.length() === 0) {
+      this.ports.queue.resetAllMode()
+      this.ports.queue.resetOriginalTotal()
+      this.ports.ui.clearSelection()
+      if (this.ports.pendingPaste.hasPendingPaste()) {
+        await this.ports.pendingPaste.resumePaste(this.ports.queue.getResolvedKeys())
+        this.ports.queue.clearResolvedKeys()
+      } else {
+        this.ports.ui.refreshPanes()
+      }
+      return
+    }
+
+    if (this.ports.queue.getAllMode() !== 'ask') {
+      const item = this.ports.queue.shift()
+      const mode = this.ports.queue.getAllMode()
+      // ★ 2026-08-10 修复 #11：批量模式下单项失败同样不得中断队列
+      if (item && mode !== 'ask') {
+        try {
+          await this.applyAction(item, mode)
+        } catch (e) {
+          log.error('Conflict resolve failed for item', item.fileName, e)
+        }
+      }
+      await this._drainQueue()
+      return
+    }
+
+    this.ports.ui.showNextDialog()
   }
 
   async applyAction(
@@ -305,35 +343,7 @@ export class ConflictResolveUseCase {
     if (this._processing) return
     this._processing = true
     try {
-      if (this.ports.queue.length() === 0) {
-        this.ports.queue.resetAllMode()
-        this.ports.queue.resetOriginalTotal()
-        this.ports.ui.clearSelection()
-        if (this.ports.pendingPaste.hasPendingPaste()) {
-          await this.ports.pendingPaste.resumePaste(this.ports.queue.getResolvedKeys())
-          this.ports.queue.clearResolvedKeys()
-        } else {
-          this.ports.ui.refreshPanes()
-        }
-        return
-      }
-
-      if (this.ports.queue.getAllMode() !== 'ask') {
-        const item = this.ports.queue.shift()
-        const mode = this.ports.queue.getAllMode()
-        // ★ 2026-08-10 修复 #11：批量模式下单项失败同样不得中断队列
-        if (item && mode !== 'ask') {
-          try {
-            await this.applyAction(item, mode)
-          } catch (e) {
-            log.error('Conflict resolve failed for item', item.fileName, e)
-          }
-        }
-        await this.processNext()
-        return
-      }
-
-      this.ports.ui.showNextDialog()
+      await this._drainQueue()
     } finally {
       this._processing = false
     }
@@ -485,6 +495,41 @@ export class SftpConflictDetector implements ConflictDetectionPort {
     private readonly mtimeToleranceMs = DEFAULT_MTIME_TOLERANCE_MS,
   ) {}
 
+  // ★ 2026-08-22 修复（fork #8）：同目录多文件上传不再逐文件 stat。
+  //   按 parentDir 缓存一次 readdir 结果（并发单飞），目录内所有文件复用同一份 listing，
+  //   仅在 listing 缺 size/mtime 时才对该单文件回退 stat。
+  private _dirListingCache = new Map<string, Promise<Map<string, { size?: number; mtime?: number }>>>()
+
+  private async _getDirListing(parentDir: string): Promise<Map<string, { size?: number; mtime?: number }>> {
+    const existing = this._dirListingCache.get(parentDir)
+    if (existing) return existing
+    const p = (async () => {
+      const map = new Map<string, { size?: number; mtime?: number }>()
+      try {
+        const session = this.getSession()
+        if (!session) return map
+        const entries = await session.readdir(parentDir)
+        for (const e of entries as any[]) {
+          const rawSize = e?.size ?? e?.attrs?.size
+          const size = rawSize != null ? Number(rawSize) : undefined
+          map.set(e.name, {
+            size: size != null && Number.isFinite(size) ? size : undefined,
+            mtime: parseRemoteMtime(e),
+          })
+        }
+      } catch {
+        // readdir 失败：返回空 map，调用方按「无法确认存在」处理（与旧版一致：不报错、不阻断上传）
+      }
+      return map
+    })()
+    this._dirListingCache.set(parentDir, p)
+    // 解析后移除，避免长期持有；并发期间由同一 Promise 去重，确保同目录只查一次
+    void p.then(() => this._dirListingCache.delete(parentDir)).catch(() => this._dirListingCache.delete(parentDir))
+    // 防御性上限，防止极长会话内存堆积
+    if (this._dirListingCache.size > 256) this._dirListingCache.clear()
+    return p
+  }
+
   async checkUploadConflict(
     remotePath: string,
     localPath: string,
@@ -501,43 +546,31 @@ export class SftpConflictDetector implements ConflictDetectionPort {
 
     log.info('[check-upload-conflict] remotePath:', remotePath, 'localSize:', localSize, 'localMtime:', localMtime)
 
-    // 优先 stat（单文件元数据更准确）；兼容 size 为 bigint / undefined、mtime 单位差异
-    if (session.stat) {
-      try {
-        const st = await session.stat(remotePath) as any
-        log.info('[check-upload-conflict] stat result:', JSON.stringify(st))
-        const sz = st?.size ?? st?.attrs?.size
-        const szNum = sz != null ? Number(sz) : undefined
-        const mt = parseRemoteMtime(st)
-        if (szNum != null && Number.isFinite(szNum) && szNum >= 0) remoteSize = szNum
-        if (mt != null) remoteMtime = mt
-      } catch (e) {
-        log.warn('[check-upload-conflict] stat failed:', e)
-      }
-    }
+    // ★ 2026-08-22：优先用目录 listing 缓存（同目录只查一次），替代逐文件 stat
+    const listing = await this._getDirListing(parentDir)
+    const found = listing.get(fileName)
 
-    // 回退/补全：父目录 listing（Tabby readdir 的 size/modified 更可靠）。
-    // stat 缺 size 或 mtime 时用 readdir 结果补全，避免读到 0 / 错误时间导致
-    // 冲突对话框显示错误的远程大小/修改时间（issue #8 现象）。
-    if (remoteSize == null || remoteMtime == null) {
-      try {
-        const entries = await session.readdir(parentDir)
-        const found = entries.find(e => e.name === fileName) as any
-        log.info('[check-upload-conflict] readdir found:', found)
-        if (found) {
-          if (remoteSize == null) {
-            const sz = found?.size ?? found?.attrs?.size
-            const szNum = sz != null ? Number(sz) : undefined
-            if (szNum != null && Number.isFinite(szNum)) remoteSize = szNum
-          }
+    if (found) {
+      remoteSize = found.size
+      remoteMtime = found.mtime
+      // listing 缺字段时按需回退单文件 stat（仅缺字段的那一个文件，而非全部）
+      if ((remoteSize == null || remoteMtime == null) && session.stat) {
+        try {
+          const st = await session.stat(remotePath) as any
+          log.info('[check-upload-conflict] stat fallback result:', JSON.stringify(st))
+          const sz = st?.size ?? st?.attrs?.size
+          const szNum = sz != null ? Number(sz) : undefined
+          if (remoteSize == null && szNum != null && Number.isFinite(szNum) && szNum >= 0) remoteSize = szNum
           if (remoteMtime == null) {
-            const mt = parseRemoteMtime(found)
+            const mt = parseRemoteMtime(st)
             if (mt != null) remoteMtime = mt
           }
+        } catch (e) {
+          log.warn('[check-upload-conflict] stat fallback failed:', e)
         }
-      } catch (e) {
-        log.warn('[check-upload-conflict] readdir fallback failed:', e)
       }
+    } else {
+      log.info('[check-upload-conflict] not in parent listing (remote file absent):', fileName)
     }
 
     log.info('[check-upload-conflict] final remoteSize:', remoteSize, 'remoteMtime:', remoteMtime)
