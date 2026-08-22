@@ -33,51 +33,59 @@ export type ColVisibilityState = {
   ext: boolean
 }
 
+/** 右键文件菜单项定义：标签 i18n key、危险态、快捷键、分组类别 */
+interface FileMenuItemDef {
+  labelKey: string
+  danger?: boolean
+  /** 快捷键文本，'${mod}' 占位符会被替换为系统修饰键（Ctrl/Cmd） */
+  shortcut?: string
+  /** 分组类别：相邻不同类别之间自动插入分隔符 */
+  category: 'transfer' | 'open' | 'clipboard' | 'modify' | 'info' | 'create' | 'panel'
+}
+
+export const FILE_MENU_REGISTRY: Record<ContextMenuAction, FileMenuItemDef> = {
+  upload:           { labelKey: 'app.upload', category: 'transfer' },
+  download:         { labelKey: 'app.download', category: 'transfer' },
+  openLocal:        { labelKey: 'file.open', category: 'open' },
+  viewFile:         { labelKey: 'file.view', category: 'open' },
+  viewAsText:       { labelKey: 'file.viewAsText', category: 'open' },
+  editFile:         { labelKey: 'file.edit', category: 'open' },
+  revealInExplorer: { labelKey: 'file.showInFolder', category: 'open' },
+  copy:             { labelKey: 'file.copy', shortcut: '${mod}C', category: 'clipboard' },
+  cut:              { labelKey: 'file.cut', shortcut: '${mod}X', category: 'clipboard' },
+  paste:            { labelKey: 'file.paste', shortcut: '${mod}V', category: 'clipboard' },
+  rename:           { labelKey: 'app.rename', shortcut: 'F2', category: 'modify' },
+  delete:           { labelKey: 'app.delete', shortcut: 'Del', danger: true, category: 'modify' },
+  chmod:            { labelKey: 'permission.title', category: 'info' },
+  details:          { labelKey: 'file.properties', category: 'info' },
+  newFolder:        { labelKey: 'file.newFolder', category: 'create' },
+  newFile:          { labelKey: 'file.newFile', category: 'create' },
+  refresh:          { labelKey: 'app.refresh', shortcut: 'F5', category: 'panel' },
+  selectAll:        { labelKey: 'pane.selectAll', shortcut: '${mod}A', category: 'panel' },
+  selectInvert:     { labelKey: 'pane.selectInvert', category: 'panel' },
+  copyPath:         { labelKey: 'pane.copyPath', category: 'panel' },
+}
+
+export const DEFAULT_FILE_MENU_ORDER: ContextMenuAction[] = [
+  'upload', 'download', 'openLocal', 'viewFile', 'viewAsText', 'editFile', 'revealInExplorer',
+  'copy', 'cut', 'paste', 'rename', 'delete', 'chmod', 'details',
+  'newFolder', 'newFile', 'refresh', 'selectAll', 'selectInvert', 'copyPath',
+]
+
 @Component({
   selector: 'sftp-context-menu',
   template: `
     <div class="context-menu" #menuEl *ngIf="menuVisible"
       [style.left]="menuX + 'px'" [style.top]="menuY + 'px'">
 
-      <!-- 1. 上传 / 下载 -->
-      <div class="ctx-item" (click)="menuAction.emit('upload')" *ngIf="hasUpload">{{ i18n.t('app.upload') }}</div>
-      <div class="ctx-item" (click)="menuAction.emit('download')" *ngIf="hasDownload">{{ i18n.t('app.download') }}</div>
-      <div class="ctx-sep" *ngIf="sepBeforeOpen"></div>
-
-      <!-- 2. 打开 / 查看 / 编辑 / 在资源管理器中显示 -->
-      <div class="ctx-item" (click)="menuAction.emit('openLocal')" *ngIf="hasLocalOpen">{{ i18n.t('file.open') }}</div>
-      <div class="ctx-item" (click)="menuAction.emit('viewFile')" *ngIf="hasView">{{ i18n.t('file.view') }}</div>
-      <div class="ctx-item" (click)="menuAction.emit('viewAsText')" *ngIf="hasViewAsText">{{ i18n.t('file.viewAsText') }}</div>
-      <div class="ctx-item" (click)="menuAction.emit('editFile')" *ngIf="hasEdit">{{ i18n.t('file.edit') }}</div>
-      <div class="ctx-item" (click)="menuAction.emit('revealInExplorer')" *ngIf="hasLocalReveal">{{ i18n.t('file.showInFolder') }}</div>
-      <div class="ctx-sep" *ngIf="sepBeforeClipboard"></div>
-
-      <!-- 3. 剪贴板 -->
-      <div class="ctx-item" (click)="menuAction.emit('copy')" *ngIf="hasSelection">{{ i18n.t('file.copy') }}<span class="ctx-shortcut">{{ modKey }}C</span></div>
-      <div class="ctx-item" (click)="menuAction.emit('cut')" *ngIf="hasSelection">{{ i18n.t('file.cut') }}<span class="ctx-shortcut">{{ modKey }}X</span></div>
-      <div class="ctx-item" (click)="menuAction.emit('paste')" *ngIf="clipboardHasEntries">{{ i18n.t('file.paste') }}<span class="ctx-shortcut">{{ modKey }}V</span></div>
-      <div class="ctx-sep" *ngIf="sepBeforeModify"></div>
-
-      <!-- 4. 重命名 / 删除 -->
-      <div class="ctx-item" (click)="menuAction.emit('rename')" *ngIf="singleSelected">{{ i18n.t('app.rename') }}<span class="ctx-shortcut">F2</span></div>
-      <div class="ctx-item ctx-danger" *ngIf="hasSelection" (click)="menuAction.emit('delete')">{{ i18n.t('app.delete') }}<span class="ctx-shortcut">Del</span></div>
-      <div class="ctx-sep" *ngIf="sepBeforeInfo"></div>
-
-      <!-- 5. 权限 / 属性 -->
-      <div class="ctx-item" (click)="menuAction.emit('chmod')" *ngIf="hasRemoteChmod">{{ i18n.t('permission.title') }}</div>
-      <div class="ctx-item" (click)="menuAction.emit('details')" *ngIf="entry">{{ i18n.t('file.properties') }}</div>
-      <div class="ctx-sep" *ngIf="sepBeforeCreate"></div>
-
-      <!-- 6. 新建 -->
-      <div class="ctx-item" (click)="menuAction.emit('newFolder')" *ngIf="hasCreateActions">{{ i18n.t('file.newFolder') }}</div>
-      <div class="ctx-item" (click)="menuAction.emit('newFile')" *ngIf="hasCreateActions">{{ i18n.t('file.newFile') }}</div>
-      <div class="ctx-sep" *ngIf="sepBeforePanel"></div>
-
-      <!-- 7. 面板操作 -->
-      <div class="ctx-item" (click)="menuAction.emit('refresh')">{{ i18n.t('app.refresh') }}<span class="ctx-shortcut">F5</span></div>
-      <div class="ctx-item" (click)="menuAction.emit('selectAll')">{{ i18n.t('pane.selectAll') }}<span class="ctx-shortcut">{{ modKey }}A</span></div>
-      <div class="ctx-item" (click)="menuAction.emit('selectInvert')">{{ i18n.t('pane.selectInvert') }}</div>
-      <div class="ctx-item" (click)="menuAction.emit('copyPath')" *ngIf="hasSelection || entry">{{ i18n.t('pane.copyPath') }}</div>
+      <ng-container *ngFor="let a of orderedVisibleActions; let i = index">
+        <div class="ctx-sep" *ngIf="i > 0 && needsSep(a, i)"></div>
+        <div class="ctx-item" [class.ctx-danger]="!!MENU_REGISTRY[a].danger"
+          (click)="menuAction.emit(a)">
+          {{ i18n.t(MENU_REGISTRY[a].labelKey) }}
+          <span class="ctx-shortcut" *ngIf="MENU_REGISTRY[a].shortcut">{{ shortcutText(MENU_REGISTRY[a].shortcut) }}</span>
+        </div>
+      </ng-container>
     </div>
 
     <div class="context-menu" #headerMenuEl *ngIf="headerVisible"
@@ -277,6 +285,58 @@ export class SftpContextMenuComponent implements OnChanges {
   @Output() headerAction = new EventEmitter<HeaderMenuAction>()
 
   @Input() i18n!: SftpI18nService
+
+  /** 右键文件菜单项的显示顺序（由设置页控制，默认 DEFAULT_FILE_MENU_ORDER） */
+  @Input() menuOrder: ContextMenuAction[] = DEFAULT_FILE_MENU_ORDER
+
+  /** 供模板访问的菜单项注册表 */
+  readonly MENU_REGISTRY = FILE_MENU_REGISTRY
+
+  /** 判断某个菜单项当前是否应可见（复用原有 getter 逻辑） */
+  isActionVisible(a: ContextMenuAction): boolean {
+    switch (a) {
+      case 'upload': return this.hasUpload
+      case 'download': return this.hasDownload
+      case 'openLocal': return this.hasLocalOpen
+      case 'viewFile': return this.hasView
+      case 'viewAsText': return this.hasViewAsText
+      case 'editFile': return this.hasEdit
+      case 'revealInExplorer': return this.hasLocalReveal
+      case 'copy': return this.hasSelection
+      case 'cut': return this.hasSelection
+      case 'paste': return this.clipboardHasEntries
+      case 'rename': return this.singleSelected
+      case 'delete': return this.hasSelection
+      case 'chmod': return this.hasRemoteChmod
+      case 'details': return !!this.entry
+      case 'newFolder': return this.hasCreateActions
+      case 'newFile': return this.hasCreateActions
+      case 'refresh': return true
+      case 'selectAll': return true
+      case 'selectInvert': return true
+      case 'copyPath': return this.hasSelection || !!this.entry
+      default: return false
+    }
+  }
+
+  /** 按 menuOrder 过滤出的当前可见菜单项（已排序） */
+  get orderedVisibleActions(): ContextMenuAction[] {
+    const order = (this.menuOrder && this.menuOrder.length) ? this.menuOrder : DEFAULT_FILE_MENU_ORDER
+    return order.filter(a => this.isActionVisible(a))
+  }
+
+  /** 相邻两项类别不同则插入分隔符 */
+  needsSep(a: ContextMenuAction, i: number): boolean {
+    if (i <= 0) return false
+    const prev = this.orderedVisibleActions[i - 1]
+    return FILE_MENU_REGISTRY[prev].category !== FILE_MENU_REGISTRY[a].category
+  }
+
+  /** 把快捷键文本中的 '${mod}' 占位符替换为系统修饰键 */
+  shortcutText(s?: string): string {
+    if (!s) return ''
+    return s.replace('${mod}', this.modKey)
+  }
 
   ngOnChanges(changes: SimpleChanges): void {
     // 菜单显示后自动钳制位置，防止超出视口

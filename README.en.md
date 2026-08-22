@@ -15,19 +15,20 @@ SFTP+ is a plugin for [Tabby Terminal](https://tabby.sh/) that adds a **dual-pan
 | Category | Description |
 |----------|-------------|
 | **📂 Dual-Pane Manager** | Local (left) + Remote (right); horizontal / vertical / adaptive / single-pane layouts; draggable splitter, double-click to reset |
-| **👁️ View / Edit** | Built-in text/image viewer and text editor (local + remote); open or edit in system default app |
+| **👁️ View / Edit** | Built-in text/image viewer and text editor (local + remote); image navigation (prev/next in same directory); copy / copy selection; view-as-text; open or edit in system default app |
 | **🔄 Drag & Drop** | Drag across panes to upload/download; recursive folder transfer; drag from OS Explorer/Desktop into either pane |
 | **⬆️ Context Transfer** | Right-click upload on local pane, download on remote pane (multi-select batch) |
+| **⚡ High-Speed Transfer** | Intra-directory file-level parallelism (1-10 concurrent, adjustable); tar channel for massive small-file directories (pack → single-file transfer → unpack); batch delete via SSH `rm -rf` / `fs.rm(recursive)` |
 | **🔖 Bookmark System** | Global bookmarks (visible across all connections) + connection bookmarks (per SSH session); drag-to-reorder |
 | **📋 Transfer Log** | Full operation history including **Edit Load** / **Edit Save** types; filtering, stats, JSON export |
-| **⚡ Transfer Control** | Progress bars, pause/resume/cancel, resume support, real-time speed |
-| **⚠️ File Conflict** | Visual diff on conflict, with overwrite/skip/rename options and batch processing |
+| **⚡ Transfer Control** | Progress bars (with percentage), pause/resume/cancel, resume support, real-time speed |
+| **⚠️ File Conflict** | Visual diff on conflict (shows upload⬆/download⬇ direction), with overwrite/skip/rename options and batch processing; merge-overwrite has its own progress panel |
 | **🔐 Permission Editor** | Remote chmod via 3×3 checkbox matrix with octal preview |
 | **📌 Context Menus** | Upload/download, view/edit, new/rename/delete, copy/cut/paste, refresh, select all/invert; <br />Header: column visibility, fit widths, borders & zebra stripes |
 | **🔍 Filter & Sort** | Keyword filter, multi-column sorting (click headers), configurable visible columns |
-| **🧭 Path Memory** | Toggle to restore last browsed paths when reopening the panel |
-| **🧭 Path Following** | Optional "Sync with terminal" mode: opening the panel jumps to the terminal's current directory, and the remote pane follows live as you `cd` in the terminal (relies on Tabby OSC 1337 current-dir reporting); off by default, switchable in the panel |
+| **🧭 Path Mode** | Three modes: `off` / `remember` / `sync` (sync with terminal); configurable default |
 | **🎨 Theme System** | 7 presets + custom colors, supports following the Tabby system theme |
+| **⌨️ Panel Hotkey** | Customizable panel toggle hotkey with record/clear/conflict detection |
 | **🌐 Internationalization** | Chinese (Simplified) and English, auto-detects Tabby/browser language |
 | **📦 Data Backup** | One-click export/import of all data (bookmarks, logs, settings, path memory) |
 
@@ -94,6 +95,12 @@ Navigate to Tabby Settings → "SFTP+" in the left sidebar:
 | **Custom Colors** | Independently set primary, background, text, and border colors |
 | **Layout** | Adaptive (auto-switches based on panel width) / Horizontal / Vertical |
 | **Table Style** | Show borders, show zebra stripes |
+| **Upload/Download Concurrency** | Intra-directory file-level concurrency (1-10), takes effect immediately |
+| **Fast Mode** | Skip pre-scan and start transfer immediately (no percentage, byte progress only) |
+| **Default Path Mode** | Path mode for new connections on first open (off / remember / sync) |
+| **Default Show Hidden** | Whether to show hidden files on new connections |
+| **Toolbar Customization** | Drag-to-reorder toolbar buttons, hide unused items |
+| **Panel Hotkey** | Custom panel toggle hotkey |
 | **Data Backup** | Export/import all data (JSON); clear all data (requires typing `DELETE` to confirm) |
 | **Compatibility** | Hide the native Tabby SFTP button to avoid conflicts |
 
@@ -109,7 +116,7 @@ Path: Settings → Data Backup → Export / Import
 
 ## 📜 Changelog
 
-Latest: **v2.0.0** (2026-07-25) — [Full changelog](CHANGELOG.md)
+Latest: **v2.0.1** (2026-08-15) — [Full changelog](CHANGELOG.md)
 
 ---
 
@@ -139,7 +146,7 @@ npm run watch
 npm run build
 ```
 
-The built plugin bundle is `dist/index.js`.
+The built plugin bundle is in `dist/` (`index.js` + auto-generated `package.json`).
 
 ### Project Structure
 
@@ -160,7 +167,7 @@ tabby-FTPS+/
 │   │   ├── controllers/           # Controller layer (C): column / viewer / bookmark controllers
 │   │   └── core/                  # Logic / utils / types: transfer, conflict, drop, clipboard, path…
 │   └── tabby-plugin-common/       # Shared utilities across plugins (theme / utils)
-├── dist/index.js
+├── dist/                                # Build output (index.js + package.json)
 └── package.json
 ```
 

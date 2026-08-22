@@ -1,5 +1,10 @@
 ﻿/**
  * SFTP+ 书签悬浮菜单（从主面板抽离）
+ * 创建人：DD1024z + Hy3
+ * 创建时间：2026-08-18
+ * 修改人：DD1024z + Hy3
+ * 修改时间：2026-08-18
+ *   当前面板路径与书签路径匹配时，对应书签项高亮（[currentPath] / isCurrent / .bookmark-item.current）
  */
 import { Component, EventEmitter, Input, Output } from '@angular/core'
 
@@ -46,6 +51,7 @@ import type { BookmarkScope } from '../core/panel-types'
           {{ i18n.t('bookmark.forConnection') }}
         </div>
         <div class="bookmark-item" *ngFor="let b of connectionBookmarks; let i = index"
+          [class.current]="isCurrent(b)"
           (click)="gotoBookmark.emit(b)"
           (contextmenu)="contextMenu.emit({ bookmark: b, event: $event })"
           draggable="true"
@@ -69,6 +75,7 @@ import type { BookmarkScope } from '../core/panel-types'
           {{ i18n.t('bookmark.global') }}
         </div>
         <div class="bookmark-item" *ngFor="let b of globalBookmarks; let i = index"
+          [class.current]="isCurrent(b)"
           (click)="gotoBookmark.emit(b)"
           (contextmenu)="contextMenu.emit({ bookmark: b, event: $event })"
           draggable="true"
@@ -242,6 +249,11 @@ import type { BookmarkScope } from '../core/panel-types'
       cursor: pointer; transition: background 0.1s, opacity 0.15s;
     }
     .bookmark-item:hover { background: var(--_hover); }
+    .bookmark-item.current {
+      background: color-mix(in srgb, var(--_primary) 16%, transparent);
+      box-shadow: inset 2px 0 0 var(--_primary);
+    }
+    .bookmark-item.current .bm-name { color: var(--_primary); }
     .bookmark-item.dragging { opacity: 0.4; }
     .bookmark-item.drag-over-top {
       border-top: 2px solid var(--_primary);
@@ -295,6 +307,8 @@ export class SftpBookmarkPopupComponent {
   @Input() dragOverIdx = -1
   @Input() dragOverScope: BookmarkScope | null = null
   @Input() dragOverBottom = false
+  /** 当前面板路径（local/remote 当前目录），用于高亮路径匹配的书签 */
+  @Input() currentPath = ''
 
   @Output() addScopeClick = new EventEmitter<'connection' | 'global'>()
   @Output() newNameChange = new EventEmitter<string>()
@@ -311,4 +325,18 @@ export class SftpBookmarkPopupComponent {
   @Output() close = new EventEmitter<void>()
 
   @Input() i18n!: SftpI18nService
+
+  /** 路径归一化：统一分隔符、去尾部斜杠；本地路径按 Windows 大小写不敏感处理 */
+  private _normPath(p: string): string {
+    if (!p) return ''
+    let s = p.replace(/\\/g, '/').replace(/\/+$/, '')
+    if (this.pane === 'local') s = s.toLowerCase()
+    return s
+  }
+
+  /** 该书签路径是否与当前面板路径一致（用于高亮） */
+  isCurrent(b: Bookmark): boolean {
+    if (!this.currentPath) return false
+    return this._normPath(b.path) === this._normPath(this.currentPath)
+  }
 }

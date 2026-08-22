@@ -5,7 +5,7 @@
  * 创建人：DD1024z + Hy3 preview
  * 创建时间：2026-06-21
  * 修改人：DD1024z + Hy3
- * 修改时间：2026-07-29
+ * 修改时间：2026-08-22 — 新增「查看器不支持时系统打开」开关（openUnsupportedInSystem，含 title 说明）；统一「热键」子分类；新增「传输设置」子分类（上传/下载并发数 + 快速传输模式）；定制右键菜单行间距收窄；i18n 新增 openUnsupportedInSystemDesc / transferSection，fastMode 中文标签改为「快速传输模式」
  */
 import { Component, Injectable, Optional, OnDestroy } from '@angular/core'
 import { SettingsTabProvider } from 'tabby-settings'
@@ -13,6 +13,7 @@ import { ConfigService, HotkeysService } from 'tabby-core'
 import { defaultSftpPlusConfig } from '../tabby/config-provider'
 import { SftpI18nService } from '../services/sftp-i18n.service'
 import type { Locale } from '../services/sftp-i18n.service'
+import { SftpConfigService } from '../services/sftp-config.service'
 import { SFTP_PLUS_TOGGLE_HOTKEY } from '../tabby/hotkey-provider'
 import {
   findHotkeyConflicts,
@@ -21,10 +22,12 @@ import {
   isHotkeyRecordingActive,
   readToggleHotkeyBindings,
   setHotkeyRecordingActive,
+  eventToPanelHotkeySpec,
   type HotkeyBinding,
 } from '../tabby/hotkey-util'
 import { detectSystemLocale, isColorDark, parseColorLuminance } from '@common/utils'
 import { DEFAULT_DATE_FORMAT, setDateFormatPattern } from '../sftp/core/file-utils'
+import { ContextMenuAction, FILE_MENU_REGISTRY, DEFAULT_FILE_MENU_ORDER } from '../sftp/components/sftp-context-menu.component'
 
 import { log } from '../services/sftp-logger'
 /** Tabby 设置页中 SFTP+ 侧栏项 ID（与 SettingsTabProvider.id 一致） */
@@ -222,6 +225,29 @@ function loadTableSetting(key: string, fallback: boolean): boolean {
             <span>{{ paneCustomItemLabel(item) }}</span>
           </div>
         </div>
+        <!-- 定制右键菜单（2026-08-22 挪到定制工具栏下方，改为每行一项） -->
+        <div class="ss-sub-head" style="margin-top:16px;">
+          <div class="ss-sub-label" style="margin:0;">{{ i18n.t('settings.customContextMenu') }}</div>
+          <button class="ss-reset-icon-btn" (click)="resetMenuOrder()" [title]="i18n.t('settings.resetMenu')">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M13 8a5 5 0 1 1-1.8-3.85"/>
+              <path d="M13 3.5v2.9h-2.9"/>
+            </svg>
+          </button>
+        </div>
+        <div class="ss-menu-preview">
+          <div class="ss-menu-row"
+            *ngFor="let a of contextMenuOrder"
+            draggable="true"
+            [class.dragging]="draggingMenuItem === a"
+            (dragstart)="onMenuDragStart(a, $event)"
+            (dragover)="onMenuDragOver(a, $event)"
+            (drop)="onMenuDrop(a, $event)"
+            (dragend)="onMenuDragEnd()">
+            <span class="ss-menu-handle">⋮⋮</span>
+            <span class="ss-menu-label">{{ contextMenuItemLabel(a) }}</span>
+          </div>
+        </div>
         <!-- 表格样式（属于布局的子选项） -->
         <div class="ss-sub-label" style="margin-top:16px;">{{ i18n.t('settings.tableStyle') }}</div>
         <div class="ss-toggle-wrap">
@@ -282,6 +308,29 @@ function loadTableSetting(key: string, fallback: boolean): boolean {
               <span class="ss-toggle-thumb"></span>
             </span>
           </label>
+          <!-- ★ 2026-08-22：查看器不支持的文件改用系统默认程序打开（置于文件/文件夹打开方式上方） -->
+          <label class="ss-toggle-row" title="{{ i18n.t('settings.openUnsupportedInSystemDesc') }}">
+            <span class="ss-toggle-label">{{ i18n.t('settings.openUnsupportedInSystem') }}</span>
+            <span class="ss-toggle-track" [class.active]="openUnsupportedInSystem" (click)="toggleOpenUnsupportedInSystem()">
+              <span class="ss-toggle-thumb"></span>
+            </span>
+          </label>
+          <!-- ★ 2026-08-22：文件/文件夹打开方式（单击/双击），置于默认路径模式上方 -->
+          <div class="ss-toggle-row ss-pathmode-row">
+            <span class="ss-toggle-label">{{ i18n.t('settings.openOnClick') }}</span>
+            <div class="ss-segmented">
+              <button type="button" class="ss-segment"
+                [class.active]="openOnClick === 'double'"
+                (click)="openOnClick = 'double'; saveInteraction()">
+                {{ i18n.t('settings.clickDouble') }}
+              </button>
+              <button type="button" class="ss-segment"
+                [class.active]="openOnClick === 'single'"
+                (click)="openOnClick = 'single'; saveInteraction()">
+                {{ i18n.t('settings.clickSingle') }}
+              </button>
+            </div>
+          </div>
           <div class="ss-toggle-row ss-pathmode-row">
             <span class="ss-toggle-label">{{ i18n.t('settings.defaultPathMode') }}</span>
             <div class="ss-segmented">
@@ -312,45 +361,84 @@ function loadTableSetting(key: string, fallback: boolean): boolean {
                 [title]="i18n.t('settings.dateFormatReset')">&times;</button>
             </div>
           </div>
-          <!-- ★ 2026-08-11：面板快捷键挪到自定义时间格式下方（按用户要求调整顺序） -->
-          <div class="ss-toggle-row ss-hotkey-toggle-row">
-            <span class="ss-toggle-label">{{ i18n.t('settings.hotkey') }}</span>
-            <div class="ss-hotkey-field"
-              [class.recording]="hotkeyRecording"
-              [class.has-value]="!!hotkeyBindingLabel && !hotkeyRecording">
-              <button type="button" class="ss-hotkey-display"
-                (click)="startHotkeyRecording()"
-                [disabled]="!configService"
-                [title]="i18n.t('settings.hotkeyClickToSet')">
-                <ng-container *ngIf="hotkeyRecording; else hotkeyIdle">
-                  {{ hotkeyRecordingPreview || i18n.t('settings.hotkeyRecording') }}
-                </ng-container>
-                <ng-template #hotkeyIdle>
-                  {{ hotkeyBindingLabel || i18n.t('settings.hotkeyUnbound') }}
-                </ng-template>
+          <!-- ★ 2026-08-22：传输相关设置归入独立子分类（上传/下载并发数 + 快速传输模式） -->
+          <div style="margin-top:18px;">
+            <div class="ss-sub-head">
+              <div class="ss-sub-label" style="margin:0;">{{ i18n.t('settings.transferSection') }}</div>
+            </div>
+            <div class="ss-toggle-row ss-concurrency-row">
+              <span class="ss-toggle-label">{{ i18n.t('settings.uploadConcurrency') }}</span>
+              <input class="ss-concurrency-input" type="number" min="1" max="10" step="1"
+                [(ngModel)]="uploadConcurrency" (change)="saveConcurrency()" />
+            </div>
+            <div class="ss-toggle-row ss-concurrency-row">
+              <span class="ss-toggle-label">{{ i18n.t('settings.downloadConcurrency') }}</span>
+              <input class="ss-concurrency-input" type="number" min="1" max="10" step="1"
+                [(ngModel)]="downloadConcurrency" (change)="saveConcurrency()" />
+            </div>
+            <label class="ss-toggle-row" title="{{ i18n.t('settings.fastModeDesc') }}">
+              <span class="ss-toggle-label">{{ i18n.t('settings.fastMode') }}</span>
+              <span class="ss-toggle-track" [class.active]="transferFastMode" (click)="toggleFastMode()">
+                <span class="ss-toggle-thumb"></span>
+              </span>
+            </label>
+          </div>
+          <!-- ★ 2026-08-22：统一热键区（面板 toggle 快捷键 + 面板操作热键）；有按键=启用，清空=禁用；作为「其它/功能性」下的子分类，不使用分隔线条 -->
+          <div style="margin-top:18px;">
+            <div class="ss-sub-head">
+              <div class="ss-sub-label" style="margin:0;">{{ i18n.t('settings.hotkeys') }}</div>
+              <button class="ss-reset-icon-btn" (click)="resetPanelHotkeys()" [title]="i18n.t('settings.resetPanelHotkeys')">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M13 8a5 5 0 1 1-1.8-3.85"/><path d="M13 3.5v2.9h-2.9"/>
+                </svg>
               </button>
-              <button type="button" class="ss-hotkey-clear" *ngIf="hotkeyRecording"
-                (click)="cancelHotkeyRecording(); $event.stopPropagation()" [title]="i18n.t('app.cancel')">×</button>
-              <button type="button" class="ss-hotkey-clear" *ngIf="!hotkeyRecording && hotkeyBindingLabel"
-                (click)="clearHotkeyBinding(); $event.stopPropagation()" [title]="i18n.t('settings.hotkeyClear')">×</button>
+            </div>
+            <!-- 面板 Toggle 快捷键（Tabby 全局）—— 置于第一位 -->
+            <div class="ss-phk-row">
+              <span class="ss-phk-label">{{ i18n.t('settings.hotkey') }}</span>
+              <div class="ss-hotkey-field"
+                [class.recording]="hotkeyRecording"
+                [class.has-value]="!!hotkeyBindingLabel && !hotkeyRecording"
+                [class.unbound]="!hotkeyBindingLabel && !hotkeyRecording">
+                <button type="button" class="ss-hotkey-display"
+                  (click)="startHotkeyRecording()"
+                  [disabled]="!configService"
+                  [title]="i18n.t('settings.hotkeyClickToSet')">
+                  <ng-container *ngIf="hotkeyRecording; else hotkeyIdle">
+                    {{ hotkeyRecordingPreview || i18n.t('settings.hotkeyRecording') }}
+                  </ng-container>
+                  <ng-template #hotkeyIdle>
+                    {{ hotkeyBindingLabel || i18n.t('settings.hotkeyUnbound') }}
+                  </ng-template>
+                </button>
+                <button type="button" class="ss-hotkey-clear" *ngIf="hotkeyRecording"
+                  (click)="cancelHotkeyRecording(); $event.stopPropagation()" [title]="i18n.t('app.cancel')">×</button>
+                <button type="button" class="ss-hotkey-clear" *ngIf="!hotkeyRecording && hotkeyBindingLabel"
+                  (click)="clearHotkeyBinding(); $event.stopPropagation()" [title]="i18n.t('settings.hotkeyClear')">×</button>
+              </div>
+            </div>
+            <!-- 面板操作热键 -->
+            <div class="ss-phk-row" *ngFor="let a of panelHotkeyActions">
+              <span class="ss-phk-label">{{ i18n.t('settings.phk.' + a) }}</span>
+              <div class="ss-hotkey-field"
+                [class.recording]="panelHotkeyRecording === a"
+                [class.has-value]="!!panelHotkeys[a].key"
+                [class.unbound]="!panelHotkeys[a].key && panelHotkeyRecording !== a">
+                <button type="button" class="ss-hotkey-display"
+                  (click)="startPanelHotkeyRecording(a)"
+                  [title]="i18n.t('settings.hotkeyClickToSet')">
+                  <ng-container *ngIf="panelHotkeyRecording === a; else phkIdle">
+                    {{ panelHotkeyRecordingPreview || i18n.t('settings.hotkeyRecording') }}
+                  </ng-container>
+                  <ng-template #phkIdle>
+                    {{ panelHotkeys[a].key || i18n.t('settings.hotkeyUnbound') }}
+                  </ng-template>
+                </button>
+                <button type="button" class="ss-hotkey-clear" *ngIf="panelHotkeys[a].key && panelHotkeyRecording !== a"
+                  (click)="clearPanelHotkey(a)" [title]="i18n.t('settings.hotkeyClear')">×</button>
+              </div>
             </div>
           </div>
-          <div class="ss-toggle-row ss-concurrency-row">
-            <span class="ss-toggle-label">{{ i18n.t('settings.uploadConcurrency') }}</span>
-            <input class="ss-concurrency-input" type="number" min="1" max="10" step="1"
-              [(ngModel)]="uploadConcurrency" (change)="saveConcurrency()" />
-          </div>
-          <div class="ss-toggle-row ss-concurrency-row">
-            <span class="ss-toggle-label">{{ i18n.t('settings.downloadConcurrency') }}</span>
-            <input class="ss-concurrency-input" type="number" min="1" max="10" step="1"
-              [(ngModel)]="downloadConcurrency" (change)="saveConcurrency()" />
-          </div>
-          <label class="ss-toggle-row" title="{{ i18n.t('settings.fastModeDesc') }}">
-            <span class="ss-toggle-label">{{ i18n.t('settings.fastMode') }}</span>
-            <span class="ss-toggle-track" [class.active]="transferFastMode" (click)="toggleFastMode()">
-              <span class="ss-toggle-thumb"></span>
-            </span>
-          </label>
         </div>
         <div class="ss-hint ss-hotkey-conflict" *ngIf="hotkeyConflictNames">
           {{ i18n.t('settings.hotkeyConflict', { names: hotkeyConflictNames }) }}
@@ -654,6 +742,14 @@ function loadTableSetting(key: string, fallback: boolean): boolean {
     .ss-hotkey-conflict { color:#e24b4a; opacity:.9; }
     .ss-hotkey-ok { color:#22a06b; opacity:.9; }
 
+    /* 面板热键行（作为子分类，不使用分隔线条）—— 与 ss-toggle-row 左对齐 */
+    .ss-phk-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 6px 10px;
+    }
+    .ss-phk-label { flex: 1; font-size: 12.5px; }
+    .ss-hotkey-field.unbound { border-style: dashed; opacity: .65; }
+
     .ss-backup-row {
       display:flex; gap:10px; flex-wrap:wrap; margin-top:4px;
     }
@@ -785,6 +881,27 @@ function loadTableSetting(key: string, fallback: boolean): boolean {
     .ss-chip-check { width: 14px; height: 14px; margin: 0; cursor: pointer; }
     .ss-layout-chip-handle { opacity: .5; letter-spacing: -1px; }
     .ss-btn-ghost { padding: 6px 12px; font-size: 12px; }
+    .ss-menu-preview {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      margin-top: 6px;
+    }
+    .ss-menu-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      border: 1px solid rgba(128,128,128,0.25);
+      background: rgba(128,128,128,0.05);
+      font-size: 12px;
+      cursor: grab;
+      user-select: none;
+    }
+    .ss-menu-row.dragging { opacity: 0.5; }
+    .ss-menu-handle { opacity: .5; letter-spacing: -1px; }
+    .ss-menu-label { flex: 1; }
 
   `],
 })
@@ -1049,6 +1166,40 @@ export class SftpSettingsTabComponent implements OnDestroy {
   paneHiddenItems: string[] = []
   draggingCustomItem: 'label' | 'path' | 'back' | 'forward' | 'up' | 'refresh' | 'home' | 'filter' | 'bookmark' | 'hidden' | null = null
 
+  /** ★ 2026-08-22：文件/文件夹打开方式（单击/双击） */
+  openOnClick: 'double' | 'single' = load('openOnClick', 'double')
+  /** ★ 2026-08-22：查看器不支持的文件改用系统默认程序打开 */
+  openUnsupportedInSystem = load('openUnsupportedInSystem', true)
+  /** ★ 2026-08-22：右键菜单项顺序（数据驱动渲染） */
+  contextMenuOrder: ContextMenuAction[] = [...DEFAULT_FILE_MENU_ORDER]
+  /** 右键菜单排序拖拽中的项 */
+  draggingMenuItem: ContextMenuAction | null = null
+
+  /** ★ 2026-08-22：面板内置操作热键（key 为空 = 未绑定即禁用） */
+  panelHotkeys: {
+    delete: { key: string }
+    rename: { key: string }
+    refresh: { key: string }
+    up: { key: string }
+    back: { key: string }
+  } = {
+    delete: { key: 'Delete' },
+    rename: { key: 'F2' },
+    refresh: { key: 'F5' },
+    up: { key: 'Shift+Backspace' },
+    back: { key: 'Backspace' },
+  }
+  /** 面板热键录制中：当前正在录制的动作（null = 未在录制） */
+  panelHotkeyRecording: 'delete' | 'rename' | 'refresh' | 'up' | 'back' | null = null
+  /** 面板热键录制实时预览串 */
+  panelHotkeyRecordingPreview = ''
+  /** 面板热键录制对应的 DOM 监听句柄，便于卸载 */
+  private _panelHotkeyDomHandler: ((ev: KeyboardEvent) => void) | null = null
+  private _panelHotkeyTimer: any = null
+  private _panelHotkeySafeTimer: any = null
+  /** 面板热键动作枚举（设置页列表顺序） */
+  panelHotkeyActions: Array<'delete' | 'rename' | 'refresh' | 'up' | 'back'> = ['delete', 'rename', 'refresh', 'up', 'back']
+
   /** 主题颜色修改确认弹窗 */
   showThemeColorConfirm = false
   /** 待提交的颜色修改 */
@@ -1063,6 +1214,7 @@ export class SftpSettingsTabComponent implements OnDestroy {
   constructor(
     @Optional() public configService?: ConfigService,
     @Optional() private hotkeys?: HotkeysService,
+    @Optional() private sftpConfig?: SftpConfigService,
   ) {
     // ConfigService 是可选的，如果注入失败（开发环境/Tabby 版本不支持），回退到 localStorage
     this.i18n = new SftpI18nService(configService)
@@ -1280,6 +1432,89 @@ export class SftpSettingsTabComponent implements OnDestroy {
     }, 2500)
   }
 
+  /** 开始录制某个面板操作热键（单键录制，区别于 Tabby 多键序列格式） */
+  startPanelHotkeyRecording(action: 'delete' | 'rename' | 'refresh' | 'up'): void {
+    if (this.panelHotkeyRecording) this._teardownPanelHotkeyRecording()
+    this.panelHotkeyRecording = action
+    this.panelHotkeyRecordingPreview = ''
+    setHotkeyRecordingActive(true)
+    try { this.hotkeys?.disable?.() } catch { /* ignore */ }
+
+    this._panelHotkeyDomHandler = (ev: KeyboardEvent) => {
+      if (!this.panelHotkeyRecording) return
+      ev.preventDefault()
+      ev.stopPropagation()
+      if (ev.key === 'Escape') { this._teardownPanelHotkeyRecording(); return }
+      if (ev.repeat) return
+      const spec = eventToPanelHotkeySpec(ev)
+      if (!spec) return
+      this.panelHotkeyRecordingPreview = spec
+      if (this._panelHotkeyTimer) clearTimeout(this._panelHotkeyTimer)
+      this._panelHotkeyTimer = setTimeout(() => {
+        this._panelHotkeyTimer = null
+        this._commitPanelHotkey(action, spec)
+      }, 250)
+    }
+    window.addEventListener('keydown', this._panelHotkeyDomHandler, true)
+
+    if (this._panelHotkeySafeTimer) clearTimeout(this._panelHotkeySafeTimer)
+    this._panelHotkeySafeTimer = setTimeout(() => {
+      if (this.panelHotkeyRecording) {
+        this._teardownPanelHotkeyRecording()
+        this._flashHotkeyMessage(this.i18n.t('settings.hotkeyRecordTimeout'))
+      }
+    }, 12000)
+  }
+
+  private _teardownPanelHotkeyRecording(): void {
+    if (this._panelHotkeyTimer) { clearTimeout(this._panelHotkeyTimer); this._panelHotkeyTimer = null }
+    if (this._panelHotkeySafeTimer) { clearTimeout(this._panelHotkeySafeTimer); this._panelHotkeySafeTimer = null }
+    if (this._panelHotkeyDomHandler) {
+      window.removeEventListener('keydown', this._panelHotkeyDomHandler, true)
+      this._panelHotkeyDomHandler = null
+    }
+    try { this.hotkeys?.enable?.() } catch { /* ignore */ }
+    setHotkeyRecordingActive(false)
+    this.panelHotkeyRecording = null
+    this.panelHotkeyRecordingPreview = ''
+  }
+
+  private _commitPanelHotkey(action: 'delete' | 'rename' | 'refresh' | 'up', spec: string): void {
+    this._teardownPanelHotkeyRecording()
+    // 不与其它已绑定（key 非空）的面板热键重复
+    for (const a of ['delete', 'rename', 'refresh', 'up'] as const) {
+      if (a !== action && this.panelHotkeys[a].key === spec) {
+        this._flashHotkeyMessage(this.i18n.t('settings.panelHotkeyConflict', { keys: spec }))
+        return
+      }
+    }
+    this.panelHotkeys[action].key = spec
+    this._saveToConfig()
+    this.notifyPanels()
+    this._flashHotkeyMessage(this.i18n.t('settings.hotkeySaved', { keys: spec }))
+  }
+
+  /** 清除某个面板操作热键的绑定（key 置空 = 未绑定，仅能由工具栏/右键触发） */
+  clearPanelHotkey(action: 'delete' | 'rename' | 'refresh' | 'up'): void {
+    this.panelHotkeys[action].key = ''
+    this._saveToConfig()
+    this.notifyPanels()
+    this._flashHotkeyMessage(this.i18n.t('settings.hotkeyCleared'))
+  }
+
+  /** 重置面板热键为默认值 */
+  resetPanelHotkeys(): void {
+    this.panelHotkeys = {
+      delete: { key: 'Delete' },
+      rename: { key: 'F2' },
+      refresh: { key: 'F5' },
+      up: { key: 'Shift+Backspace' },
+      back: { key: 'Backspace' },
+    }
+    this._saveToConfig()
+    this.notifyPanels()
+  }
+
   private async _ensureHotkeyDescriptions(): Promise<void> {
     if (Object.keys(this._hotkeyDescCache).length) return
     try {
@@ -1380,6 +1615,28 @@ export class SftpSettingsTabComponent implements OnDestroy {
           if (raw) { const parsed = JSON.parse(raw); if (Array.isArray(parsed)) this.paneHiddenItems = parsed as string[] }
         } catch { /* ignore */ }
       }
+      // ★ 2026-08-22：交互设置
+      if (cfg.openOnClick === 'single' || cfg.openOnClick === 'double') this.openOnClick = cfg.openOnClick
+      if (cfg.openUnsupportedInSystem !== undefined) this.openUnsupportedInSystem = cfg.openUnsupportedInSystem === true
+      if (Array.isArray(cfg.contextMenuOrder) && cfg.contextMenuOrder.length) {
+        const valid = (cfg.contextMenuOrder as string[]).filter(a => (a in FILE_MENU_REGISTRY)) as ContextMenuAction[]
+        // 补齐可能缺失的已知项（保证顺序数组始终含全部菜单项，缺失项追加末尾）
+        for (const a of DEFAULT_FILE_MENU_ORDER) if (!valid.includes(a)) valid.push(a)
+        this.contextMenuOrder = valid
+      }
+      // ★ 2026-08-22：面板内置操作热键（与默认值合并，保证四项齐全；key 为空=未绑定）
+      if (cfg.panelHotkeys && typeof cfg.panelHotkeys === 'object') {
+        const ph = cfg.panelHotkeys as any
+        const def = this.panelHotkeys
+        for (const a of ['delete', 'rename', 'refresh', 'up', 'back'] as const) {
+          if (ph[a] && typeof ph[a] === 'object') {
+            def[a] = {
+              key: typeof ph[a].key === 'string' ? ph[a].key : def[a].key,
+            }
+          }
+        }
+        this.panelHotkeys = def
+      }
     } catch { /* ignore */ }
   }
 
@@ -1389,12 +1646,15 @@ export class SftpSettingsTabComponent implements OnDestroy {
   private async _saveToConfig(): Promise<void> {
     try { localStorage.setItem('sftp-plus-pane-custom-order', JSON.stringify(this.paneCustomOrder)) } catch {}
     try { localStorage.setItem('sftp-plus-pane-hidden-items', JSON.stringify(this.paneHiddenItems)) } catch {}
+    try { localStorage.setItem('sftp-plus-context-menu-order', JSON.stringify(this.contextMenuOrder)) } catch {}
     if (!this.configService) return
     try {
       const target = this.configService.store['tabby-sftp-plus']
       if (!target) return  // 配置段未就绪，静默跳过
       target.lang = this.lang
       target.layoutMode = this.layoutMode
+      // 同步写入面板读取的嵌套路径（与浮动面板 cycleLayoutMode 一致），修复设置页切换布局后面板不生效
+      this.sftpConfig?.set('paneState/layout/mode', this.layoutMode)
       target.theme = this.theme
       target.colorPrimary = this.themePrimary
       target.colorBg = this.themeBg
@@ -1415,6 +1675,10 @@ export class SftpSettingsTabComponent implements OnDestroy {
       target.hideAuthorInfo = this.hideAuthorInfo
       target.paneCustomOrder = this.paneCustomOrder
       target.paneHiddenItems = this.paneHiddenItems
+      target.openOnClick = this.openOnClick
+      target.openUnsupportedInSystem = this.openUnsupportedInSystem
+      target.contextMenuOrder = this.contextMenuOrder
+      target.panelHotkeys = this.panelHotkeys
       await this.configService.save()
     } catch (e) {
       log.error('Failed to save to config', e)
@@ -1557,6 +1821,13 @@ export class SftpSettingsTabComponent implements OnDestroy {
   /** 切换默认显示隐藏文件 */
   toggleDefaultShowHidden(): void {
     this.defaultShowHidden = !this.defaultShowHidden
+    this._saveToConfig()
+    this.notifyPanels()
+  }
+
+  /** ★ 2026-08-22：切换「查看器不支持的文件改用系统默认程序打开」 */
+  toggleOpenUnsupportedInSystem(): void {
+    this.openUnsupportedInSystem = !this.openUnsupportedInSystem
     this._saveToConfig()
     this.notifyPanels()
   }
@@ -1779,6 +2050,57 @@ export class SftpSettingsTabComponent implements OnDestroy {
     this.notifyPanels()
   }
 
+  /** ★ 2026-08-22：保存交互类设置（单击/双击打开 + 右键菜单顺序共用） */
+  private async saveInteraction(): Promise<void> {
+    await this._saveToConfig()
+    this.notifyPanels()
+  }
+
+  /** 右键菜单项 action → 显示标签（复用菜单注册表的 i18n key） */
+  contextMenuItemLabel(a: ContextMenuAction): string {
+    const def = FILE_MENU_REGISTRY[a]
+    return def ? this.i18n.t(def.labelKey) : (a as string)
+  }
+
+  onMenuDragStart(a: ContextMenuAction, event: DragEvent): void {
+    this.draggingMenuItem = a
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'move'
+      event.dataTransfer.setData('text/plain', a)
+    }
+  }
+
+  onMenuDragOver(_target: ContextMenuAction, event: DragEvent): void {
+    event.preventDefault()
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'
+  }
+
+  onMenuDrop(target: ContextMenuAction, event: DragEvent): void {
+    event.preventDefault()
+    const source = this.draggingMenuItem || (event.dataTransfer?.getData('text/plain') as ContextMenuAction)
+    if (!source || source === target) return
+    const next = this.contextMenuOrder.filter(i => i !== source)
+    const targetIndex = next.indexOf(target)
+    if (targetIndex < 0) return
+    let insertIndex = targetIndex
+    const targetEl = event.currentTarget as HTMLElement | null
+    if (targetEl) {
+      const rect = targetEl.getBoundingClientRect()
+      const placeAfter = event.clientX > (rect.left + rect.width / 2)
+      if (placeAfter) insertIndex = targetIndex + 1
+    }
+    next.splice(insertIndex, 0, source)
+    this.contextMenuOrder = next
+    void this.saveInteraction()
+  }
+
+  onMenuDragEnd(): void { this.draggingMenuItem = null }
+
+  resetMenuOrder(): void {
+    this.contextMenuOrder = [...DEFAULT_FILE_MENU_ORDER]
+    void this.saveInteraction()
+  }
+
   /** 通知所有面板重新读取设置 */
   private notifyPanels(): void {
     // 通过 DOM 事件通知（面板在 ngOnInit 中监听）
@@ -1818,6 +2140,16 @@ export class SftpSettingsTabComponent implements OnDestroy {
           data.transferUploadConcurrency = cfg.transferUploadConcurrency ?? 3
           data.transferDownloadConcurrency = cfg.transferDownloadConcurrency ?? 3
           data.transferFastMode = cfg.transferFastMode ?? false
+          data.openOnClick = cfg.openOnClick ?? 'double'
+          data.openUnsupportedInSystem = cfg.openUnsupportedInSystem ?? true
+          data.contextMenuOrder = cfg.contextMenuOrder ?? [...DEFAULT_FILE_MENU_ORDER]
+          data.panelHotkeys = cfg.panelHotkeys ?? {
+            delete: { key: 'Delete' },
+            rename: { key: 'F2' },
+            refresh: { key: 'F5' },
+            up: { key: 'Shift+Backspace' },
+            back: { key: 'Backspace' },
+          }
           data.hideAuthorInfo = cfg.hideAuthorInfo ?? false
           data.paneCustomOrder = cfg.paneCustomOrder ?? ['label', 'back', 'forward', 'up', 'refresh', 'home', 'path', 'hidden', 'filter', 'bookmark']
           data.paneHiddenItems = cfg.paneHiddenItems ?? []
@@ -1855,6 +2187,16 @@ export class SftpSettingsTabComponent implements OnDestroy {
     data.transferDownloadConcurrency = 3
     data.transferFastMode = false
     data.hideAuthorInfo = false
+    data.openOnClick = load('openOnClick', 'double')
+    data.openUnsupportedInSystem = load('openUnsupportedInSystem', true)
+    try { data.contextMenuOrder = JSON.parse(localStorage.getItem('sftp-plus-context-menu-order') || '[]') } catch { data.contextMenuOrder = [] }
+    data.panelHotkeys = {
+      delete: { key: 'Delete' },
+      rename: { key: 'F2' },
+      refresh: { key: 'F5' },
+      up: { key: 'Shift+Backspace' },
+      back: { key: 'Backspace' },
+    }
     try { data.paneCustomOrder = JSON.parse(localStorage.getItem('sftp-plus-pane-custom-order') || '["label","back","forward","up","refresh","home","path","hidden","filter","bookmark"]') } catch { data.paneCustomOrder = ['label', 'back', 'forward', 'up', 'refresh', 'home', 'path', 'hidden', 'filter', 'bookmark'] }
     try { data.paneHiddenItems = JSON.parse(localStorage.getItem('sftp-plus-pane-hidden-items') || '[]') } catch { data.paneHiddenItems = [] }
     // 尝试从 localStorage 读取书签和传输日志
@@ -1947,8 +2289,14 @@ export class SftpSettingsTabComponent implements OnDestroy {
           if (data.transferDownloadConcurrency !== undefined) target.transferDownloadConcurrency = data.transferDownloadConcurrency
           if (data.transferFastMode !== undefined) target.transferFastMode = data.transferFastMode
           if (data.hideAuthorInfo !== undefined) target.hideAuthorInfo = data.hideAuthorInfo
+          if (data.openOnClick !== undefined) target.openOnClick = data.openOnClick
+          if (data.openUnsupportedInSystem !== undefined) target.openUnsupportedInSystem = data.openUnsupportedInSystem
+          if (data.contextMenuOrder !== undefined) target.contextMenuOrder = data.contextMenuOrder
+          if (data.panelHotkeys !== undefined) target.panelHotkeys = data.panelHotkeys
           if (data.paneCustomOrder !== undefined) target.paneCustomOrder = data.paneCustomOrder
           if (data.paneHiddenItems !== undefined) target.paneHiddenItems = data.paneHiddenItems
+          // 导入路径记忆：导出已含 pathMemory，导入须写回，否则备份无法恢复（# 导出导入不对称缺陷修复）
+          if (data.pathMemory !== undefined) target.pathMemory = data.pathMemory
           // 导入书签
           if (data.bookmarks !== undefined) target.bookmarks = data.bookmarks
           this.configService.save()

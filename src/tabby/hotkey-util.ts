@@ -137,3 +137,64 @@ export function readToggleHotkeyBindings(
   if (Array.isArray(raw)) return raw as HotkeyBinding[]
   return [raw as HotkeyBinding]
 }
+
+/* ──────────────────────────────────────────────────────────────
+ * 面板内置操作热键：单键格式（'Delete' / 'F2' / 'F5' / 'Shift+Backspace' / 'Ctrl+C'）
+ * 与 Tabby 多键序列格式（Ctrl-Shift-S）不同，这里只匹配单个按键 + 修饰键。
+ * ────────────────────────────────────────────────────────────── */
+
+export interface PanelHotkeyParsed {
+  key: string
+  ctrl: boolean
+  alt: boolean
+  shift: boolean
+  meta: boolean
+}
+
+/** 解析 'Shift+Backspace' → { key:'Backspace', shift:true, ctrl:false, alt:false, meta:false }；空串返回 null */
+export function parsePanelHotkeyKey(spec: string): PanelHotkeyParsed | null {
+  if (!spec || !spec.trim()) return null
+  const tokens = spec.trim().split('+')
+  const key = tokens[tokens.length - 1].trim()
+  if (!key) return null
+  const mods = tokens.slice(0, -1).map(m => m.trim().toLowerCase())
+  return {
+    key,
+    ctrl: mods.includes('ctrl'),
+    alt: mods.includes('alt'),
+    shift: mods.includes('shift'),
+    meta: mods.includes('meta') || mods.includes('cmd') || mods.includes('win'),
+  }
+}
+
+/** 判断 KeyboardEvent 是否匹配某个面板热键 spec（修饰键精确比较 + 主键比较） */
+export function matchPanelHotkeyKey(event: KeyboardEvent, spec: string): boolean {
+  const p = parsePanelHotkeyKey(spec)
+  if (!p) return false
+  if (event.ctrlKey !== p.ctrl) return false
+  if (event.altKey !== p.alt) return false
+  if (event.shiftKey !== p.shift) return false
+  if (event.metaKey !== p.meta) return false
+  // 主键比较：单字符忽略大小写；命名键（Backspace/F2/F5…）精确比较
+  const ek = event.key
+  if (p.key.length === 1) return ek.toLowerCase() === p.key.toLowerCase()
+  return ek === p.key
+}
+
+/** 显示用：空串返回占位符（调用方决定显示文案） */
+export function formatPanelHotkeyKey(spec: string, placeholder = '—'): string {
+  return spec && spec.trim() ? spec.trim() : placeholder
+}
+
+/** 由 KeyboardEvent 生成面板热键 spec 串（录制时调用） */
+export function eventToPanelHotkeySpec(event: KeyboardEvent): string | null {
+  if (event.key === 'Control' || event.key === 'Meta' || event.key === 'Alt' || event.key === 'Shift') return null
+  const main = event.key.length === 1 ? event.key.toUpperCase() : event.key
+  const parts: string[] = []
+  if (event.ctrlKey) parts.push('Ctrl')
+  if (event.metaKey) parts.push('Meta')
+  if (event.altKey) parts.push('Alt')
+  if (event.shiftKey) parts.push('Shift')
+  parts.push(main)
+  return parts.join('+')
+}

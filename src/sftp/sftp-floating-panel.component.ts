@@ -5,7 +5,7 @@
  * 创建人：DD1024z + Claude
  * 创建时间：2026-06-21
  * 修改人：DD1024z + Hy3
- * 修改时间：2026-08-02 — B19：onDragStartRemote 增加 modified 诊断 log
+ * 修改时间：2026-08-22 — 新增「单击/双击打开」开关（openOnClick）；右键菜单数据驱动（menuOrder）；「查看器不支持时系统打开」开关（openUnsupportedInSystem）；面板操作级热键改为配置驱动（panelHotkeys：delete/rename/refresh/up/back，有按键=启用/清空=禁用），新增 Shift+Backspace=返回上级（up）；原 Backspace=后退历史（back）纳入配置且加 panelFocused 守卫（修复 issue #13 P4：焦点在终端时 Backspace 不再被路径回退吞掉删字）
  */
 import * as path from 'path'
 import * as fs from 'fs/promises'
@@ -38,6 +38,7 @@ import { PanelConflictResolver } from './components/panel-conflict-resolver'
 import { PanelTransferRuntime } from './core/transfer-coordinator'
 import { PaneNavHistory } from './core/selection'
 import { computeSelection, computeSortToggle } from './core/selection'
+import { matchPanelHotkeyKey } from '../tabby/hotkey-util'
 import { isColorDark } from '@common/utils'
 import { SftpPanelBookmarkController } from './controllers/panel-bookmark-controller'
 import {
@@ -321,6 +322,8 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
   clipboardMode: 'copy' | 'cut' = 'copy'
   /** 最后点击/操作的面板，用于快捷键判断作用域 */
   activePane: 'local' | 'remote' = 'local'
+  /** 方向键导航使用的面板（仅在实际点击条目时更新，不受 mouseenter 悬停影响） */
+  private _arrowNavPane: 'local' | 'remote' | null = null
 
   // ========== 详细信息对话框 ==========
   detailsVisible = false
@@ -896,6 +899,12 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     const idx = order.indexOf(this._layoutMode)
     this._layoutMode = order[(idx + 1) % order.length]
     try {
+      // 修复：写入与面板读取一致的路径（paneState/layout/mode）。
+      // 原仅写顶层 store.layoutMode，而面板 ngOnInit 与设置变更 handler 均读
+      // sftpConfig.get('paneState/layout/mode')（嵌套路径），导致切换后立即可被
+      // settings-changed 事件覆盖回 auto（顶部按钮"无法切换自适应布局"）。
+      // 双写：嵌套路径（面板实际读取）+ 顶层（兼容 config schema / 设置页读取）。
+      this.sftpConfig?.set('paneState/layout/mode', this._layoutMode)
       const target = this.configService?.store?.['tabby-sftp-plus']
       if (target) { target.layoutMode = this._layoutMode; this.configService?.save() }
     } catch {}
@@ -3023,6 +3032,38 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
 
   isLocalSelected(e: LocalEntry): boolean { return this._localSelectedPaths.has(e.fullPath) }
 
+  /** 方向键移动选中项后，将目标行滚动进可视区域（仅滚动列表容器自身） */
+  /**
+   * 将指定行滚动进可见区。
+   * 注意列表表头为 sticky 固定（styles.ts: .entry.header position:sticky;top:0），
+   * 使用 scrollIntoView({block:'nearest'}) 会忽略表头遮挡——当行滚入"表头遮挡带"时
+   * 被误判为已在可视区内而不滚动，导致选中项被表头盖住。故此处用 rect 精确计算，
+   * 把表头高度排除在有效可见区之外。
+   */
+  private _scrollEntryIntoView(side: 'local' | 'remote', idx: number): void {
+    try {
+      const listEl = this.elRef.nativeElement.querySelector(`.pane-list.${side}-pane`) as HTMLElement | null
+      if (!listEl) return
+      const rows = listEl.querySelectorAll('.entry[data-path]')
+      const rowEl = rows[idx] as HTMLElement | null
+      if (!rowEl) return
+      const headerEl = listEl.querySelector('.entry.header') as HTMLElement | null
+      const headerH = headerEl ? headerEl.getBoundingClientRect().height : 0
+      const listRect = listEl.getBoundingClientRect()
+      const rowRect = rowEl.getBoundingClientRect()
+      // 有效可见区（排除顶部 sticky 表头）：[listRect.top + headerH, listRect.bottom]
+      const visibleTop = listRect.top + headerH
+      const visibleBottom = listRect.bottom
+      if (rowRect.top < visibleTop) {
+        // 行被表头遮住 / 在表头上方 → 向上滚动使行落在表头下沿
+        listEl.scrollTop += (rowRect.top - visibleTop)
+      } else if (rowRect.bottom > visibleBottom) {
+        // 行溢出底部 → 向下滚动使其完整可见
+        listEl.scrollTop += (rowRect.bottom - visibleBottom)
+      }
+    } catch {}
+  }
+
   selectRemote(entry: SFTPFile, event: MouseEvent, idx: number): void {
     if (this.selectedLocal.length > 0) this.selectedLocal = []
     const r = computeSelection(this.selectedRemote, entry, event, idx, this.remoteLastSelectedIndex, this.getFilteredRemoteEntries(), this._remoteSelectedPaths)
@@ -3153,6 +3194,7 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
   /** 单击处理：统一逻辑，避免与双击冲突 */
   private _onPaneClick(side: 'local' | 'remote', entry: { fullPath: string }, event: MouseEvent, idx: number, selectFn: () => void): void {
     this.activePane = side
+    this._arrowNavPane = side
     if (this._rubberBand.shouldSuppressEntryClick(entry.fullPath)) return
     if (side === 'local') {
       if (this.localClickTimer) { clearTimeout(this.localClickTimer); this.localClickTimer = null }
@@ -3164,7 +3206,73 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     selectFn()
   }
 
+  /** 打开方式开关：'double'（默认，双击打开）或 'single'（单击打开） */
+  private get _openOnClick(): 'double' | 'single' {
+    const v = this.configService?.store?.['tabby-sftp-plus']?.openOnClick
+    return (v === 'single' || v === 'double') ? v : 'double'
+  }
+
+  /** 查看器不支持时系统打开开关：开启则对不支持的文件改用系统默认程序打开 */
+  private get _openUnsupportedInSystem(): boolean {
+    return this.configService?.store?.['tabby-sftp-plus']?.openUnsupportedInSystem === true
+  }
+
+  /** 面板内置操作热键配置（含 key/enabled）；缺省回退到内置默认值 */
+  private get _panelHotkeys(): {
+    delete: { key: string; enabled: boolean }
+    rename: { key: string; enabled: boolean }
+    refresh: { key: string; enabled: boolean }
+    up: { key: string; enabled: boolean }
+    back: { key: string; enabled: boolean }
+  } {
+    const cfg = this.configService?.store?.['tabby-sftp-plus']?.panelHotkeys
+    return cfg ?? {
+      delete: { key: 'Delete', enabled: true },
+      rename: { key: 'F2', enabled: true },
+      refresh: { key: 'F5', enabled: true },
+      up: { key: 'Shift+Backspace', enabled: true },
+      back: { key: 'Backspace', enabled: true },
+    }
+  }
+
+  private _panelHotkeyEnabled(action: 'delete' | 'rename' | 'refresh' | 'up' | 'back'): boolean {
+    return !!this._panelHotkeys[action]?.key
+  }
+
+  private _panelHotkeyKey(action: 'delete' | 'rename' | 'refresh' | 'up' | 'back'): string {
+    return this._panelHotkeys[action]?.key ?? ''
+  }
+
+  /** 统一的「打开」逻辑：目录进入；文件 Ctrl/Cmd+点击=系统打开，否则查看 */
+  private _activateEntry(pane: 'local' | 'remote', entry: any, event?: MouseEvent): void {
+    const isDir = !!entry?.isDirectory || this.isDirByMode(entry?.mode)
+    if (isDir) {
+      if (pane === 'local') this.openLocal(entry, event)
+      else this.openRemote(entry, event)
+      return
+    }
+    const openInSystem = !!(event && (os.platform() === 'darwin' ? event.metaKey : event.ctrlKey))
+    if (openInSystem) {
+      if (pane === 'local') this._openPathInSystem(entry.fullPath, { waitForModRelease: true })
+      else void this._openRemoteInSystem(entry)
+      return
+    }
+    // ★ 2026-08-22：查看器不支持的文件，若开关开启则改用系统默认程序打开
+    if (this._openUnsupportedInSystem && !isViewableRemoteFileType(entry.name)) {
+      if (pane === 'local') this._openPathInSystem(entry.fullPath, { waitForModRelease: true })
+      else void this._openRemoteInSystem(entry)
+      return
+    }
+    if (pane === 'local') void this._viewLocalFile(entry)
+    else void this._viewRemoteFile(entry)
+  }
+
   onLocalClick(entry: LocalEntry, event: MouseEvent, idx: number): void {
+    if (this._openOnClick === 'single') {
+      this.selectLocal(entry, event, idx)
+      this._activateEntry('local', entry, event)
+      return
+    }
     this._onPaneClick('local', entry, event, idx, () => this.selectLocal(entry, event, idx))
   }
 
@@ -3190,20 +3298,13 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     void this.refreshLocal()
   }
 
-  /** 本地双击：文件夹进入；文件=查看；Ctrl/Cmd+双击=系统打开 */
+  /** 本地双击：复用统一打开逻辑（文件夹进入 / 文件查看 / Ctrl+Cmd+双击系统打开） */
   onLocalEntryDblClick(e: LocalEntry, $event?: MouseEvent): void {
+    // 单击打开模式下，单击已触发打开，双击不再重复处理
+    if (this._openOnClick === 'single') return
     if (this.localClickTimer) { clearTimeout(this.localClickTimer); this.localClickTimer = null }
     if ($event) $event.preventDefault()
-    if (e.isDirectory || this.isDirByMode(e.mode)) {
-      this.openLocal(e)
-      return
-    }
-    const openInSystem = !!($event && (os.platform() === 'darwin' ? $event.metaKey : $event.ctrlKey))
-    if (openInSystem) {
-      this._openPathInSystem(e.fullPath, { waitForModRelease: true })
-      return
-    }
-    void this._viewLocalFile(e)
+    this._activateEntry('local', e, $event)
   }
 
   /** 远程面板双击进入目录（或文件选择逻辑） */
@@ -3219,25 +3320,23 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     void this.refreshRemote()
   }
 
-  /** 远程双击：文件夹进入；文件=查看；Ctrl/Cmd+双击=下载到临时目录后系统打开 */
+  /** 远程双击：复用统一打开逻辑（文件夹进入 / 文件查看 / Ctrl+Cmd+双击系统打开） */
   onRemoteEntryDblClick(e: SFTPFile, $event?: MouseEvent): void {
+    // 单击打开模式下，单击已触发打开，双击不再重复处理
+    if (this._openOnClick === 'single') return
     if (this.remoteClickTimer) { clearTimeout(this.remoteClickTimer); this.remoteClickTimer = null }
     if ($event) $event.preventDefault()
     if (!this.connected) return
-    if (e.isDirectory || this.isDirByMode(e.mode)) {
-      this.openRemote(e)
-      return
-    }
-    const openInSystem = !!($event && (os.platform() === 'darwin' ? $event.metaKey : $event.ctrlKey))
-    if (openInSystem) {
-      void this._openRemoteInSystem(e)
-      return
-    }
-    void this._viewRemoteFile(e)
+    this._activateEntry('remote', e, $event)
   }
 
   /** 远程面板单击处理 */
   onRemoteClick(entry: SFTPFile, event: MouseEvent, idx: number): void {
+    if (this._openOnClick === 'single') {
+      this.selectRemote(entry, event, idx)
+      this._activateEntry('remote', entry, event)
+      return
+    }
     this._onPaneClick('remote', entry, event, idx, () => this.selectRemote(entry, event, idx))
   }
 
@@ -3250,6 +3349,13 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
   isRemoteSelectedFn = (e: SFTPFile) => this.isRemoteSelected(e)
   localSortArrowFn = (col: string) => this.sortArrow(col, 'local')
   remoteSortArrowFn = (col: string) => this.sortArrow(col, 'remote')
+
+  /** 右键菜单项顺序（数据驱动渲染）：读取设置；缺省回退默认顺序 */
+  get contextMenuOrder(): string[] {
+    const v = this.configService?.store?.['tabby-sftp-plus']?.contextMenuOrder
+    const fallback = ['upload', 'download', 'openLocal', 'viewFile', 'viewAsText', 'editFile', 'revealInExplorer', 'copy', 'cut', 'paste', 'rename', 'delete', 'chmod', 'details', 'newFolder', 'newFile', 'refresh', 'selectAll', 'selectInvert', 'copyPath']
+    return (Array.isArray(v) && v.length) ? v as string[] : fallback
+  }
 
   get detailsDisplay(): DetailsDisplay | null {
     const e = this.detailsEntry
@@ -4253,7 +4359,7 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     if (this.selectedLocal.length !== 1) return
     this.openInputDialog('local-rename', this.i18n.t('app.rename'), this.selectedLocal[0].name, this.selectedLocal[0].name, this.selectedLocal[0].fullPath)
   }
-  /** 键盘 Delete 键 → 删除选中文件；F2 → 重命名；F5 → 刷新当前面板 */
+  /** 面板操作级热键：删除(Delete)/重命名(F2)/刷新(F5)/返回上级(Shift+Backspace)，均可在设置页开关或改键 */
   @HostListener('window:keydown', ['$event'])
   onWindowKeyDown(event: KeyboardEvent): void {
     // 面板不可见（最小化/所在 tab 未激活，如打开设置页或切到其它终端）时不响应
@@ -4261,9 +4367,66 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     // 仅面板自身输入框内才视为正在输入；终端 textarea 在面板之外不拦截
     if (this._isPanelTyping(event)) return
 
-    if (event.key === 'Delete') {
-      // ★ 修复：按"哪侧有选中项"智能判定面板（_resolveTargetPane），
-      //   避免 activePane 因键盘操作未及时更新为 'remote' 时，远程选中被误判而弹不出确认框/提示
+    // 方向键上下移动选中项（仅在实际点击过的面板内生效，不受 mouseenter 悬停影响）
+    if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+      // 带修饰键（Ctrl/Shift/Alt/Meta）时不拦截，留给其它组合功能
+      if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return
+      // 未曾在任一面板点击过条目 → 不响应方向键（避免鼠标悬停切换面板后误触发）
+      const side = this._arrowNavPane
+      if (!side) return
+      const down = event.key === 'ArrowDown'
+      const resolveNewIndex = (len: number, currentIdx: number): number => {
+        if (down) return currentIdx < 0 ? 0 : Math.min(len - 1, currentIdx + 1)
+        return currentIdx < 0 ? len - 1 : Math.max(0, currentIdx - 1)
+      }
+      if (side === 'local') {
+        const list = this.getFilteredLocalEntries()
+        if (!list || list.length === 0) return
+        let currentIdx = -1
+        if (this._localSelectedPaths.size > 0) {
+          currentIdx = list.findIndex(e => e.fullPath === [...this._localSelectedPaths][0])
+        }
+        const newIdx = resolveNewIndex(list.length, currentIdx)
+        if (newIdx < 0 || newIdx === currentIdx) return
+        event.preventDefault()
+        event.stopPropagation()
+        if (this.selectedRemote.length) this.selectedRemote = []
+        this.selectedLocal = [list[newIdx]]
+        this.localLastSelectedIndex = newIdx
+        this.syncPaneSelectionVisual('local')
+        this.cdr.detectChanges()
+        this._scrollEntryIntoView('local', newIdx)
+      } else {
+        const list = this.getFilteredRemoteEntries()
+        if (!list || list.length === 0) return
+        let currentIdx = -1
+        if (this._remoteSelectedPaths.size > 0) {
+          currentIdx = list.findIndex(e => e.fullPath === [...this._remoteSelectedPaths][0])
+        }
+        const newIdx = resolveNewIndex(list.length, currentIdx)
+        if (newIdx < 0 || newIdx === currentIdx) return
+        event.preventDefault()
+        event.stopPropagation()
+        if (this.selectedLocal.length) this.selectedLocal = []
+        this.selectedRemote = [list[newIdx]]
+        this.remoteLastSelectedIndex = newIdx
+        this.syncPaneSelectionVisual('remote')
+        this.cdr.detectChanges()
+        this._scrollEntryIntoView('remote', newIdx)
+      }
+      return
+    }
+
+    // 返回上级（默认 Shift+Backspace）：当前激活面板向上一级目录
+    if (this._panelHotkeyEnabled('up') && matchPanelHotkeyKey(event, this._panelHotkeyKey('up'))) {
+      event.preventDefault()
+      event.stopPropagation()
+      if (this.activePane === 'local') this.localUp()
+      else this.remoteUp()
+      return
+    }
+    // 删除选中（默认 Delete；Shift+Delete = 跳过确认强制删除，沿用既有语义）
+    if (this._panelHotkeyEnabled('delete') && matchPanelHotkeyKey(event, this._panelHotkeyKey('delete'))) {
       const side = this._resolveTargetPane()
       const sel = side === 'local' ? this._selectedLocal : this._selectedRemote
       if (sel && sel.length > 0) {
@@ -4271,7 +4434,10 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
         event.stopPropagation()
         this._paneDelete(side, event.shiftKey)
       }
-    } else if (event.key === 'F2') {
+      return
+    }
+    // 重命名（默认 F2）
+    if (this._panelHotkeyEnabled('rename') && matchPanelHotkeyKey(event, this._panelHotkeyKey('rename'))) {
       if (this.activePane === 'local' && this.selectedLocal.length === 1) {
         event.preventDefault()
         event.stopPropagation()
@@ -4281,11 +4447,15 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
         event.stopPropagation()
         this.remoteRename()
       }
-    } else if (event.key === 'F5') {
+      return
+    }
+    // 刷新当前面板（默认 F5）
+    if (this._panelHotkeyEnabled('refresh') && matchPanelHotkeyKey(event, this._panelHotkeyKey('refresh'))) {
       event.preventDefault()
       event.stopPropagation()
       if (this.activePane === 'local') void this.refreshLocal()
       else void this.refreshRemote()
+      return
     }
   }
 
@@ -5511,8 +5681,10 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
         if (event.key === 'Escape') { event.preventDefault(); this.cancelDelete(); return }
         return
       }
-      // 鼠标「上一页」语义：Backspace 后退到历史中的上一目录（输入态已由上方 isTyping 守卫拦截）
-      if (event.key === 'Backspace') {
+      // ★ 2026-08-22 修复（issue #13 P4）：历史后退改为配置驱动（panelHotkeys.back）且
+      //   仅在面板自身获得焦点时生效；焦点在终端 xterm 时让 Backspace 正常删字，不再被路径回退吞掉。
+      if (this._panelHotkeyEnabled('back') && panelFocused && !event.shiftKey &&
+          matchPanelHotkeyKey(event, this._panelHotkeyKey('back'))) {
         const pane = this._resolveTargetPane()
         event.preventDefault()
         event.stopPropagation()

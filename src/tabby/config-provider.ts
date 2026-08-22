@@ -5,7 +5,7 @@
  * 创建人：DD1024z + Deepseek-V4-Flash
  * 创建时间：2026-06-29
  * 修改人：DD1024z + Hy3
- * 修改时间：2026-07-29
+ * 修改时间：2026-08-22 — 新增「查看器不支持时系统打开」开关（openUnsupportedInSystem）；新增面板内置操作热键配置（panelHotkeys：delete/rename/refresh/up/back，可改键，key 为空=禁用；back=历史后退，加 panelFocused 守卫避免吞噬终端 Backspace 删字）
  */
 import { ConfigProvider } from 'tabby-core'
 import type { Locale } from '../services/sftp-i18n.service'
@@ -28,6 +28,20 @@ export interface SftpPlusPluginConfig {
   /** 默认显示隐藏文件：对从未按过眼睛按钮的面板生效 */
   defaultShowHidden: boolean
   openInNewTabByDefault: boolean
+  /** 打开文件/文件夹的触发方式：'double'（默认，双击打开）或 'single'（单击打开） */
+  openOnClick: 'double' | 'single'
+  /** 查看器不支持的文件：开关开启时改用系统默认程序打开（而非提示不支持） */
+  openUnsupportedInSystem: boolean
+  /** 面板内置操作热键：可改键（key 为空串 = 未绑定即禁用） */
+  panelHotkeys: {
+    delete: { key: string }
+    rename: { key: string }
+    refresh: { key: string }
+    up: { key: string }
+    back: { key: string }
+  }
+  /** 右键文件菜单项的显示顺序（数据驱动渲染，按此数组顺序过滤可见项） */
+  contextMenuOrder: string[]
   singleWorkspaceInstance: boolean
   /** 兼容选项：选中书签后自动关闭整个浮动面板 */
   closeBookmarkPanelOnSelect: boolean
@@ -70,6 +84,16 @@ export function defaultSftpPlusConfig(): SftpPlusPluginConfig {
     defaultPathMode: 'off',
     defaultShowHidden: false,
     openInNewTabByDefault: false,
+    openOnClick: 'double',
+    openUnsupportedInSystem: true,
+    panelHotkeys: {
+      delete: { key: 'Delete' },
+      rename: { key: 'F2' },
+      refresh: { key: 'F5' },
+      up: { key: 'Shift+Backspace' },
+      back: { key: 'Backspace' },
+    },
+    contextMenuOrder: ['upload', 'download', 'openLocal', 'viewFile', 'viewAsText', 'editFile', 'revealInExplorer', 'copy', 'cut', 'paste', 'rename', 'delete', 'chmod', 'details', 'newFolder', 'newFile', 'refresh', 'selectAll', 'selectInvert', 'copyPath'],
     singleWorkspaceInstance: true,
     closeBookmarkPanelOnSelect: false,
     dateFormat: '',
