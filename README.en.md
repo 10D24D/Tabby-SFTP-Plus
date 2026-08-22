@@ -1,6 +1,6 @@
 # SFTP+ — Dual-Pane SFTP File Manager for Tabby
 
-| [中文](README.md) | [English](README.en.md) |
+| [中文](https://github.com/10D24D/Tabby-SFTP-Plus/blob/main/README.md) | [English](https://github.com/10D24D/Tabby-SFTP-Plus/blob/main/README.en.md) |
 
 [![Version](https://img.shields.io/github/package-json/v/10D24D/Tabby-SFTP-Plus?style=for-the-badge&label=Version&color=7B68EE)](https://github.com/10D24D/Tabby-SFTP-Plus)
 [![Stars](https://img.shields.io/github/stars/10D24D/Tabby-SFTP-Plus?style=for-the-badge&label=Stars&color=orange)](https://github.com/10D24D/Tabby-SFTP-Plus/stargazers)
