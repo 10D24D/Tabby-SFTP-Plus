@@ -81,6 +81,8 @@ export abstract class SftpPanelViewerController extends SftpPanelColumnControlle
   editorError = ''
   editorTempPath = ''
   _editorSavePath = ''
+  /** 打开远程编辑时的基线 mtime/size，保存前冲突检测用 */
+  private _editorRemoteBaseline: { mtimeMs: number; size: number } | null = null
   _editorFileWatcher: fsSync.FSWatcher | null = null
 
   protected _editorWatchDebounce: ReturnType<typeof setTimeout> | null = null
@@ -118,8 +120,8 @@ export abstract class SftpPanelViewerController extends SftpPanelColumnControlle
     if (!this._prepareViewer(entry, false)) return
     this._setupViewerImageNav(entry!, 'local')
     try {
-      const buf = await readLocalFileToBuffer(entry.fullPath)
-      await this._fillViewerFromBuffer(buf, entry.name)
+      const buf = await readLocalFileToBuffer(entry!.linkTarget || entry!.fullPath)
+      await this._fillViewerFromBuffer(buf, entry!.name)
     } catch (e) {
       this.viewerError = this.i18n.t('viewer.loadFailed')
       log.error('View local file failed', e)
@@ -134,8 +136,8 @@ export abstract class SftpPanelViewerController extends SftpPanelColumnControlle
     if (!this._prepareViewer(entry, false, true)) return
     /* 强制文本模式不设置图片导航 */
     try {
-      const buf = await readLocalFileToBuffer(entry.fullPath)
-      await this._fillViewerFromBufferAsText(buf, entry.name)
+      const buf = await readLocalFileToBuffer(entry!.linkTarget || entry!.fullPath)
+      await this._fillViewerFromBufferAsText(buf, entry!.name)
     } catch (e) {
       this.viewerError = this.i18n.t('viewer.loadFailed')
       log.error('View local file as text failed', e)
@@ -391,11 +393,27 @@ export abstract class SftpPanelViewerController extends SftpPanelColumnControlle
           this._logEditorTransfer('edit-download', opts.remoteSavePath, tempPath, opts.remoteSize ?? buf.length, true, loadStart)
         }
         this._editorSavePath = opts.remoteSavePath
+        // ★ 2026-08-26 H5：记录打开时远端基线，保存前做冲突检测
+        this._editorRemoteBaseline = null
+        try {
+          const st = await this.sftpSession.stat?.(opts.remoteSavePath) as any
+          if (st) {
+            const mtimeMs = st.modified instanceof Date
+              ? st.modified.getTime()
+              : (typeof st.mtime === 'number' ? (st.mtime < 1e12 ? st.mtime * 1000 : st.mtime) : 0)
+            this._editorRemoteBaseline = { mtimeMs, size: Number(st.size) || opts.remoteSize || 0 }
+          } else {
+            this._editorRemoteBaseline = { mtimeMs: 0, size: opts.remoteSize ?? 0 }
+          }
+        } catch {
+          this._editorRemoteBaseline = { mtimeMs: 0, size: opts.remoteSize ?? 0 }
+        }
       } catch (e) {
         this.editorError = this.i18n.t('viewer.loadFailed')
         log.error('Edit remote file load failed', e)
         await this._cleanupEditorTemp()
         this.editorLocalPath = ''
+        this._editorRemoteBaseline = null
         this._logEditorTransfer('edit-download', opts.remoteSavePath, '', opts.remoteSize ?? 0, false, loadStart, 'error')
       } finally {
         this.editorLoading = false
@@ -407,6 +425,7 @@ export abstract class SftpPanelViewerController extends SftpPanelColumnControlle
 
     this.editorLocalPath = opts.localPath
     this._editorSavePath = opts.localPath
+    this._editorRemoteBaseline = null
     if (this.editorLocalPath) this._startEditorFileWatch(this.editorLocalPath)
   }
 
@@ -443,6 +462,8 @@ export abstract class SftpPanelViewerController extends SftpPanelColumnControlle
 
   private async _syncEditorFromDisk(): Promise<void> {
     if (!this.editorVisible || !this.editorLocalPath || this.editorLoading || this.editorSaving) return
+    // ★ 2026-08-26：面板内已有未保存编辑时，不让外部 watch 静默覆盖内存内容
+    if (this.editorDirty) return
     try {
       const text = await readTextFromFile(this.editorLocalPath)
       this.zone.run(() => {
@@ -600,8 +621,46 @@ export abstract class SftpPanelViewerController extends SftpPanelColumnControlle
           this.showToast(this.i18n.t('editor.saveFailed'))
           return
         }
-        await this._doUpload(this._editorSavePath, this.editorLocalPath, 'edit-upload')
+        // ★ 2026-08-26 H5：保存前比对远端 mtime/size，变更则提示确认覆盖
+        if (this._editorRemoteBaseline) {
+          try {
+            const st = await this.sftpSession.stat?.(this._editorSavePath) as any
+            if (st) {
+              const mtimeMs = st.modified instanceof Date
+                ? st.modified.getTime()
+                : (typeof st.mtime === 'number' ? (st.mtime < 1e12 ? st.mtime * 1000 : st.mtime) : 0)
+              const size = Number(st.size) || 0
+              const changed =
+                (this._editorRemoteBaseline.mtimeMs > 0 && mtimeMs > 0 && mtimeMs !== this._editorRemoteBaseline.mtimeMs) ||
+                (size > 0 && this._editorRemoteBaseline.size > 0 && size !== this._editorRemoteBaseline.size)
+              if (changed) {
+                const ok = window.confirm(
+                  this.i18n.t('editor.remoteChanged')
+                    || '远程文件已被修改。确定要覆盖服务器上的版本吗？',
+                )
+                if (!ok) return
+              }
+            }
+          } catch { /* stat 失败则继续尝试上传 */ }
+        }
+        const uploaded = await this._doUpload(this._editorSavePath, this.editorLocalPath, 'edit-upload')
+        // ★ 2026-08-26 C5：必须检查上传结果，失败时保留 dirty 与编辑器
+        if (!uploaded) {
+          this.showToast(this.i18n.t('editor.saveFailed'))
+          try { this.notifications?.error?.(this.i18n.t('editor.saveFailed'), '') } catch {}
+          return
+        }
         void this.refreshRemote()
+        // 刷新基线
+        try {
+          const st = await this.sftpSession.stat?.(this._editorSavePath) as any
+          if (st) {
+            const mtimeMs = st.modified instanceof Date
+              ? st.modified.getTime()
+              : (typeof st.mtime === 'number' ? (st.mtime < 1e12 ? st.mtime * 1000 : st.mtime) : 0)
+            this._editorRemoteBaseline = { mtimeMs, size: Number(st.size) || 0 }
+          }
+        } catch { /* ignore */ }
       } else {
         void this.refreshLocal()
       }
@@ -635,6 +694,7 @@ export abstract class SftpPanelViewerController extends SftpPanelColumnControlle
     this.editorLocalPath = ''
     this.editorError = ''
     this._editorSavePath = ''
+    this._editorRemoteBaseline = null
     this.editorIsRemote = false
   }
 

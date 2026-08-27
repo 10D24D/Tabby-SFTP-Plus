@@ -125,8 +125,8 @@ export class PanelTransferCoordinator {
     return this.uploadUseCase.execute(remoteDir, localPath, top)
   }
 
-  streamDownloadOne(file: SFTPFile): Promise<void> {
-    return this.downloadOneUseCase.execute(file)
+  streamDownloadOne(file: SFTPFile, targetLocalDir?: string): Promise<void> {
+    return this.downloadOneUseCase.execute(file, targetLocalDir)
   }
 
   downloadRemoteDir(
@@ -243,6 +243,7 @@ export class PanelTransferCoordinator {
         return entries.map((e: any) => ({
           name: e.name,
           isDirectory: !!e.isDirectory,
+          isSymlink: !!(e.isSymlink || e.isSymbolicLink),
           size: e.size,
           mode: e.mode,
           modified: e.modified,
@@ -355,28 +356,36 @@ export class PanelTransferRuntime {
 
   constructor(private readonly host: PanelTransferRuntimeHost) {}
 
-  private _queuedCancelKey(direction: string, localPath: string): string {
-    return direction + '|' + localPath
+  private _queuedCancelKey(direction: string, localPath: string, remotePath?: string): string {
+    return direction + '|' + localPath + '|' + (remotePath || '')
   }
 
   /** 记录一次排队条目的取消（供 trackTransfer/_startFolderTransfer 认领前拦截） */
-  recordQueuedCancel(direction?: string, localPath?: string): void {
+  recordQueuedCancel(direction?: string, localPath?: string, remotePath?: string): void {
     if (!direction || !localPath) return
-    this._queuedCancelKeys.set(this._queuedCancelKey(direction, localPath), Date.now())
-    if (this._queuedCancelKeys.size > 100) {
-      const first = this._queuedCancelKeys.keys().next().value
-      if (first !== undefined) this._queuedCancelKeys.delete(first)
+    const now = Date.now()
+    // ★ 2026-08-26 M18：TTL 扫描清理，避免粗暴删首项误伤有效取消标记
+    for (const [k, ts] of this._queuedCancelKeys) {
+      if (now - ts > PanelTransferRuntime.QUEUED_CANCEL_TTL_MS) this._queuedCancelKeys.delete(k)
     }
+    this._queuedCancelKeys.set(this._queuedCancelKey(direction, localPath, remotePath), now)
   }
 
   /** 消费粘性取消标记：true=该传输在排队期间已被取消，调用方应立即 abort 且不建条目 */
-  consumeQueuedCancel(direction?: string, localPath?: string): boolean {
+  consumeQueuedCancel(direction?: string, localPath?: string, remotePath?: string): boolean {
     if (!direction || !localPath) return false
-    const key = this._queuedCancelKey(direction, localPath)
-    const ts = this._queuedCancelKeys.get(key)
-    if (ts == null) return false
-    this._queuedCancelKeys.delete(key)
-    return Date.now() - ts <= PanelTransferRuntime.QUEUED_CANCEL_TTL_MS
+    // 兼容旧键（无 remotePath）与新键
+    const keys = [
+      this._queuedCancelKey(direction, localPath, remotePath),
+      this._queuedCancelKey(direction, localPath),
+    ]
+    for (const key of keys) {
+      const ts = this._queuedCancelKeys.get(key)
+      if (ts == null) continue
+      this._queuedCancelKeys.delete(key)
+      return Date.now() - ts <= PanelTransferRuntime.QUEUED_CANCEL_TTL_MS
+    }
+    return false
   }
 
   async trackTransfer(
@@ -637,6 +646,10 @@ export class PanelTransferRuntime {
   clearTransfers(): void {
     const now = Date.now()
     for (const t of this.host.transfers) {
+      // ★ 2026-08-26 H3：目录用例必须标 _aborted，否则清空/销毁后仍继续跑
+      if ((t as any).isFolder) {
+        ;(t as any)._aborted = true
+      }
       // ★ 2026-08-10：排队占位条目从未开始传输，直接删除占位日志而非标记 interrupted
       if ((t as any).queued) {
         if (t.logEntryId) {
@@ -926,7 +939,10 @@ export class PanelTransferRuntime {
     })
     readStream.on('error', (err: Error) => {
       closeFd()
-      if (!dl.isCancelled?.()) log.error('Raw download stream error', err)
+      if (!dl.isCancelled?.()) {
+        log.error('Raw download stream error', err)
+        try { (dl as any)._markFailed?.() } catch {}
+      }
     })
   }
 

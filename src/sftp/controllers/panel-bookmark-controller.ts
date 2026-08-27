@@ -7,7 +7,7 @@
  * 修改时间：2026-07-21
  */
 import * as path from 'path'
-import { Bookmark, SftpBookmarksService } from '../../services/sftp-bookmarks.service'
+import { Bookmark, SftpBookmarksService, normalizeBookmarkPath } from '../../services/sftp-bookmarks.service'
 import type { BookmarkScope } from '../core/panel-types'
 import { SftpPanelViewerController } from './panel-viewer-controller'
 
@@ -75,7 +75,8 @@ export abstract class SftpPanelBookmarkController extends SftpPanelViewerControl
     const btnRect = btn.getBoundingClientRect()
     const rootRect = rootEl.getBoundingClientRect()
     const popupW = 320
-    const rootW = rootEl.clientWidth ?? window.innerWidth
+    // ★ 用 getBoundingClientRect 宽度（精确到像素），避免 clientWidth 为 0 时回退 window.innerWidth 导致拆分窗口下溢出
+    const rootW = rootRect.width
     let left = btnRect.left - rootRect.left
     if (!this._isNarrowLayout && pane === 'local') {
       // 左右布局：本地面板弹层右缘对齐书签按钮，向左展开（与远程面板对称）
@@ -90,8 +91,14 @@ export abstract class SftpPanelBookmarkController extends SftpPanelViewerControl
       }
       // 视觉微调：本地面板整体右移一点，避免过于贴左
       left = Math.min(left + 8.8, Math.max(0, rootW - popupW - 8))
-    } else if (left + popupW > rootW) {
-      left = Math.max(0, rootW - popupW - 8)
+    } else {
+      // 远程面板 / 窄布局：默认从按钮左缘向右展开；
+      // ★ 若右缘会超出面板边界 → 改为从按钮右缘向左展开（与本地对称）
+      if (left + popupW > rootW - 4) {
+        left = btnRect.right - rootRect.left - popupW
+      }
+      // 最终安全 clamp：确保不超出面板左右边界（各留 4px 边距）
+      left = Math.max(4, Math.min(left, rootW - popupW - 4))
     }
     this.bookmarkPopupX = left
     const paneTitle = btn.closest('.pane-title') as HTMLElement | null
@@ -173,7 +180,11 @@ export abstract class SftpPanelBookmarkController extends SftpPanelViewerControl
       return
     }
 
-    this.bookmarks.add(name, bp, type, ck)
+    const created = this.bookmarks.add(name, bp, type, ck)
+    if (!created) {
+      // 无效路径：保留表单让用户修正
+      return
+    }
     this.newBookmarkName = ''; this.newBookmarkPath = ''; this.bookmarkAddScope = null
   }
 
@@ -199,12 +210,13 @@ export abstract class SftpPanelBookmarkController extends SftpPanelViewerControl
   }
 
   gotoBookmark(bm: Bookmark): void {
+    const target = normalizeBookmarkPath(bm.path, bm.type) || bm.path
     if (bm.type === 'local') {
-      this._pushLocalNav(bm.path)
-      this.localPath = bm.path; this.localPathInput = bm.path; this.saveCurrentPath(); void this.refreshLocal()
+      this._pushLocalNav(target)
+      this.localPath = target; this.localPathInput = target; this.saveCurrentPath(); void this.refreshLocal()
     } else {
-      this._pushRemoteNav(bm.path)
-      this.remotePath = bm.path; this.remotePathInput = bm.path; this.saveCurrentPath(); void this.refreshRemote()
+      this._pushRemoteNav(target)
+      this.remotePath = target; this.remotePathInput = target; this.saveCurrentPath(); void this.refreshRemote()
     }
     // 兼容选项：选中书签后自动关闭书签面板（仅关弹窗，不动整个 SFTP+ 面板）
     if (this.closeBookmarkPanelOnSelect) {

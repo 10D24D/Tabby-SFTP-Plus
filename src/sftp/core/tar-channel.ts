@@ -69,6 +69,85 @@ function runLocalTar(args: string[]): Promise<boolean> {
   })
 }
 
+/**
+ * ★ 2026-08-26 C2：校验解包树全部落在 root 内（防 zip-slip）。
+ * 遇越界路径返回 false；不跟随 symlink 递归（lstat）。
+ */
+async function assertExtractedUnderRoot(root: string): Promise<boolean> {
+  const rootReal = await fs.realpath(root).catch(() => path.resolve(root))
+  const prefix = rootReal.endsWith(path.sep) ? rootReal : rootReal + path.sep
+  const walk = async (dir: string): Promise<boolean> => {
+    let entries: import('fs').Dirent[]
+    try {
+      entries = await fs.readdir(dir, { withFileTypes: true })
+    } catch {
+      return false
+    }
+    for (const e of entries) {
+      const full = path.join(dir, e.name)
+      // symlink：只允许链接本身存在于 root 下，不跟随
+      let real: string
+      try {
+        real = e.isSymbolicLink() ? full : await fs.realpath(full)
+      } catch {
+        return false
+      }
+      if (real !== rootReal && !real.startsWith(prefix)) {
+        log.warn('tar channel: zip-slip rejected path:', real)
+        return false
+      }
+      if (e.isDirectory() && !e.isSymbolicLink()) {
+        if (!(await walk(full))) return false
+      }
+    }
+    return true
+  }
+  return walk(root)
+}
+
+/** 安全本地解包到沙箱再移入目标（失败不污染 localDest） */
+async function extractTarSafely(tarFile: string, localDest: string, expectedBase: string): Promise<boolean> {
+  const sandbox = await fs.mkdtemp(path.join(os.tmpdir(), 'sftp-plus-untar-')).catch(() => null)
+  if (!sandbox) return false
+  try {
+    // 优先尝试禁用绝对路径的标志（GNU/部分 bsdtar）；不支持时回退基础参数
+    let extracted = await runLocalTar(['-xzf', tarFile, '-C', sandbox, '--no-absolute-filenames'])
+    if (!extracted) {
+      extracted = await runLocalTar(['-xzf', tarFile, '-C', sandbox])
+    }
+    if (!extracted) return false
+    if (!(await assertExtractedUnderRoot(sandbox))) {
+      return false
+    }
+    const extractedDir = path.join(sandbox, expectedBase)
+    const st = await fs.lstat(extractedDir).catch(() => null)
+    if (!st) {
+      log.warn('tar channel: expected top-level entry missing after extract:', expectedBase)
+      return false
+    }
+    await fs.mkdir(localDest, { recursive: true }).catch(() => {})
+    const finalDest = path.join(localDest, expectedBase)
+    // 目标应不存在（调用方保证）；若存在则失败以免覆盖
+    if (await fs.stat(finalDest).then(() => true).catch(() => false)) {
+      log.warn('tar channel: destination already exists, abort move:', finalDest)
+      return false
+    }
+    try {
+      await fs.rename(extractedDir, finalDest)
+    } catch {
+      // 跨设备：复制再删
+      if (typeof (fs as any).cp === 'function') {
+        await (fs as any).cp(extractedDir, finalDest, { recursive: true, dereference: false })
+      } else {
+        return false
+      }
+    }
+    return true
+  } finally {
+    await fs.rm(sandbox, { recursive: true, force: true }).catch(() => {})
+  }
+}
+
 export class TarChannel {
   private localTarOk: boolean | null = null
   private remoteTarOk: boolean | null = null
@@ -156,15 +235,22 @@ export class TarChannel {
         folder.finish(ctx, false)
         return 'failed'
       }
-      // 3. 服务端解包（tar 解出 basename 目录 == remoteTarget，调用方已确认其不存在）
+      // 3. 服务端解包到临时目录再 mv 期望基名，降低 zip-slip 面
       // 注意：tar -f 后必须紧跟归档文件名，不能加 --（否则 -- 会被当作文件名）
+      const remoteExtractDir = path.posix.join(parent, `.sftp-plus-untar-${randomUUID()}`)
       const out = await this.deps.exec(
-        `tar xzf ${shellQuotePosix(remoteTar)} -C ${shellQuotePosix(parent)} ` +
+        `mkdir -p ${shellQuotePosix(remoteExtractDir)} ` +
+        `&& tar xzf ${shellQuotePosix(remoteTar)} -C ${shellQuotePosix(remoteExtractDir)} ` +
+        `&& test -e ${shellQuotePosix(path.posix.join(remoteExtractDir, path.posix.basename(remoteTarget)))} ` +
+        `&& mv ${shellQuotePosix(path.posix.join(remoteExtractDir, path.posix.basename(remoteTarget)))} ${shellQuotePosix(remoteTarget)} ` +
+        `&& rm -rf ${shellQuotePosix(remoteExtractDir)} ` +
         `&& printf '${TAR_OK}\\n'`,
         REMOTE_TAR_TIMEOUT_MS,
       )
       if (!new RegExp(`\\b${TAR_OK}\\b`).test(out)) {
         log.warn('tar channel: remote extract failed:', remoteTarget, out?.trim())
+        // 尽力清理临时解包目录
+        this.deps.exec(`rm -rf ${shellQuotePosix(remoteExtractDir)}`).catch(() => {})
         folder.finish(ctx, false)
         return 'failed'
       }
@@ -242,8 +328,8 @@ export class TarChannel {
         folder.finish(ctx, false)
         return 'failed'
       }
-      // 3. 本地解包（目标不存在由调用方保证；-C localDest 解出 base 目录）
-      const extracted = await runLocalTar(['-xzf', tarFile, '-C', localDest])
+      // 3. 本地安全解包（沙箱 + zip-slip 校验 + 原子移入；目标不存在由调用方保证）
+      const extracted = await extractTarSafely(tarFile, localDest, base)
       if (!extracted) {
         log.warn('tar channel: local extract failed:', localDest)
         folder.finish(ctx, false)

@@ -20,12 +20,31 @@ import { log } from '../services/sftp-logger'
 /** SVG 文件夹图标 */
 const FOLDER_SVG = '<svg viewBox="0 0 1024 1024" width="14" height="14" fill="currentColor" style="vertical-align:middle"><path d="M120 344h291.6l112-112H736v224h56V176H500.4l-112 112H64v560l56-130.6z"/><path d="M792 456H232L120 717.4 64 848h728l168-392z"/></svg>'
 
+/**
+ * 跨插件共享的浮动层置顶计数器。
+ * SFTP+ 与 QuickCmd+ 共用 window.__tabbyFloatZ，保证"最后打开 / 获得焦点的面板"始终在最上层，
+ * 避免硬编码 z-index（如 QC+ 旧值 99999）互相压盖、破坏"最新面板在上"的预期。
+ * 起点 900：高于终端内容（auto/0），低于 Tabby Bootstrap 模态框（modal=1055 / backdrop=1050），
+ * 确保浮动面板不会遮挡宿主的连接选择、设置等原生弹窗。
+ * 创建人：DD1024z + Hy3 preview
+ * 创建时间：2026-08-22
+ * 修改人：DD1024z + Hy3 preview
+ * 修改时间：2026-08-25（z-index 起点从 100000 降至 900，修复遮挡 Tabby 原生弹窗）
+ */
+function bringFloatToFront(el: HTMLElement): void {
+  const w = window as any
+  if (!w.__tabbyFloatZ || w.__tabbyFloatZ < 900) w.__tabbyFloatZ = 900
+  w.__tabbyFloatZ += 1
+  el.style.zIndex = String(w.__tabbyFloatZ)
+}
+
 @Injectable()
 export class SftpTerminalDecorator extends TerminalDecorator {
   private _hideStyleEl: HTMLStyleElement | null = null
   private _hideObserver: MutationObserver | null = null
   private _hideNativeTimer: any = null
   private static _hotkeySubscribed = false
+  private static _hotkeySub: { unsubscribe(): void } | null = null
   private sftpConfig: SftpConfigService | null = null
   /** 全局"resize 期间禁用过渡"样式是否已注入（一次性） */
   private static _noTransitionStyleInjected = false
@@ -63,7 +82,8 @@ export class SftpTerminalDecorator extends TerminalDecorator {
     }
     SftpTerminalDecorator._hotkeySubscribed = true
     try {
-      stream.subscribe((id: string) => {
+      try { SftpTerminalDecorator._hotkeySub?.unsubscribe() } catch { /* ignore */ }
+      SftpTerminalDecorator._hotkeySub = stream.subscribe((id: string) => {
         if (id !== SFTP_PLUS_TOGGLE_HOTKEY) return
         // 设置页录制中：忽略，避免旧热键触发面板导致录制卡死
         if (isHotkeyRecordingActive()) return
@@ -73,13 +93,14 @@ export class SftpTerminalDecorator extends TerminalDecorator {
       log.info('Panel hotkey subscribed')
     } catch (e) {
       SftpTerminalDecorator._hotkeySubscribed = false
+      SftpTerminalDecorator._hotkeySub = null
       log.warn('Hotkey subscribe failed', e)
     }
   }
 
-  /** 快捷键：切换当前 SSH 标签的 SFTP+ 面板 */
-  togglePanelForActiveTerminal(): void {
-    const terminal = this._getActiveSshTerminal()
+  /** 切换当前 SSH 标签的 SFTP+ 面板（forceTerminal 来自工具栏按钮，绑定具体 tab） */
+  togglePanelForActiveTerminal(forceTerminal?: any): void {
+    const terminal = forceTerminal ?? this._getActiveSshTerminal()
     if (!terminal) {
       this.notifications.error('SFTP+', 'No active SSH session')
       return
@@ -256,7 +277,7 @@ export class SftpTerminalDecorator extends TerminalDecorator {
           if (this._openInNewTabByDefault()) {
             this.openWorkspaceTab(terminal)
           } else {
-            this.openFloatingPanel(terminal)
+            this.togglePanelForActiveTerminal(terminal)
           }
         })
 
@@ -676,6 +697,11 @@ export class SftpTerminalDecorator extends TerminalDecorator {
         `
         overlay.appendChild(panelHost)
         document.body.appendChild(overlay)
+        // 置顶：刚打开的面板应在最上层（跨插件共用计数器，避免被 QC+ 等硬编码 z-index 压盖）
+        bringFloatToFront(overlay)
+        // 注意：overlay 自身 pointer-events:none，mousedown 不会命中它，故监听挂在 panelHost
+        // （pointer-events:auto）上，点击面板任意处即可把 SFTP+ 置顶。
+        panelHost.addEventListener('mousedown', () => bringFloatToFront(overlay), true)
 
         // 让 fixed overlay 严格贴合当前 pane 矩形；标签切换/隐藏时自动隐藏，避免 body
         // 挂载导致跨 tab 残留。关闭时取消 rAF。
@@ -779,6 +805,8 @@ export class SftpTerminalDecorator extends TerminalDecorator {
     
     if (overlay) {
       overlay.style.display = 'flex'
+      // 置顶：从最小化恢复时，面板应回到最上层（原先仅恢复显示、DOM 位置不变，会被后开的面板压住）
+      bringFloatToFront(overlay)
       ;(hostEl as any).__sftpPlusMinimized = false
       if (cmpRef?.instance) {
         cmpRef.instance.minimized = false

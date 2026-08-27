@@ -6,10 +6,13 @@
  * 修改人：DD1024z + Deepseek-V4-Flash
  * 修改时间：2026-06-29
  *   同步写入 Tabby 配置（config.yaml），确保多窗口数据一致性
+ * 修改人：DD1024z + Composer
+ * 修改时间：2026-08-26 — H11：路径规范化；删除 tombstone 防多窗口复活
  */
 import { Injectable, Optional } from '@angular/core'
 import { ConfigService } from 'tabby-core'
 import { randomUUID } from 'crypto'
+import * as path from 'path'
 
 import { log } from './sftp-logger'
 export type Bookmark = {
@@ -23,30 +26,76 @@ export type Bookmark = {
 }
 
 const STORAGE_KEY = 'sftp-plus-bookmarks-v2'
+const TOMBSTONE_KEY = 'sftp-plus-bookmarks-tombstones-v1'
+const MAX_TOMBSTONES = 500
 
 let _idCounter = 0
 function generateId(): string {
   return Date.now().toString(36) + '-' + (++_idCounter).toString(36) + '-' + randomUUID()
 }
 
+/** 规范化书签路径：远程走 posix normalize；本地走 path.normalize */
+export function normalizeBookmarkPath(p: string, type: 'local' | 'remote'): string | null {
+  if (typeof p !== 'string') return null
+  let s = p.trim()
+  if (!s) return null
+  if (type === 'remote') {
+    if (!s.startsWith('/')) s = '/' + s
+    s = path.posix.normalize(s.replace(/\/+/g, '/'))
+    if (!s.startsWith('/')) s = '/' + s
+    return s
+  }
+  try {
+    return path.normalize(s)
+  } catch {
+    return null
+  }
+}
+
 @Injectable()
 export class SftpBookmarksService {
   private bookmarks: Bookmark[] = []
+  private _tombstones: string[] = []
   private _loaded = false
 
   constructor(@Optional() private configService?: ConfigService) {
     this.load()
   }
 
+  private _loadTombstones(): void {
+    try {
+      const raw = localStorage.getItem(TOMBSTONE_KEY)
+      if (!raw) return
+      const parsed = JSON.parse(raw)
+      if (Array.isArray(parsed)) {
+        this._tombstones = parsed.filter((x: unknown) => typeof x === 'string').slice(-MAX_TOMBSTONES)
+      }
+    } catch { /* ignore */ }
+  }
+
+  private _saveTombstones(): void {
+    try { localStorage.setItem(TOMBSTONE_KEY, JSON.stringify(this._tombstones)) } catch { /* ignore */ }
+  }
+
+  private _tombstone(id: string | null | undefined): void {
+    if (!id || this._tombstones.includes(id)) return
+    this._tombstones.push(id)
+    if (this._tombstones.length > MAX_TOMBSTONES) {
+      this._tombstones.splice(0, this._tombstones.length - MAX_TOMBSTONES)
+    }
+    this._saveTombstones()
+  }
+
   private load(): void {
     if (this._loaded) return
     this._loaded = true
+    this._loadTombstones()
     // 优先从 Tabby 配置加载
     if (this.configService?.store) {
       try {
         const cfg = this.configService.store['tabby-sftp-plus']
         if (cfg && 'bookmarks' in cfg) {
-          this.bookmarks = [...cfg.bookmarks]
+          this.bookmarks = [...cfg.bookmarks].filter(b => b?.id && !this._tombstones.includes(b.id))
           return
         }
       } catch {}
@@ -56,7 +105,9 @@ export class SftpBookmarksService {
       const raw = localStorage.getItem(STORAGE_KEY)
       if (raw) {
         const parsed = JSON.parse(raw)
-        this.bookmarks = Array.isArray(parsed) ? parsed : []
+        this.bookmarks = (Array.isArray(parsed) ? parsed : []).filter(
+          (b: Bookmark) => b?.id && !this._tombstones.includes(b.id),
+        )
       }
     } catch {
       this.bookmarks = []
@@ -69,12 +120,15 @@ export class SftpBookmarksService {
       try {
         const target = this.configService.store['tabby-sftp-plus']
         if (target) {
-          // ★ 2026-08-10 修复 #7：按 id 合并后再写，保留其它实例/窗口新增的条目，
-          //   避免整体覆盖丢失（本实例的同 id 条目以本实例为准）
+          // ★ 2026-08-10 修复 #7：按 id 合并后再写，保留其它实例/窗口新增的条目
+          // ★ 2026-08-26 H11：合并时跳过 tombstone，防止已删书签复活
+          const deleted = new Set(this._tombstones)
           const stored: Bookmark[] = Array.isArray(target.bookmarks) ? target.bookmarks : []
-          const merged = new Map<string, Bookmark>(this.bookmarks.filter(b => b?.id).map(b => [b.id, b]))
+          const merged = new Map<string, Bookmark>(
+            this.bookmarks.filter(b => b?.id && !deleted.has(b.id)).map(b => [b.id, b]),
+          )
           for (const b of stored) {
-            if (b?.id && !merged.has(b.id)) merged.set(b.id, b)
+            if (b?.id && !merged.has(b.id) && !deleted.has(b.id)) merged.set(b.id, b)
           }
           this.bookmarks = [...merged.values()]
           target.bookmarks = this.bookmarks
@@ -114,11 +168,16 @@ export class SftpBookmarksService {
   }
 
   /** 添加书签 */
-  add(name: string, path: string, type: 'local' | 'remote', connectionKey?: string): Bookmark {
+  add(name: string, pathStr: string, type: 'local' | 'remote', connectionKey?: string): Bookmark | null {
+    const normalized = normalizeBookmarkPath(pathStr, type)
+    if (!normalized) {
+      log.warn('reject bookmark with invalid path:', pathStr)
+      return null
+    }
     const bookmark: Bookmark = {
       id: generateId(),
       name,
-      path,
+      path: normalized,
       type,
       connectionKey: connectionKey || undefined,
       createdAt: Date.now(),
@@ -130,6 +189,7 @@ export class SftpBookmarksService {
 
   /** 移除书签 */
   remove(id: string): void {
+    this._tombstone(id)
     this.bookmarks = this.bookmarks.filter(b => b.id !== id)
     this.save()
   }
@@ -139,18 +199,28 @@ export class SftpBookmarksService {
     const idx = this.bookmarks.findIndex(b => b.id === id)
     if (idx === -1) return
     if (updates.name !== undefined) this.bookmarks[idx].name = updates.name
-    if (updates.path !== undefined) this.bookmarks[idx].path = updates.path
+    if (updates.path !== undefined) {
+      const type = this.bookmarks[idx].type
+      const normalized = normalizeBookmarkPath(updates.path, type)
+      if (!normalized) {
+        log.warn('reject bookmark update with invalid path:', updates.path)
+        return
+      }
+      this.bookmarks[idx].path = normalized
+    }
     this.save()
   }
 
   /** 检查路径是否已有书签 */
-  hasBookmark(path: string, type: 'local' | 'remote'): boolean {
-    return this.bookmarks.some(b => b.path === path && b.type === type)
+  hasBookmark(pathStr: string, type: 'local' | 'remote'): boolean {
+    const normalized = normalizeBookmarkPath(pathStr, type) || pathStr
+    return this.bookmarks.some(b => b.path === normalized && b.type === type)
   }
 
   /** 获取路径对应的书签 */
-  getByPath(path: string, type: 'local' | 'remote'): Bookmark | undefined {
-    return this.bookmarks.find(b => b.path === path && b.type === type)
+  getByPath(pathStr: string, type: 'local' | 'remote'): Bookmark | undefined {
+    const normalized = normalizeBookmarkPath(pathStr, type) || pathStr
+    return this.bookmarks.find(b => b.path === normalized && b.type === type)
   }
 
   /** 重新从 config / localStorage 加载（多面板 / 导入后同步） */

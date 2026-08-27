@@ -187,6 +187,18 @@ export async function tryRemoteCpViaSsh(
 export async function tryRemoteRmViaSsh(sshSession: unknown, remotePath: string): Promise<boolean> {
   if (!sshSession || !remotePath) return false
   if (remotePath.includes('\0')) return false
+  // ★ 2026-08-26 H8：拒绝危险路径，避免 rm -rf / 等灾难性删除
+  const trimmed = remotePath.replace(/\/+$/, '') || '/'
+  if (trimmed === '/' || trimmed === '.' || trimmed === '..' || trimmed.length < 2) {
+    log.warn('Remote server-side rm refused dangerous path:', remotePath)
+    return false
+  }
+  // 家目录根、常见系统目录：拒绝 SSH 快删，回退受限 SFTP 递归（仍需用户确认）
+  const banned = new Set(['/bin', '/boot', '/dev', '/etc', '/lib', '/lib64', '/proc', '/root', '/sbin', '/sys', '/usr', '/var', '/home', '/Users'])
+  if (banned.has(trimmed)) {
+    log.warn('Remote server-side rm refused system path:', remotePath)
+    return false
+  }
   const cmd =
     `rm -rf -- ${shellQuotePosix(remotePath)} ` +
     `&& printf 'SFTP_PLUS_RM_OK\\n' || printf 'SFTP_PLUS_RM_FAIL\\n'`

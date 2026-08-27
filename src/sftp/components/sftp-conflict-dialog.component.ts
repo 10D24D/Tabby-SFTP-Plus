@@ -6,7 +6,7 @@
  * 修改人：DD1024z + Hy3
  * 修改时间：2026-08-02 — conflict-side-title 图标：远程侧 ☁️→🌐、本地侧 📁→🖥
  */
-import { Component, EventEmitter, Input, Output } from '@angular/core'
+import { Component, ElementRef, EventEmitter, Input, OnChanges, Output, SimpleChanges, ViewChild } from '@angular/core'
 
 import { SftpI18nService } from '../../services/sftp-i18n.service'
 import type { ConflictFileInfo } from '../core/panel-types'
@@ -15,7 +15,8 @@ import { formatDate, formatSize } from '../core/file-utils'
 @Component({
   selector: 'sftp-conflict-dialog',
   template: `
-    <div class="overlay" *ngIf="visible && data">
+    <div class="overlay" *ngIf="visible && data" #overlayEl tabindex="-1"
+      (keydown)="onKeyDown($event)">
       <div class="dialog conflict-dialog">
         <div class="conflict-header">
           <span class="conflict-title-icon">⚠️</span>
@@ -171,15 +172,30 @@ import { formatDate, formatSize } from '../core/file-utils'
     .conflict-sep { color: var(--_text); opacity: 0.3; font-size: 12px; }
   `],
 })
-export class SftpConflictDialogComponent {
+export class SftpConflictDialogComponent implements OnChanges {
   @Input() visible = false
   @Input() data: ConflictFileInfo | null = null
   @Input() currIdx = 1
   @Input() totalIdx = 1
   @Output() resolve = new EventEmitter<string>()
+  @ViewChild('overlayEl', { static: false }) overlayEl?: ElementRef<HTMLDivElement>
 
   formatSize = formatSize
   formatDate = formatDate
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['visible'] && this.visible) {
+      setTimeout(() => this.overlayEl?.nativeElement?.focus())
+    }
+  }
+
+  onKeyDown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      event.stopImmediatePropagation()
+      this.resolve.emit('skip')
+    }
+  }
 
   /** ★ 2026-08-17：格式化后相同但字节数不同时，括号内显示精确值 */
   formatSizeWithPrecision(bytes: number, otherBytes: number): string {

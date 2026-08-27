@@ -327,11 +327,36 @@ export class IdNameResolver {
  * 创建人：DD1024z + Hy3
  * 创建时间：2026-07-25
  */
+/** Windows 设备保留名（CON/NUL/COM1 等），创建会失败或产生怪异行为 */
+const WIN_RESERVED_NAME = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\.|$)/i
+
 export function safeEntryName(name: string): string | null {
   if (typeof name !== 'string' || name.length === 0) return null
   const base = path.basename(name) // path.basename 同时处理 / 与 \ 分隔符
   if (base === '' || base === '.' || base === '..') return null
-  if (base.includes('..') || base.includes('/') || base.includes('\\')) return null
+  if (base.includes('..') || base.includes('/') || base.includes('\\') || base.includes('\0')) return null
+  // ★ 2026-08-26：拦截 Windows 保留设备名与尾随点/空格
+  if (process.platform === 'win32') {
+    if (WIN_RESERVED_NAME.test(base)) return null
+    if (/[. ]$/.test(base)) return null
+  }
   return base
+}
+
+/**
+ * 断言 join(parent, name) 仍落在 parent 之下（防 ../ 穿越）。
+ * 返回净化后的绝对/规范化子路径；非法时返回 null。
+ */
+export function safeJoinUnder(parent: string, name: string, posix = false): string | null {
+  const safe = safeEntryName(name)
+  if (!safe) return null
+  const joinFn = posix ? path.posix.join : path.join
+  const resolveFn = posix ? path.posix.resolve : path.resolve
+  const normParent = resolveFn(parent)
+  const child = resolveFn(joinFn(parent, safe))
+  const sep = posix ? '/' : path.sep
+  const prefix = normParent.endsWith(sep) ? normParent : normParent + sep
+  if (child !== normParent && !child.startsWith(prefix)) return null
+  return child
 }
 

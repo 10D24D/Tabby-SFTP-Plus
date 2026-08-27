@@ -175,6 +175,11 @@ export class DownloadDirUseCase {
       const entries = await this.ports.sftp.readdir(remoteSrc)
 
       const tasks = entries.map(async (entry): Promise<boolean> => {
+        // ★ 2026-08-26 M2：跳过 symlink（与删除/复制路径一致），避免跟随扩大下载范围
+        if (entry.isSymlink) {
+          log.info('skip symlink during folder download:', entry.name)
+          return true
+        }
         // ★ 2026-07-25：剥离服务器返回文件名中的目录组件与 ..，防止路径穿越
         const safeName = safeEntryName(entry.name)
         if (!safeName) {
@@ -224,7 +229,8 @@ export class DownloadDirUseCase {
           }
 
           const ok = await this.ports.execution.downloadRaw(remoteP, localP, entry.mode, entry.size)
-          if (ctx && this.ports.folder.consumeAbortCurrent(ctx)) return true
+          // ★ 2026-08-26：跳过当前文件与上传侧对齐，记失败而非成功
+          if (ctx && this.ports.folder.consumeAbortCurrent(ctx)) return false
           // ★ 2026-08-10 修复：静默失败的子文件不得计入进度/成功，否则含失败文件的
           //   文件夹传输被标记"成功 100%"；继续处理其余子文件但整体记为失败
           if (!ok) return false
@@ -263,8 +269,8 @@ export class DownloadOneUseCase {
     private readonly downloadOne: DownloadOnePort,
   ) {}
 
-  async execute(file: SFTPFile): Promise<void> {
-    const localBase = this.downloadOne.getLocalPath()
+  async execute(file: SFTPFile, targetLocalDir?: string): Promise<void> {
+    const localBase = targetLocalDir?.trim() || this.downloadOne.getLocalPath()
 
     if (file.isDirectory) {
       // ★ 2026-07-25：剥离目录组件与 ..，防路径穿越
@@ -418,8 +424,13 @@ export class MergeLocalDirUseCase {
       const children = await this.ports.localFs.listChildren(localSrc)
       for (const c of children) {
         if (c.isSymbolicLink) continue
-        const localP = path.join(localSrc, c.name)
-        const remoteP = path.posix.join(remoteDest, c.name)
+        const safeName = safeEntryName(c.name)
+        if (!safeName) {
+          log.warn('skip unsafe local entry name during merge:', c.name)
+          continue
+        }
+        const localP = path.join(localSrc, safeName)
+        const remoteP = path.posix.join(remoteDest, safeName)
         const st = await this.ports.localFs.lstat(localP)
         if (!st) continue
         if (st.isDirectory()) {
@@ -567,7 +578,12 @@ export class UploadPathUseCase {
       const tasks = children
         .filter(c => !c.isSymbolicLink)
         .map(async (c): Promise<boolean> => {
-          const childLocal = path.join(localPath, c.name)
+          const safeName = safeEntryName(c.name)
+          if (!safeName) {
+            log.warn('skip unsafe local entry during upload:', c.name)
+            return true
+          }
+          const childLocal = path.join(localPath, safeName)
           const st = await this.ports.localFs.lstat(childLocal)
           if (!st) return false
           if (st.isDirectory()) {
@@ -579,7 +595,7 @@ export class UploadPathUseCase {
           // 文件：门控 + 占槽，实际字节传输受限制器约束
           return gatedDirTask(this.ports.folder, ctx, limiter, () =>
             this._uploadFile(
-              remoteTarget, childLocal, path.posix.join(remoteTarget, c.name), st, false, ctx,
+              remoteTarget, childLocal, path.posix.join(remoteTarget, safeName), st, false, ctx,
             ))
         })
       const folded = foldSettled(await Promise.allSettled(tasks))

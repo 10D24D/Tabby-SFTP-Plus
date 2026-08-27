@@ -106,6 +106,8 @@ export class SftpWorkspaceTabComponent extends BaseTabComponent implements After
     if (this._layoutTimeout != null) { clearTimeout(this._layoutTimeout); this._layoutTimeout = null }
     if (this._layoutRaf != null) { cancelAnimationFrame(this._layoutRaf); this._layoutRaf = null }
     try { this.panelRef?.instance?.disconnect?.() } catch { /* ignore */ }
+    try { this.panelRef?.destroy?.() } catch { /* ignore */ }
+    this.panelRef = null as any
     super.destroy()
   }
 

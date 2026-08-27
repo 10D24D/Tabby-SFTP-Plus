@@ -36,6 +36,8 @@ export interface ConnectionLifecycleCtx {
   clearNavHistory(): void
   clearRemoteListing(): void
   setRemoteLoading(loading: boolean): void
+  /** ★ 2026-08-26 H10：心跳换会话前中止在途传输，避免幽灵写 */
+  abortInFlightTransfers?(): void
 }
 
 export class PanelConnectionLifecycle {
@@ -183,7 +185,8 @@ export class PanelConnectionLifecycle {
       } catch { /* ignore */ }
 
       const sftp = c.sftpSession
-      const probePath = c.remotePath && typeof c.remotePath === 'string' ? c.remotePath : '/'
+      // ★ 2026-08-26：探测固定 '.'，避免当前 remotePath 被删误触发恢复风暴
+      const probePath = '.'
       let timeoutId: ReturnType<typeof setTimeout> | undefined
       const timeoutPromise = new Promise<never>((_, reject) => {
         timeoutId = setTimeout(() => reject(new Error('heartbeat-timeout')), 4000)
@@ -207,6 +210,8 @@ export class PanelConnectionLifecycle {
           // 再次检查：防止异步期间状态变化
           if (this._heartbeatDisposed) return
           if (!c.sshSession) throw new Error('no ssh session')
+          // ★ 2026-08-26 H10：换会话前中止传输，避免旧流写已释放通道
+          try { c.abortInFlightTransfers?.() } catch { /* ignore */ }
           this.releaseSftp()
           const fresh = await c.sftpService.openFromSSHSession(c.sshSession)
           // 再次检查：openFromSSHSession 是异步的，期间可能组件已销毁
@@ -216,7 +221,13 @@ export class PanelConnectionLifecycle {
           }
           c.sftpSession = fresh
           log.info('Heartbeat recovered with new SFTP session')
-          c.zone.run(() => { void c.refreshRemote() })
+          c.zone.run(() => {
+            try {
+              const msg = c.getI18n().t('notify.sftpRecovered') || 'SFTP session recovered; please retry interrupted transfers'
+              ;(c.notifications as any)?.success?.(msg, '')
+            } catch { /* ignore */ }
+            void c.refreshRemote()
+          })
         } catch (e) {
           log.error('Heartbeat recovery failed', e)
           this.handleSessionLost()

@@ -32,13 +32,13 @@ export interface SftpPlusPluginConfig {
   openOnClick: 'double' | 'single'
   /** 查看器不支持的文件：开关开启时改用系统默认程序打开（而非提示不支持） */
   openUnsupportedInSystem: boolean
-  /** 面板内置操作热键：可改键（key 为空串 = 未绑定即禁用） */
+  /** 面板内置操作热键：可改键（key 为哨兵/空 = 未绑定即禁用；enabled=false 为清除双保险标志） */
   panelHotkeys: {
-    delete: { key: string }
-    rename: { key: string }
-    refresh: { key: string }
-    up: { key: string }
-    back: { key: string }
+    delete: { key: string; enabled: boolean }
+    rename: { key: string; enabled: boolean }
+    refresh: { key: string; enabled: boolean }
+    up: { key: string; enabled: boolean }
+    back: { key: string; enabled: boolean }
   }
   /** 右键文件菜单项的显示顺序（数据驱动渲染，按此数组顺序过滤可见项） */
   contextMenuOrder: string[]
@@ -53,6 +53,18 @@ export interface SftpPlusPluginConfig {
   transferDownloadConcurrency: number
   /** ★ 2026-08-11：快速模式：目录传输跳过预扫描直接开传（无百分比进度） */
   transferFastMode: boolean
+  /** 默认上传路径（远程目标目录）；空串 = 使用当前远程目录 */
+  defaultUploadPath: string
+  /** 默认下载路径（本地目标目录）；空串 = 使用当前本地目录 */
+  defaultDownloadPath: string
+  /** 自定义文件图标：全局 SVG 资源目录（本地绝对路径），空串 = 不使用自定义图标 */
+  iconResourceDir: string
+  /** 自定义文件图标规则：扩展名（含点，如 .pdf）→ 资源目录内的 svg 文件名 */
+  fileTypeIcons: { ext: string; svg: string }[]
+  /** 被禁用的内置图标 svg 文件名列表（这些图标不会用于自动扩展名匹配） */
+  disabledIconSvgs: string[]
+  /** 文件夹图标 svg 文件名（空串 = 使用 emoji 📁），用于文件列表中所有目录项 */
+  folderIconSvg: string
   /** ★ 2026-08-11：隐藏关于区的插件作者信息 */
   hideAuthorInfo: boolean
   paneCustomOrder: Array<'label' | 'path' | 'back' | 'forward' | 'up' | 'refresh' | 'home' | 'filter' | 'bookmark' | 'hidden'>
@@ -86,13 +98,13 @@ export function defaultSftpPlusConfig(): SftpPlusPluginConfig {
     openInNewTabByDefault: false,
     openOnClick: 'double',
     openUnsupportedInSystem: true,
-    panelHotkeys: {
-      delete: { key: 'Delete' },
-      rename: { key: 'F2' },
-      refresh: { key: 'F5' },
-      up: { key: 'Shift+Backspace' },
-      back: { key: 'Backspace' },
-    },
+  panelHotkeys: {
+    delete: { key: 'Delete', enabled: true },
+    rename: { key: 'F2', enabled: true },
+    refresh: { key: 'F5', enabled: true },
+    up: { key: 'Shift+Backspace', enabled: true },
+    back: { key: 'Backspace', enabled: true },
+  },
     contextMenuOrder: ['upload', 'download', 'openLocal', 'viewFile', 'viewAsText', 'editFile', 'revealInExplorer', 'copy', 'cut', 'paste', 'rename', 'delete', 'chmod', 'details', 'newFolder', 'newFile', 'refresh', 'selectAll', 'selectInvert', 'copyPath'],
     singleWorkspaceInstance: true,
     closeBookmarkPanelOnSelect: false,
@@ -100,6 +112,12 @@ export function defaultSftpPlusConfig(): SftpPlusPluginConfig {
     transferUploadConcurrency: 3,
     transferDownloadConcurrency: 3,
     transferFastMode: false,
+    defaultUploadPath: '',
+    defaultDownloadPath: '',
+    iconResourceDir: '',
+    fileTypeIcons: [],
+    disabledIconSvgs: [],
+    folderIconSvg: 'folder.svg',
     hideAuthorInfo: false,
     paneCustomOrder: ['label', 'back', 'forward', 'up', 'refresh', 'home', 'path', 'hidden', 'filter', 'bookmark'],
     paneHiddenItems: [],

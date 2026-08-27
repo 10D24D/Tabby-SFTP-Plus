@@ -53,14 +53,15 @@ export class SftpConfigService {
    * 优先读新嵌套路径 → 回退旧扁平 key（双读兼容）→ 返回 fallback
    */
   get(path: string, fallback?: any): any {
-    // 1. 内存缓存
-    if (path in this._cache) return this._cache[path]
-    // 2. 新嵌套路径
+    // ★ 2026-08-26 M9：不再优先长期内存缓存——_cache 仅作 set 未 flush 的写缓冲；
+    //   读取时若 store 已有值则以 store 为准，避免外部改配置后读陈旧值
     const newVal = this._getByPath(this.root, path)
-    if (newVal !== undefined) return newVal
-    // 3. 双读回退
-    // ★ 2026-08-10 修复 #16：回退读结果不再永久缓存——_cache 从不失效，
-    //   store 被外部更新（迁移/其它实例/重载）后会一直返回陈旧值
+    if (newVal !== undefined) {
+      if (path in this._cache) delete this._cache[path]
+      return newVal
+    }
+    if (path in this._cache) return this._cache[path]
+    // 双读回退
     const oldVal = this._fallbackRead(path)
     if (oldVal !== undefined) return oldVal
     return fallback
@@ -84,6 +85,8 @@ export class SftpConfigService {
   /** 强制落盘到 config.yaml */
   flush(): void {
     try { this.configService?.save() } catch { /* ignore */ }
+    // ★ 2026-08-26：落盘后清缓存，下次 get 从 store 读
+    this.clearCache()
   }
 
   /** 清空内存缓存（强制下次 get 从 store 读） */

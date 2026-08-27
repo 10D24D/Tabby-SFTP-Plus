@@ -8,6 +8,7 @@
  */
 
 import * as path from 'path'
+import { randomUUID } from 'crypto'
 
 import { type DragPayload } from './panel-types'
 
@@ -19,6 +20,7 @@ import { type SFTPFile } from '../../services/sftp.service'
 
 import * as os from 'os'
 
+import { safeEntryName } from './path-utils'
 
 import { log } from '../../services/sftp-logger'
 /**
@@ -352,9 +354,16 @@ export class PanelDropAdapter {
       const baseName = path.basename(p)
       const dest = path.join(destDir, baseName)
       try {
+        // ★ 2026-08-26：同名已存在时拒绝静默覆盖，提示用户（对齐冲突语义）
+        const exists = await fs.stat(dest).then(() => true).catch(() => false)
+        if (exists) {
+          this._notifyCopyFailed(baseName)
+          log.warn('Skip OS drop into local: destination already exists:', dest)
+          continue
+        }
         // fs.cp 需要 Node.js >= 16.7.0；旧版本回退到 copyLocalDir + copyFile
         if (typeof (fs as any).cp === 'function') {
-          await (fs as any).cp(p, dest, { recursive: true, errorOnExist: false, dereference: false })
+          await (fs as any).cp(p, dest, { recursive: true, errorOnExist: true, dereference: false })
         } else {
           await this._copyIntoLocalDirFallback(p, dest)
         }
@@ -390,7 +399,15 @@ export class PanelDropAdapter {
 export function parseDragPayload(ev: DragEvent): DragPayload | null {
   const raw = ev.dataTransfer?.getData('application/x-sftp-plus')
   if (!raw) return null
-  try { return JSON.parse(raw) } catch { return null }
+  try {
+    const parsed = JSON.parse(raw) as DragPayload
+    // ★ 2026-08-26：基本形状校验，拒绝畸形/注入 payload
+    if (!parsed || typeof parsed !== 'object' || !('kind' in parsed) || !Array.isArray((parsed as any).paths)) {
+      return null
+    }
+    if (parsed.kind !== 'local-paths' && parsed.kind !== 'remote-paths') return null
+    return parsed
+  } catch { return null }
 }
 
 /** 从 OS 拖入的 DataTransfer 中提取本地文件系统路径 */
@@ -421,22 +438,35 @@ export async function getDroppedOsPaths(ev: DragEvent): Promise<string[]> {
   } catch { /* Electron 版本不支持 webUtils，或未启用 */ }
 
   // 策略2: File 对象有内容但没有 .path → 写入临时目录后返回路径（仅单文件，非目录）
+  // ★ 2026-08-26 C1：每轮 UUID 子目录 + safeEntryName，防 file.name 路径穿越与同名碰撞
   if (files.length) {
-    const tmpDir = path.join(os.tmpdir(), 'sftp-plus-dragdrop')
-    await fs.mkdir(tmpDir, { recursive: true }).catch(() => {})
+    const sessionDir = path.join(os.tmpdir(), 'sftp-plus-dragdrop', randomUUID())
+    await fs.mkdir(sessionDir, { recursive: true }).catch(() => {})
+    const sessionReal = await fs.realpath(sessionDir).catch(() => sessionDir)
     const tmpPaths: string[] = []
     for (const file of files) {
-      if (!file.name) continue
-      const tmpPath = path.join(tmpDir, file.name)
+      const safe = safeEntryName(file.name)
+      if (!safe) {
+        log.warn('[drop] skip unsafe drag file name:', file.name)
+        continue
+      }
+      const tmpPath = path.join(sessionDir, safe)
       try {
         const buf = Buffer.from(await file.arrayBuffer())
         // ★ 2026-08-10 修复 #19：0 字节也是合法空文件，照常落盘传输，不得静默丢弃
-        //   （文件夹占位项在 arrayBuffer() 阶段会抛错被 catch 跳过，无需靠 size 判断）
         await fs.writeFile(tmpPath, buf)
+        const real = await fs.realpath(tmpPath).catch(() => tmpPath)
+        const prefix = sessionReal.endsWith(path.sep) ? sessionReal : sessionReal + path.sep
+        if (real !== sessionReal && !real.startsWith(prefix)) {
+          log.warn('[drop] reject path escape after write:', file.name, real)
+          await fs.unlink(tmpPath).catch(() => {})
+          continue
+        }
         tmpPaths.push(tmpPath)
       } catch { /* 跳过无法读取的文件（含文件夹占位项） */ }
     }
     if (tmpPaths.length) return tmpPaths
+    await fs.rm(sessionDir, { recursive: true, force: true }).catch(() => {})
   }
 
   // 策略3: text/uri-list 回退（处理 Windows file:///C:/path 格式）

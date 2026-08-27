@@ -393,6 +393,10 @@ export class LocalPathFileDownload {
     await this.fd.write(buffer, 0, buffer.length, this.completedBytes)
     this.completedBytes += buffer.length
     this.increaseProgress(buffer.length)
+    // ★ 2026-08-26：硬上限——超过声明 fileSize 时拒绝继续写（防谎报更小 size）
+    if (this.fileSize > 0 && this.completedBytes > this.fileSize) {
+      throw new Error(`Download exceeded declared size: wrote=${this.completedBytes} declared=${this.fileSize}`)
+    }
     // 检查是否已写完
     if (this.completedBytes >= this.fileSize) {
       this.complete = true
@@ -484,19 +488,61 @@ async function renameWithOverwrite(rawSftp: any, tempPath: string, remotePath: s
     await rawSftp.rename(tempPath, remotePath)
     return
   } catch (renameErr) {
-    // ★ 2026-08-10 修复：rename 失败原因未必是"目标已存在"（权限/配额/网关瞬时错误等），
-    //   盲目 unlink(remotePath) 会误删用户原有文件。必须先 stat 确认目标确实存在才 unlink；
-    //   缺少 unlink/stat 能力或目标不存在时抛出原始错误，绝不静默谎报成功（临时文件保留）。
-    if (typeof rawSftp.unlink !== 'function' || typeof rawSftp.stat !== 'function') throw renameErr
-    try { await rawSftp.stat(remotePath) } catch { throw renameErr } // 目标不存在 → 保留原始错误
-    try { await rawSftp.unlink(remotePath) } catch { throw renameErr }
-    await rawSftp.rename(tempPath, remotePath)
+    // ★ 2026-08-26 M6：先把原文件挪到 backup，再把临时文件 rename 为目标；失败可回滚
+    if (typeof rawSftp.rename !== 'function') throw renameErr
+    if (typeof rawSftp.stat === 'function') {
+      try { await rawSftp.stat(remotePath) } catch { throw renameErr } // 目标不存在 → 保留原始错误
+    }
+    const backup = remotePath + `.sftp-plus-bak-${Date.now()}`
+    let backedUp = false
+    try {
+      await rawSftp.rename(remotePath, backup)
+      backedUp = true
+      await rawSftp.rename(tempPath, remotePath)
+      if (typeof rawSftp.unlink === 'function') {
+        try { await rawSftp.unlink(backup) } catch { /* 留下 backup 总比丢数据好 */ }
+      }
+    } catch (e2) {
+      if (backedUp) {
+        try { await rawSftp.rename(backup, remotePath) } catch { /* 无法恢复 */ }
+      }
+      throw e2
+    }
   }
 }
 
 
 export interface TransferCancelRef {
   current: any
+  /** ★ 2026-08-26 H2：目录并发时登记全部在途子传输，取消时广播 */
+  active?: Set<any>
+}
+
+function registerCancelRef(ref: TransferCancelRef | null | undefined, transfer: any): void {
+  if (!ref) return
+  ref.current = transfer
+  if (!ref.active) ref.active = new Set()
+  ref.active.add(transfer)
+}
+
+function unregisterCancelRef(ref: TransferCancelRef | null | undefined, transfer: any): void {
+  if (!ref) return
+  ref.active?.delete(transfer)
+  if (ref.current === transfer) ref.current = null
+}
+
+/** 取消 TransferCancelRef 上登记的全部在途传输 */
+export function cancelAllInFlight(ref: TransferCancelRef | null | undefined): void {
+  if (!ref) return
+  const list = ref.active ? [...ref.active] : (ref.current ? [ref.current] : [])
+  for (const t of list) {
+    try {
+      if (typeof t?.cancel === 'function') t.cancel()
+      else if (typeof t?.destroy === 'function') t.destroy()
+    } catch { /* ignore */ }
+  }
+  ref.current = null
+  ref.active?.clear()
 }
 
 export type TrackTransferFn = (
@@ -628,7 +674,7 @@ export async function uploadLocalFile(
   if (opts.track && ctx.trackTransfer) {
     ctx.trackTransfer(up, 'upload', remotePath, localPath, opts.logOperation)
   }
-  if (opts.exposeCancel && ctx.cancelRef) ctx.cancelRef.current = up
+  if (opts.exposeCancel && ctx.cancelRef) registerCancelRef(ctx.cancelRef, up)
   try {
     const rawSftp = ctx.session as any
     if (typeof rawSftp?.createWriteStream === 'function') {
@@ -656,7 +702,7 @@ export async function uploadLocalFile(
     if (opts.track) ctx.onUploadError?.(remotePath, localPath, e)
     return false
   } finally {
-    if (opts.exposeCancel && ctx.cancelRef) ctx.cancelRef.current = null
+    if (opts.exposeCancel && ctx.cancelRef) unregisterCancelRef(ctx.cancelRef, up)
   }
 }
 
@@ -689,7 +735,9 @@ export async function downloadRemoteFile(
     const tmpPath = localPath + '.tmp'
 
     // 已知空文件：直接落盘并（可选）登记进度
-    if (sz === 0 && size !== undefined) {
+    // ★ 2026-08-26 M3：仅当调用方显式传入 size===0 时才走空文件短路；
+    //   stat 失败收成 0 时 size 为 undefined，不得跳过完整性校验
+    if (sz === 0 && size !== undefined && size === 0) {
       try {
         const fd = await fsPromises.open(tmpPath, 'w')
         await fd.close()
@@ -706,7 +754,7 @@ export async function downloadRemoteFile(
     if (opts.track && ctx.trackTransfer) {
       ctx.trackTransfer(dl, 'download', remotePath, localPath, opts.logOperation)
     }
-    if (opts.exposeCancel && ctx.cancelRef) ctx.cancelRef.current = dl
+    if (opts.exposeCancel && ctx.cancelRef) registerCancelRef(ctx.cancelRef, dl)
     opts.onTransfer?.(dl)
 
     try {
@@ -717,7 +765,9 @@ export async function downloadRemoteFile(
         return false
       }
       const localStat = await fsPromises.stat(tmpPath).catch(() => null)
-      if (localStat && localStat.size !== sz && sz > 0) {
+      // ★ 2026-08-26 M3：未知大小（sz===0 且非显式空文件）时至少要求本地有可读 stat
+      if (!localStat) throw new Error('Download integrity check failed: missing local temp file')
+      if (sz > 0 && localStat.size !== sz) {
         throw new Error(`Size mismatch: remote=${sz} local=${localStat.size}`)
       }
       await fsPromises.rename(tmpPath, localPath)
@@ -739,7 +789,7 @@ export async function downloadRemoteFile(
       if (opts.track) ctx.onDownloadError?.(remotePath, e)
       return false
     } finally {
-      if (opts.exposeCancel && ctx.cancelRef) ctx.cancelRef.current = null
+      if (opts.exposeCancel && ctx.cancelRef) unregisterCancelRef(ctx.cancelRef, dl)
     }
   } finally {
     ctx.activeDownloadTargets.delete(localPath)

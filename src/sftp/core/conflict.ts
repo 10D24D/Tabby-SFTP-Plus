@@ -2,8 +2,8 @@
  * 功能描述：SFTP+ conflict 逻辑聚合模块（由旧 core 多文件合并）
  * 创建人：DD1024z + Hy3
  * 创建时间：2026-07-16
- * 修改人：DD1024z + Hy3
- * 修改时间：2026-08-22 — 修复①重入锁 bug（fork #2 / 上游回归）：2026-08-15 引入的 _processing 锁使「Overwrite All/Skip All/Rename All」批量模式只剩第一条被处理、剩余队列静默卡死；拆出无锁 _drainQueue() 递归排空，resolve/processNext 仅持锁后调用它。修复②上传冲突检测逐文件 stat（fork #8）：改按 parentDir 缓存 listing + 并发单飞，目录内所有文件复用一份 readdir，仅 listing 缺字段时对该单文件回退 stat
+ * 修改人：DD1024z + Claude
+ * 修改时间：2026-08-24 — _drainQueue 在 resumePaste 后加防御性复查：若 resumePaste→executePaste 入队了新冲突但未弹窗，确保 showNextDialog 被调用，防止新冲突静默滞留队列
  * 合并来源：conflict-rules, conflict-resolve, sftp-conflict-detector
  */
 
@@ -234,6 +234,12 @@ export class ConflictResolveUseCase {
       if (this.ports.pendingPaste.hasPendingPaste()) {
         await this.ports.pendingPaste.resumePaste(this.ports.queue.getResolvedKeys())
         this.ports.queue.clearResolvedKeys()
+        // ★ 2026-08-24 防御：resumePaste→executePaste 可能入队新冲突。
+        //   executePaste 自身会调 showConflictDialog 弹窗，但若其内部路径未弹窗，
+        //   此处复查确保新冲突不致静默滞留队列。
+        if (this.ports.queue.length() > 0) {
+          this.ports.ui.showNextDialog()
+        }
       } else {
         this.ports.ui.refreshPanes()
       }
@@ -396,16 +402,29 @@ export class ConflictResolveUseCase {
     }
     if (!exec.hasSftpSession()) return false
     try {
-      // 同服移动（剪切覆盖）：直接用 server-side rename，秒级完成，无需下载再上传（全量走网络 → 慢）
+      // 同服移动（剪切覆盖）：先把目标挪到备份名，再 rename 源→目标；失败可回滚
       if (item.mode === 'cut') {
+        const backup = dest + `.sftp-plus-bak-${Date.now()}`
+        let backedUp = false
         try {
           await exec.renameRemote(src, dest)
+          return true
         } catch {
-          // 极少数服务器 rename 不覆盖已存在文件：先删目标再重命名
-          await exec.unlinkRemote(dest)
-          await exec.renameRemote(src, dest)
+          try {
+            await exec.renameRemote(dest, backup)
+            backedUp = true
+            await exec.renameRemote(src, dest)
+            await exec.unlinkRemote(backup).catch(() => exec.renameRemote(backup, dest).catch(() => {}))
+            // 若 backup 仍是目录，unlink 可能失败——尽力删
+            try { await exec.unlinkRemote(backup) } catch { /* ignore */ }
+            return true
+          } catch (e2) {
+            if (backedUp) {
+              try { await exec.renameRemote(backup, dest) } catch { /* 无法恢复则留下 backup */ }
+            }
+            throw e2
+          }
         }
-        return true // 源已随 rename 移除，applyAction 无需再删源
       }
       // 复制模式（保留源）：保持原下载+上传（部分服务器不支持 server-side copy）
       const parentDir = path.posix.dirname(src)
@@ -453,15 +472,27 @@ export class ConflictResolveUseCase {
       // 但 path.dirname 在 Windows 上会把正斜杠转反斜杠 → path.posix.join 再混用时报错路 → 上传 0B
       // 必须用 path.posix.dirname 处理远程路径
       const destRemote = path.posix.join(path.posix.dirname(item.localPath), newName)
-      // 同服移动（剪切重命名）：server-side rename 秒级完成，无需下载再上传（全量走网络 → 慢）
+      // 同服移动（剪切重命名）：先备份目标再 rename，失败可回滚
       if (item.mode === 'cut') {
+        const backup = destRemote + `.sftp-plus-bak-${Date.now()}`
+        let backedUp = false
         try {
           await exec.renameRemote(src, destRemote)
+          return true
         } catch {
-          await exec.unlinkRemote(destRemote)
-          await exec.renameRemote(src, destRemote)
+          try {
+            await exec.renameRemote(destRemote, backup)
+            backedUp = true
+            await exec.renameRemote(src, destRemote)
+            try { await exec.unlinkRemote(backup) } catch { /* ignore */ }
+            return true
+          } catch (e2) {
+            if (backedUp) {
+              try { await exec.renameRemote(backup, destRemote) } catch { /* ignore */ }
+            }
+            throw e2
+          }
         }
-        return true // 源已随 rename 移除，applyAction 无需再删源
       }
       const parentDir = path.posix.dirname(src)
       const baseName = path.posix.basename(src)
@@ -603,11 +634,20 @@ export class SftpConflictDetector implements ConflictDetectionPort {
     if (!session) return false
     if (session.stat) {
       try {
-        const st = await session.stat(remotePath) as { isDirectory?: () => boolean } | null
-        // ★ 2026-08-10 修复 #20：stat 分支同样尊重 expectDir，避免把同名文件误判为目录冲突
+        const st = await session.stat(remotePath) as {
+          isDirectory?: boolean | (() => boolean)
+          mode?: number
+          type?: number
+        } | null
+        if (!st) return false
         if (expectDir === undefined) return true
-        const isDir = st && typeof st.isDirectory === 'function' ? st.isDirectory() : undefined
-        if (isDir === undefined) return true // 无法判定类型时保守认为存在
+        // ★ 2026-08-26 H6：同时支持 boolean 属性、函数、russh type 数字枚举
+        let isDir: boolean | undefined
+        if (typeof st.isDirectory === 'function') isDir = st.isDirectory()
+        else if (typeof st.isDirectory === 'boolean') isDir = st.isDirectory
+        else if (typeof st.type === 'number') isDir = st.type === 0
+        else if (typeof st.mode === 'number') isDir = (st.mode & 0o170000) === 0o040000
+        if (isDir === undefined) return false // 无法判定时不假装「符合 expectDir」
         return expectDir ? isDir : !isDir
       } catch { return false }
     }

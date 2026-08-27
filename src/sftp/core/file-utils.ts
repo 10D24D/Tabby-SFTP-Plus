@@ -177,6 +177,12 @@ export function isDirByMode(mode: number | undefined): boolean {
   return (mode & 0o170000) === 0o040000
 }
 
+/** 通过 POSIX mode 位判断是否为符号链接 */
+export function isSymlinkByMode(mode: number | undefined): boolean {
+  if (mode === undefined) return false
+  return (mode & 0o170000) === 0o120000
+}
+
 export function filterByHidden<T extends { name: string }>(entries: T[], showHidden: boolean): T[] {
   if (showHidden) return entries
   return entries.filter(e => !e.name.startsWith('.'))

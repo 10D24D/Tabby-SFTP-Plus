@@ -24,6 +24,8 @@ import * as path from 'path'
 export type SftpDirEntry = {
   name: string
   isDirectory: boolean
+  /** Tabby readdir 为 lstat 语义：symlink 时 isDirectory=false、isSymlink=true */
+  isSymlink?: boolean
   size?: number
   mode?: number
   modified?: Date | number | string

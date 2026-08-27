@@ -11,6 +11,8 @@ export type LocalEntry = {
   name: string
   fullPath: string
   isDirectory: boolean
+  /** ★ 2026-08-24：Windows .lnk 快捷方式的目标路径（用于目录跳转/文件打开） */
+  linkTarget?: string
   mode?: number
   size?: number
   mtimeMs?: number

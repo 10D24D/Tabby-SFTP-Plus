@@ -5,21 +5,55 @@
  * 修改人：DD1024z + Hy3
  * 修改时间：2026-08-10 — 复制/复制选中按钮、图片上一张下一张导航、加载中图标、打开时文本框自动聚焦
  *              2026-08-10 — 光标显示优化([value]替代ngModel + rAF聚焦)、复制选中按钮消失修复(click/blur事件)
+ *              2026-08-26 — 右键菜单卡顿：OnPush + zone 外原生 contextmenu + 选区检测禁 slice
  */
-import { Component, ElementRef, EventEmitter, AfterViewChecked, HostListener, Input, OnChanges, OnDestroy, Output, SimpleChanges, ViewChild } from '@angular/core'
+import {
+  AfterViewChecked,
+  ChangeDetectionStrategy,
+  ChangeDetectorRef,
+  Component,
+  ElementRef,
+  EventEmitter,
+  HostListener,
+  Input,
+  NgZone,
+  OnChanges,
+  OnDestroy,
+  Output,
+  SimpleChanges,
+  ViewChild,
+} from '@angular/core'
 
 import { SftpI18nService } from '../../services/sftp-i18n.service'
 import { FILE_DIALOG_SHARED_STYLES } from './styles'
 import { onFileDialogOverlayWheel, onFileDialogScrollableWheel } from './file-dialog-wheel'
 import { copyImageToClipboard, copyTextToClipboard } from './clipboard-copy'
+import { TextMenuAction } from './sftp-text-context-menu.component'
 
 import { log } from '../../services/sftp-logger'
 export type ViewerMode = 'text' | 'image'
 
+/** 仅比较 selectionStart/End，禁止 slice 大选区（大文件全选时右键会卡死） */
+function textareaHasSelection(ta?: ElementRef<HTMLTextAreaElement>): boolean {
+  if (!ta) return false
+  const el = ta.nativeElement
+  return (el.selectionStart ?? 0) !== (el.selectionEnd ?? 0)
+}
+
+function textareaSelectedText(ta?: ElementRef<HTMLTextAreaElement>): string {
+  if (!ta) return ''
+  const el = ta.nativeElement
+  const s = el.selectionStart ?? 0
+  const e = el.selectionEnd ?? 0
+  if (s === e) return ''
+  return el.value.slice(s, e)
+}
+
 @Component({
   selector: 'sftp-viewer-dialog',
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="overlay" *ngIf="visible" (wheel)="onOverlayWheel($event)">
+    <div class="overlay" *ngIf="visible" (wheel)="onOverlayWheel($event)" (click)="onOverlayClick($event)">
       <div class="dialog file-dialog-shell" [class.is-maximized]="maximized">
         <div class="dialog-title">
           <span class="file-dialog-title">{{ i18n.t('file.view') }} — {{ fileName }}</span>
@@ -58,7 +92,7 @@ export type ViewerMode = 'text' | 'image'
             [value]="textContent"
             readonly
             spellcheck="false"></textarea>
-          <div class="file-dialog-image-wrap" *ngIf="!loading && !error && mode === 'image'">
+          <div #imageWrap class="file-dialog-image-wrap" *ngIf="!loading && !error && mode === 'image'">
             <img class="file-dialog-image" [src]="imageUrl" [alt]="fileName" />
             <div class="image-nav" *ngIf="imageCount > 1">
               <button type="button" class="image-nav-btn"
@@ -102,6 +136,20 @@ export type ViewerMode = 'text' | 'image'
           <button type="button" (click)="close.emit()">{{ i18n.t('app.close') }}</button>
         </div>
       </div>
+
+      <sftp-text-context-menu
+        [i18n]="i18n"
+        [visible]="textMenuVisible"
+        [x]="textMenuX" [y]="textMenuY"
+        [mode]="textMenuMode"
+        [editable]="false"
+        [hasSelection]="textMenuHasSelection"
+        [canPaste]="textMenuCanPaste"
+        [hasImage]="textMenuHasImage"
+        [hasAddress]="textMenuHasAddress"
+        (action)="onTextMenuAction($event)"
+        (close)="onTextMenuClose()">
+      </sftp-text-context-menu>
     </div>
   `,
   styles: [FILE_DIALOG_SHARED_STYLES],
@@ -110,6 +158,7 @@ export class SftpViewerDialogComponent implements OnChanges, OnDestroy, AfterVie
   private static readonly MAXIMIZED_KEY = 'sftp-plus-viewer-maximized'
 
   @ViewChild('viewerTextarea') private viewerTextarea?: ElementRef<HTMLTextAreaElement>
+  @ViewChild('imageWrap') private imageWrap?: ElementRef<HTMLDivElement>
 
   @Input() visible = false
   @Input() loading = false
@@ -120,20 +169,24 @@ export class SftpViewerDialogComponent implements OnChanges, OnDestroy, AfterVie
   @Input() imageUrl = ''
   @Input() error = ''
   @Input() showSystemAction = false
-  /** 图片预览导航：当前图片在同目录图片列表中的索引（从 0 开始）与总数（≤1 时隐藏导航） */
   @Input() imageIndex = 0
   @Input() imageCount = 0
 
-  /** 复制成功后的短暂反馈状态（按钮文案切到「已复制」） */
   copied = false
   private copyTimer?: any
-  /** 「复制选中」成功反馈（独立于全量复制，避免两个按钮互相串状态） */
   copiedSel = false
   private copySelTimer?: any
-  /** 文本模式且当前有选中内容时显示「复制选中」按钮 */
   hasSelectionText = false
-  /** 打开/切换回文本时，标记需在视图检查后把焦点移入文本域（确保 *ngIf 渲染的 DOM 已就绪） */
   private pendingFocus = false
+
+  textMenuVisible = false
+  textMenuX = 0
+  textMenuY = 0
+  textMenuMode: 'text' | 'image' = 'text'
+  textMenuHasSelection = false
+  textMenuHasImage = false
+  textMenuHasAddress = false
+  textMenuCanPaste = false
 
   @Output() close = new EventEmitter<void>()
   @Output() systemAction = new EventEmitter<void>()
@@ -147,28 +200,78 @@ export class SftpViewerDialogComponent implements OnChanges, OnDestroy, AfterVie
   onOverlayWheel = onFileDialogOverlayWheel
   onScrollableWheel = onFileDialogScrollableWheel
 
+  private _ctxTarget: HTMLElement | null = null
+  private readonly _onNativeContextMenu = (ev: MouseEvent): void => {
+    ev.preventDefault()
+    ev.stopPropagation()
+    ev.stopImmediatePropagation()
+    // ★ zone 外打开菜单：只刷新本对话框视图，避免整棵浮动面板 CD 造成右键卡顿
+    this.textMenuMode = this.mode
+    this.textMenuHasSelection = this.mode === 'text' && textareaHasSelection(this.viewerTextarea)
+    this.textMenuHasImage = this.mode === 'image' && !!this.imageUrl
+    this.textMenuHasAddress = this.mode === 'image' && !!this.imageUrl
+    this.textMenuCanPaste = !!(navigator.clipboard && (navigator.clipboard as any).readText)
+    this.textMenuX = ev.clientX
+    this.textMenuY = ev.clientY
+    this.textMenuVisible = true
+    this.cdr.detectChanges()
+  }
+
+  constructor(
+    private readonly zone: NgZone,
+    private readonly cdr: ChangeDetectorRef,
+  ) {}
+
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['visible']?.currentValue === true) {
       this.maximized = SftpViewerDialogComponent.loadMaximized()
     }
     if (this.visible && !this.loading && !this.error && this.mode === 'text'
       && (changes['visible'] || changes['loading'] || changes['textContent'])) {
-      // ★ 不再用 setTimeout(0)：*ngIf 渲染时机不确定，setTimeout 可能在 DOM 就绪前执行而聚焦失败。
-      // 改为标记 pendingFocus，由 ngAfterViewChecked 在视图真正渲染后聚焦，保证光标准确落入文本域。
       this.pendingFocus = true
     }
     if (changes['textContent'] || changes['visible']) this.hasSelectionText = false
+    if (changes['visible']?.currentValue === false) {
+      this.textMenuVisible = false
+      this._unbindCtxTarget()
+    }
+    this.cdr.markForCheck()
   }
 
   ngAfterViewChecked(): void {
     if (this.pendingFocus && this.viewerTextarea) {
       this.pendingFocus = false
-      // requestAnimationFrame 确保 DOM 已完全渲染/布局完毕后再聚焦，
-      // 避免 *ngIf 刚创建 textarea 时 focus() 过早导致光标不显示
       requestAnimationFrame(() => {
         this.viewerTextarea?.nativeElement.focus({ preventScroll: true })
       })
     }
+    const target =
+      (!this.loading && !this.error && this.mode === 'text' && this.viewerTextarea?.nativeElement)
+      || (!this.loading && !this.error && this.mode === 'image' && this.imageWrap?.nativeElement)
+      || null
+    this._bindCtxTarget(target)
+  }
+
+  ngOnDestroy(): void {
+    this._unbindCtxTarget()
+    if (this.copyTimer) clearTimeout(this.copyTimer)
+    if (this.copySelTimer) clearTimeout(this.copySelTimer)
+  }
+
+  private _bindCtxTarget(el: HTMLElement | null): void {
+    if (this._ctxTarget === el) return
+    this._unbindCtxTarget()
+    if (!el) return
+    this._ctxTarget = el
+    this.zone.runOutsideAngular(() => {
+      el.addEventListener('contextmenu', this._onNativeContextMenu, true)
+    })
+  }
+
+  private _unbindCtxTarget(): void {
+    if (!this._ctxTarget) return
+    this._ctxTarget.removeEventListener('contextmenu', this._onNativeContextMenu, true)
+    this._ctxTarget = null
   }
 
   toggleMaximize(): void {
@@ -176,7 +279,6 @@ export class SftpViewerDialogComponent implements OnChanges, OnDestroy, AfterVie
     SftpViewerDialogComponent.saveMaximized(this.maximized)
   }
 
-  /** 键盘左右箭头切换上一张/下一张（仅在图片预览且有多张时生效） */
   @HostListener('document:keydown', ['$event'])
   onKeyDown(ev: KeyboardEvent): void {
     if (!this.visible || this.mode !== 'image' || this.imageCount <= 1) return
@@ -187,7 +289,6 @@ export class SftpViewerDialogComponent implements OnChanges, OnDestroy, AfterVie
     }
   }
 
-  /** 复制当前加载的内容（文本复制 textContent，图片复制 dataURL） */
   copy(): void {
     let ok = false
     if (this.mode === 'image' && this.imageUrl) {
@@ -199,42 +300,66 @@ export class SftpViewerDialogComponent implements OnChanges, OnDestroy, AfterVie
     if (ok) this.showCopiedFeedback()
   }
 
-  /** 复制当前文本选中的内容（仅文本模式） */
   copySelection(): void {
-    const sel = this.getSelectedText(this.viewerTextarea)
+    const sel = textareaSelectedText(this.viewerTextarea)
     if (!sel) return
     if (copyTextToClipboard(sel)) {
       this.copiedSel = true
       if (this.copySelTimer) clearTimeout(this.copySelTimer)
-      this.copySelTimer = setTimeout(() => { this.copiedSel = false }, 1500)
+      this.copySelTimer = setTimeout(() => { this.copiedSel = false; this.cdr.markForCheck() }, 1500)
+      this.cdr.markForCheck()
     }
   }
 
-  /** 根据文本域的选区状态刷新「复制选中」按钮的可见性 */
   updateHasSelection(): void {
-    this.hasSelectionText = this.getSelectedText(this.viewerTextarea).length > 0
+    const next = textareaHasSelection(this.viewerTextarea)
+    if (next === this.hasSelectionText) return
+    this.hasSelectionText = next
+    this.cdr.markForCheck()
   }
 
-  /** 文本域失焦时重置选区状态（防止点击 textarea 外部后按钮仍显示） */
   onTextareaBlur(): void {
+    if (!this.hasSelectionText) return
     this.hasSelectionText = false
+    this.cdr.markForCheck()
   }
 
-  private getSelectedText(ta?: ElementRef<HTMLTextAreaElement>): string {
-    if (!ta) return ''
-    const el = ta.nativeElement
-    const s = el.selectionStart ?? 0
-    const e = el.selectionEnd ?? 0
-    if (s === e) return ''
-    return el.value.slice(s, e)
+  onTextMenuAction(a: TextMenuAction): void {
+    switch (a) {
+      case 'copySelection': this.copySelection(); break
+      case 'copyAll': this.copy(); break
+      case 'copyAddress': if (this.imageUrl) copyTextToClipboard(this.imageUrl); break
+      case 'selectAll':
+        if (this.viewerTextarea) {
+          this.viewerTextarea.nativeElement.focus()
+          this.viewerTextarea.nativeElement.select()
+          this.updateHasSelection()
+        }
+        break
+      default: break
+    }
+    this.textMenuVisible = false
+    this.cdr.markForCheck()
   }
 
-  /** 是否有可复制的内容 */
+  onTextMenuClose(): void {
+    if (!this.textMenuVisible) return
+    this.textMenuVisible = false
+    this.cdr.markForCheck()
+  }
+
+  onOverlayClick(ev: MouseEvent): void {
+    if (!this.textMenuVisible) return
+    const target = ev.target as HTMLElement | null
+    if (target?.closest('.text-ctx-menu')) return
+    this.textMenuVisible = false
+    this.cdr.markForCheck()
+  }
+
   get canCopy(): boolean {
     return this.mode === 'image' ? !!this.imageUrl : !!this.textContent
   }
 
-  /** 按钮文案：复制中短暂显示「已复制」 */
   get copyLabel(): string {
     return this.copied ? this.i18n.t('file.copied') : this.i18n.t('file.copy')
   }
@@ -242,12 +367,8 @@ export class SftpViewerDialogComponent implements OnChanges, OnDestroy, AfterVie
   private showCopiedFeedback(): void {
     this.copied = true
     if (this.copyTimer) clearTimeout(this.copyTimer)
-    this.copyTimer = setTimeout(() => { this.copied = false }, 1500)
-  }
-
-  ngOnDestroy(): void {
-    if (this.copyTimer) clearTimeout(this.copyTimer)
-    if (this.copySelTimer) clearTimeout(this.copySelTimer)
+    this.copyTimer = setTimeout(() => { this.copied = false; this.cdr.markForCheck() }, 1500)
+    this.cdr.markForCheck()
   }
 
   private static loadMaximized(): boolean {

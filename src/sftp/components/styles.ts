@@ -282,7 +282,7 @@ export const SFTP_PANEL_STYLES = `
     /* ===== 标题栏右键菜单：还原默认面板大小 ===== */
     .sftp-root .sftp-title-menu {
       position: fixed;
-      z-index: 100000;
+      z-index: 901;
       min-width: 176px;
       padding: 4px;
       background: var(--context-menu-background, #2b2b2b);
@@ -710,7 +710,8 @@ export const SFTP_PANEL_STYLES = `
     }
     .sftp-root .entry.up-entry { opacity: 0.6; }
     .sftp-root .entry.dim { opacity: 0.5; }
-    .sftp-root .icon { text-align: center; font-size: 14px; width: 24px; }
+    .sftp-root .icon { text-align: center; font-size: 14px; width: 24px; display: flex; align-items: center; justify-content: center; }
+    .sftp-root .icon .custom-file-icon { width: 16px; height: 16px; object-fit: contain; flex-shrink: 0; }
     .sftp-root .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-family: inherit; }
     .sftp-root .size { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12px; font-family: inherit; text-align: left; }
     .sftp-root .date { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12px; font-family: inherit; }
@@ -872,6 +873,11 @@ export const SFTP_PANEL_STYLES = `
       /* 立即显示，无淡入动效 */
       transition: none !important;
       animation: none !important;
+    }
+    /* ★ 2026-08-26 C3：删除确认必须压过查看器(z=110)，避免被盖住后 Enter 隐形确认 */
+    .sftp-root .overlay.sftp-delete-overlay,
+    .sftp-root sftp-delete-dialog .overlay {
+      z-index: 120;
     }
     .sftp-root .dialog {
       background: var(--_bg);
@@ -1080,7 +1086,7 @@ export const SFTP_PANEL_STYLES = `
 
     .sftp-root .context-menu {
       position: fixed;
-      z-index: 100001;
+      z-index: 902;
       background: var(--_bg);
       border: 1px solid var(--_border);
       border-radius: 6px;

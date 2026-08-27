@@ -199,8 +199,12 @@ export class PanelRubberBand {
     // 左键空白按下：关闭菜单并抑制迟到的 contextmenu（如右键框选刚结束）
     if (event.button === 0) {
       event.preventDefault()
-      this.host.closeContextMenu()
-      this._rbArmContextMenuSuppress(400)
+      // 若右键此刻也按着（双键同按），不要关闭/抑制右键菜单，
+      // 否则会吞掉随后（或刚刚）由右键触发的 contextmenu
+      if (!(event.buttons & 2)) {
+        this.host.closeContextMenu()
+        this._rbArmContextMenuSuppress(400)
+      }
     }
     if (event.button === 2) {
       event.preventDefault()

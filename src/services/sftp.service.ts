@@ -5,6 +5,7 @@
  * 创建时间：2026-06-21
  */
 import { Injectable } from '@angular/core'
+import * as posix from 'path'
 
 import { log } from './sftp-logger'
 /** 远程列表元数据补全选项（按可见列跳过不必要 I/O） */
@@ -161,8 +162,111 @@ export function registerRusshClient(session: SFTPSessionLike): void {
   if (russh) russhClientBySession.set(session, russh)
 }
 
-function getRusshSftp(session: SFTPSessionLike): RusshSftpClient | undefined {
+export function getRusshSftp(session: SFTPSessionLike): RusshSftpClient | undefined {
   return russhClientBySession.get(session) ?? (session as { sftp?: RusshSftpClient }).sftp
+}
+
+/**
+ * 功能描述：对远程路径做 stat（解析符号链接目标类型）。
+ *   根因（2026-08-24）：russh 的 stat 走 SSH_FXP_STAT（协议上跟随符号链接），但其 JS 层
+ *   用 {...md} 展开 napi 对象会丢失 permissions 等字段（官方源码注释 "Can't just spread
+ *   a napi object"），返回结果中只有 type（数字枚举：0=目录 1=文件 2=符号链接）和 size 可靠。
+ *   旧实现只认 meta.type === 'directory'（字符串，永远不匹配）和 permissions 位（已丢失）
+ *   → 符号链接永远被判为「非目录」→ 被当文件打开。
+ *   解析顺序：
+ *   1) 优先用 Tabby SFTPSession 包装层的 stat()（内部已把 type 数字枚举正确映射为
+ *      isDirectory/isSymlink，见 tabby-ssh SFTPSession.stat）；
+ *   2) 回退到 russh 原生 stat：按 type 数字枚举 + permissions 位双重判断；
+ * 创建人：DD1024z + Claude
+ * 创建时间：2026-08-24
+ */
+export async function statRemotePath(
+  session: SFTPSessionLike,
+  fullPath: string,
+): Promise<{ isDirectory: boolean; isSymlink?: boolean; mode?: number; size?: number; mtime?: Date } | null> {
+  // 1) Tabby SFTPSession 包装层 stat（运行时存在，类型声明未列出）
+  const wrapperStat = (session as {
+    stat?: (p: string) => Promise<{ isDirectory: boolean; isSymlink?: boolean; mode?: number; size?: number; modified?: Date }>
+  }).stat
+  if (typeof wrapperStat === 'function') {
+    try {
+      const st = await wrapperStat.call(session, fullPath)
+      if (st) {
+        return { isDirectory: !!st.isDirectory, isSymlink: !!st.isSymlink, mode: st.mode, size: st.size, mtime: st.modified }
+      }
+    } catch (e) {
+      log.warn('statRemotePath (wrapper stat) failed:', (e as Error).message)
+    }
+  }
+  // 2) russh 原生 stat 回退
+  const inner = getRusshSftp(session)
+  if (!inner?.stat) return null
+  try {
+    const raw = await inner.stat(fullPath)
+    if (!raw) return null
+    if (typeof (raw as { isDirectory?: unknown }).isDirectory === 'function') {
+      const mode = asNumber((raw as { mode?: unknown }).mode)
+      const size = asNumber((raw as { size?: unknown }).size)
+      const mtimeVal = asNumber((raw as { mtime?: unknown }).mtime)
+      const mtime = (raw as { mtime?: unknown }).mtime instanceof Date ? (raw as { mtime?: Date }).mtime
+        : mtimeVal ? new Date(mtimeVal * 1000) : undefined
+      return { isDirectory: (raw as { isDirectory: () => boolean }).isDirectory(), mode, size, mtime }
+    }
+    const rawType = asNumber((raw as { type?: unknown }).type)
+    const meta = normalizeRawMeta({ name: '', metadata: raw })
+    const permissions = meta.permissions ?? 0
+    return {
+      // russh type 数字枚举：0=Directory 2=Symlink；permissions 含类型位时按位兜底
+      isDirectory: rawType === 0
+        || meta.type === 'directory'
+        || (permissions !== 0 && (permissions & 0o170000) === 0o040000),
+      isSymlink: rawType === 2
+        || meta.type === 'symlink'
+        || (permissions !== 0 && (permissions & 0o170000) === 0o120000),
+      mode: permissions || undefined,
+      size: meta.size,
+      mtime: meta.mtime && meta.mtime > 0 ? new Date(meta.mtime * 1000) : undefined,
+    }
+  } catch (e) {
+    log.warn('statRemotePath failed:', (e as Error).message)
+    return null
+  }
+}
+
+/**
+ * 功能描述：解析远程符号链接的目标类型（供「双击/回车进入目录」判定使用）。
+ *   stat 通常已跟随符号链接（SSH_FXP_STAT）；若个别服务器 STAT 不跟随（返回链接自身），
+ *   则照搬 Tabby 官方 SFTP 面板的做法：readlink → posix.resolve → 再 stat 目标路径。
+ * 创建人：DD1024z + Claude
+ * 创建时间：2026-08-24
+ */
+export async function resolveRemoteSymlinkStat(
+  session: SFTPSessionLike,
+  fullPath: string,
+): Promise<{ isDirectory: boolean; mode?: number; size?: number; mtime?: Date } | null> {
+  let st = await statRemotePath(session, fullPath)
+  if (st && !st.isDirectory && st.isSymlink) {
+    // 个别服务器 STAT 不跟随链接 → 对齐 Tabby 官方 SFTP 面板：readlink 解析真实目标再 stat
+    const sessionReadlink = (session as { readlink?: (p: string) => Promise<string> }).readlink
+    const inner = getRusshSftp(session)
+    const innerReadlink = (inner as { readlink?: (p: string) => Promise<string> } | undefined)?.readlink
+    if (typeof sessionReadlink === 'function') {
+      try {
+        const target = await sessionReadlink.call(session, fullPath)
+        st = await statRemotePath(session, posix.resolve(posix.dirname(fullPath), target))
+      } catch (e) {
+        log.warn('resolveRemoteSymlinkStat readlink failed:', (e as Error).message)
+      }
+    } else if (typeof innerReadlink === 'function') {
+      try {
+        const target = await innerReadlink.call(inner, fullPath)
+        st = await statRemotePath(session, posix.resolve(posix.dirname(fullPath), target))
+      } catch (e) {
+        log.warn('resolveRemoteSymlinkStat readlink (russh) failed:', (e as Error).message)
+      }
+    }
+  }
+  return st
 }
 
 export type SFTPFile = {
@@ -189,7 +293,11 @@ export type SFTPSessionLike = {
   upload: (remotePath: string, transfer: import('tabby-core').FileUpload) => Promise<void>
   download: (remotePath: string, transfer: import('tabby-core').FileDownload) => Promise<void>
   chmod: (path: string, mode: number) => Promise<void>
-  stat?: (p: string) => Promise<{ size: number; modified?: Date; mtime?: number }>
+  /** ★ 2026-08-24：Tabby SFTPSession 包装层运行时还提供 stat(follow)/readlink，
+   *    用于符号链接目标类型解析（readdir 为 lstat 语义不跟随链接）。
+   *    stat 返回 isDirectory/isSymlink 已由包装层把 russh type 数字枚举正确映射。 */
+  stat?: (p: string) => Promise<{ isDirectory?: boolean; isSymlink?: boolean; mode?: number; size?: number; modified?: Date; mtime?: number }>
+  readlink?: (p: string) => Promise<string>
 }
 
 export type SSHSessionLike = {

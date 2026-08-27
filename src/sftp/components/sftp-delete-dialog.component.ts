@@ -10,7 +10,7 @@ import { SftpI18nService } from '../../services/sftp-i18n.service'
 @Component({
   selector: 'sftp-delete-dialog',
   template: `
-    <div class="overlay" #overlayEl *ngIf="visible" tabindex="-1" (keydown)="onKeyDown($event)">
+    <div class="overlay sftp-delete-overlay" #overlayEl *ngIf="visible" tabindex="-1" (keydown)="onKeyDown($event)">
       <div class="delete-dialog">
         <ng-container *ngIf="batch; else singleDelete">
           <div class="delete-header">
@@ -160,7 +160,14 @@ export class SftpDeleteDialogComponent implements OnChanges {
   }
 
   onKeyDown(event: KeyboardEvent): void {
-    if (event.key === 'Enter') { event.preventDefault(); this.confirm.emit() }
-    else if (event.key === 'Escape') { event.preventDefault(); this.cancel.emit() }
+    if (event.key === 'Enter') {
+      event.preventDefault()
+      event.stopImmediatePropagation()
+      this.confirm.emit()
+    } else if (event.key === 'Escape') {
+      event.preventDefault()
+      event.stopImmediatePropagation()
+      this.cancel.emit()
+    }
   }
 }

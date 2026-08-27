@@ -127,7 +127,7 @@ export class PasteUseCase {
             this.ports.conflict.enqueue({
               localPath: entry.fullPath ?? '',
               remoteDir: destPath,
-              fileName: entry.name,
+              fileName: safeName,
                 remotePath: destFilePath,
                 localStat: (st ?? { size: 0, mtimeMs: Date.now() }) as Stats,
                 direction: 'upload',
@@ -141,7 +141,7 @@ export class PasteUseCase {
             this.ports.conflict.enqueue({
               localPath: destFilePath,
               remoteDir: path.posix.dirname(entry.fullPath ?? ''),
-              fileName: entry.name,
+              fileName: safeName,
                 remotePath: entry.fullPath ?? '',
                 localStat: { size: 0, mtimeMs: Date.now() } as Stats,
                 direction: 'download',
@@ -268,9 +268,10 @@ export class PasteUseCase {
     mode: 'copy' | 'cut',
   ): Promise<void> {
     if (entry.isDirectory) {
-      await this.ports.transfer.uploadDirectory(srcPath, destPath)
-      // ★ 2026-08-10 修复 #1：剪切目录删源前校验目标已存在，避免传输失败/中断后本地源被误删
+      const ok = await this.ports.transfer.uploadDirectory(srcPath, destPath)
+      // ★ 2026-08-26 H1：必须以传输成功为准；仅「目标目录存在」不足以证明完整成功
       if (mode === 'cut') {
+        if (!ok) throw new Error('Cut-paste aborted: directory upload not completed: ' + srcPath)
         if (!await this.ports.conflict.checkRemotePathExists(destFilePath, true)) {
           throw new Error('Cut-paste aborted: destination directory not found: ' + destFilePath)
         }
@@ -312,9 +313,10 @@ export class PasteUseCase {
         this.ports.conflict.showDialog()
         return
       }
-      await this.ports.transfer.downloadDirectory(srcPath, destPath)
-      // ★ 2026-08-10 修复 #1：剪切目录删远程源前校验本地目标已存在
+      const ok = await this.ports.transfer.downloadDirectory(srcPath, destPath)
+      // ★ 2026-08-26 H1：必须以传输成功为准；仅「目标目录存在」不足以证明完整成功
       if (mode === 'cut' && this.ports.ui.hasSftpSession()) {
+        if (!ok) throw new Error('Cut-paste aborted: directory download not completed: ' + srcPath)
         if (!await this.ports.fs.localDirExists(destFilePath)) {
           throw new Error('Cut-paste aborted: destination directory not found: ' + destFilePath)
         }

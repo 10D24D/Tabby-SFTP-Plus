@@ -83,7 +83,7 @@ export const DEFAULT_FILE_MENU_ORDER: ContextMenuAction[] = [
         <div class="ctx-item" [class.ctx-danger]="!!MENU_REGISTRY[a].danger"
           (click)="menuAction.emit(a)">
           {{ i18n.t(MENU_REGISTRY[a].labelKey) }}
-          <span class="ctx-shortcut" *ngIf="MENU_REGISTRY[a].shortcut">{{ shortcutText(MENU_REGISTRY[a].shortcut) }}</span>
+          <span class="ctx-shortcut" *ngIf="effectiveShortcut(a)">{{ effectiveShortcut(a) }}</span>
         </div>
       </ng-container>
     </div>
@@ -141,7 +141,7 @@ export const DEFAULT_FILE_MENU_ORDER: ContextMenuAction[] = [
   `,
   styles: [`
     .context-menu {
-      position: fixed; z-index: 100001;
+      position: fixed; z-index: 902;
       background: var(--_bg); border: 1px solid var(--_border);
       border-radius: 6px; padding: 4px 0; min-width: 140px;
       box-shadow: 0 4px 16px rgba(0,0,0,0.12);
@@ -289,6 +289,13 @@ export class SftpContextMenuComponent implements OnChanges {
   /** 右键文件菜单项的显示顺序（由设置页控制，默认 DEFAULT_FILE_MENU_ORDER） */
   @Input() menuOrder: ContextMenuAction[] = DEFAULT_FILE_MENU_ORDER
 
+  /**
+   * 面板操作热键快捷键映射（action → key 字符串，如 {delete:'Del', rename:'F2', refresh:'F5'}）。
+   * 由父面板传入当前配置；若某 action 的值为空串/不存在，则该菜单项不显示快捷键。
+   * 未传入时回退 FILE_MENU_REGISTRY 硬编码值（向后兼容）。
+   */
+  @Input() panelHotkeyShortcuts: Record<string, string> | null = null
+
   /** 供模板访问的菜单项注册表 */
   readonly MENU_REGISTRY = FILE_MENU_REGISTRY
 
@@ -336,6 +343,22 @@ export class SftpContextMenuComponent implements OnChanges {
   shortcutText(s?: string): string {
     if (!s) return ''
     return s.replace('${mod}', this.modKey)
+  }
+
+  /**
+   * 获取某菜单项的实际快捷键文本（优先动态配置，其次硬编码 registry）。
+   * 当 panelHotkeyShortcuts 中该 action 的值为空串时，返回空（不显示快捷键），
+   * 即使用户在设置中清除了该热键。
+   */
+  effectiveShortcut(action: ContextMenuAction): string {
+    // 面板操作级热键（delete/rename/refresh）走动态配置
+    if (this.panelHotkeyShortcuts && action in this.panelHotkeyShortcuts) {
+      const key = this.panelHotkeyShortcuts[action]
+      // 空串 = 用户已清除该热键 → 不显示
+      return key ? this.shortcutText(key) : ''
+    }
+    // 其余菜单项（copy/cut/paste/selectAll 等）用 registry 硬编码值
+    return this.shortcutText(FILE_MENU_REGISTRY[action].shortcut)
   }
 
   ngOnChanges(changes: SimpleChanges): void {

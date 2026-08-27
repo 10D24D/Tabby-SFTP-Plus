@@ -6,19 +6,53 @@
  * 修改时间：2026-08-05 — 新增「复制」按钮（复制当前编辑框内容）
  *              2026-08-10 — 新增「复制选中」按钮（有选中内容时显示，复制当前选中文本）
  *              2026-08-10 — 复制选中按钮消失修复(click/blur事件)
+ *              2026-08-26 — 右键菜单卡顿：OnPush + zone 外原生 contextmenu + 选区检测禁 slice
  */
-import { Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, Output, SimpleChanges, ViewChild } from '@angular/core'
+import {
+  AfterViewChecked,
+  ChangeDetectionStrategy,
+  ChangeDetectorRef,
+  Component,
+  ElementRef,
+  EventEmitter,
+  Input,
+  NgZone,
+  OnChanges,
+  OnDestroy,
+  Output,
+  SimpleChanges,
+  ViewChild,
+} from '@angular/core'
 
 import { SftpI18nService } from '../../services/sftp-i18n.service'
 import { FILE_DIALOG_SHARED_STYLES } from './styles'
 import { onFileDialogOverlayWheel, onFileDialogScrollableWheel } from './file-dialog-wheel'
 import { copyTextToClipboard } from './clipboard-copy'
+import { TextMenuAction } from './sftp-text-context-menu.component'
 
 import { log } from '../../services/sftp-logger'
+
+/** 仅比较 selectionStart/End，禁止 slice 大选区（大文件全选时右键会卡死） */
+function textareaHasSelection(ta?: ElementRef<HTMLTextAreaElement>): boolean {
+  if (!ta) return false
+  const el = ta.nativeElement
+  return (el.selectionStart ?? 0) !== (el.selectionEnd ?? 0)
+}
+
+function textareaSelectedText(ta?: ElementRef<HTMLTextAreaElement>): string {
+  if (!ta) return ''
+  const el = ta.nativeElement
+  const s = el.selectionStart ?? 0
+  const e = el.selectionEnd ?? 0
+  if (s === e) return ''
+  return el.value.slice(s, e)
+}
+
 @Component({
   selector: 'sftp-editor-dialog',
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="overlay" *ngIf="visible" (wheel)="onOverlayWheel($event)">
+    <div class="overlay" *ngIf="visible" (wheel)="onOverlayWheel($event)" (click)="onOverlayClick($event)">
       <div class="dialog file-dialog-shell" [class.is-maximized]="maximized">
         <div class="dialog-title">
           <div class="file-dialog-title-wrap">
@@ -88,11 +122,23 @@ import { log } from '../../services/sftp-logger'
           <button type="button" (click)="cancel.emit()" [disabled]="saving">{{ i18n.t('app.cancel') }}</button>
         </div>
       </div>
+
+      <sftp-text-context-menu
+        [i18n]="i18n"
+        [visible]="textMenuVisible"
+        [x]="textMenuX" [y]="textMenuY"
+        [mode]="'text'"
+        [editable]="true"
+        [hasSelection]="textMenuHasSelection"
+        [canPaste]="textMenuCanPaste"
+        (action)="onTextMenuAction($event)"
+        (close)="onTextMenuClose()">
+      </sftp-text-context-menu>
     </div>
   `,
   styles: [FILE_DIALOG_SHARED_STYLES],
 })
-export class SftpEditorDialogComponent implements OnChanges, OnDestroy {
+export class SftpEditorDialogComponent implements OnChanges, OnDestroy, AfterViewChecked {
   private static readonly MAXIMIZED_KEY = 'sftp-plus-editor-maximized'
 
   @ViewChild('editorTextarea') private editorTextarea?: ElementRef<HTMLTextAreaElement>
@@ -107,14 +153,17 @@ export class SftpEditorDialogComponent implements OnChanges, OnDestroy {
   @Input() error = ''
   @Input() showSystemAction = false
 
-  /** 复制成功后的短暂反馈状态（按钮文案切到「已复制」） */
   copied = false
   private copyTimer?: any
-  /** 「复制选中」成功反馈（独立于全量复制，避免两个按钮互相串状态） */
   copiedSel = false
   private copySelTimer?: any
-  /** 当前有选中内容时显示「复制选中」按钮 */
   hasSelectionText = false
+
+  textMenuVisible = false
+  textMenuX = 0
+  textMenuY = 0
+  textMenuHasSelection = false
+  textMenuCanPaste = false
 
   @Output() contentChange = new EventEmitter<string>()
   @Output() save = new EventEmitter<void>()
@@ -128,10 +177,61 @@ export class SftpEditorDialogComponent implements OnChanges, OnDestroy {
   onOverlayWheel = onFileDialogOverlayWheel
   onScrollableWheel = onFileDialogScrollableWheel
 
+  private _ctxTarget: HTMLElement | null = null
+  private readonly _onNativeContextMenu = (ev: MouseEvent): void => {
+    ev.preventDefault()
+    ev.stopPropagation()
+    ev.stopImmediatePropagation()
+    // ★ zone 外打开菜单：只刷新本对话框视图，避免整棵浮动面板 CD 造成右键卡顿
+    this.textMenuHasSelection = textareaHasSelection(this.editorTextarea)
+    this.textMenuCanPaste = !!(navigator.clipboard && (navigator.clipboard as any).readText)
+    this.textMenuX = ev.clientX
+    this.textMenuY = ev.clientY
+    this.textMenuVisible = true
+    this.cdr.detectChanges()
+  }
+
+  constructor(
+    private readonly zone: NgZone,
+    private readonly cdr: ChangeDetectorRef,
+  ) {}
+
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['visible']?.currentValue === true) {
       this.maximized = SftpEditorDialogComponent.loadMaximized()
     }
+    if (changes['visible']?.currentValue === false) {
+      this.textMenuVisible = false
+      this._unbindCtxTarget()
+    }
+    this.cdr.markForCheck()
+  }
+
+  ngAfterViewChecked(): void {
+    const target = (!this.loading && !this.error && this.editorTextarea?.nativeElement) || null
+    this._bindCtxTarget(target)
+  }
+
+  ngOnDestroy(): void {
+    this._unbindCtxTarget()
+    if (this.copyTimer) clearTimeout(this.copyTimer)
+    if (this.copySelTimer) clearTimeout(this.copySelTimer)
+  }
+
+  private _bindCtxTarget(el: HTMLElement | null): void {
+    if (this._ctxTarget === el) return
+    this._unbindCtxTarget()
+    if (!el) return
+    this._ctxTarget = el
+    this.zone.runOutsideAngular(() => {
+      el.addEventListener('contextmenu', this._onNativeContextMenu, true)
+    })
+  }
+
+  private _unbindCtxTarget(): void {
+    if (!this._ctxTarget) return
+    this._ctxTarget.removeEventListener('contextmenu', this._onNativeContextMenu, true)
+    this._ctxTarget = null
   }
 
   onContentChange(value: string): void {
@@ -139,48 +239,106 @@ export class SftpEditorDialogComponent implements OnChanges, OnDestroy {
     this.contentChange.emit(value)
   }
 
-  /** 复制当前编辑框内容（全量） */
   copy(): void {
     const ok = copyTextToClipboard(this.content || '')
     if (ok) this.showCopiedFeedback()
   }
 
-  /** 复制当前文本选中的内容 */
   copySelection(): void {
-    const sel = this.getSelectedText(this.editorTextarea)
+    const sel = textareaSelectedText(this.editorTextarea)
     if (!sel) return
     if (copyTextToClipboard(sel)) {
       this.copiedSel = true
       if (this.copySelTimer) clearTimeout(this.copySelTimer)
-      this.copySelTimer = setTimeout(() => { this.copiedSel = false }, 1500)
+      this.copySelTimer = setTimeout(() => { this.copiedSel = false; this.cdr.markForCheck() }, 1500)
+      this.cdr.markForCheck()
     }
   }
 
-  /** 根据文本域的选区状态刷新「复制选中」按钮的可见性 */
   updateHasSelection(): void {
-    this.hasSelectionText = this.getSelectedText(this.editorTextarea).length > 0
+    const next = textareaHasSelection(this.editorTextarea)
+    if (next === this.hasSelectionText) return
+    this.hasSelectionText = next
+    this.cdr.markForCheck()
   }
 
-  /** 文本域失焦时重置选区状态 */
   onTextareaBlur(): void {
+    if (!this.hasSelectionText) return
     this.hasSelectionText = false
+    this.cdr.markForCheck()
   }
 
-  private getSelectedText(ta?: ElementRef<HTMLTextAreaElement>): string {
-    if (!ta) return ''
-    const el = ta.nativeElement
-    const s = el.selectionStart ?? 0
-    const e = el.selectionEnd ?? 0
-    if (s === e) return ''
-    return el.value.slice(s, e)
+  onTextMenuAction(a: TextMenuAction): void {
+    switch (a) {
+      case 'copySelection': this.copySelection(); break
+      case 'copyAll': this.copy(); break
+      case 'selectAll':
+        if (this.editorTextarea) {
+          this.editorTextarea.nativeElement.focus()
+          this.editorTextarea.nativeElement.select()
+          this.updateHasSelection()
+        }
+        break
+      case 'cut': this.cutSelection(); break
+      case 'paste': void this.pasteText(); break
+      default: break
+    }
+    this.textMenuVisible = false
+    this.cdr.markForCheck()
   }
 
-  /** 是否有可复制的内容 */
+  onTextMenuClose(): void {
+    if (!this.textMenuVisible) return
+    this.textMenuVisible = false
+    this.cdr.markForCheck()
+  }
+
+  onOverlayClick(ev: MouseEvent): void {
+    if (!this.textMenuVisible) return
+    const target = ev.target as HTMLElement | null
+    if (target?.closest('.text-ctx-menu')) return
+    this.textMenuVisible = false
+    this.cdr.markForCheck()
+  }
+
+  private cutSelection(): void {
+    const ta = this.editorTextarea?.nativeElement
+    if (!ta) return
+    const s = ta.selectionStart ?? 0
+    const e = ta.selectionEnd ?? 0
+    if (s === e) return
+    const sel = ta.value.slice(s, e)
+    if (copyTextToClipboard(sel)) {
+      const newVal = ta.value.slice(0, s) + ta.value.slice(e)
+      this.contentChange.emit(newVal)
+      Promise.resolve().then(() => {
+        const el = this.editorTextarea?.nativeElement
+        if (el) { el.setSelectionRange(s, s); el.focus() }
+      })
+    }
+  }
+
+  private async pasteText(): Promise<void> {
+    const ta = this.editorTextarea?.nativeElement
+    if (!ta || !(navigator.clipboard && (navigator.clipboard as any).readText)) return
+    let text = ''
+    try { text = await (navigator.clipboard as any).readText() } catch { return }
+    if (!text) return
+    const s = ta.selectionStart ?? ta.value.length
+    const e = ta.selectionEnd ?? ta.value.length
+    const newVal = ta.value.slice(0, s) + text + ta.value.slice(e)
+    this.contentChange.emit(newVal)
+    const pos = s + text.length
+    Promise.resolve().then(() => {
+      const el = this.editorTextarea?.nativeElement
+      if (el) { el.setSelectionRange(pos, pos); el.focus() }
+    })
+  }
+
   get canCopy(): boolean {
     return !!this.content
   }
 
-  /** 按钮文案：复制后短暂显示「已复制」 */
   get copyLabel(): string {
     return this.copied ? this.i18n.t('file.copied') : this.i18n.t('file.copy')
   }
@@ -188,12 +346,8 @@ export class SftpEditorDialogComponent implements OnChanges, OnDestroy {
   private showCopiedFeedback(): void {
     this.copied = true
     if (this.copyTimer) clearTimeout(this.copyTimer)
-    this.copyTimer = setTimeout(() => { this.copied = false }, 1500)
-  }
-
-  ngOnDestroy(): void {
-    if (this.copyTimer) clearTimeout(this.copyTimer)
-    if (this.copySelTimer) clearTimeout(this.copySelTimer)
+    this.copyTimer = setTimeout(() => { this.copied = false; this.cdr.markForCheck() }, 1500)
+    this.cdr.markForCheck()
   }
 
   toggleMaximize(): void {

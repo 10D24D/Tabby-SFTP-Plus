@@ -34,6 +34,7 @@ import { SftpPermDialogComponent } from './sftp/components/sftp-perm-dialog.comp
 import { SftpDetailsDialogComponent } from './sftp/components/sftp-details-dialog.component'
 import { SftpViewerDialogComponent } from './sftp/components/sftp-viewer-dialog.component'
 import { SftpEditorDialogComponent } from './sftp/components/sftp-editor-dialog.component'
+import { SftpTextContextMenuComponent } from './sftp/components/sftp-text-context-menu.component'
 import { SftpCwdSetupDialogComponent } from './sftp/components/sftp-cwd-setup-dialog.component'
 
 
@@ -59,6 +60,7 @@ import { SftpCwdSetupDialogComponent } from './sftp/components/sftp-cwd-setup-di
     SftpDetailsDialogComponent,
     SftpViewerDialogComponent,
     SftpEditorDialogComponent,
+    SftpTextContextMenuComponent,
     SftpCwdSetupDialogComponent,
 
   ],
