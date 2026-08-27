@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16">
+  <path fill="#d24726" d="M5 2h10l4 4v16H5z"/>
+  <path fill="rgba(255,255,255,.22)" d="M15 2l4 4h-4z"/>
+  <text x="12" y="16.8" font-family="Arial, 'Segoe UI', Helvetica, sans-serif" font-size="11" font-weight="700" text-anchor="middle" fill="#fff">P</text>
+</svg>

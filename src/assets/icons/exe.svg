@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16">
+  <!-- 文档底：橙色，与 doc/xls/ppt/pdf/zip 同家族 -->
+  <path fill="#e8923a" d="M5 2h10l4 4v16H5z"/>
+  <path fill="rgba(255,255,255,.35)" d="M15 2l4 4h-4z"/>
+  <!-- 白色齿轮：整体缩小，齿短且不张扬 -->
+  <g fill="#fff">
+    <rect x="11.4" y="7.6" width="1.2" height="2.2" rx=".35"/>
+    <rect x="11.4" y="7.6" width="1.2" height="2.2" rx=".35" transform="rotate(45 12 12)"/>
+    <rect x="11.4" y="7.6" width="1.2" height="2.2" rx=".35" transform="rotate(90 12 12)"/>
+    <rect x="11.4" y="7.6" width="1.2" height="2.2" rx=".35" transform="rotate(135 12 12)"/>
+    <rect x="11.4" y="7.6" width="1.2" height="2.2" rx=".35" transform="rotate(180 12 12)"/>
+    <rect x="11.4" y="7.6" width="1.2" height="2.2" rx=".35" transform="rotate(225 12 12)"/>
+    <rect x="11.4" y="7.6" width="1.2" height="2.2" rx=".35" transform="rotate(270 12 12)"/>
+    <rect x="11.4" y="7.6" width="1.2" height="2.2" rx=".35" transform="rotate(315 12 12)"/>
+    <circle cx="12" cy="12" r="3.4"/>
+  </g>
+  <!-- 中心孔（透出文档底色，强化齿轮观感） -->
+  <circle cx="12" cy="12" r="1.2" fill="#e8923a"/>
+</svg>

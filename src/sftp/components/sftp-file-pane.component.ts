@@ -4,11 +4,15 @@
  * 创建人：DD1024z + Hy3
  * 创建时间：2026-07-29
  * 修改人：DD1024z + Hy3
- * 修改时间：2026-07-29
+ * 修改时间：2026-08-24
  */
+
 import { Component, ElementRef, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges } from '@angular/core'
+import * as path from 'path'
+import * as fs from 'fs'
 
 import { SftpI18nService } from '../../services/sftp-i18n.service'
+import { DEFAULT_ICON_MAP } from '../core/icon-defaults'
 
 export type PaneNavAction =
   | 'back' | 'forward' | 'up' | 'home' | 'refresh'
@@ -119,7 +123,16 @@ export type PaneSortAction = { col: string }
             (dragstart)="entryDragStart.emit({ entry: e, event: $event })"
             (dragend)="entryDragEnd.emit()"
             [style.gridTemplateColumns]="colWidths">
-            <span class="icon">{{ e.isDirectory ? '📁' : '📄' }}</span>
+            <span class="icon">
+              <ng-container *ngIf="e.isDirectory">
+                <img *ngIf="folderIconSrc() as src" class="custom-file-icon" [src]="src" alt="folder" draggable="false" />
+                <ng-container *ngIf="!folderIconSrc()">📁</ng-container>
+              </ng-container>
+              <ng-container *ngIf="!e.isDirectory">
+                <img *ngIf="iconSrc(e) as src" class="custom-file-icon" [src]="src" [alt]="e.name" draggable="false" />
+                <ng-container *ngIf="!iconSrc(e)">📄</ng-container>
+              </ng-container>
+            </span>
             <span class="name" [attr.title]="e.name">{{ inaccessiblePrefix(e) }}{{ e.name }}</span>
             <span *ngFor="let col of visibleCols; trackBy: trackByCol" class="{{col}}" [attr.title]="colValue(col, e)">{{ colValue(col, e) }}</span>
           </div>
@@ -162,6 +175,16 @@ export class SftpFilePaneComponent {
   @Input() showHeader = true
   @Input() showEmpty = false
   @Input() entries: any[] = []
+  /** 自定义图标：用户指定的 SVG 资源目录（本地绝对路径，可空） */
+  @Input() iconBaseDir = ''
+  /** 自定义图标规则：扩展名（含点，如 .pdf）→ 资源目录内的 svg 文件名 */
+  @Input() fileTypeIcons: { ext: string; svg: string }[] = []
+  /** 被禁用的内置图标 svg 文件名（这些图标不用于自动扩展名匹配） */
+  @Input() disabledIconSvgs: string[] = []
+  /** 文件夹图标 svg 文件名（空串 = 走 emoji 📁） */
+  @Input() folderIconSvg = ''
+  /** 内置图标目录（dist/assets/icons），用于默认扩展名映射，与用户目录相互独立 */
+  @Input() bundledIconDir = ''
   @Input() visibleCols: string[] = []
   /** 表头预览列顺序（拖拽中可与数据列不同；空则跟随 visibleCols） */
   @Input() headerCols: string[] | null = null
@@ -195,6 +218,93 @@ export class SftpFilePaneComponent {
 
   get headerColsResolved(): string[] {
     return this.headerCols && this.headerCols.length ? this.headerCols : this.visibleCols
+  }
+
+  /**
+   * 返回图标 URL（file://...），匹配优先级：
+   *   1) 用户自定义规则（fileTypeIcons → 有效图标目录：用户目录优先，否则插件内置目录）
+   *   2) 内置默认扩展名映射（DEFAULT_ICON_MAP → bundledIconDir）
+   *   3) 均未匹配 → default.svg 兜底（统一图标，不再回退 emoji 📄）
+   * 仅对文件生效；文件夹始终返回 null（沿用默认 📁）。
+   */
+  /** 有效图标目录：用户指定优先；留空则回退插件内置目录 */
+  private get effectiveIconBaseDir(): string {
+    const u = (this.iconBaseDir || '').trim().replace(/\\/g, '/').replace(/\/+$/, '')
+    return u ? u : (this.bundledIconDir || '')
+  }
+
+  /** 有效图标目录对应的 svg 文件名集合（缓存，O(1) 校验，避免对不存在的文件发出 404 请求） */
+  private _validIconFiles: Set<string> | null = null
+  private _validIconDirCache: string = ''
+  /** 刷新 svg 文件名缓存（仅当目录变化时执行一次 readdir） */
+  private _refreshValidIconFiles(): Set<string> {
+    const dir = this.effectiveIconBaseDir
+    if (this._validIconFiles && this._validIconDirCache === dir) return this._validIconFiles
+    const set = new Set<string>()
+    if (dir) {
+      try {
+        const files = fs.readdirSync(dir)
+        for (const f of files) {
+          if (typeof f === 'string' && f.toLowerCase().endsWith('.svg')) set.add(f)
+        }
+      } catch { /* 目录不可读则保持空集，所有自定义规则失效，回退内置/emoji */ }
+    }
+    this._validIconFiles = set
+    this._validIconDirCache = dir
+    return set
+  }
+  /** 公共校验：某个 svg 文件名是否真实存在于有效图标目录 */
+  svgFileExists(svg: string): boolean {
+    if (!svg) return false
+    return this._refreshValidIconFiles().has(svg)
+  }
+
+  iconSrc(e: any): string | null {
+    if (!e || e.isDirectory) return null
+    const name: string = e.name || ''
+    const dot = name.lastIndexOf('.')
+    // ★ 2026-08-25 修复：不再对无扩展名文件提前返回 null——应让其走到步骤3 default.svg 兜底，统一显示彩色 SVG 而非回退 emoji
+    const ext = (dot > 0) ? name.slice(dot).toLowerCase() : ''
+
+    // 1) 用户自定义规则（最高优先级）；svg 必须真实存在于图标目录（缓存校验），否则跳过以避免 404
+    if (ext && this.fileTypeIcons && this.fileTypeIcons.length) {
+      const validSet = this._refreshValidIconFiles()
+      const rule = this.fileTypeIcons.find(r => (r.ext || '').toLowerCase() === ext)
+      if (rule && rule.svg && !this.disabledIconSvgs.includes(rule.svg) && validSet.has(rule.svg)) {
+        const dir = this.effectiveIconBaseDir
+        if (dir) {
+          try { return 'file://' + path.join(dir, rule.svg) } catch { /* ignore */ }
+        }
+      }
+    }
+
+    // 2) 内置默认映射（无需用户配置，跳过被禁用的图标；内置 svg 必然存在，不需再校验）
+    if (this.bundledIconDir) {
+      const svg = DEFAULT_ICON_MAP[ext]
+      if (svg && !this.disabledIconSvgs.includes(svg)) {
+        try { return 'file://' + path.join(this.bundledIconDir, svg) } catch { /* ignore */ }
+      }
+    }
+
+    // 3) ★ 2026-08-25：未匹配任何规则的文件一律用 default.svg 兜底（统一图标，取代 📄 emoji）
+    const def = 'default.svg'
+    if (this.bundledIconDir && !this.disabledIconSvgs.includes(def)) {
+      try { return 'file://' + path.join(this.bundledIconDir, def) } catch { /* ignore */ }
+    }
+
+    return null
+  }
+
+  /**
+   * 文件夹图标 URL：folderIconSvg 优先（指向有效目录且文件真实存在且未禁用），否则返回 null（模板回退 📁）
+   */
+  folderIconSrc(): string | null {
+    const svg = (this.folderIconSvg || '').trim()
+    if (!svg || this.disabledIconSvgs.includes(svg)) return null
+    if (!this.svgFileExists(svg)) return null
+    const dir = this.effectiveIconBaseDir
+    if (!dir) return null
+    try { return 'file://' + path.join(dir, svg) } catch { return null }
   }
 
   @Output() pathInputChange = new EventEmitter<string>()
@@ -330,6 +440,11 @@ export class SftpFilePaneComponent {
     // 语言切换时父组件会重建 i18n 实例（引用变化）；列头映射函数也可能随之更新 → 重算文案缓存
     if (changes.i18n || changes.colHeaderLabelFn) {
       this._rebuildLabels()
+    }
+    // 图标目录变化时让缓存失效，下次 iconSrc/folderIconSrc 重新 readdir
+    if (changes.iconBaseDir || changes.bundledIconDir) {
+      this._validIconFiles = null
+      this._validIconDirCache = ''
     }
   }
 

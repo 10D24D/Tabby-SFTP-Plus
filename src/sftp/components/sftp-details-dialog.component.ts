@@ -11,6 +11,8 @@ export type DetailsDisplay = {
   name: string
   /** ★ 2026-08-11：是否为文件夹（头部图标与徽章用） */
   isFolder: boolean
+  /** ★ 2026-08-25：彩色 SVG 图标 URL（复用文件列表映射；为空时回退内置线条图标） */
+  iconUrl?: string | null
   type: string
   /** ★ 2026-08-11：来源位置标签（本地/远程） */
   location: string
@@ -36,15 +38,16 @@ export type DetailsDisplay = {
         <div class="details-body" *ngIf="display">
           <div class="details-head">
             <span class="details-head-icon" [class.is-folder]="display.isFolder" [class.is-file]="!display.isFolder">
-              <svg *ngIf="display.isFolder" width="26" height="26" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round">
-                <path d="M1.5 5.5C1.5 4.67 2.17 4 3 4h2.67L7 6h6c.83 0 1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5H3c-.83 0-1.5-.67-1.5-1.5v-6z"/>
-              </svg>
-              <svg *ngIf="!display.isFolder" width="26" height="26" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round">
-                <path d="M5 1.5h4.5L13 5v9.5H5c-.55 0-1-.45-1-1V2.5c0-.55.45-1 1-1z"/>
-                <path d="M9.5 1.5V5H13"/>
-                <line x1="6.5" y1="8" x2="11.5" y2="8"/>
-                <line x1="6.5" y1="10" x2="11.5" y2="10"/>
-                <line x1="6.5" y1="12" x2="9.5" y2="12"/>
+              <img *ngIf="display.iconUrl" class="details-head-icon-img" [src]="display.iconUrl" [alt]="display.name" draggable="false" />
+              <svg *ngIf="!display.iconUrl" width="26" height="26" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round">
+                <path *ngIf="display.isFolder" d="M1.5 5.5C1.5 4.67 2.17 4 3 4h2.67L7 6h6c.83 0 1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5H3c-.83 0-1.5-.67-1.5-1.5v-6z"/>
+                <ng-container *ngIf="!display.isFolder">
+                  <path d="M5 1.5h4.5L13 5v9.5H5c-.55 0-1-.45-1-1V2.5c0-.55.45-1 1-1z"/>
+                  <path d="M9.5 1.5V5H13"/>
+                  <line x1="6.5" y1="8" x2="11.5" y2="8"/>
+                  <line x1="6.5" y1="10" x2="11.5" y2="10"/>
+                  <line x1="6.5" y1="12" x2="9.5" y2="12"/>
+                </ng-container>
               </svg>
             </span>
             <div class="details-head-info">
@@ -109,6 +112,8 @@ export type DetailsDisplay = {
     .details-head-icon { flex-shrink: 0; display: flex; align-items: center; }
     .details-head-icon.is-folder { color: #f0c040; opacity: 0.95; }
     .details-head-icon.is-file { color: #8ab4f8; opacity: 0.9; }
+    /* ★ 2026-08-25：属性对话框复用文件列表彩色 SVG（与列表尺寸一致） */
+    .details-head-icon-img { width: 26px; height: 26px; object-fit: contain; }
     .details-head-info { min-width: 0; }
     .details-head-name { font-weight: 600; font-size: 13px; word-break: break-all; color: var(--_text); }
     .details-table { width: 100%; border-collapse: collapse; font-size: 12px; }
