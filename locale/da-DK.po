@@ -854,6 +854,9 @@ msgstr "Forfatter"
 msgid "settings.githubSource"
 msgstr "GitHub Kilde"
 
+msgid "settings.npmSource"
+msgstr "NPM-kildekode"
+
 msgid "settings.giveStar"
 msgstr "Giv en Stjerne"
 
@@ -1215,3 +1218,6 @@ msgstr "Nulstil menurækkefølge"
 msgid "notify.trashFailed"
 msgstr "{n} element(er) kunne ikke flyttes til papirkurven (ikke slettet; prøv Shift+Delete for permanent sletning)"
 
+
+msgid "settings.iconLocked"
+msgstr "Låst (systemikon)"

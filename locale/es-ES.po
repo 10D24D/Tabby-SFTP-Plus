@@ -861,6 +861,9 @@ msgstr "Autor"
 msgid "settings.githubSource"
 msgstr "Fuente de GitHub"
 
+msgid "settings.npmSource"
+msgstr "Código fuente de NPM"
+
 msgid "settings.giveStar"
 msgstr "Dar una Estrella"
 
@@ -1232,3 +1235,6 @@ msgstr "Restablecer el orden del menú"
 msgid "notify.trashFailed"
 msgstr "{n} elemento(s) no se pudieron mover a la papelera (no eliminados; prueba Shift+Supr para eliminación permanente)"
 
+
+msgid "settings.iconLocked"
+msgstr "Bloqueado (icono del sistema)"

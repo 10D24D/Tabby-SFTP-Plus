@@ -856,6 +856,9 @@ msgstr "Auteur"
 msgid "settings.githubSource"
 msgstr "Source GitHub"
 
+msgid "settings.npmSource"
+msgstr "Source NPM"
+
 msgid "settings.giveStar"
 msgstr "Donner une Étoile"
 
@@ -1227,3 +1230,6 @@ msgstr "Réinitialiser l'ordre du menu"
 msgid "notify.trashFailed"
 msgstr "{n} élément(s) n'ont pas pu être déplacés vers la corbeille (non supprimés ; essayez Maj+Suppr pour une suppression définitive)"
 
+
+msgid "settings.iconLocked"
+msgstr "Verrouillé (icône système)"

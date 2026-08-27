@@ -4,6 +4,33 @@ All notable changes to **tabby-sftp-plus** will be documented in this file.
 
 | [中文](https://github.com/10D24D/Tabby-SFTP-Plus/blob/main/CHANGELOG.md) | [English](https://github.com/10D24D/Tabby-SFTP-Plus/blob/main/CHANGELOG.en.md) |
 
+### [2.1.0] — 2026-08-27
+
+#### ✨ Added
+
+- **File icon system** — Added built-in colored SVG file/folder icons with extension mapping, custom SVG resource directories, built-in icon disabling, and folder-icon replacement; the file list and details dialog now share the same icon mapping.
+- **Default upload/download paths** — The settings page can configure separate upload and download target directories; when unset, the current pane directory is still used.
+- **Text context menu** — The viewer and editor now provide copy, copy selection, cut, paste, and select-all actions; large selections use lightweight range checks to avoid unnecessary full-text work.
+
+#### 🐛 Fixed
+
+- **Remote symlink directories could not be opened** — Followed `stat` and, when necessary, resolved `readlink` targets to identify remote symlinks that point to directories.
+- **Windows shortcut handling** — `.lnk` targets are recognized so opening, navigating, and dragging use the actual target path.
+- **Path safety and normalization** — Local rename/create and remote create operations now reject paths that escape their target directory; bookmark paths are normalized and deleted bookmarks no longer reappear across windows.
+- **Transfer cancellation and session recovery** — Cancelling concurrent directory transfers now aborts all in-flight child streams; old transfers are stopped before session replacement and users are prompted to retry.
+- **Hotkeys and focus** — Modal dialogs, terminal focus, panel focus, and delete confirmation now handle events more explicitly, preventing accidental or duplicate actions.
+
+#### 🎨 Improved
+
+- **Floating-panel adaptation** — Panel geometry is persisted as percentages and adapts to window size; dragging has a movement threshold, and floating panels share a stacking order across plugins.
+- **Configuration consistency** — Improved cache invalidation and persistence of cleared panel hotkeys to prevent stale settings after multi-window updates or restart.
+- **Localization** — Added translations for the new settings, icon, and text-menu strings.
+
+#### 🔧 Technical / Build
+
+- Added `scripts/copy-icons.mjs`; production builds now copy bundled SVG icons to `dist/assets/icons/`.
+- Version bumped to **2.1.0**.
+
 ### [2.0.2] — 2026-08-22
 
 #### 🐛 Fixed

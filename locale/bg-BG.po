@@ -675,6 +675,9 @@ msgstr "Автор"
 
 msgid "settings.githubSource"
 msgstr "GitHub изходен код"
+
+msgid "settings.npmSource"
+msgstr "NPM изходен код"
 msgid "settings.giveStar"
 msgstr "Дай звезда"
 msgid "settings.feedback"
@@ -1026,3 +1029,6 @@ msgstr "Възстанови реда на менюто"
 msgid "notify.trashFailed"
 msgstr "{n} елемент(а) не можаха да бъдат преместени в кошчето (не са изтрити; опитайте Shift+Delete за окончателно изтриване)"
 
+
+msgid "settings.iconLocked"
+msgstr "Заключено (системна икона)"

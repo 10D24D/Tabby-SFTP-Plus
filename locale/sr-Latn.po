@@ -673,6 +673,9 @@ msgstr "Autor"
 
 msgid "settings.githubSource"
 msgstr "GitHub izvor"
+
+msgid "settings.npmSource"
+msgstr "NPM izvorni kod"
 msgid "settings.giveStar"
 msgstr "Daj zvezdicu"
 msgid "settings.feedback"
@@ -1024,3 +1027,6 @@ msgstr "Vrati redosled menija"
 msgid "notify.trashFailed"
 msgstr "{n} stavki nije uspelo da se premesti u korpu (nije obrisano; pokušajte Shift+Delete za trajno brisanje)"
 
+
+msgid "settings.iconLocked"
+msgstr "Zaključano (sistemska ikona)"

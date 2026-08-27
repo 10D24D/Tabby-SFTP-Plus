@@ -15,7 +15,8 @@ SFTP+ is a plugin for [Tabby Terminal](https://tabby.sh/) that adds a **dual-pan
 | Category | Description |
 |----------|-------------|
 | **📂 Dual-Pane Manager** | Local (left) + Remote (right); horizontal / vertical / adaptive / single-pane layouts; draggable splitter, double-click to reset |
-| **👁️ View / Edit** | Built-in text/image viewer and text editor (local + remote); image navigation (prev/next in same directory); copy / copy selection; view-as-text; open or edit in system default app |
+| **👁️ View / Edit** | Built-in text/image viewer and text editor (local + remote); image navigation (prev/next in same directory); copy / copy selection; text context menus for copy, cut, paste, and select-all; view-as-text; open or edit in the system default app |
+| **🎨 File Icons** | Built-in colored SVG file/folder icons; customize extension mappings, icon directory, disabled built-in icons, and folder icon |
 | **🔄 Drag & Drop** | Drag across panes to upload/download; recursive folder transfer; drag from OS Explorer/Desktop into either pane |
 | **⬆️ Context Transfer** | Right-click upload on local pane, download on remote pane (multi-select batch) |
 | **⚡ High-Speed Transfer** | Intra-directory file-level parallelism (1-10 concurrent, adjustable); tar channel for massive small-file directories (pack → single-file transfer → unpack); batch delete via SSH `rm -rf` / `fs.rm(recursive)` |
@@ -24,7 +25,7 @@ SFTP+ is a plugin for [Tabby Terminal](https://tabby.sh/) that adds a **dual-pan
 | **⚡ Transfer Control** | Progress bars (with percentage), pause/resume/cancel, resume support, real-time speed |
 | **⚠️ File Conflict** | Visual diff on conflict (shows upload⬆/download⬇ direction), with overwrite/skip/rename options and batch processing; merge-overwrite has its own progress panel |
 | **🔐 Permission Editor** | Remote chmod via 3×3 checkbox matrix with octal preview |
-| **📌 Context Menus** | Upload/download, view/edit, new/rename/delete, copy/cut/paste, refresh, select all/invert; <br />Header: column visibility, fit widths, borders & zebra stripes |
+| **📌 Context Menus** | Upload/download, view/edit, new/rename/delete, copy/cut/paste, refresh, select all/invert; text viewer/editor context menus; <br />Header: column visibility, fit widths, borders & zebra stripes |
 | **🔍 Filter & Sort** | Keyword filter, multi-column sorting (click headers), configurable visible columns |
 | **🧭 Path Mode** | Three modes: `off` / `remember` / `sync` (sync with terminal); configurable default |
 | **🎨 Theme System** | 7 presets + custom colors, supports following the Tabby system theme |
@@ -97,8 +98,10 @@ Navigate to Tabby Settings → "SFTP+" in the left sidebar:
 | **Table Style** | Show borders, show zebra stripes |
 | **Upload/Download Concurrency** | Intra-directory file-level concurrency (1-10), takes effect immediately |
 | **Fast Mode** | Skip pre-scan and start transfer immediately (no percentage, byte progress only) |
+| **Default Upload/Download Paths** | Configure separate upload and download target directories; empty values use the current pane directory |
 | **Default Path Mode** | Path mode for new connections on first open (off / remember / sync) |
 | **Default Show Hidden** | Whether to show hidden files on new connections |
+| **File Icons** | Choose an icon resource directory, configure extension mappings, disable built-in icons, and replace the folder icon |
 | **Toolbar Customization** | Drag-to-reorder toolbar buttons, hide unused items |
 | **Panel Hotkey** | Custom panel toggle hotkey |
 | **Data Backup** | Export/import all data (JSON); clear all data (requires typing `DELETE` to confirm) |
@@ -116,7 +119,7 @@ Path: Settings → Data Backup → Export / Import
 
 ## 📜 Changelog
 
-Latest: **v2.0.2** (2026-08-22) — [Full changelog](CHANGELOG.md)
+Current development version: **v2.1.0** (2026-08-27) — [Full changelog](CHANGELOG.en.md)
 
 ---
 
@@ -191,6 +194,7 @@ SFTP+ would not have grown without the foundational projects and the community's
 
 - [Tabby](https://tabby.sh/) — the powerful cross-platform terminal that hosts this plugin
 - [SFTP (SSH File Transfer Protocol)](https://en.wikipedia.org/wiki/SSH_File_Transfer_Protocol) — the underlying file transfer protocol this plugin's remote file management is built upon
+- [Tabby SFTP-UI](https://github.com/growingupfirst/tabby-sftp-ui) — an early two-pane SFTP file manager whose interaction and implementation ideas served as an important reference; some of SFTP+'s feature designs were inspired by it
 - [@fweiger](https://github.com/fweiger) — Issue #13: a detailed UX optimization report (click/double-click interaction, right-click menu ordering, hotkey focus, etc.); several points shipped in v2.0.2
 - [@HarpyWar](https://github.com/HarpyWar) — Issue #3: reported a broken hotkey settings page; fixed
 - [@xingkongxiademodeng](https://github.com/xingkongxiademodeng) — Issue #10: flagged the serial (non-concurrent) directory upload bottleneck, guiding the concurrency optimization

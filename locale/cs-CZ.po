@@ -867,6 +867,9 @@ msgstr "Autor"
 msgid "settings.githubSource"
 msgstr "GitHub Zdroj"
 
+msgid "settings.npmSource"
+msgstr "Zdrojový kód NPM"
+
 msgid "settings.giveStar"
 msgstr "Dejte Hvězdičku"
 
@@ -1229,3 +1232,6 @@ msgstr "Obnovit pořadí menu"
 msgid "notify.trashFailed"
 msgstr "{n} položek se nepodařilo přesunout do koše (nesmazáno; zkuste Shift+Delete pro trvalé smazání)"
 
+
+msgid "settings.iconLocked"
+msgstr "Uzamčeno (systémová ikona)"

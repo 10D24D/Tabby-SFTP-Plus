@@ -862,6 +862,9 @@ msgstr "Autor"
 msgid "settings.githubSource"
 msgstr "Fonte do GitHub"
 
+msgid "settings.npmSource"
+msgstr "Código-fonte do NPM"
+
 msgid "settings.giveStar"
 msgstr "Dar uma Estrela"
 
@@ -1232,3 +1235,6 @@ msgstr "Restaurar ordem do menu"
 msgid "notify.trashFailed"
 msgstr "{n} item(ns) falharam ao mover para a lixeira (não excluídos; tente Shift+Delete para exclusão permanente)"
 
+
+msgid "settings.iconLocked"
+msgstr "Bloqueado (ícone do sistema)"

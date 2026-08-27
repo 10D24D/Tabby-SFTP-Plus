@@ -860,6 +860,9 @@ msgstr "Autor"
 msgid "settings.githubSource"
 msgstr "GitHub-Quelle"
 
+msgid "settings.npmSource"
+msgstr "NPM-Quellcode"
+
 msgid "settings.giveStar"
 msgstr "Stern Geben"
 
@@ -1232,3 +1235,6 @@ msgstr "Menüreihenfolge zurücksetzen"
 msgid "notify.trashFailed"
 msgstr "{n} Element(e) konnten nicht in den Papierkorb verschoben werden (nicht gelöscht; versuchen Sie Umschalt+Entf für dauerhaftes Löschen)"
 
+
+msgid "settings.iconLocked"
+msgstr "Gesperrt (Systemikone)"

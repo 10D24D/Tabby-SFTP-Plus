@@ -880,6 +880,9 @@ msgstr "作者"
 msgid "settings.githubSource"
 msgstr "GitHub ソース"
 
+msgid "settings.npmSource"
+msgstr "NPMソース"
+
 msgid "settings.giveStar"
 msgstr "スターを付ける"
 
@@ -1242,3 +1245,6 @@ msgstr "メニュー順序をリセット"
 msgid "notify.trashFailed"
 msgstr "{n} 個の項目をごみ箱に移動できませんでした（削除されていません。完全に削除するには Shift+Delete を試してください）"
 
+
+msgid "settings.iconLocked"
+msgstr "ロック中（システムアイコン）"

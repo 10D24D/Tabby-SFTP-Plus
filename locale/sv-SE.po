@@ -674,6 +674,9 @@ msgstr "Författare"
 
 msgid "settings.githubSource"
 msgstr "GitHub-källa"
+
+msgid "settings.npmSource"
+msgstr "NPM-källkod"
 msgid "settings.giveStar"
 msgstr "Ge en stjärna"
 msgid "settings.feedback"
@@ -1025,3 +1028,6 @@ msgstr "Återställ menyposition"
 msgid "notify.trashFailed"
 msgstr "{n} objekt kunde inte flyttas till papperskorgen (inte borttagna; prova Shift+Delete för permanent borttagning)"
 
+
+msgid "settings.iconLocked"
+msgstr "Låst (systemikon)"

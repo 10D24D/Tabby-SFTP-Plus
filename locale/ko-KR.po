@@ -869,6 +869,9 @@ msgstr "작성자"
 msgid "settings.githubSource"
 msgstr "GitHub 소스"
 
+msgid "settings.npmSource"
+msgstr "NPM 소스"
+
 msgid "settings.giveStar"
 msgstr "별점 주기"
 
@@ -1240,3 +1243,6 @@ msgstr "메뉴 순서 재설정"
 msgid "notify.trashFailed"
 msgstr "{n}개 항목을 휴지통으로 이동하지 못했습니다(삭제되지 않음. 영구 삭제하려면 Shift+Delete를 누르세요)"
 
+
+msgid "settings.iconLocked"
+msgstr "잠금 (시스템 아이콘)"

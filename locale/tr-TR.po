@@ -875,6 +875,9 @@ msgstr "Yazar"
 msgid "settings.githubSource"
 msgstr "GitHub Kaynağı"
 
+msgid "settings.npmSource"
+msgstr "NPM Kaynak Kodu"
+
 msgid "settings.giveStar"
 msgstr "Yıldız Ver"
 
@@ -1237,3 +1240,6 @@ msgstr "Menü sırasını sıfırla"
 msgid "notify.trashFailed"
 msgstr "{n} öğe geri dönüşüm kutusuna taşınamadı (silinmedi; kalıcı silme için Shift+Delete deneyin)"
 
+
+msgid "settings.iconLocked"
+msgstr "Kilitli (sistem simgesi)"

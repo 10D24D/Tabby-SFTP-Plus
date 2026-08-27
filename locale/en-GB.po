@@ -880,6 +880,9 @@ msgstr "Author"
 msgid "settings.githubSource"
 msgstr "GitHub Source"
 
+msgid "settings.npmSource"
+msgstr "NPM Source"
+
 msgid "settings.giveStar"
 msgstr "Give a Star"
 
@@ -1301,3 +1304,6 @@ msgstr "I've starred it"
 
 msgid "file.location"
 msgstr "Location"
+
+msgid "settings.iconLocked"
+msgstr "Locked (system icon)"

@@ -675,6 +675,9 @@ msgstr "Outeur"
 
 msgid "settings.githubSource"
 msgstr "GitHub-bron"
+
+msgid "settings.npmSource"
+msgstr "NPM-bron"
 msgid "settings.giveStar"
 msgstr "Gee ’n Ster"
 msgid "settings.feedback"
@@ -1026,3 +1029,6 @@ msgstr "Herstel kieslysorde"
 msgid "notify.trashFailed"
 msgstr "{n} item(e) kon nie na herwinningsbak geskuif word nie (nie uitgevee nie; probeer Shift+Delete vir permanente uitveë)"
 
+
+msgid "settings.iconLocked"
+msgstr "Gesluit (stelselikoon)"

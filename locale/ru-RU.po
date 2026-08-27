@@ -869,6 +869,9 @@ msgstr "Автор"
 msgid "settings.githubSource"
 msgstr "Источник GitHub"
 
+msgid "settings.npmSource"
+msgstr "Исходный код NPM"
+
 msgid "settings.giveStar"
 msgstr "Поставить Звёздочку"
 
@@ -1240,3 +1243,6 @@ msgstr "Сбросить порядок меню"
 msgid "notify.trashFailed"
 msgstr "{n} объект(ов) не удалось переместить в корзину (не удалены; попробуйте Shift+Delete для окончательного удаления)"
 
+
+msgid "settings.iconLocked"
+msgstr "Заблокировано (системная икона)"

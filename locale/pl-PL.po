@@ -871,6 +871,9 @@ msgstr "Autor"
 msgid "settings.githubSource"
 msgstr "Źródło GitHub"
 
+msgid "settings.npmSource"
+msgstr "Kod źródłowy NPM"
+
 msgid "settings.giveStar"
 msgstr "Daj Gwiazdkę"
 
@@ -1233,3 +1236,6 @@ msgstr "Przywróć kolejność menu"
 msgid "notify.trashFailed"
 msgstr "{n} element(ów) nie udało się przenieść do kosza (nie usunięto; spróbuj Shift+Delete, aby usunąć trwale)"
 
+
+msgid "settings.iconLocked"
+msgstr "Zablokowane (ikona systemowa)"

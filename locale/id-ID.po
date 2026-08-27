@@ -863,6 +863,9 @@ msgstr "Penulis"
 msgid "settings.githubSource"
 msgstr "Sumber GitHub"
 
+msgid "settings.npmSource"
+msgstr "Sumber NPM"
+
 msgid "settings.giveStar"
 msgstr "Beri Bintang"
 
@@ -1225,3 +1228,6 @@ msgstr "Atur ulang urutan menu"
 msgid "notify.trashFailed"
 msgstr "{n} item gagal dipindahkan ke tempat sampah (tidak dihapus; coba Shift+Delete untuk penghapusan permanen)"
 
+
+msgid "settings.iconLocked"
+msgstr "Terkunci (ikon sistem)"

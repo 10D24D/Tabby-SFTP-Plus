@@ -675,6 +675,9 @@ msgstr "Autor"
 
 msgid "settings.githubSource"
 msgstr "GitHub izvor"
+
+msgid "settings.npmSource"
+msgstr "NPM izvorni kod"
 msgid "settings.giveStar"
 msgstr "Daj zvjezdicu"
 msgid "settings.feedback"
@@ -1026,3 +1029,6 @@ msgstr "Vrati redoslijed izbornika"
 msgid "notify.trashFailed"
 msgstr "{n} stavki nije uspjelo premjestiti u koš za smeće (nije izbrisano; pokušajte Shift+Delete za trajno brisanje)"
 
+
+msgid "settings.iconLocked"
+msgstr "Zaključano (sistemska ikona)"

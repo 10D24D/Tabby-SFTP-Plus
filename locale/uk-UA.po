@@ -675,6 +675,9 @@ msgstr "Автор"
 
 msgid "settings.githubSource"
 msgstr "GitHub джерело"
+
+msgid "settings.npmSource"
+msgstr "Вихідний код NPM"
 msgid "settings.giveStar"
 msgstr "Поставте зірочку"
 msgid "settings.feedback"
@@ -1026,3 +1029,6 @@ msgstr "Скинути порядок меню"
 msgid "notify.trashFailed"
 msgstr "{n} елемент(ів) не вдалося перемістити в кошик (не видалено; спробуйте Shift+Delete для остаточного видалення)"
 
+
+msgid "settings.iconLocked"
+msgstr "Заблоковано (системна ікона)"
