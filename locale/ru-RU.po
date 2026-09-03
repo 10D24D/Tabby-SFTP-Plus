@@ -810,7 +810,7 @@ msgid "settings.hotkey"
 msgstr "Горячая клавиша панели"
 
 msgid "settings.hotkeyUnbound"
-msgstr "Установить горячую клавишу"
+msgstr "Установить комбинацию клавиш"
 
 msgid "settings.hotkeyClear"
 msgstr "Очистить"
@@ -825,13 +825,13 @@ msgid "settings.hotkeyConflict"
 msgstr "Конфликт с: {names}"
 
 msgid "settings.hotkeyConflictConfirm"
-msgstr "Горячая клавиша {keys} уже используется: {names}\\nНазначить её SFTP+ в любом случае? (Обе могут сработать.)"
+msgstr "Комбинация клавиш {keys} уже используется: {names}\nВсё равно назначить её SFTP+? (Могут сработать обе.)"
 
 msgid "settings.hotkeySaved"
 msgstr "Сохранено и синхронизировано с Tabby: {keys}"
 
 msgid "settings.hotkeyCleared"
-msgstr "Назначение горячей клавиши очищено"
+msgstr "Назначение комбинации клавиш очищено"
 
 msgid "settings.hotkeySaveFailed"
 msgstr "Не удалось сохранить горячую клавишу"
@@ -1211,7 +1211,7 @@ msgid "settings.transferSection"
 msgstr "Передача"
 
 msgid "settings.hotkeys"
-msgstr "Горячие клавиши"
+msgstr "Комбинации клавиш"
 
 msgid "settings.resetPanelHotkeys"
 msgstr "Сбросить по умолчанию"
@@ -1232,7 +1232,7 @@ msgid "settings.phk.back"
 msgstr "Назад (история)"
 
 msgid "settings.panelHotkeyConflict"
-msgstr "Сочетание клавиш {keys} уже используется другой действием"
+msgstr "Комбинация клавиш {keys} уже используется другим действием"
 
 msgid "settings.customContextMenu"
 msgstr "Настроить контекстное меню"
@@ -1246,3 +1246,60 @@ msgstr "{n} объект(ов) не удалось переместить в к�
 
 msgid "settings.iconLocked"
 msgstr "Заблокировано (системная икона)"
+
+msgid "settings.phk.forward"
+msgstr "Вперёд"
+
+msgid "settings.mouseBack"
+msgstr "Кнопка «Назад» мыши"
+
+msgid "settings.mouseForward"
+msgstr "Кнопка «Вперёд» мыши"
+
+msgid "settings.hotkeyAdd"
+msgstr "Добавить комбинацию"
+
+msgid "settings.hotkeyDuplicate"
+msgstr "Эта комбинация уже назначена этому действию"
+
+msgid "settings.hotkeyMouseHint"
+msgstr "Привязка боковой кнопки мыши, нажмите для повторной записи"
+
+msgid "settings.occupied.title"
+msgstr "Занятые комбинации"
+
+msgid "settings.occupied.hint"
+msgstr "Эти клавиши зарезервированы SFTP+ и не могут быть изменены. Избегайте их при назначении комбинаций выше, иначе могут сработать обе."
+
+msgid "settings.occupied.groupPanel"
+msgstr "Панель"
+
+msgid "settings.occupied.groupViewer"
+msgstr "Просмотрщик"
+
+msgid "settings.occupied.groupDialog"
+msgstr "Диалоги"
+
+msgid "settings.occupied.moveSelection"
+msgstr "Переместить выделение вверх / вниз"
+
+msgid "settings.occupied.multiSelect"
+msgstr "Множественный выбор щелчком"
+
+msgid "settings.occupied.prevNextImage"
+msgstr "Предыдущее / следующее изображение"
+
+msgid "settings.occupied.closeDialog"
+msgstr "Закрыть диалог / просмотрщик / панель"
+
+msgid "settings.occupied.confirmDelete"
+msgstr "Подтвердить удаление"
+
+msgid "log.modeFast"
+msgstr "Быстрый режим"
+
+msgid "log.modeTar"
+msgstr "tar-упаковка"
+
+msgid "log.fileCount"
+msgstr "{n} файлов"

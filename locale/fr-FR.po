@@ -1233,3 +1233,60 @@ msgstr "{n} élément(s) n'ont pas pu être déplacés vers la corbeille (non su
 
 msgid "settings.iconLocked"
 msgstr "Verrouillé (icône système)"
+
+msgid "settings.phk.forward"
+msgstr "Suivant"
+
+msgid "settings.mouseBack"
+msgstr "Bouton retour de la souris"
+
+msgid "settings.mouseForward"
+msgstr "Bouton suivant de la souris"
+
+msgid "settings.hotkeyAdd"
+msgstr "Ajouter un raccourci"
+
+msgid "settings.hotkeyDuplicate"
+msgstr "Ce raccourci est déjà associé à cette action"
+
+msgid "settings.hotkeyMouseHint"
+msgstr "Affectation d’un bouton latéral de la souris, cliquez pour réenregistrer"
+
+msgid "settings.occupied.title"
+msgstr "Raccourcis occupés"
+
+msgid "settings.occupied.hint"
+msgstr "Ces touches sont réservées par SFTP+ et ne peuvent pas être modifiées. Évitez-les lors de l’attribution des raccourcis ci-dessus, sinon les deux peuvent se déclencher."
+
+msgid "settings.occupied.groupPanel"
+msgstr "Panneau"
+
+msgid "settings.occupied.groupViewer"
+msgstr "Visionneuse"
+
+msgid "settings.occupied.groupDialog"
+msgstr "Boîtes de dialogue"
+
+msgid "settings.occupied.moveSelection"
+msgstr "Déplacer la sélection vers le haut / le bas"
+
+msgid "settings.occupied.multiSelect"
+msgstr "Sélection multiple au clic"
+
+msgid "settings.occupied.prevNextImage"
+msgstr "Image précédente / suivante"
+
+msgid "settings.occupied.closeDialog"
+msgstr "Fermer la boîte de dialogue / la visionneuse / le panneau"
+
+msgid "settings.occupied.confirmDelete"
+msgstr "Confirmer la suppression"
+
+msgid "log.modeFast"
+msgstr "Mode rapide"
+
+msgid "log.modeTar"
+msgstr "Paquet tar"
+
+msgid "log.fileCount"
+msgstr "{n} fichiers"

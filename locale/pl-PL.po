@@ -1239,3 +1239,60 @@ msgstr "{n} element(ów) nie udało się przenieść do kosza (nie usunięto; sp
 
 msgid "settings.iconLocked"
 msgstr "Zablokowane (ikona systemowa)"
+
+msgid "settings.phk.forward"
+msgstr "Do przodu"
+
+msgid "settings.mouseBack"
+msgstr "Przycisk Wstecz myszy"
+
+msgid "settings.mouseForward"
+msgstr "Przycisk Dalej myszy"
+
+msgid "settings.hotkeyAdd"
+msgstr "Dodaj skrót"
+
+msgid "settings.hotkeyDuplicate"
+msgstr "Ten skrót jest już przypisany do tej akcji"
+
+msgid "settings.hotkeyMouseHint"
+msgstr "Przypisanie bocznego przycisku myszy, kliknij aby nagrać ponownie"
+
+msgid "settings.occupied.title"
+msgstr "Zajęte skróty"
+
+msgid "settings.occupied.hint"
+msgstr "Te klawisze są zarezerwowane przez SFTP+ i nie można ich zmienić. Unikaj ich przy przypisywaniu skrótów powyżej, w przeciwnym razie mogą zadziałać oba."
+
+msgid "settings.occupied.groupPanel"
+msgstr "Panel"
+
+msgid "settings.occupied.groupViewer"
+msgstr "Podgląd"
+
+msgid "settings.occupied.groupDialog"
+msgstr "Okna dialogowe"
+
+msgid "settings.occupied.moveSelection"
+msgstr "Przesuń zaznaczenie w górę / w dół"
+
+msgid "settings.occupied.multiSelect"
+msgstr "Zaznaczanie wielokrotne kliknięciem"
+
+msgid "settings.occupied.prevNextImage"
+msgstr "Poprzedni / następny obraz"
+
+msgid "settings.occupied.closeDialog"
+msgstr "Zamknij okno / podgląd / panel"
+
+msgid "settings.occupied.confirmDelete"
+msgstr "Potwierdź usunięcie"
+
+msgid "log.modeFast"
+msgstr "Tryb szybki"
+
+msgid "log.modeTar"
+msgstr "Paczka tar"
+
+msgid "log.fileCount"
+msgstr "{n} plików"

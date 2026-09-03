@@ -629,7 +629,7 @@ msgstr "Лише одна інстанція"
 msgid "settings.hotkey"
 msgstr "Гаряча клавіша панелі"
 msgid "settings.hotkeyUnbound"
-msgstr "Встановити гарячу клавішу"
+msgstr "Встановити комбінацію клавіш"
 msgid "settings.hotkeyClear"
 msgstr "Очистити"
 
@@ -640,12 +640,11 @@ msgstr "Клацніть, щоб встановити гарячу клавіш�
 msgid "settings.hotkeyConflict"
 msgstr "Конфлікт з: {names}"
 msgid "settings.hotkeyConflictConfirm"
-msgstr "Гаряча клавіша {keys} вже використовується: {names}
-Все одно прив'язати до SFTP+? (Обидві можуть спрацювати.)"
+msgstr "Комбінацію клавіш {keys} вже використовує: {names}\nУсе одно призначити її SFTP+? (Можуть спрацювати обидві.)"
 msgid "settings.hotkeySaved"
 msgstr "Збережено і синхронізовано в Tabby: {keys}"
 msgid "settings.hotkeyCleared"
-msgstr "Прив'язку гарячої клавіші очищено"
+msgstr "Прив’язку комбінації клавіш очищено"
 msgid "settings.hotkeySaveFailed"
 msgstr "Не вдалося зберегти гарячу клавішу"
 msgid "settings.hotkeyRecordTimeout"
@@ -997,7 +996,7 @@ msgid "settings.transferSection"
 msgstr "Передача"
 
 msgid "settings.hotkeys"
-msgstr "Гарячі клавіші"
+msgstr "Комбінації клавіш"
 
 msgid "settings.resetPanelHotkeys"
 msgstr "Скинути до типових"
@@ -1018,7 +1017,7 @@ msgid "settings.phk.back"
 msgstr "Назад (історія)"
 
 msgid "settings.panelHotkeyConflict"
-msgstr "Гарячу клавішу {keys} вже використовує інша дія"
+msgstr "Комбінацію клавіш {keys} вже використовує інша дія"
 
 msgid "settings.customContextMenu"
 msgstr "Налаштувати контекстне меню"
@@ -1032,3 +1031,60 @@ msgstr "{n} елемент(ів) не вдалося перемістити в �
 
 msgid "settings.iconLocked"
 msgstr "Заблоковано (системна ікона)"
+
+msgid "settings.phk.forward"
+msgstr "Вперед"
+
+msgid "settings.mouseBack"
+msgstr "Кнопка «Назад» миші"
+
+msgid "settings.mouseForward"
+msgstr "Кнопка «Вперед» миші"
+
+msgid "settings.hotkeyAdd"
+msgstr "Додати комбінацію"
+
+msgid "settings.hotkeyDuplicate"
+msgstr "Ця комбінація вже призначена цій дії"
+
+msgid "settings.hotkeyMouseHint"
+msgstr "Прив’язка бічної кнопки миші, натисніть для повторного запису"
+
+msgid "settings.occupied.title"
+msgstr "Зайняті комбінації"
+
+msgid "settings.occupied.hint"
+msgstr "Ці клавіші зарезервовані SFTP+ і не можуть бути змінені. Уникайте їх при призначенні комбінацій вище, інакше можуть спрацювати обидві."
+
+msgid "settings.occupied.groupPanel"
+msgstr "Панель"
+
+msgid "settings.occupied.groupViewer"
+msgstr "Переглядач"
+
+msgid "settings.occupied.groupDialog"
+msgstr "Діалоги"
+
+msgid "settings.occupied.moveSelection"
+msgstr "Перемістити виділення вгору / вниз"
+
+msgid "settings.occupied.multiSelect"
+msgstr "Множинний вибір клацанням"
+
+msgid "settings.occupied.prevNextImage"
+msgstr "Попереднє / наступне зображення"
+
+msgid "settings.occupied.closeDialog"
+msgstr "Закрити діалог / переглядач / панель"
+
+msgid "settings.occupied.confirmDelete"
+msgstr "Підтвердити видалення"
+
+msgid "log.modeFast"
+msgstr "Швидкий режим"
+
+msgid "log.modeTar"
+msgstr "tar-упаковка"
+
+msgid "log.fileCount"
+msgstr "{n} файлів"

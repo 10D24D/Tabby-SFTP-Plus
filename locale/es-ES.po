@@ -1238,3 +1238,60 @@ msgstr "{n} elemento(s) no se pudieron mover a la papelera (no eliminados; prueb
 
 msgid "settings.iconLocked"
 msgstr "Bloqueado (icono del sistema)"
+
+msgid "settings.phk.forward"
+msgstr "Adelante"
+
+msgid "settings.mouseBack"
+msgstr "Botón atrás del ratón"
+
+msgid "settings.mouseForward"
+msgstr "Botón adelante del ratón"
+
+msgid "settings.hotkeyAdd"
+msgstr "Añadir atajo"
+
+msgid "settings.hotkeyDuplicate"
+msgstr "Este atajo ya está asignado a esta acción"
+
+msgid "settings.hotkeyMouseHint"
+msgstr "Asignación de botón lateral del ratón, haz clic para volver a grabar"
+
+msgid "settings.occupied.title"
+msgstr "Atajos ocupados"
+
+msgid "settings.occupied.hint"
+msgstr "Estas teclas están reservadas por SFTP+ y no se pueden cambiar. Evítalas al asignar atajos arriba, o ambos podrían activarse."
+
+msgid "settings.occupied.groupPanel"
+msgstr "Panel"
+
+msgid "settings.occupied.groupViewer"
+msgstr "Visor"
+
+msgid "settings.occupied.groupDialog"
+msgstr "Diálogos"
+
+msgid "settings.occupied.moveSelection"
+msgstr "Mover la selección arriba / abajo"
+
+msgid "settings.occupied.multiSelect"
+msgstr "Selección múltiple con clic"
+
+msgid "settings.occupied.prevNextImage"
+msgstr "Imagen anterior / siguiente"
+
+msgid "settings.occupied.closeDialog"
+msgstr "Cerrar diálogo / visor / panel"
+
+msgid "settings.occupied.confirmDelete"
+msgstr "Confirmar eliminación"
+
+msgid "log.modeFast"
+msgstr "Modo rápido"
+
+msgid "log.modeTar"
+msgstr "Empaquetado tar"
+
+msgid "log.fileCount"
+msgstr "{n} archivos"

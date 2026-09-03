@@ -1032,3 +1032,60 @@ msgstr "{n} stavki nije uspjelo premjestiti u koš za smeće (nije izbrisano; po
 
 msgid "settings.iconLocked"
 msgstr "Zaključano (sistemska ikona)"
+
+msgid "settings.phk.forward"
+msgstr "Naprijed"
+
+msgid "settings.mouseBack"
+msgstr "Tipka Natrag na mišu"
+
+msgid "settings.mouseForward"
+msgstr "Tipka Naprijed na mišu"
+
+msgid "settings.hotkeyAdd"
+msgstr "Dodaj prečac"
+
+msgid "settings.hotkeyDuplicate"
+msgstr "Ovaj prečac je već dodijeljen ovoj radnji"
+
+msgid "settings.hotkeyMouseHint"
+msgstr "Dodjela bočne tipke miša, kliknite za ponovno snimanje"
+
+msgid "settings.occupied.title"
+msgstr "Zauzeti prečaci"
+
+msgid "settings.occupied.hint"
+msgstr "Ove tipke su rezervirane za SFTP+ i ne mogu se mijenjati. Izbjegavajte ih pri dodjeli prečaca gore, inače se mogu aktivirati obje."
+
+msgid "settings.occupied.groupPanel"
+msgstr "Panel"
+
+msgid "settings.occupied.groupViewer"
+msgstr "Preglednik"
+
+msgid "settings.occupied.groupDialog"
+msgstr "Dijalozi"
+
+msgid "settings.occupied.moveSelection"
+msgstr "Pomakni odabir gore / dolje"
+
+msgid "settings.occupied.multiSelect"
+msgstr "Višestruki odabir klikom"
+
+msgid "settings.occupied.prevNextImage"
+msgstr "Prethodna / sljedeća slika"
+
+msgid "settings.occupied.closeDialog"
+msgstr "Zatvori dijalog / preglednik / panel"
+
+msgid "settings.occupied.confirmDelete"
+msgstr "Potvrdi brisanje"
+
+msgid "log.modeFast"
+msgstr "Brzi način"
+
+msgid "log.modeTar"
+msgstr "Tar paket"
+
+msgid "log.fileCount"
+msgstr "{n} datoteka"

@@ -1246,3 +1246,60 @@ msgstr "{n}개 항목을 휴지통으로 이동하지 못했습니다(삭제되�
 
 msgid "settings.iconLocked"
 msgstr "잠금 (시스템 아이콘)"
+
+msgid "settings.phk.forward"
+msgstr "앞으로"
+
+msgid "settings.mouseBack"
+msgstr "마우스 뒤로 버튼"
+
+msgid "settings.mouseForward"
+msgstr "마우스 앞으로 버튼"
+
+msgid "settings.hotkeyAdd"
+msgstr "단축키 추가"
+
+msgid "settings.hotkeyDuplicate"
+msgstr "이 단축키는 이미 이 동작에 바인딩되어 있습니다"
+
+msgid "settings.hotkeyMouseHint"
+msgstr "마우스 측면 버튼 바인딩, 클릭하여 다시 기록"
+
+msgid "settings.occupied.title"
+msgstr "사용 중인 단축키"
+
+msgid "settings.occupied.hint"
+msgstr "다음 키는 SFTP+에서 예약되어 변경할 수 없습니다. 위 단축키를 지정할 때는 이러한 조합을 피하세요(동시에 실행될 수 있습니다)."
+
+msgid "settings.occupied.groupPanel"
+msgstr "패널"
+
+msgid "settings.occupied.groupViewer"
+msgstr "뷰어"
+
+msgid "settings.occupied.groupDialog"
+msgstr "대화 상자"
+
+msgid "settings.occupied.moveSelection"
+msgstr "선택 항목 위/아래로 이동"
+
+msgid "settings.occupied.multiSelect"
+msgstr "클릭으로 다중 선택"
+
+msgid "settings.occupied.prevNextImage"
+msgstr "이전 / 다음 이미지로 전환"
+
+msgid "settings.occupied.closeDialog"
+msgstr "대화 상자 / 뷰어 / 패널 닫기"
+
+msgid "settings.occupied.confirmDelete"
+msgstr "삭제 확인"
+
+msgid "log.modeFast"
+msgstr "빠른 모드"
+
+msgid "log.modeTar"
+msgstr "패킹 전송"
+
+msgid "log.fileCount"
+msgstr "{n}개 파일"

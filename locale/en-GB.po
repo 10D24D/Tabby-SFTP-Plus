@@ -821,7 +821,7 @@ msgid "settings.hotkey"
 msgstr "Panel hotkey"
 
 msgid "settings.hotkeyUnbound"
-msgstr "Set hotkey"
+msgstr "Set shortcut"
 
 msgid "settings.hotkeyClear"
 msgstr "Clear"
@@ -836,13 +836,13 @@ msgid "settings.hotkeyConflict"
 msgstr "Conflicts with: {names}"
 
 msgid "settings.hotkeyConflictConfirm"
-msgstr "Hotkey {keys} is already used by: {names}\nBind it to SFTP+ anyway? (Both may fire.)"
+msgstr "Shortcut {keys} is already used by: {names}\nBind it to SFTP+ anyway? (Both may fire.)"
 
 msgid "settings.hotkeySaved"
 msgstr "Saved and synced to Tabby: {keys}"
 
 msgid "settings.hotkeyCleared"
-msgstr "Hotkey binding cleared"
+msgstr "Shortcut binding cleared"
 
 msgid "settings.hotkeySaveFailed"
 msgstr "Failed to save hotkey"
@@ -1307,3 +1307,60 @@ msgstr "Location"
 
 msgid "settings.iconLocked"
 msgstr "Locked (system icon)"
+
+msgid "settings.phk.forward"
+msgstr "Forward"
+
+msgid "settings.mouseBack"
+msgstr "Mouse back button"
+
+msgid "settings.mouseForward"
+msgstr "Mouse forward button"
+
+msgid "settings.hotkeyAdd"
+msgstr "Add shortcut"
+
+msgid "settings.hotkeyDuplicate"
+msgstr "This shortcut is already bound to this action"
+
+msgid "settings.hotkeyMouseHint"
+msgstr "Mouse side-button binding, click to re-record"
+
+msgid "settings.occupied.title"
+msgstr "Occupied shortcuts"
+
+msgid "settings.occupied.hint"
+msgstr "These keys are reserved by SFTP+ and cannot be changed. Avoid them when assigning shortcuts above, or both may fire."
+
+msgid "settings.occupied.groupPanel"
+msgstr "Panel"
+
+msgid "settings.occupied.groupViewer"
+msgstr "Viewer"
+
+msgid "settings.occupied.groupDialog"
+msgstr "Dialogs"
+
+msgid "settings.occupied.moveSelection"
+msgstr "Move selection up / down"
+
+msgid "settings.occupied.multiSelect"
+msgstr "Multi-select with click"
+
+msgid "settings.occupied.prevNextImage"
+msgstr "Previous / next image"
+
+msgid "settings.occupied.closeDialog"
+msgstr "Close dialog / viewer / panel"
+
+msgid "settings.occupied.confirmDelete"
+msgstr "Confirm deletion"
+
+msgid "log.modeFast"
+msgstr "Fast mode"
+
+msgid "log.modeTar"
+msgstr "Tar packing"
+
+msgid "log.fileCount"
+msgstr "{n} files"

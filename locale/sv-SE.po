@@ -996,7 +996,7 @@ msgid "settings.transferSection"
 msgstr "Överföring"
 
 msgid "settings.hotkeys"
-msgstr "Snabbtangenter"
+msgstr "Genvägstangenter"
 
 msgid "settings.resetPanelHotkeys"
 msgstr "Återställ till standard"
@@ -1017,7 +1017,7 @@ msgid "settings.phk.back"
 msgstr "Tillbaka (historik)"
 
 msgid "settings.panelHotkeyConflict"
-msgstr "Snabbtangent {keys} används redan av en annan åtgärd"
+msgstr "Genvägstangent {keys} används redan av en annan åtgärd"
 
 msgid "settings.customContextMenu"
 msgstr "Anpassa högerklicksmenyn"
@@ -1031,3 +1031,60 @@ msgstr "{n} objekt kunde inte flyttas till papperskorgen (inte borttagna; prova 
 
 msgid "settings.iconLocked"
 msgstr "Låst (systemikon)"
+
+msgid "settings.phk.forward"
+msgstr "Framåt"
+
+msgid "settings.mouseBack"
+msgstr "Musens bakåtknapp"
+
+msgid "settings.mouseForward"
+msgstr "Musens framåtknapp"
+
+msgid "settings.hotkeyAdd"
+msgstr "Lägg till genväg"
+
+msgid "settings.hotkeyDuplicate"
+msgstr "Denna genväg är redan bunden till denna åtgärd"
+
+msgid "settings.hotkeyMouseHint"
+msgstr "Musens sidoknapp, klicka för att spela in igen"
+
+msgid "settings.occupied.title"
+msgstr "Upptagna genvägar"
+
+msgid "settings.occupied.hint"
+msgstr "Dessa tangenter är reserverade av SFTP+ och kan inte ändras. Undvik dem när du tilldelar genvägar ovan, annars kan båda utlösas."
+
+msgid "settings.occupied.groupPanel"
+msgstr "Panel"
+
+msgid "settings.occupied.groupViewer"
+msgstr "Visare"
+
+msgid "settings.occupied.groupDialog"
+msgstr "Dialogrutor"
+
+msgid "settings.occupied.moveSelection"
+msgstr "Flytta markeringen upp / ner"
+
+msgid "settings.occupied.multiSelect"
+msgstr "Flerval med klick"
+
+msgid "settings.occupied.prevNextImage"
+msgstr "Föregående / nästa bild"
+
+msgid "settings.occupied.closeDialog"
+msgstr "Stäng dialog / visare / panel"
+
+msgid "settings.occupied.confirmDelete"
+msgstr "Bekräfta borttagning"
+
+msgid "log.modeFast"
+msgstr "Snabbläge"
+
+msgid "log.modeTar"
+msgstr "Tar-paketering"
+
+msgid "log.fileCount"
+msgstr "{n} filer"

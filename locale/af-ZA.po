@@ -629,7 +629,7 @@ msgstr "Slegs een instansie"
 msgid "settings.hotkey"
 msgstr "Paneel-sneltoets"
 msgid "settings.hotkeyUnbound"
-msgstr "Stel sneltoets"
+msgstr "Stel kortpad"
 msgid "settings.hotkeyClear"
 msgstr "Vee Uit"
 
@@ -640,12 +640,11 @@ msgstr "Klik om sneltoets te stel"
 msgid "settings.hotkeyConflict"
 msgstr "Konflik met: {names}"
 msgid "settings.hotkeyConflictConfirm"
-msgstr "Sneltoets {keys} word reeds gebruik deur: {names}
-Bind dit steeds aan SFTP+? (Beide mag vuur.)"
+msgstr "Kortpad {keys} word reeds gebruik deur: {names}\nBind dit niettemin aan SFTP+? (Albei kan aktiveer.)"
 msgid "settings.hotkeySaved"
 msgstr "Gestoor en gesinchroniseer na Tabby: {keys}"
 msgid "settings.hotkeyCleared"
-msgstr "Sneltoetsbinding gekanselleer"
+msgstr "Kortpadbinding gekanselleer"
 msgid "settings.hotkeySaveFailed"
 msgstr "Kon nie sneltoets stoor nie"
 msgid "settings.hotkeyRecordTimeout"
@@ -997,7 +996,7 @@ msgid "settings.transferSection"
 msgstr "Oordrag"
 
 msgid "settings.hotkeys"
-msgstr "Snelkye"
+msgstr "Kortpaaie"
 
 msgid "settings.resetPanelHotkeys"
 msgstr "Herstel na verstek"
@@ -1018,7 +1017,7 @@ msgid "settings.phk.back"
 msgstr "Terug (geskiedenis)"
 
 msgid "settings.panelHotkeyConflict"
-msgstr "Snelky {keys} word reeds deur 'n ander aksie gebruik"
+msgstr "Kortpad {keys} word reeds deur 'n ander aksie gebruik"
 
 msgid "settings.customContextMenu"
 msgstr "Pas regterklik-kieslys aan"
@@ -1032,3 +1031,60 @@ msgstr "{n} item(e) kon nie na herwinningsbak geskuif word nie (nie uitgevee nie
 
 msgid "settings.iconLocked"
 msgstr "Gesluit (stelselikoon)"
+
+msgid "settings.phk.forward"
+msgstr "Vorentoe"
+
+msgid "settings.mouseBack"
+msgstr "Muis-terugknoppie"
+
+msgid "settings.mouseForward"
+msgstr "Muis-vorentoe-knoppie"
+
+msgid "settings.hotkeyAdd"
+msgstr "Voeg kortpad by"
+
+msgid "settings.hotkeyDuplicate"
+msgstr "Hierdie kortpad is reeds aan hierdie aksie gekoppel"
+
+msgid "settings.hotkeyMouseHint"
+msgstr "Muiskantknoppie-binding, klik om weer op te neem"
+
+msgid "settings.occupied.title"
+msgstr "Besette kortpaaie"
+
+msgid "settings.occupied.hint"
+msgstr "Hierdie sleutels is deur SFTP+ gereserveer en kan nie verander word nie. Vermy hulle wanneer jy kortpaaie hierbo toewys, anders kan albei aktiveer."
+
+msgid "settings.occupied.groupPanel"
+msgstr "Paneel"
+
+msgid "settings.occupied.groupViewer"
+msgstr "Kyker"
+
+msgid "settings.occupied.groupDialog"
+msgstr "Dialoogvensters"
+
+msgid "settings.occupied.moveSelection"
+msgstr "Skuif keuse op / af"
+
+msgid "settings.occupied.multiSelect"
+msgstr "Meervoudige keuse met klik"
+
+msgid "settings.occupied.prevNextImage"
+msgstr "Vorige / volgende prent"
+
+msgid "settings.occupied.closeDialog"
+msgstr "Sluit dialoog / kyker / paneel"
+
+msgid "settings.occupied.confirmDelete"
+msgstr "Bevestig skraping"
+
+msgid "log.modeFast"
+msgstr "Vinnige modus"
+
+msgid "log.modeTar"
+msgstr "Tar-pakket"
+
+msgid "log.fileCount"
+msgstr "{n} lêers"

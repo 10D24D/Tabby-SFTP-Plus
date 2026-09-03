@@ -798,7 +798,7 @@ msgstr "Kun enkelt instans"
 msgid "settings.hotkey"
 msgstr "Panelgenvej"
 msgid "settings.hotkeyUnbound"
-msgstr "Sæt hotkey"
+msgstr "Sæt genvej"
 
 msgid "settings.hotkeyClear"
 msgstr "Ryd"
@@ -813,13 +813,13 @@ msgid "settings.hotkeyConflict"
 msgstr "Konflikter med: {names}"
 
 msgid "settings.hotkeyConflictConfirm"
-msgstr "Hotkey {keys} er allerede brugt af: {names}\nBind det til SFTP+ alligevel? (Begge kan aktiveres.)"
+msgstr "Genvejstast {keys} er allerede brugt af: {names}\nBind den til SFTP+ alligevel? (Begge kan aktiveres.)"
 
 msgid "settings.hotkeySaved"
 msgstr "Gemt og synkroniseret til Tabby: {keys}"
 
 msgid "settings.hotkeyCleared"
-msgstr "Hotkey-binding ryddet"
+msgstr "Genvejsbinding ryddet"
 
 msgid "settings.hotkeySaveFailed"
 msgstr "Fejlede at gemme hotkey"
@@ -1186,7 +1186,7 @@ msgid "settings.transferSection"
 msgstr "Overførsel"
 
 msgid "settings.hotkeys"
-msgstr "Hastetaster"
+msgstr "Genvejstaster"
 
 msgid "settings.resetPanelHotkeys"
 msgstr "Nulstil til standard"
@@ -1207,7 +1207,7 @@ msgid "settings.phk.back"
 msgstr "Tilbage (historik)"
 
 msgid "settings.panelHotkeyConflict"
-msgstr "Hastetast {keys} bruges allerede af en anden handling"
+msgstr "Genvejstast {keys} bruges allerede af en anden handling"
 
 msgid "settings.customContextMenu"
 msgstr "Tilpas højrekliksmenuen"
@@ -1221,3 +1221,60 @@ msgstr "{n} element(er) kunne ikke flyttes til papirkurven (ikke slettet; prøv 
 
 msgid "settings.iconLocked"
 msgstr "Låst (systemikon)"
+
+msgid "settings.phk.forward"
+msgstr "Frem"
+
+msgid "settings.mouseBack"
+msgstr "Musens tilbage-knap"
+
+msgid "settings.mouseForward"
+msgstr "Musens frem-knap"
+
+msgid "settings.hotkeyAdd"
+msgstr "Tilføj genvej"
+
+msgid "settings.hotkeyDuplicate"
+msgstr "Denne genvej er allerede bundet til denne handling"
+
+msgid "settings.hotkeyMouseHint"
+msgstr "Musens sideknap, klik for at optage igen"
+
+msgid "settings.occupied.title"
+msgstr "Optagede genveje"
+
+msgid "settings.occupied.hint"
+msgstr "Disse taster er reserveret af SFTP+ og kan ikke ændres. Undgå dem, når du tildeler genveje ovenfor, ellers kan begge udløses."
+
+msgid "settings.occupied.groupPanel"
+msgstr "Panel"
+
+msgid "settings.occupied.groupViewer"
+msgstr "Fremviser"
+
+msgid "settings.occupied.groupDialog"
+msgstr "Dialogbokse"
+
+msgid "settings.occupied.moveSelection"
+msgstr "Flyt markeringen op / ned"
+
+msgid "settings.occupied.multiSelect"
+msgstr "Multivalg med klik"
+
+msgid "settings.occupied.prevNextImage"
+msgstr "Forrige / næste billede"
+
+msgid "settings.occupied.closeDialog"
+msgstr "Luk dialogboks / fremviser / panel"
+
+msgid "settings.occupied.confirmDelete"
+msgstr "Bekræft sletning"
+
+msgid "log.modeFast"
+msgstr "Hurtig tilstand"
+
+msgid "log.modeTar"
+msgstr "Tar-pakning"
+
+msgid "log.fileCount"
+msgstr "{n} filer"

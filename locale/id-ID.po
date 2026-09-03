@@ -1231,3 +1231,60 @@ msgstr "{n} item gagal dipindahkan ke tempat sampah (tidak dihapus; coba Shift+D
 
 msgid "settings.iconLocked"
 msgstr "Terkunci (ikon sistem)"
+
+msgid "settings.phk.forward"
+msgstr "Maju"
+
+msgid "settings.mouseBack"
+msgstr "Tombol kembali mouse"
+
+msgid "settings.mouseForward"
+msgstr "Tombol maju mouse"
+
+msgid "settings.hotkeyAdd"
+msgstr "Tambah pintasan"
+
+msgid "settings.hotkeyDuplicate"
+msgstr "Pintasan ini sudah terikat ke tindakan ini"
+
+msgid "settings.hotkeyMouseHint"
+msgstr "Binding tombol samping mouse, klik untuk merekam ulang"
+
+msgid "settings.occupied.title"
+msgstr "Pintasan yang digunakan"
+
+msgid "settings.occupied.hint"
+msgstr "Tombol ini dicadangkan oleh SFTP+ dan tidak dapat diubah. Hindari tombol ini saat menetapkan pintasan di atas, atau keduanya dapat terpicu."
+
+msgid "settings.occupied.groupPanel"
+msgstr "Panel"
+
+msgid "settings.occupied.groupViewer"
+msgstr "Penampil"
+
+msgid "settings.occupied.groupDialog"
+msgstr "Dialog"
+
+msgid "settings.occupied.moveSelection"
+msgstr "Pindahkan pilihan ke atas / bawah"
+
+msgid "settings.occupied.multiSelect"
+msgstr "Pilih ganda dengan klik"
+
+msgid "settings.occupied.prevNextImage"
+msgstr "Gambar sebelumnya / berikutnya"
+
+msgid "settings.occupied.closeDialog"
+msgstr "Tutup dialog / penampil / panel"
+
+msgid "settings.occupied.confirmDelete"
+msgstr "Konfirmasi penghapusan"
+
+msgid "log.modeFast"
+msgstr "Mode cepat"
+
+msgid "log.modeTar"
+msgstr "Paket tar"
+
+msgid "log.fileCount"
+msgstr "{n} berkas"

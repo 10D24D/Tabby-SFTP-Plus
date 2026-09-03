@@ -964,7 +964,7 @@ msgid "settings.iconErrorMissingSvg"
 msgstr "圖示目錄中找不到該 svg 檔案"
 
 msgid "settings.hotkeys"
-msgstr "熱鍵"
+msgstr "快捷鍵"
 
 msgid "settings.resetPanelHotkeys"
 msgstr "恢復預設"
@@ -982,7 +982,7 @@ msgid "settings.phk.up"
 msgstr "回上級目錄"
 
 msgid "settings.panelHotkeyConflict"
-msgstr "熱鍵 {keys} 已被其它動作占用"
+msgstr "快捷鍵 {keys} 已被其它動作占用"
 
 msgid "settings.customContextMenu"
 msgstr "定制右鍵選單"
@@ -1313,3 +1313,60 @@ msgstr "後退"
 msgid "notify.trashFailed"
 msgstr "{n} 項移入回收站失敗，檔案未被刪除（可嘗試 Shift+Delete 永久刪除）"
 
+
+msgid "settings.phk.forward"
+msgstr "前進"
+
+msgid "settings.mouseBack"
+msgstr "滑鼠後退鍵"
+
+msgid "settings.mouseForward"
+msgstr "滑鼠前進鍵"
+
+msgid "settings.hotkeyAdd"
+msgstr "新增快捷鍵"
+
+msgid "settings.hotkeyDuplicate"
+msgstr "此快捷鍵已綁定至目前動作"
+
+msgid "settings.hotkeyMouseHint"
+msgstr "滑鼠側鍵綁定，點擊可重新錄製"
+
+msgid "settings.occupied.title"
+msgstr "已佔用快捷鍵"
+
+msgid "settings.occupied.hint"
+msgstr "以下鍵位由 SFTP+ 固定佔用、不可修改。為上方動作設定快捷鍵時請避開這些組合，以免互相搶觸發。"
+
+msgid "settings.occupied.groupPanel"
+msgstr "面板"
+
+msgid "settings.occupied.groupViewer"
+msgstr "檢視器"
+
+msgid "settings.occupied.groupDialog"
+msgstr "對話方塊"
+
+msgid "settings.occupied.moveSelection"
+msgstr "上下移動選取項目"
+
+msgid "settings.occupied.multiSelect"
+msgstr "配合點擊多選"
+
+msgid "settings.occupied.prevNextImage"
+msgstr "切換上一張 / 下一張圖片"
+
+msgid "settings.occupied.closeDialog"
+msgstr "關閉對話方塊 / 檢視器 / 面板"
+
+msgid "settings.occupied.confirmDelete"
+msgstr "確認刪除"
+
+msgid "log.modeFast"
+msgstr "快速模式"
+
+msgid "log.modeTar"
+msgstr "打包加速"
+
+msgid "log.fileCount"
+msgstr "{n} 個檔案"

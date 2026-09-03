@@ -1032,3 +1032,60 @@ msgstr "{n} елемент(а) не можаха да бъдат премест�
 
 msgid "settings.iconLocked"
 msgstr "Заключено (системна икона)"
+
+msgid "settings.phk.forward"
+msgstr "Напред"
+
+msgid "settings.mouseBack"
+msgstr "Бутон „Назад“ на мишката"
+
+msgid "settings.mouseForward"
+msgstr "Бутон „Напред“ на мишката"
+
+msgid "settings.hotkeyAdd"
+msgstr "Добавяне на комбинация"
+
+msgid "settings.hotkeyDuplicate"
+msgstr "Тази комбинация вече е назначена на това действие"
+
+msgid "settings.hotkeyMouseHint"
+msgstr "Присвояване на страничен бутон на мишката, щракнете за повторен запис"
+
+msgid "settings.occupied.title"
+msgstr "Заети комбинации"
+
+msgid "settings.occupied.hint"
+msgstr "Тези клавиши са запазени от SFTP+ и не могат да се променят. Избягвайте ги при задаване на комбинации по-горе, иначе и двете могат да се задействат."
+
+msgid "settings.occupied.groupPanel"
+msgstr "Панел"
+
+msgid "settings.occupied.groupViewer"
+msgstr "Преглед"
+
+msgid "settings.occupied.groupDialog"
+msgstr "Диалогови прозорци"
+
+msgid "settings.occupied.moveSelection"
+msgstr "Преместване на избора нагоре / надолу"
+
+msgid "settings.occupied.multiSelect"
+msgstr "Множествен избор с щракване"
+
+msgid "settings.occupied.prevNextImage"
+msgstr "Предишно / следващо изображение"
+
+msgid "settings.occupied.closeDialog"
+msgstr "Затваряне на диалог / преглед / панел"
+
+msgid "settings.occupied.confirmDelete"
+msgstr "Потвърждаване на изтриването"
+
+msgid "log.modeFast"
+msgstr "Бърз режим"
+
+msgid "log.modeTar"
+msgstr "tar-опаковка"
+
+msgid "log.fileCount"
+msgstr "{n} файла"

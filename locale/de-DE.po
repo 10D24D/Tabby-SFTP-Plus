@@ -1238,3 +1238,60 @@ msgstr "{n} Element(e) konnten nicht in den Papierkorb verschoben werden (nicht 
 
 msgid "settings.iconLocked"
 msgstr "Gesperrt (Systemikone)"
+
+msgid "settings.phk.forward"
+msgstr "Vorwärts"
+
+msgid "settings.mouseBack"
+msgstr "Maus-Zurück-Taste"
+
+msgid "settings.mouseForward"
+msgstr "Maus-Vorwärts-Taste"
+
+msgid "settings.hotkeyAdd"
+msgstr "Tastenkürzel hinzufügen"
+
+msgid "settings.hotkeyDuplicate"
+msgstr "Dieses Tastenkürzel ist bereits an diese Aktion gebunden"
+
+msgid "settings.hotkeyMouseHint"
+msgstr "Maustasten-Belegung, zum erneuten Aufzeichnen klicken"
+
+msgid "settings.occupied.title"
+msgstr "Belegte Tastenkürzel"
+
+msgid "settings.occupied.hint"
+msgstr "Diese Tasten sind von SFTP+ reserviert und können nicht geändert werden. Vermeiden Sie sie beim Zuweisen von Tastenkürzeln oben, da sonst beide ausgelöst werden können."
+
+msgid "settings.occupied.groupPanel"
+msgstr "Panel"
+
+msgid "settings.occupied.groupViewer"
+msgstr "Betrachter"
+
+msgid "settings.occupied.groupDialog"
+msgstr "Dialoge"
+
+msgid "settings.occupied.moveSelection"
+msgstr "Auswahl nach oben/unten bewegen"
+
+msgid "settings.occupied.multiSelect"
+msgstr "Mehrfachauswahl per Klick"
+
+msgid "settings.occupied.prevNextImage"
+msgstr "Vorheriges / nächstes Bild"
+
+msgid "settings.occupied.closeDialog"
+msgstr "Dialog / Betrachter / Panel schließen"
+
+msgid "settings.occupied.confirmDelete"
+msgstr "Löschen bestätigen"
+
+msgid "log.modeFast"
+msgstr "Schnellmodus"
+
+msgid "log.modeTar"
+msgstr "Tar-Paket"
+
+msgid "log.fileCount"
+msgstr "{n} Dateien"

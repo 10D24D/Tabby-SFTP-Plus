@@ -1030,3 +1030,60 @@ msgstr "{n} stavki nije uspelo da se premesti u korpu (nije obrisano; pokušajte
 
 msgid "settings.iconLocked"
 msgstr "Zaključano (sistemska ikona)"
+
+msgid "settings.phk.forward"
+msgstr "Napred"
+
+msgid "settings.mouseBack"
+msgstr "Dugme Nazad na mišu"
+
+msgid "settings.mouseForward"
+msgstr "Dugme Napred na mišu"
+
+msgid "settings.hotkeyAdd"
+msgstr "Dodaj prečicu"
+
+msgid "settings.hotkeyDuplicate"
+msgstr "Ova prečica je već dodeljena ovoj radnji"
+
+msgid "settings.hotkeyMouseHint"
+msgstr "Dodela bočnog dugmeta miša, kliknite za ponovno snimanje"
+
+msgid "settings.occupied.title"
+msgstr "Zauzete prečice"
+
+msgid "settings.occupied.hint"
+msgstr "Ovi tasteri su rezervisani za SFTP+ i ne mogu se menjati. Izbegavajte ih pri dodeli prečica gore, inače mogu obe da se aktiviraju."
+
+msgid "settings.occupied.groupPanel"
+msgstr "Panel"
+
+msgid "settings.occupied.groupViewer"
+msgstr "Pregledač"
+
+msgid "settings.occupied.groupDialog"
+msgstr "Dijalozi"
+
+msgid "settings.occupied.moveSelection"
+msgstr "Pomeri izbor gore / dole"
+
+msgid "settings.occupied.multiSelect"
+msgstr "Višestruki izbor klikom"
+
+msgid "settings.occupied.prevNextImage"
+msgstr "Prethodna / sledeća slika"
+
+msgid "settings.occupied.closeDialog"
+msgstr "Zatvori dijalog / pregledač / panel"
+
+msgid "settings.occupied.confirmDelete"
+msgstr "Potvrdi brisanje"
+
+msgid "log.modeFast"
+msgstr "Brzi režim"
+
+msgid "log.modeTar"
+msgstr "Tar paket"
+
+msgid "log.fileCount"
+msgstr "{n} datoteka"

@@ -977,7 +977,7 @@ msgid "settings.iconErrorMissingSvg"
 msgstr "图标目录中找不到该 svg 文件"
 
 msgid "settings.hotkeys"
-msgstr "热键"
+msgstr "快捷键"
 
 msgid "settings.resetPanelHotkeys"
 msgstr "恢复默认"
@@ -995,7 +995,7 @@ msgid "settings.phk.up"
 msgstr "返回上级目录"
 
 msgid "settings.panelHotkeyConflict"
-msgstr "热键 {keys} 已被其它动作占用"
+msgstr "快捷键 {keys} 已被其它动作占用"
 
 msgid "settings.customContextMenu"
 msgstr "定制右键菜单"
@@ -1281,6 +1281,12 @@ msgstr "快速传输模式"
 msgid "settings.fastModeDesc"
 msgstr "传输目录时跳过大小预扫描立即开始：启动更快，但传输中无法计算总大小与百分比进度（只显示已传量）"
 
+msgid "settings.tarAcceleration"
+msgstr "TAR 打包传输加速"
+
+msgid "settings.tarAccelerationDesc"
+msgstr "全新传输文件夹时自动使用 tar 压缩包打包传输并在远端/本地解压，显著提升海量小文件传输速度；失败时自动平滑回退到普通传输"
+
 msgid "file.sizeCalculate"
 msgstr "计算"
 
@@ -1314,3 +1320,60 @@ msgstr "位置"
 msgid "settings.phk.back"
 msgstr "后退"
 
+
+msgid "settings.phk.forward"
+msgstr "前进"
+
+msgid "settings.mouseBack"
+msgstr "鼠标后退键"
+
+msgid "settings.mouseForward"
+msgstr "鼠标前进键"
+
+msgid "settings.hotkeyAdd"
+msgstr "添加快捷键"
+
+msgid "settings.hotkeyDuplicate"
+msgstr "该快捷键已绑定到当前动作"
+
+msgid "settings.hotkeyMouseHint"
+msgstr "鼠标侧键绑定，点击可重新录制"
+
+msgid "settings.occupied.title"
+msgstr "已占用快捷键"
+
+msgid "settings.occupied.hint"
+msgstr "以下键位由 SFTP+ 固定占用、不可修改。为上方动作设置快捷键时请避开这些组合，以免互相抢触发。"
+
+msgid "settings.occupied.groupPanel"
+msgstr "面板"
+
+msgid "settings.occupied.groupViewer"
+msgstr "查看器"
+
+msgid "settings.occupied.groupDialog"
+msgstr "对话框"
+
+msgid "settings.occupied.moveSelection"
+msgstr "上下移动选中项"
+
+msgid "settings.occupied.multiSelect"
+msgstr "配合点击多选"
+
+msgid "settings.occupied.prevNextImage"
+msgstr "切换上一张 / 下一张图片"
+
+msgid "settings.occupied.closeDialog"
+msgstr "关闭对话框 / 查看器 / 面板"
+
+msgid "settings.occupied.confirmDelete"
+msgstr "确认删除"
+
+msgid "log.modeFast"
+msgstr "快速模式"
+
+msgid "log.modeTar"
+msgstr "打包加速"
+
+msgid "log.fileCount"
+msgstr "{n} 个文件"

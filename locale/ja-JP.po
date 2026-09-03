@@ -820,7 +820,7 @@ msgid "settings.hotkey"
 msgstr "パネルホットキー"
 
 msgid "settings.hotkeyUnbound"
-msgstr "ホットキーを設定"
+msgstr "ショートカットキーを設定"
 
 msgid "settings.hotkeyClear"
 msgstr "クリア"
@@ -835,14 +835,13 @@ msgid "settings.hotkeyConflict"
 msgstr "競合：{names}"
 
 msgid "settings.hotkeyConflictConfirm"
-msgstr "ホットキー {keys} は既に {names} で使用されています。
-SFTP+ に割り当てますか？（両方が発火する可能性があります。）"
+msgstr "ショートカットキー {keys} は既に {names} で使用されています。\nそれでも SFTP+ に割り当てますか？（両方が発火する可能性があります。）"
 
 msgid "settings.hotkeySaved"
 msgstr "保存され Tabby に同期されました：{keys}"
 
 msgid "settings.hotkeyCleared"
-msgstr "ホットキー割り当てがクリアされました"
+msgstr "ショートカットキーの割り当てをクリアしました"
 
 msgid "settings.hotkeySaveFailed"
 msgstr "ホットキーの保存に失敗しました"
@@ -1213,7 +1212,7 @@ msgid "settings.transferSection"
 msgstr "転送"
 
 msgid "settings.hotkeys"
-msgstr "ホットキー"
+msgstr "ショートカットキー"
 
 msgid "settings.resetPanelHotkeys"
 msgstr "悯定値に戻す"
@@ -1234,7 +1233,7 @@ msgid "settings.phk.back"
 msgstr "戻る（履歴）"
 
 msgid "settings.panelHotkeyConflict"
-msgstr "ホットキー {keys} は別の操作ですでに使用されています"
+msgstr "ショートカットキー {keys} は別の操作ですでに使用されています"
 
 msgid "settings.customContextMenu"
 msgstr "右クリックメニューのカスタマイズ"
@@ -1248,3 +1247,60 @@ msgstr "{n} 個の項目をごみ箱に移動できませんでした（削除�
 
 msgid "settings.iconLocked"
 msgstr "ロック中（システムアイコン）"
+
+msgid "settings.phk.forward"
+msgstr "進む"
+
+msgid "settings.mouseBack"
+msgstr "マウス「戻る」ボタン"
+
+msgid "settings.mouseForward"
+msgstr "マウス「進む」ボタン"
+
+msgid "settings.hotkeyAdd"
+msgstr "ショートカットを追加"
+
+msgid "settings.hotkeyDuplicate"
+msgstr "このショートカットは既にこの操作に割り当てられています"
+
+msgid "settings.hotkeyMouseHint"
+msgstr "マウスサイドボタンの割り当て。クリックで再設定"
+
+msgid "settings.occupied.title"
+msgstr "占有済みショートカット"
+
+msgid "settings.occupied.hint"
+msgstr "以下のキーは SFTP+ が予約しており変更できません。上のショートカットを設定する際はこれらの組み合わせを避けてください（同時に発火する可能性があります）。"
+
+msgid "settings.occupied.groupPanel"
+msgstr "パネル"
+
+msgid "settings.occupied.groupViewer"
+msgstr "ビューア"
+
+msgid "settings.occupied.groupDialog"
+msgstr "ダイアログ"
+
+msgid "settings.occupied.moveSelection"
+msgstr "選択項目を上下に移動"
+
+msgid "settings.occupied.multiSelect"
+msgstr "クリックで複数選択"
+
+msgid "settings.occupied.prevNextImage"
+msgstr "前 / 次の画像へ切り替え"
+
+msgid "settings.occupied.closeDialog"
+msgstr "ダイアログ / ビューア / パネルを閉じる"
+
+msgid "settings.occupied.confirmDelete"
+msgstr "削除を確定"
+
+msgid "log.modeFast"
+msgstr "高速モード"
+
+msgid "log.modeTar"
+msgstr "パック転送"
+
+msgid "log.fileCount"
+msgstr "{n} ファイル"

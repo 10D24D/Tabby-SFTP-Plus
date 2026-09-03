@@ -1235,3 +1235,60 @@ msgstr "{n} položek se nepodařilo přesunout do koše (nesmazáno; zkuste Shif
 
 msgid "settings.iconLocked"
 msgstr "Uzamčeno (systémová ikona)"
+
+msgid "settings.phk.forward"
+msgstr "Vpřed"
+
+msgid "settings.mouseBack"
+msgstr "Tlačítko Zpět myši"
+
+msgid "settings.mouseForward"
+msgstr "Tlačítko Vpřed myši"
+
+msgid "settings.hotkeyAdd"
+msgstr "Přidat zkratku"
+
+msgid "settings.hotkeyDuplicate"
+msgstr "Tato zkratka je již přiřazena této akci"
+
+msgid "settings.hotkeyMouseHint"
+msgstr "Přiřazení bočního tlačítka myši, kliknutím nahrajete znovu"
+
+msgid "settings.occupied.title"
+msgstr "Obsazené zkratky"
+
+msgid "settings.occupied.hint"
+msgstr "Tyto klávesy jsou vyhrazeny pro SFTP+ a nelze je změnit. Při přiřazování zkratek výše se jim vyhněte, jinak mohou být spuštěny obě."
+
+msgid "settings.occupied.groupPanel"
+msgstr "Panel"
+
+msgid "settings.occupied.groupViewer"
+msgstr "Prohlížeč"
+
+msgid "settings.occupied.groupDialog"
+msgstr "Dialogy"
+
+msgid "settings.occupied.moveSelection"
+msgstr "Přesunout výběr nahoru / dolů"
+
+msgid "settings.occupied.multiSelect"
+msgstr "Vícenásobný výběr kliknutím"
+
+msgid "settings.occupied.prevNextImage"
+msgstr "Předchozí / další obrázek"
+
+msgid "settings.occupied.closeDialog"
+msgstr "Zavřít dialog / prohlížeč / panel"
+
+msgid "settings.occupied.confirmDelete"
+msgstr "Potvrdit smazání"
+
+msgid "log.modeFast"
+msgstr "Rychlý režim"
+
+msgid "log.modeTar"
+msgstr "Tar balíček"
+
+msgid "log.fileCount"
+msgstr "{n} souborů"

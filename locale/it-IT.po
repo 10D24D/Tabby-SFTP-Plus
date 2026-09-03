@@ -1239,3 +1239,60 @@ msgstr "{n} elemento/i non sono stati spostati nel cestino (non eliminati; prova
 
 msgid "settings.iconLocked"
 msgstr "Bloccato (icona di sistema)"
+
+msgid "settings.phk.forward"
+msgstr "Avanti"
+
+msgid "settings.mouseBack"
+msgstr "Pulsante indietro del mouse"
+
+msgid "settings.mouseForward"
+msgstr "Pulsante avanti del mouse"
+
+msgid "settings.hotkeyAdd"
+msgstr "Aggiungi scorciatoia"
+
+msgid "settings.hotkeyDuplicate"
+msgstr "Questa scorciatoia è già associata a questa azione"
+
+msgid "settings.hotkeyMouseHint"
+msgstr "Associazione pulsante laterale del mouse, clicca per registrare di nuovo"
+
+msgid "settings.occupied.title"
+msgstr "Scorciatoie occupate"
+
+msgid "settings.occupied.hint"
+msgstr "Questi tasti sono riservati da SFTP+ e non possono essere modificati. Evitali quando assegni le scorciatoie sopra, altrimenti entrambi potrebbero attivarsi."
+
+msgid "settings.occupied.groupPanel"
+msgstr "Pannello"
+
+msgid "settings.occupied.groupViewer"
+msgstr "Visualizzatore"
+
+msgid "settings.occupied.groupDialog"
+msgstr "Finestre di dialogo"
+
+msgid "settings.occupied.moveSelection"
+msgstr "Sposta la selezione su / giù"
+
+msgid "settings.occupied.multiSelect"
+msgstr "Selezione multipla con clic"
+
+msgid "settings.occupied.prevNextImage"
+msgstr "Immagine precedente / successiva"
+
+msgid "settings.occupied.closeDialog"
+msgstr "Chiudi finestra / visualizzatore / pannello"
+
+msgid "settings.occupied.confirmDelete"
+msgstr "Conferma eliminazione"
+
+msgid "log.modeFast"
+msgstr "Modalità rapida"
+
+msgid "log.modeTar"
+msgstr "Pacchetto tar"
+
+msgid "log.fileCount"
+msgstr "{n} file"

@@ -1243,3 +1243,60 @@ msgstr "{n} öğe geri dönüşüm kutusuna taşınamadı (silinmedi; kalıcı s
 
 msgid "settings.iconLocked"
 msgstr "Kilitli (sistem simgesi)"
+
+msgid "settings.phk.forward"
+msgstr "İleri"
+
+msgid "settings.mouseBack"
+msgstr "Fare geri tuşu"
+
+msgid "settings.mouseForward"
+msgstr "Fare ileri tuşu"
+
+msgid "settings.hotkeyAdd"
+msgstr "Kısayol ekle"
+
+msgid "settings.hotkeyDuplicate"
+msgstr "Bu kısayol zaten bu eyleme atanmış"
+
+msgid "settings.hotkeyMouseHint"
+msgstr "Fare yan tuş ataması, yeniden kaydetmek için tıklayın"
+
+msgid "settings.occupied.title"
+msgstr "Kullanılan kısayollar"
+
+msgid "settings.occupied.hint"
+msgstr "Bu tuşlar SFTP+ tarafından ayrılmıştır ve değiştirilemez. Yukarıdaki kısayolları atarken bunlardan kaçının, aksi halde ikisi de tetiklenebilir."
+
+msgid "settings.occupied.groupPanel"
+msgstr "Panel"
+
+msgid "settings.occupied.groupViewer"
+msgstr "Görüntüleyici"
+
+msgid "settings.occupied.groupDialog"
+msgstr "İletişim kutuları"
+
+msgid "settings.occupied.moveSelection"
+msgstr "Seçimi yukarı / aşağı taşı"
+
+msgid "settings.occupied.multiSelect"
+msgstr "Tıklama ile çoklu seçim"
+
+msgid "settings.occupied.prevNextImage"
+msgstr "Önceki / sonraki görsel"
+
+msgid "settings.occupied.closeDialog"
+msgstr "İletişim kutusunu / görüntüleyiciyi / paneli kapat"
+
+msgid "settings.occupied.confirmDelete"
+msgstr "Silmeyi onayla"
+
+msgid "log.modeFast"
+msgstr "Hızlı mod"
+
+msgid "log.modeTar"
+msgstr "Tar paketleme"
+
+msgid "log.fileCount"
+msgstr "{n} dosya"
