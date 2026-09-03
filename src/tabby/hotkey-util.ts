@@ -1,6 +1,10 @@
 /**
  * Tabby 风格快捷键工具：格式化、冲突检测、配置读写
  * 字符串格式与官方一致：Ctrl-Shift-S / Win-K / ⌘-⌥-P
+ * 创建人：DD1024z
+ * 创建时间：2026-07-25
+ * 修改人：DD1024z + Hy3 preview
+ * 修改时间：2026-08-31
  */
 import { SFTP_PLUS_TOGGLE_HOTKEY } from './hotkey-provider'
 
@@ -197,4 +201,77 @@ export function eventToPanelHotkeySpec(event: KeyboardEvent): string | null {
   if (event.shiftKey) parts.push('Shift')
   parts.push(main)
   return parts.join('+')
+}
+
+/* ──────────────────────────────────────────────────────────────
+ * 鼠标侧键绑定（2026-08-31）
+ * 前进/后退除键盘外还可绑鼠标侧键：button 3 = 后退（XButton1）、
+ * button 4 = 前进（XButton2）。与键盘 spec 混存在同一 keys[] 数组里，
+ * 匹配时按来源分流：键盘事件只看键盘 spec，鼠标事件只看鼠标 spec。
+ * ────────────────────────────────────────────────────────────── */
+
+/** 鼠标后退键 spec（对应 MouseEvent.button === 3） */
+export const MOUSE_BACK_SPEC = 'Mouse3'
+/** 鼠标前进键 spec（对应 MouseEvent.button === 4） */
+export const MOUSE_FORWARD_SPEC = 'Mouse4'
+
+/** 判断面板热键 spec 是否为鼠标侧键绑定 */
+export function isMouseHotkeySpec(spec: string): boolean {
+  return spec === MOUSE_BACK_SPEC || spec === MOUSE_FORWARD_SPEC
+}
+
+/** 鼠标键 spec → MouseEvent.button；非鼠标键返回 null */
+export function mouseButtonFromSpec(spec: string): number | null {
+  if (spec === MOUSE_BACK_SPEC) return 3
+  if (spec === MOUSE_FORWARD_SPEC) return 4
+  return null
+}
+
+/** MouseEvent.button → 鼠标键 spec（仅 3/4；其余返回 null，表示不参与绑定） */
+export function mouseSpecFromButton(button: number): string | null {
+  if (button === 3) return MOUSE_BACK_SPEC
+  if (button === 4) return MOUSE_FORWARD_SPEC
+  return null
+}
+
+/** 判断 MouseEvent.button 是否命中绑定列表中的鼠标键 */
+export function matchMouseHotkeySpecs(button: number, specs: string[]): boolean {
+  if (!Array.isArray(specs)) return false
+  const spec = mouseSpecFromButton(button)
+  if (!spec) return false
+  return specs.includes(spec)
+}
+
+/** 多绑定匹配：任一键盘绑定命中即 true（鼠标键跳过，由鼠标路径单独处理） */
+export function matchPanelHotkeyKeys(event: KeyboardEvent, specs: string[]): boolean {
+  if (!Array.isArray(specs) || !specs.length) return false
+  for (const spec of specs) {
+    if (isMouseHotkeySpec(spec)) continue
+    if (matchPanelHotkeyKey(event, spec)) return true
+  }
+  return false
+}
+
+/** 取绑定列表中的键盘绑定（过滤鼠标键）；用于右键菜单等只展示键盘键的场合 */
+export function keyboardHotkeySpecs(specs: string[]): string[] {
+  if (!Array.isArray(specs)) return []
+  return specs.filter(s => s && !isMouseHotkeySpec(s))
+}
+
+/**
+ * 归一化面板热键绑定为字符串数组，兼容旧的单键格式：
+ * 旧 { key: 'Delete' } → ['Delete']；新的 { keys: [...] } 原样返回。
+ * 同时剔除哨兵值（__NONE__ / 空串）与 NUL 开头的历史脏数据。
+ */
+export function normalizePanelHotkeyKeys(raw: unknown, cleared = '__NONE__'): string[] {
+  if (Array.isArray(raw)) {
+    return (raw as unknown[]).filter(v => typeof v === 'string')
+      .map(v => (v as string).trim())
+      .filter(v => !!v && v !== cleared && v.indexOf('\x00') !== 0)
+  }
+  if (typeof raw === 'string') {
+    const v = raw.trim()
+    return (v && v !== cleared && v.indexOf('\x00') !== 0) ? [v] : []
+  }
+  return []
 }

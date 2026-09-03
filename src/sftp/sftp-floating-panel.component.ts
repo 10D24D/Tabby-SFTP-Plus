@@ -4,8 +4,8 @@
  *   双栏文件管理器（本地↔远程）、书签、传输日志、拖拽传输
  * 创建人：DD1024z + Claude
  * 创建时间：2026-06-21
- * 修改人：DD1024z + Claude
- * 修改时间：2026-08-24 — 修复远程 symlink→目录不可跳转（issue #13）：readdir 返回 lstat 语义，symlink 指向目录时 isDirectory=false 且 mode=S_IFLNK，_activateEntry/openRemote 双重判否后 return 导致点不进目录；新增 _resolveRemoteSymlinkIsDir 用 stat(follow) 解析目标真实类型，本地侧无需改动（refreshLocal 已用 fs.stat 跟随链接）
+ * 修改人：DD1024z + Hy4 preview
+ * 修改时间：2026-09-03 — 修复拖拽链路 mergeLocalDirToRemote 漏转发 reuseLogEntryId 导致目录覆盖后传输记录出现重复失败条目；_startFolderTransfer 记录传输模式（fast/tar）与文件数
  */
 import * as path from 'path'
 import * as fs from 'fs/promises'
@@ -38,7 +38,20 @@ import { PanelConflictResolver } from './components/panel-conflict-resolver'
 import { PanelTransferRuntime } from './core/transfer-coordinator'
 import { PaneNavHistory } from './core/selection'
 import { computeSelection, computeSortToggle } from './core/selection'
-import { matchPanelHotkeyKey, parsePanelHotkeyKey } from '../tabby/hotkey-util'
+import {
+  keyboardHotkeySpecs,
+  matchMouseHotkeySpecs,
+  matchPanelHotkeyKey,
+  matchPanelHotkeyKeys,
+  normalizePanelHotkeyKeys,
+  parsePanelHotkeyKey,
+} from '../tabby/hotkey-util'
+import {
+  CONTEXT_ACTION_HOTKEYS,
+  defaultPanelHotkeys,
+  PANEL_HOTKEY_ACTIONS,
+  type PanelHotkeyAction,
+} from '../tabby/config-provider'
 import { isColorDark } from '@common/utils'
 import { SftpPanelBookmarkController } from './controllers/panel-bookmark-controller'
 import {
@@ -1292,6 +1305,7 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       scanLocalDir: (p) => panel._scanLocalDir(p),
       scanRemoteDir: (p) => panel._scanRemoteDir(p),
       fastMode: () => panel._transferFastMode,
+      tarAcceleration: () => panel._transferTarAcceleration,
       downloadTarBall: (remotePath, localPath, size, onProgress, shouldAbort) =>
         panel._downloadTarBall(remotePath, localPath, size, onProgress, shouldAbort),
       startFolderTransfer: (name, direction, remotePath, localPath, totalSize, itemCount, reuseLogEntryId) => {
@@ -1303,8 +1317,10 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       finishFolderTransfer: (ctx, success) =>
         panel._finishFolderTransfer(ctx.t, ctx.startTime, ctx.logEntryId, success),
       // ★ 2026-08-11：tar 打包通道回填传输记录的真实目录大小（初始记的是压缩包大小，易误导）
+      // ★ 2026-09-03：updateLogSize 仅 tar 打包通道会调用 → 顺带把记录标记为 tar 模式，
+      //   并清除 folder.start 时占位写入的 itemCount（tar 走整包，逐文件计数无意义）
       updateFolderLogSize: (ctx, size) => {
-        try { panel.transferLog.update(ctx.logEntryId, { size }) } catch { /* ignore */ }
+        try { panel.transferLog.update(ctx.logEntryId, { size, transferMode: 'tar', fileCount: 0 }) } catch { /* ignore */ }
       },
       updateFolderProgress: (ctx, bytesDone, currentItem, itemDone, currentItemSize) =>
         panel._updateFolderProgress(ctx.t, bytesDone, currentItem, itemDone, currentItemSize),
@@ -1411,8 +1427,11 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       doUpload: (remotePath, localPath) => panel._doUpload(remotePath, localPath),
       downloadRemoteDir: (remoteDir, localDestDir, targetPane, top, renameTo) =>
         panel._transferCoordinator.downloadRemoteDir(remoteDir, localDestDir, top, renameTo),
-      mergeLocalDirToRemote: (localSrc, remoteDest) =>
-        panel._transferCoordinator.mergeLocalDirToRemote(localSrc, remoteDest),
+      // ★ 2026-09-03 修复：此前适配器签名漏转发第三参 reuseLogEntryId，导致目录冲突
+      //   覆盖/重命名时合并上传无法复用来源记录（入队时已被 finish(false) 误记失败的那条），
+      //   转而新建成功记录 → 传输记录出现「一失败一成功」两条同目录条目（拖拽路径必现）
+      mergeLocalDirToRemote: (localSrc, remoteDest, reuseLogEntryId) =>
+        panel._transferCoordinator.mergeLocalDirToRemote(localSrc, remoteDest, reuseLogEntryId),
       // ★ 2026-08-11：冲突解决成功后翻正来源传输记录（入队时已被 finish(false) 误记失败）；
       //   _finishFolderTransfer 对已移除的进度条目无副作用，transferLog.update 幂等翻正
       markTransferSucceeded: (ctx) => panel._finishFolderTransfer(ctx.t, ctx.startTime, ctx.logEntryId, true),
@@ -2082,6 +2101,8 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       this._downloadConcurrency = this._clampConcurrency(Number.isFinite(dl) ? dl : 3)
       // ★ 2026-08-11：快速模式（跳过目录预扫描，立即开传，代价是没有百分比进度）
       this._transferFastMode = !!cfg?.transferFastMode
+      // ★ 2026-08-28：tar 打包加速开关
+      this._transferTarAcceleration = cfg?.transferTarAcceleration !== false
       this._pumpUploadQueue()
       this._pumpDownloadQueue()
     } catch { /* ignore */ }
@@ -2927,21 +2948,27 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
   localForward(): void { this._paneNavToTarget('local', 'forward') }
 
   /**
-   * 鼠标侧键导航（本地面板）
-   *  - button === 3：后退（XButton1 / 鼠标上一页）
-   *  - button === 4：前进（XButton2 / 鼠标下一页）
+   * 鼠标侧键导航（本地/远程面板）
+   *  - button === 3：后退（XButton1）
+   *  - button === 4：前进（XButton2）
+   * ★ 2026-08-31：由硬编码改为配置驱动——依据 panelHotkeys.back/forward 的绑定列表
+   *   是否含 Mouse3/Mouse4 判定；用户清除绑定后侧键不再触发，也可改绑到其它动作。
    * 仅当面板可见且非最小化时生效；左键(button 0)等不做处理并保留冒泡。
    */
   onPaneMouseNav(side: 'local' | 'remote', event: MouseEvent): void {
     if (!this._isPanelActive) return
-    if (event.button === 3) {
-      event.preventDefault()
-      event.stopPropagation()
+    const isBack = this._panelHotkeyEnabled('back')
+      && matchMouseHotkeySpecs(event.button, this._panelHotkeyKeys('back'))
+    const isForward = this._panelHotkeyEnabled('forward')
+      && matchMouseHotkeySpecs(event.button, this._panelHotkeyKeys('forward'))
+    if (!isBack && !isForward) return
+    event.preventDefault()
+    event.stopPropagation()
+    // 同一鼠标键若被 back/forward 重复绑定，back 优先
+    if (isBack) {
       if (side === 'local') this.localBack()
       else this.remoteBack()
-    } else if (event.button === 4) {
-      event.preventDefault()
-      event.stopPropagation()
+    } else {
       if (side === 'local') this.localForward()
       else this.remoteForward()
     }
@@ -3356,54 +3383,56 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     return u ? u : this._bundledIconDir
   }
 
-  /** 面板内置操作热键配置（含 key/enabled）；缺省回退到内置默认值 */
-  private get _panelHotkeys(): {
-    delete: { key: string; enabled: boolean }
-    rename: { key: string; enabled: boolean }
-    refresh: { key: string; enabled: boolean }
-    up: { key: string; enabled: boolean }
-    back: { key: string; enabled: boolean }
-  } {
+  /** 面板内置操作快捷键配置（keys[]/enabled）；缺省回退内置默认值，并兼容旧的单键 key 字段 */
+  private get _panelHotkeys(): Record<PanelHotkeyAction, { keys: string[]; enabled: boolean }> {
     const cfg = this.configService?.store?.['tabby-sftp-plus']?.panelHotkeys
-    return cfg ?? {
-      delete: { key: 'Delete', enabled: true },
-      rename: { key: 'F2', enabled: true },
-      refresh: { key: 'F5', enabled: true },
-      up: { key: 'Shift+Backspace', enabled: true },
-      back: { key: 'Backspace', enabled: true },
+    const def = defaultPanelHotkeys()
+    if (!cfg || typeof cfg !== 'object') return def
+    for (const a of PANEL_HOTKEY_ACTIONS) {
+      const h = (cfg as any)[a]
+      if (!h || typeof h !== 'object') continue
+      // ★ 2026-08-31：兼容旧格式 { key: 'Delete' } 与新格式 { keys: [...] }
+      const keys = normalizePanelHotkeyKeys((h as any).keys ?? (h as any).key, HOTKEY_CLEARED)
+      def[a] = { keys, enabled: (h as any).enabled !== false }
     }
+    return def
   }
 
-  /** 判断某面板热键是否已绑定（key 非空非哨兵，且未标记 enabled=false） */
-  private _isPanelHotkeyBound(action: string): boolean {
-    const h = (this._panelHotkeys as any)[action]
-    if (!h) return false
-    const k = h.key
-    return !!k && k !== HOTKEY_CLEARED && k.indexOf('\x00') !== 0 && h.enabled !== false
+  /** 取某动作的绑定列表（已归一化，剔除哨兵/空值）；enabled=false 视为未绑定 */
+  private _panelHotkeyKeys(action: PanelHotkeyAction): string[] {
+    const h = this._panelHotkeys[action]
+    if (!h || h.enabled === false) return []
+    return Array.isArray(h.keys) ? h.keys : []
   }
 
-  private _panelHotkeyEnabled(action: 'delete' | 'rename' | 'refresh' | 'up' | 'back'): boolean {
+  /** 判断某面板快捷键是否已绑定（至少一个有效绑定，且未标记 enabled=false） */
+  private _isPanelHotkeyBound(action: PanelHotkeyAction): boolean {
+    return this._panelHotkeyKeys(action).length > 0
+  }
+
+  private _panelHotkeyEnabled(action: PanelHotkeyAction): boolean {
     return this._isPanelHotkeyBound(action)
   }
 
-  private _panelHotkeyKey(action: 'delete' | 'rename' | 'refresh' | 'up' | 'back'): string {
-    const h = (this._panelHotkeys as any)[action]
-    if (!h) return ''
-    const k = h.key
-    return (!k || k === HOTKEY_CLEARED || k.indexOf('\x00') === 0 || h.enabled === false) ? '' : k
+  /** 取该动作的首个键盘绑定（用于右键菜单展示；鼠标键不计入，多绑定时只显示第一个） */
+  private _panelHotkeyKey(action: PanelHotkeyAction): string {
+    const kb = keyboardHotkeySpecs(this._panelHotkeyKeys(action))
+    return kb.length ? kb[0] : ''
   }
 
-  /** 面板热键匹配（忽略 shift 差异）：用于 Delete 等 shift 作为语义修饰符的操作 */
-  private _matchPanelHotkeyKeyIgnoreShift(event: KeyboardEvent, spec: string): boolean {
-    const p = parsePanelHotkeyKey(spec)
-    if (!p) return false
-    if (event.ctrlKey !== p.ctrl) return false
-    if (event.altKey !== p.alt) return false
-    if (event.metaKey !== p.meta) return false
-    // shift 不比较——允许 Shift+Delete 在配置为 Delete 时触发（shift 透传给 _paneDelete 作"强制删除"标志）
-    const ek = event.key
-    if (p.key.length === 1) return ek.toLowerCase() === p.key.toLowerCase()
-    return ek === p.key
+  /** 面板快捷键匹配（忽略 shift 差异，支持多绑定）：用于 Delete 等 shift 作为语义修饰符的操作 */
+  private _matchPanelHotkeyKeysIgnoreShift(event: KeyboardEvent, specs: string[]): boolean {
+    for (const spec of keyboardHotkeySpecs(specs)) {
+      const p = parsePanelHotkeyKey(spec)
+      if (!p) continue
+      if (event.ctrlKey !== p.ctrl) continue
+      if (event.altKey !== p.alt) continue
+      if (event.metaKey !== p.meta) continue
+      // shift 不比较——允许 Shift+Delete 在配置为 Delete 时触发（shift 透传给 _paneDelete 作"强制删除"标志）
+      const ek = event.key
+      if (p.key.length === 1 ? ek.toLowerCase() === p.key.toLowerCase() : ek === p.key) return true
+    }
+    return false
   }
 
   /** 统一的「打开」逻辑：目录进入；文件 Ctrl/Cmd+点击=系统打开，否则查看 */
@@ -4207,7 +4236,12 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
         isFolder: true, currentItem: '', itemCount, itemDone: 0,
       })
       if (queuedEntry.logEntryId != null) {
-        this.transferLog.update(queuedEntry.logEntryId, { size: totalSize, startTime: Date.now() })
+        // ★ 2026-09-03：回填目录传输模式与文件数（快速模式无预扫描计数，只标 fast）
+        this.transferLog.update(queuedEntry.logEntryId, {
+          size: totalSize, startTime: Date.now(),
+          transferMode: this._transferFastMode ? 'fast' : undefined,
+          fileCount: this._transferFastMode ? 0 : (itemCount || 0),
+        })
       }
       this.transfersMinimized = false
       this.transfersHidden = false
@@ -4226,10 +4260,19 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
         duration: 0,
         startTime: Date.now(),
         pending: true,  // ★ 修复：标记进行中，避免日志误显示"下载成功 ✓ 0ms"
+        // ★ 2026-09-03：记录目录传输模式与文件数（快速模式无预扫描计数）
+        transferMode: this._transferFastMode ? 'fast' : undefined,
+        fileCount: this._transferFastMode ? 0 : (itemCount || 0),
       })
     if (reuseLogEntryId) {
       // 复用既有记录：重置为进行中，完成后由 finish 回填结果
-      try { this.transferLog.update(reuseLogEntryId, { pending: true, success: true, duration: 0, startTime: Date.now() }) } catch { /* ignore */ }
+      try {
+        this.transferLog.update(reuseLogEntryId, {
+          pending: true, success: true, duration: 0, startTime: Date.now(),
+          transferMode: this._transferFastMode ? 'fast' : undefined,
+          fileCount: this._transferFastMode ? 0 : (itemCount || 0),
+        })
+      } catch { /* ignore */ }
     }
     const transferEntry = {
       transfer: null, direction, name, remotePath, localPath,
@@ -4687,7 +4730,7 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     }
 
     // 返回上级（默认 Shift+Backspace）：目标面板与 Delete 一致走 _resolveTargetPane
-    if (this._panelHotkeyEnabled('up') && matchPanelHotkeyKey(event, this._panelHotkeyKey('up'))) {
+    if (this._panelHotkeyEnabled('up') && matchPanelHotkeyKeys(event, this._panelHotkeyKeys('up'))) {
       event.preventDefault()
       event.stopPropagation()
       const pane = this._resolveTargetPane()
@@ -4697,7 +4740,7 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     }
     // 删除选中（默认 Delete；Shift+Delete = 跳过回收站，仍弹确认）
     // 注意：shift 不参与热键匹配——它作为"强制永久删除"语义修饰符始终透传给 _paneDelete
-    if (this._panelHotkeyEnabled('delete') && this._matchPanelHotkeyKeyIgnoreShift(event, this._panelHotkeyKey('delete'))) {
+    if (this._panelHotkeyEnabled('delete') && this._matchPanelHotkeyKeysIgnoreShift(event, this._panelHotkeyKeys('delete'))) {
       const side = this._resolveTargetPane()
       const sel = side === 'local' ? this._selectedLocal : this._selectedRemote
       if (sel && sel.length > 0) {
@@ -4708,7 +4751,7 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       return
     }
     // 重命名（默认 F2）
-    if (this._panelHotkeyEnabled('rename') && matchPanelHotkeyKey(event, this._panelHotkeyKey('rename'))) {
+    if (this._panelHotkeyEnabled('rename') && matchPanelHotkeyKeys(event, this._panelHotkeyKeys('rename'))) {
       const pane = this._resolveTargetPane()
       if (pane === 'local' && this.selectedLocal.length === 1) {
         event.preventDefault()
@@ -4722,12 +4765,30 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       return
     }
     // 刷新当前面板（默认 F5）
-    if (this._panelHotkeyEnabled('refresh') && matchPanelHotkeyKey(event, this._panelHotkeyKey('refresh'))) {
+    if (this._panelHotkeyEnabled('refresh') && matchPanelHotkeyKeys(event, this._panelHotkeyKeys('refresh'))) {
       event.preventDefault()
       event.stopPropagation()
       const pane = this._resolveTargetPane()
       if (pane === 'local') void this.refreshLocal()
       else void this.refreshRemote()
+      return
+    }
+    // ★ 2026-08-31：右键菜单常用动作的可配置快捷键（默认留空，未绑定即不响应）
+    //   upload/download 方向固定（本地→远程 / 远程→本地），要求源面板存在选中项，
+    //   其余动作要求目标面板有选中项；不满足时不拦截该按键，避免抢走其它功能的键位。
+    for (const a of CONTEXT_ACTION_HOTKEYS) {
+      if (!this._panelHotkeyEnabled(a)) continue
+      if (!matchPanelHotkeyKeys(event, this._panelHotkeyKeys(a))) continue
+      if (a === 'upload' && !this.selectedLocal.length) continue
+      if (a === 'download' && !this.selectedRemote.length) continue
+      if ((a === 'details' || a === 'copyPath') && !this.getContextSelection().length) continue
+      event.preventDefault()
+      event.stopPropagation()
+      // 设定上下文面板，使 getContextSelection() 取到正确一侧的选中项
+      this.contextMenuPane = a === 'upload' ? 'local'
+        : a === 'download' ? 'remote'
+          : this._resolveTargetPane()
+      this.onContextMenuAction(a as ContextMenuAction)
       return
     }
   }
@@ -5689,6 +5750,8 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
   private _uploadConcurrency = 3
   /** ★ 2026-08-11：快速模式（设置页可改）：目录传输跳过预扫描直接开传 */
   private _transferFastMode = false
+  /** ★ 2026-08-28：tar 打包加速开关 */
+  private _transferTarAcceleration = true
   private _upActiveCount = 0
   private _upQueue: Array<{ localPath: string; entry: PanelTransferItem; finish: () => void; remoteDir: string }> = []
 
@@ -6032,14 +6095,24 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       }
       // ★ 2026-08-22 修复（issue #13 P4）：历史后退改为配置驱动（panelHotkeys.back）且
       //   仅在面板自身获得焦点时生效；焦点在终端 xterm 时让 Backspace 正常删字，不再被路径回退吞掉。
-      if (this._panelHotkeyEnabled('back') && panelFocused && !event.shiftKey &&
-          matchPanelHotkeyKey(event, this._panelHotkeyKey('back'))) {
-        const pane = this._resolveTargetPane()
-        event.preventDefault()
-        event.stopPropagation()
-        if (pane === 'local') this.localBack()
-        else this.remoteBack()
-        return
+      // ★ 2026-08-31：改为多绑定匹配（键盘 + 鼠标侧键）；新增 forward，与 back 对称。
+      //   排除 shiftKey：up 默认用 Shift+Backspace，避免前进/后退与之抢触发。
+      if (panelFocused && !event.shiftKey) {
+        const navPane = this._resolveTargetPane()
+        if (this._panelHotkeyEnabled('back') && matchPanelHotkeyKeys(event, this._panelHotkeyKeys('back'))) {
+          event.preventDefault()
+          event.stopPropagation()
+          if (navPane === 'local') this.localBack()
+          else this.remoteBack()
+          return
+        }
+        if (this._panelHotkeyEnabled('forward') && matchPanelHotkeyKeys(event, this._panelHotkeyKeys('forward'))) {
+          event.preventDefault()
+          event.stopPropagation()
+          if (navPane === 'local') this.localForward()
+          else this.remoteForward()
+          return
+        }
       }
       if (event.key === 'Escape') {
         // 如果 Esc 已被子组件（对话框、输入框等）preventDefault 处理，

@@ -23,8 +23,18 @@ import {
   readToggleHotkeyBindings,
   setHotkeyRecordingActive,
   eventToPanelHotkeySpec,
+  mouseSpecFromButton,
+  isMouseHotkeySpec,
+  normalizePanelHotkeyKeys,
+  MOUSE_BACK_SPEC,
+  MOUSE_FORWARD_SPEC,
   type HotkeyBinding,
 } from '../tabby/hotkey-util'
+import {
+  defaultPanelHotkeys,
+  PANEL_HOTKEY_ACTIONS,
+  type PanelHotkeyAction,
+} from '../tabby/config-provider'
 import { detectSystemLocale, isColorDark, parseColorLuminance } from '@common/utils'
 import { DEFAULT_DATE_FORMAT, setDateFormatPattern } from '../sftp/core/file-utils'
 import { DEFAULT_ICON_MAP, BUILTIN_ICON_FILES, BUILTIN_ICON_EXTS, FOLDER_ICON_SVG } from '../sftp/core/icon-defaults'
@@ -515,6 +525,12 @@ function loadTableSetting(key: string, fallback: boolean): boolean {
                 <span class="ss-toggle-thumb"></span>
               </span>
             </label>
+            <label class="ss-toggle-row" title="{{ i18n.t('settings.tarAccelerationDesc') }}">
+              <span class="ss-toggle-label">{{ i18n.t('settings.tarAcceleration') }}</span>
+              <span class="ss-toggle-track" [class.active]="transferTarAcceleration" (click)="toggleTarAcceleration()">
+                <span class="ss-toggle-thumb"></span>
+              </span>
+            </label>
             <!-- 默认上传/下载路径 -->
             <div class="ss-toggle-row ss-path-row">
               <span class="ss-toggle-label">{{ i18n.t('settings.defaultUploadPath') }}</span>
@@ -561,25 +577,51 @@ function loadTableSetting(key: string, fallback: boolean): boolean {
                   (click)="clearHotkeyBinding(); $event.stopPropagation()" [title]="i18n.t('settings.hotkeyClear')">×</button>
               </div>
             </div>
-            <!-- 面板操作热键 -->
+            <!-- 面板操作快捷键（多绑定：每个绑定一个 chip，末尾 + 追加） -->
             <div class="ss-phk-row" *ngFor="let a of panelHotkeyActions">
-              <span class="ss-phk-label">{{ i18n.t('settings.phk.' + a) }}</span>
-              <div class="ss-hotkey-field"
+              <span class="ss-phk-label">{{ i18n.t(panelHotkeyLabelKey(a)) }}</span>
+              <div class="ss-hotkey-field ss-hotkey-multi"
                 [class.recording]="panelHotkeyRecording === a"
-                [class.has-value]="isPanelHotkeyBound(a)"
-                [class.unbound]="!isPanelHotkeyBound(a) && panelHotkeyRecording !== a">
-                <button type="button" class="ss-hotkey-display"
-                  (click)="startPanelHotkeyRecording(a)"
-                  [title]="i18n.t('settings.hotkeyClickToSet')">
-                  <ng-container *ngIf="panelHotkeyRecording === a; else phkIdle">
+                [class.has-value]="isPanelHotkeyBound(a) && panelHotkeyRecording !== a">
+                <ng-container *ngIf="panelHotkeyRecording === a; else phkChips">
+                  <span class="ss-hotkey-recording"
+                    (click)="startPanelHotkeyRecording(a)"
+                    [title]="i18n.t('settings.hotkeyClickToSet')">
                     {{ panelHotkeyRecordingPreview || i18n.t('settings.hotkeyRecording') }}
-                  </ng-container>
-                  <ng-template #phkIdle>
-                    {{ panelHotkeyDisplayKey(a) || i18n.t('settings.hotkeyUnbound') }}
-                  </ng-template>
-                </button>
-                <button type="button" class="ss-hotkey-clear" *ngIf="isPanelHotkeyBound(a) && panelHotkeyRecording !== a"
-                  (click)="clearPanelHotkey(a)" [title]="i18n.t('settings.hotkeyClear')">×</button>
+                  </span>
+                </ng-container>
+                <ng-template #phkChips>
+                  <span class="ss-hotkey-chip" *ngFor="let k of panelHotkeyKeys(a); let i = index"
+                    [class.is-mouse]="isPanelMouseHotkey(k)"
+                    [title]="isPanelMouseHotkey(k) ? i18n.t('settings.hotkeyMouseHint') : i18n.t('settings.hotkeyClickToSet')"
+                    (click)="startPanelHotkeyRecording(a)">
+                    {{ panelHotkeyLabel(k) }}
+                    <button type="button" class="ss-chip-remove"
+                      (click)="removePanelHotkeyAt(a, i); $event.stopPropagation()"
+                      [title]="i18n.t('settings.hotkeyClear')">×</button>
+                  </span>
+                  <button type="button" class="ss-hotkey-add"
+                    (click)="startPanelHotkeyRecording(a)"
+                    [title]="i18n.t('settings.hotkeyAdd')">+</button>
+                </ng-template>
+              </div>
+            </div>
+            <!-- ★ 2026-08-31：已占用快捷键（只读，默认收起）——列出固定占用的键位，便于排查冲突 -->
+            <div class="ss-occupied">
+              <button type="button" class="ss-occupied-head" (click)="toggleOccupiedHotkeys()"
+                [attr.aria-expanded]="occupiedHotkeysExpanded">
+                <span class="ss-occupied-caret">{{ occupiedHotkeysExpanded ? '▾' : '▸' }}</span>
+                <span>{{ i18n.t('settings.occupied.title') }}</span>
+              </button>
+              <div class="ss-occupied-body" *ngIf="occupiedHotkeysExpanded">
+                <div class="ss-hint ss-occupied-hint">{{ i18n.t('settings.occupied.hint') }}</div>
+                <div class="ss-occupied-group" *ngFor="let g of occupiedHotkeyGroups">
+                  <div class="ss-occupied-group-title">{{ i18n.t(g.titleKey) }}</div>
+                  <div class="ss-occupied-row" *ngFor="let it of g.items">
+                    <span class="ss-occupied-keys">{{ formatOccupiedKeys(it.keys) }}</span>
+                    <span class="ss-occupied-desc">{{ i18n.t(it.descKey) }}</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -1022,7 +1064,7 @@ function loadTableSetting(key: string, fallback: boolean): boolean {
     .ss-hotkey-conflict { color:#e24b4a; opacity:.9; }
     .ss-hotkey-ok { color:#22a06b; opacity:.9; }
 
-    /* 面板热键行（作为子分类，不使用分隔线条）—— 与 ss-toggle-row 左对齐 */
+    /* 面板快捷键行（作为子分类，不使用分隔线条）—— 与 ss-toggle-row 左对齐 */
     .ss-phk-row {
       display: flex; align-items: center; gap: 10px;
       padding: 6px 10px; border-radius: 6px;
@@ -1031,6 +1073,72 @@ function loadTableSetting(key: string, fallback: boolean): boolean {
     .ss-phk-row:hover { background: rgba(128,128,128,0.06); }
     .ss-phk-label { flex: 1; font-size: 12.5px; }
     .ss-hotkey-field.unbound { border-style: dashed; opacity: .65; }
+
+    /* ★ 2026-08-31：多绑定 chip 列表（一动作可绑多个键，鼠标侧键以不同配色区分） */
+    .ss-hotkey-multi {
+      min-width: 0; max-width: none; flex-wrap: wrap;
+      gap: 4px; padding: 3px 4px;
+      align-items: center;
+    }
+    .ss-hotkey-chip {
+      display: inline-flex; align-items: center; gap: 2px;
+      padding: 2px 4px 2px 7px; border-radius: 4px;
+      border: 1px solid rgba(128,128,128,0.3);
+      background: rgba(128,128,128,0.1);
+      font-size: 11.5px; line-height: 1.5; white-space: nowrap;
+      font-family: ui-monospace, Consolas, monospace;
+      cursor: pointer;
+    }
+    /* 鼠标侧键绑定：用主题主色弱填充，与键盘键区分 */
+    .ss-hotkey-chip.is-mouse {
+      border-color: var(--primary-color,#3b82f6);
+      color: var(--primary-color,#3b82f6);
+      background: rgba(59,130,246,0.1);
+    }
+    .ss-chip-remove {
+      width: 15px; height: 15px; padding: 0; margin-left: 1px;
+      border: none; border-radius: 3px;
+      background: transparent; color: inherit; opacity: .5;
+      cursor: pointer; font-size: 12px; line-height: 1;
+      display: inline-flex; align-items: center; justify-content: center;
+    }
+    .ss-chip-remove:hover { opacity: 1; background: rgba(128,128,128,0.2); }
+    .ss-hotkey-add {
+      width: 22px; height: 20px; padding: 0; flex-shrink: 0;
+      border: 1px dashed rgba(128,128,128,0.45); border-radius: 4px;
+      background: transparent; color: inherit; opacity: .55;
+      cursor: pointer; font-size: 13px; line-height: 1;
+      display: inline-flex; align-items: center; justify-content: center;
+    }
+    .ss-hotkey-add:hover { opacity: 1; border-color: var(--primary-color,#3b82f6); color: var(--primary-color,#3b82f6); }
+    .ss-hotkey-recording {
+      flex: 1; min-width: 90px; text-align: center;
+      padding: 3px 8px; font-size: 12px; cursor: pointer;
+      font-family: ui-monospace, Consolas, monospace;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+
+    /* ★ 2026-08-31：已占用快捷键清单（只读，可折叠） */
+    .ss-occupied { margin: 6px 0 2px; }
+    .ss-occupied-head {
+      display: flex; align-items: center; gap: 6px;
+      width: 100%; padding: 4px 10px; border: none; border-radius: 6px;
+      background: transparent; color: inherit; cursor: pointer;
+      font-size: 12.5px; text-align: left;
+    }
+    .ss-occupied-head:hover { background: rgba(128,128,128,0.06); }
+    .ss-occupied-caret { width: 10px; font-size: 10px; opacity: .6; }
+    .ss-occupied-body { padding: 2px 10px 6px 26px; }
+    .ss-occupied-hint { margin-bottom: 6px; opacity: .75; }
+    .ss-occupied-group + .ss-occupied-group { margin-top: 6px; }
+    .ss-occupied-group-title { font-size: 11.5px; opacity: .55; margin-bottom: 2px; }
+    .ss-occupied-row { display: flex; align-items: center; gap: 10px; padding: 1px 0; font-size: 12px; }
+    .ss-occupied-keys {
+      flex-shrink: 0; min-width: 74px;
+      font-family: ui-monospace, Consolas, monospace;
+      opacity: .9;
+    }
+    .ss-occupied-desc { opacity: .8; }
 
     .ss-backup-row {
       display:flex; gap:10px; flex-wrap:wrap; margin-top:4px;
@@ -1445,6 +1553,8 @@ export class SftpSettingsTabComponent implements OnDestroy {
   downloadConcurrency = 3
   /** ★ 2026-08-11：快速模式：目录传输跳过预扫描直接开传（无百分比进度） */
   transferFastMode = false
+  /** ★ 2026-08-28：启用 tar 打包通道加速文件夹传输 */
+  transferTarAcceleration = true
   /** 默认上传路径（远程目标目录）；空串 = 使用当前远程目录 */
   defaultUploadPath = ''
   /** 默认下载路径（本地目标目录）；空串 = 使用当前本地目录 */
@@ -1486,30 +1596,21 @@ export class SftpSettingsTabComponent implements OnDestroy {
   /** 右键菜单排序拖拽中的项 */
   draggingMenuItem: ContextMenuAction | null = null
 
-  /** ★ 2026-08-22：面板内置操作热键（key 为空/哨兵 = 未绑定即禁用；enabled=false 为双保险标记，防 Tabby config 清洗空值后 defaults 回退） */
-  panelHotkeys: {
-    delete: { key: string; enabled: boolean }
-    rename: { key: string; enabled: boolean }
-    refresh: { key: string; enabled: boolean }
-    up: { key: string; enabled: boolean }
-    back: { key: string; enabled: boolean }
-  } = {
-    delete: { key: 'Delete', enabled: true },
-    rename: { key: 'F2', enabled: true },
-    refresh: { key: 'F5', enabled: true },
-    up: { key: 'Shift+Backspace', enabled: true },
-    back: { key: 'Backspace', enabled: true },
-  }
-  /** 面板热键录制中：当前正在录制的动作（null = 未在录制） */
-  panelHotkeyRecording: 'delete' | 'rename' | 'refresh' | 'up' | 'back' | null = null
-  /** 面板热键录制实时预览串 */
+  /** ★ 2026-08-31：面板内置操作快捷键，一动作可绑多个键
+   *  （keys 空数组 = 未绑定即禁用；enabled=false 为双保险标记，防 Tabby config 清洗空数组后 defaults 回退） */
+  panelHotkeys: Record<PanelHotkeyAction, { keys: string[]; enabled: boolean }> = defaultPanelHotkeys()
+  /** 面板快捷键录制中：当前正在录制的动作（null = 未在录制） */
+  panelHotkeyRecording: PanelHotkeyAction | null = null
+  /** 面板快捷键录制实时预览串 */
   panelHotkeyRecordingPreview = ''
-  /** 面板热键录制对应的 DOM 监听句柄，便于卸载 */
+  /** 面板快捷键录制对应的键盘监听句柄，便于卸载 */
   private _panelHotkeyDomHandler: ((ev: KeyboardEvent) => void) | null = null
+  /** 面板快捷键录制对应的鼠标监听句柄（用于录制鼠标侧键） */
+  private _panelHotkeyMouseHandler: ((ev: MouseEvent) => void) | null = null
   private _panelHotkeyTimer: any = null
   private _panelHotkeySafeTimer: any = null
-  /** 面板热键动作枚举（设置页列表顺序） */
-  panelHotkeyActions: Array<'delete' | 'rename' | 'refresh' | 'up' | 'back'> = ['delete', 'rename', 'refresh', 'up', 'back']
+  /** 面板快捷键动作枚举（设置页列表顺序） */
+  panelHotkeyActions: PanelHotkeyAction[] = [...PANEL_HOTKEY_ACTIONS]
 
   /** 主题颜色修改确认弹窗 */
   showThemeColorConfirm = false
@@ -1744,13 +1845,23 @@ export class SftpSettingsTabComponent implements OnDestroy {
     }, 2500)
   }
 
-  /** 开始录制某个面板操作热键（单键录制，区别于 Tabby 多键序列格式） */
-  startPanelHotkeyRecording(action: 'delete' | 'rename' | 'refresh' | 'up'): void {
+  /** 开始录制某个面板操作快捷键（追加为新绑定；键盘单键 + 鼠标侧键，区别于 Tabby 多键序列格式） */
+  startPanelHotkeyRecording(action: PanelHotkeyAction): void {
     if (this.panelHotkeyRecording) this._teardownPanelHotkeyRecording()
     this.panelHotkeyRecording = action
     this.panelHotkeyRecordingPreview = ''
     setHotkeyRecordingActive(true)
     try { this.hotkeys?.disable?.() } catch { /* ignore */ }
+
+    const commit = (spec: string | null) => {
+      if (!spec) return
+      this.panelHotkeyRecordingPreview = this.panelHotkeyLabel(spec)
+      if (this._panelHotkeyTimer) clearTimeout(this._panelHotkeyTimer)
+      this._panelHotkeyTimer = setTimeout(() => {
+        this._panelHotkeyTimer = null
+        this._commitPanelHotkey(action, spec)
+      }, 250)
+    }
 
     this._panelHotkeyDomHandler = (ev: KeyboardEvent) => {
       if (!this.panelHotkeyRecording) return
@@ -1758,16 +1869,19 @@ export class SftpSettingsTabComponent implements OnDestroy {
       ev.stopPropagation()
       if (ev.key === 'Escape') { this._teardownPanelHotkeyRecording(); return }
       if (ev.repeat) return
-      const spec = eventToPanelHotkeySpec(ev)
+      commit(eventToPanelHotkeySpec(ev))
+    }
+    // ★ 2026-08-31：鼠标侧键录制（button 3 = 后退 / 4 = 前进）
+    this._panelHotkeyMouseHandler = (ev: MouseEvent) => {
+      if (!this.panelHotkeyRecording) return
+      const spec = mouseSpecFromButton(ev.button)
       if (!spec) return
-      this.panelHotkeyRecordingPreview = spec
-      if (this._panelHotkeyTimer) clearTimeout(this._panelHotkeyTimer)
-      this._panelHotkeyTimer = setTimeout(() => {
-        this._panelHotkeyTimer = null
-        this._commitPanelHotkey(action, spec)
-      }, 250)
+      ev.preventDefault()
+      ev.stopPropagation()
+      commit(spec)
     }
     window.addEventListener('keydown', this._panelHotkeyDomHandler, true)
+    window.addEventListener('mousedown', this._panelHotkeyMouseHandler, true)
 
     if (this._panelHotkeySafeTimer) clearTimeout(this._panelHotkeySafeTimer)
     this._panelHotkeySafeTimer = setTimeout(() => {
@@ -1785,65 +1899,160 @@ export class SftpSettingsTabComponent implements OnDestroy {
       window.removeEventListener('keydown', this._panelHotkeyDomHandler, true)
       this._panelHotkeyDomHandler = null
     }
+    if (this._panelHotkeyMouseHandler) {
+      window.removeEventListener('mousedown', this._panelHotkeyMouseHandler, true)
+      this._panelHotkeyMouseHandler = null
+    }
     try { this.hotkeys?.enable?.() } catch { /* ignore */ }
     setHotkeyRecordingActive(false)
     this.panelHotkeyRecording = null
     this.panelHotkeyRecordingPreview = ''
   }
 
-  private _commitPanelHotkey(action: 'delete' | 'rename' | 'refresh' | 'up', spec: string): void {
+  private _commitPanelHotkey(action: PanelHotkeyAction, spec: string): void {
     this._teardownPanelHotkeyRecording()
-    // 不与其它已绑定（key 非空）的面板热键重复
-    for (const a of ['delete', 'rename', 'refresh', 'up'] as const) {
-      if (a !== action && this.panelHotkeys[a].key === spec) {
-        this._flashHotkeyMessage(this.i18n.t('settings.panelHotkeyConflict', { keys: spec }))
+    // 不与其它动作的绑定重复
+    for (const a of this.panelHotkeyActions) {
+      if (a !== action && this.panelHotkeyKeys(a).includes(spec)) {
+        this._flashHotkeyMessage(this.i18n.t('settings.panelHotkeyConflict', { keys: this.panelHotkeyLabel(spec) }))
         return
       }
     }
-    this.panelHotkeys[action].key = spec
-    this.panelHotkeys[action].enabled = true
+    const list = this.panelHotkeys[action]
+    if (list.keys.includes(spec)) {
+      this._flashHotkeyMessage(this.i18n.t('settings.hotkeyDuplicate'))
+      return
+    }
+    list.keys = [...list.keys, spec]
+    list.enabled = true
     this._saveToConfig()
     this.notifyPanels()
-    this._flashHotkeyMessage(this.i18n.t('settings.hotkeySaved', { keys: spec }))
+    this._flashHotkeyMessage(this.i18n.t('settings.hotkeySaved', { keys: this.panelHotkeyLabel(spec) }))
   }
 
-  /** 清除某个面板操作热键的绑定（key 置哨兵 + enabled=false 双保险，仅能由工具栏/右键触发） */
-  clearPanelHotkey(action: 'delete' | 'rename' | 'refresh' | 'up'): void {
-    this.panelHotkeys[action].key = PANEL_HOTKEY_CLEARED
-    this.panelHotkeys[action].enabled = false
+  /** 移除某个动作的单个快捷键绑定 */
+  removePanelHotkeyAt(action: PanelHotkeyAction, index: number): void {
+    const list = this.panelHotkeys[action]
+    if (!list || index < 0 || index >= list.keys.length) return
+    list.keys = list.keys.filter((_, i) => i !== index)
+    // 全部移除后置 enabled=false 双保险，防止 config 清洗空数组后 defaults 回退
+    if (!list.keys.length) list.enabled = false
     this._saveToConfig()
     this.notifyPanels()
     this._flashHotkeyMessage(this.i18n.t('settings.hotkeyCleared'))
   }
 
-  /** 判断某面板热键是否已绑定（key 非空非哨兵，且 enabled 未被标记为 false） */
-  isPanelHotkeyBound(action: string): boolean {
-    const h = (this.panelHotkeys as any)[action]
-    if (!h) return false
-    const k = h.key
-    return !!k && k !== PANEL_HOTKEY_CLEARED && h.enabled !== false
+  /** 清除某个动作的全部快捷键绑定 */
+  clearPanelHotkey(action: PanelHotkeyAction): void {
+    this.panelHotkeys[action] = { keys: [], enabled: false }
+    this._saveToConfig()
+    this.notifyPanels()
+    this._flashHotkeyMessage(this.i18n.t('settings.hotkeyCleared'))
   }
 
-  /** 获取某面板热键的可显示文本（哨兵值返回空串供模板 fallback 到 i18n） */
-  panelHotkeyDisplayKey(action: string): string {
-    const h = (this.panelHotkeys as any)[action]
-    if (!h) return ''
-    const k = h.key
-    return (!k || k === PANEL_HOTKEY_CLEARED || h.enabled === false) ? '' : k
+  /** 判断某面板快捷键是否已绑定（至少一个有效绑定，且 enabled 未被标记为 false） */
+  isPanelHotkeyBound(action: PanelHotkeyAction): boolean {
+    return this.panelHotkeyKeys(action).length > 0
   }
 
-  /** 重置面板热键为默认值 */
+  /** 取某动作的绑定列表（已归一化，剔除哨兵/空值）；enabled=false 视为未绑定 */
+  panelHotkeyKeys(action: PanelHotkeyAction): string[] {
+    const h = (this.panelHotkeys as any)[action]
+    if (!h || h.enabled === false) return []
+    return normalizePanelHotkeyKeys(h.keys, PANEL_HOTKEY_CLEARED)
+  }
+
+  /** 单个绑定的显示文案：鼠标侧键显示中文名，键盘键原样显示 */
+  panelHotkeyLabel(spec: string): string {
+    if (spec === MOUSE_BACK_SPEC) return this.i18n.t('settings.mouseBack')
+    if (spec === MOUSE_FORWARD_SPEC) return this.i18n.t('settings.mouseForward')
+    return spec
+  }
+
+  /** 是否为鼠标侧键绑定（模板据此用不同配色区分） */
+  isPanelMouseHotkey(spec: string): boolean {
+    return isMouseHotkeySpec(spec)
+  }
+
+  /** 重置面板快捷键为默认值 */
   resetPanelHotkeys(): void {
-    this.panelHotkeys = {
-      delete: { key: 'Delete', enabled: true },
-      rename: { key: 'F2', enabled: true },
-      refresh: { key: 'F5', enabled: true },
-      up: { key: 'Shift+Backspace', enabled: true },
-      back: { key: 'Backspace', enabled: true },
-    }
+    this.panelHotkeys = defaultPanelHotkeys()
     this._saveToConfig()
     this.notifyPanels()
   }
+
+  /** 面板快捷键动作的标签 i18n key。新增动作复用右键菜单既有文案，避免重复翻译 24 语言 */
+  private readonly panelHotkeyLabelKeys: Record<PanelHotkeyAction, string> = {
+    delete: 'settings.phk.delete',
+    rename: 'settings.phk.rename',
+    refresh: 'settings.phk.refresh',
+    up: 'settings.phk.up',
+    back: 'settings.phk.back',
+    forward: 'settings.phk.forward',
+    upload: 'app.upload',
+    download: 'app.download',
+    newFolder: 'file.newFolder',
+    newFile: 'file.newFile',
+    details: 'file.properties',
+    copyPath: 'pane.copyPath',
+  }
+
+  panelHotkeyLabelKey(action: PanelHotkeyAction): string {
+    return this.panelHotkeyLabelKeys[action] ?? action
+  }
+
+  /** 系统修饰键文本（macOS 为 ⌘，其余为 Ctrl） */
+  get modKeyText(): string {
+    const p = (typeof navigator !== 'undefined' ? navigator.platform : '') || ''
+    const ua = (typeof navigator !== 'undefined' ? navigator.userAgent : '') || ''
+    return /Mac|iPod|iPhone|iPad/.test(p || ua) ? '⌘' : 'Ctrl'
+  }
+
+  /** 占用清单中把 '${mod}' 占位符替换为系统修饰键 */
+  formatOccupiedKeys(keys: string): string {
+    return String(keys).replace('${mod}', this.modKeyText)
+  }
+
+  /** 「已占用快捷键」清单展开状态（默认收起） */
+  occupiedHotkeysExpanded = false
+
+  toggleOccupiedHotkeys(): void {
+    this.occupiedHotkeysExpanded = !this.occupiedHotkeysExpanded
+  }
+
+  /**
+   * 由 SFTP+ 固定占用、用户不可修改的键位（只读展示）。
+   * 列出这些可避免用户把上面的可配置快捷键设成已被占用的组合而互相抢触发。
+   */
+  readonly occupiedHotkeyGroups: Array<{
+    titleKey: string
+    items: Array<{ keys: string; descKey: string }>
+  }> = [
+    {
+      titleKey: 'settings.occupied.groupPanel',
+      items: [
+        { keys: '${mod}+A', descKey: 'pane.selectAll' },
+        { keys: '${mod}+C', descKey: 'file.copy' },
+        { keys: '${mod}+X', descKey: 'file.cut' },
+        { keys: '${mod}+V', descKey: 'file.paste' },
+        { keys: '↑ ↓', descKey: 'settings.occupied.moveSelection' },
+        { keys: '${mod}+Click', descKey: 'settings.occupied.multiSelect' },
+      ],
+    },
+    {
+      titleKey: 'settings.occupied.groupViewer',
+      items: [
+        { keys: '← →', descKey: 'settings.occupied.prevNextImage' },
+      ],
+    },
+    {
+      titleKey: 'settings.occupied.groupDialog',
+      items: [
+        { keys: 'Esc', descKey: 'settings.occupied.closeDialog' },
+        { keys: 'Enter', descKey: 'settings.occupied.confirmDelete' },
+      ],
+    },
+  ]
 
   private async _ensureHotkeyDescriptions(): Promise<void> {
     if (Object.keys(this._hotkeyDescCache).length) return
@@ -1923,6 +2132,7 @@ export class SftpSettingsTabComponent implements OnDestroy {
       if (typeof cfg.transferUploadConcurrency === 'number') this.uploadConcurrency = this._clampConcurrency(cfg.transferUploadConcurrency)
       if (typeof cfg.transferDownloadConcurrency === 'number') this.downloadConcurrency = this._clampConcurrency(cfg.transferDownloadConcurrency)
       if (cfg.transferFastMode !== undefined) this.transferFastMode = cfg.transferFastMode === true
+      if (cfg.transferTarAcceleration !== undefined) this.transferTarAcceleration = cfg.transferTarAcceleration !== false
       if (typeof cfg.defaultUploadPath === 'string') this.defaultUploadPath = cfg.defaultUploadPath
       if (typeof cfg.defaultDownloadPath === 'string') this.defaultDownloadPath = cfg.defaultDownloadPath
       if (typeof cfg.iconResourceDir === 'string') this.iconResourceDir = cfg.iconResourceDir
@@ -1962,21 +2172,19 @@ export class SftpSettingsTabComponent implements OnDestroy {
         for (const a of DEFAULT_FILE_MENU_ORDER) if (!valid.includes(a)) valid.push(a)
         this.contextMenuOrder = valid
       }
-      // ★ 2026-08-22：面板内置操作热键（与默认值合并，保证五项齐全；key 为哨兵/空=未绑定）
-      // ★ 2026-08-24 修复：空串/NUL 会被 Tabby config 清洗删除（{} → defaults 回退 F2/F5）。
-      //    双保险：key 用可打印哨兵 PANEL_HOTKEY_CLEARED + enabled 布尔标志（false 一定保留）
+      // ★ 2026-08-31：面板内置操作快捷键（多绑定）。与默认值合并保证动作齐全。
+      // ★ 2026-08-24 修复：空串/NUL/空数组会被 Tabby config 清洗删除（{} → defaults 回退 F2/F5）。
+      //    双保险：无绑定时写 enabled=false（布尔一定保留），读取时据此判为未绑定。
       if (cfg.panelHotkeys && typeof cfg.panelHotkeys === 'object') {
         const ph = cfg.panelHotkeys as any
         const def = this.panelHotkeys
-        for (const a of ['delete', 'rename', 'refresh', 'up', 'back'] as const) {
+        for (const a of PANEL_HOTKEY_ACTIONS) {
           if (ph[a] && typeof ph[a] === 'object') {
-            const rawKey = typeof ph[a].key === 'string' ? ph[a].key : ''
             const isDisabled = ph[a].enabled === false
-            // 旧格式空串/NUL 哨兵、或显式 enabled=false → 视为清除；否则保留真实键
-            def[a] = {
-              key: (!rawKey || rawKey === PANEL_HOTKEY_CLEARED || rawKey.indexOf('\x00') === 0 || isDisabled) ? PANEL_HOTKEY_CLEARED : rawKey,
-              enabled: isDisabled ? false : true,
-            }
+            // 兼容旧格式 { key: 'Delete' } 与新格式 { keys: ['Delete'] }
+            const raw = (ph[a] as any).keys ?? (ph[a] as any).key
+            const keys = isDisabled ? [] : normalizePanelHotkeyKeys(raw, PANEL_HOTKEY_CLEARED)
+            def[a] = { keys, enabled: !isDisabled }
           }
         }
         this.panelHotkeys = def
@@ -2016,6 +2224,7 @@ export class SftpSettingsTabComponent implements OnDestroy {
       target.transferUploadConcurrency = this.uploadConcurrency
       target.transferDownloadConcurrency = this.downloadConcurrency
       target.transferFastMode = this.transferFastMode
+      target.transferTarAcceleration = this.transferTarAcceleration
       target.defaultUploadPath = this.defaultUploadPath
       target.defaultDownloadPath = this.defaultDownloadPath
       target.iconResourceDir = this.iconResourceDir
@@ -2030,15 +2239,20 @@ export class SftpSettingsTabComponent implements OnDestroy {
       target.contextMenuOrder = this.contextMenuOrder
       // ★ 2026-08-24 修复：panelHotkeys 是 ConfigProxy 的「结构成员」（对象），只有 getter 没有 setter。
       //    直接 `target.panelHotkeys = x` 不生效（严格模式抛 TypeError 被 catch 吞掉 / 非严格静默忽略），
-      //    导致 key/enabled 从未落盘 → config.yaml 写成 {} → 重启后 defaults 回退 F2/F5。
-      //    必须逐叶子赋值：先经 getter 取到嵌套 proxy，再对 key/enabled 叶子调用 setter。
+      //    导致绑定从未落盘 → config.yaml 写成 {} → 重启后 defaults 回退 F2/F5。
+      //    必须逐叶子赋值：先经 getter 取到嵌套 proxy，再对 keys/enabled 叶子调用 setter。
+      // ★ 2026-08-31：改为多绑定 keys[]。空数组会被 config 清洗（等于默认值时 delete），
+      //    故同时写 enabled=false 作双保险；并把旧单键字段 key 改写为哨兵，
+      //    防止旧值在 keys 被清洗后「复活」成意外绑定。
       const ph = (target as any).panelHotkeys
       if (ph) {
-        for (const a of ['delete', 'rename', 'refresh', 'up', 'back'] as const) {
+        for (const a of PANEL_HOTKEY_ACTIONS) {
           const dst = ph[a]
           if (dst) {
-            dst.key = this.panelHotkeys[a].key
-            dst.enabled = this.panelHotkeys[a].enabled
+            const keys = this.panelHotkeyKeys(a)
+            dst.keys = keys
+            dst.enabled = keys.length > 0 && this.panelHotkeys[a].enabled !== false
+            dst.key = PANEL_HOTKEY_CLEARED
           }
         }
       }
@@ -2605,6 +2819,13 @@ export class SftpSettingsTabComponent implements OnDestroy {
     this.notifyPanels()
   }
 
+  /** ★ 2026-08-28：切换 tar 打包加速 */
+  toggleTarAcceleration(): void {
+    this.transferTarAcceleration = !this.transferTarAcceleration
+    this._saveToConfig()
+    this.notifyPanels()
+  }
+
   /** ★ 2026-08-11：切换隐藏作者信息：关闭直接生效；开启需确认（先打开仓库链接，
    *   用户点「我已点 Star 支持」后才隐藏） */
   toggleHideAuthorInfo(): void {
@@ -2861,6 +3082,7 @@ export class SftpSettingsTabComponent implements OnDestroy {
           data.transferUploadConcurrency = cfg.transferUploadConcurrency ?? 3
           data.transferDownloadConcurrency = cfg.transferDownloadConcurrency ?? 3
           data.transferFastMode = cfg.transferFastMode ?? false
+          data.transferTarAcceleration = cfg.transferTarAcceleration ?? true
           data.defaultUploadPath = cfg.defaultUploadPath ?? ''
           data.defaultDownloadPath = cfg.defaultDownloadPath ?? ''
           data.iconResourceDir = cfg.iconResourceDir ?? ''
@@ -2870,13 +3092,7 @@ export class SftpSettingsTabComponent implements OnDestroy {
           data.openOnClick = cfg.openOnClick ?? 'double'
           data.openUnsupportedInSystem = cfg.openUnsupportedInSystem ?? true
           data.contextMenuOrder = cfg.contextMenuOrder ?? [...DEFAULT_FILE_MENU_ORDER]
-          data.panelHotkeys = cfg.panelHotkeys ?? {
-            delete: { key: 'Delete', enabled: true },
-            rename: { key: 'F2', enabled: true },
-            refresh: { key: 'F5', enabled: true },
-            up: { key: 'Shift+Backspace', enabled: true },
-            back: { key: 'Backspace', enabled: true },
-          }
+          data.panelHotkeys = cfg.panelHotkeys ?? defaultPanelHotkeys()
           data.hideAuthorInfo = cfg.hideAuthorInfo ?? false
           data.paneCustomOrder = cfg.paneCustomOrder ?? ['label', 'back', 'forward', 'up', 'refresh', 'home', 'path', 'hidden', 'filter', 'bookmark']
           data.paneHiddenItems = cfg.paneHiddenItems ?? []
@@ -2917,13 +3133,7 @@ export class SftpSettingsTabComponent implements OnDestroy {
     data.openOnClick = load('openOnClick', 'double')
     data.openUnsupportedInSystem = load('openUnsupportedInSystem', true)
     try { data.contextMenuOrder = JSON.parse(localStorage.getItem('sftp-plus-context-menu-order') || '[]') } catch { data.contextMenuOrder = [] }
-    data.panelHotkeys = {
-      delete: { key: 'Delete', enabled: true },
-      rename: { key: 'F2', enabled: true },
-      refresh: { key: 'F5', enabled: true },
-      up: { key: 'Shift+Backspace', enabled: true },
-      back: { key: 'Backspace', enabled: true },
-    }
+    data.panelHotkeys = defaultPanelHotkeys()
     try { data.paneCustomOrder = JSON.parse(localStorage.getItem('sftp-plus-pane-custom-order') || '["label","back","forward","up","refresh","home","path","hidden","filter","bookmark"]') } catch { data.paneCustomOrder = ['label', 'back', 'forward', 'up', 'refresh', 'home', 'path', 'hidden', 'filter', 'bookmark'] }
     try { data.paneHiddenItems = JSON.parse(localStorage.getItem('sftp-plus-pane-hidden-items') || '[]') } catch { data.paneHiddenItems = [] }
     // 尝试从 localStorage 读取书签和传输日志
@@ -3015,6 +3225,7 @@ export class SftpSettingsTabComponent implements OnDestroy {
           if (data.transferUploadConcurrency !== undefined) target.transferUploadConcurrency = data.transferUploadConcurrency
           if (data.transferDownloadConcurrency !== undefined) target.transferDownloadConcurrency = data.transferDownloadConcurrency
           if (data.transferFastMode !== undefined) target.transferFastMode = data.transferFastMode
+          if (data.transferTarAcceleration !== undefined) target.transferTarAcceleration = data.transferTarAcceleration
           if (data.defaultUploadPath !== undefined) target.defaultUploadPath = data.defaultUploadPath
           if (data.defaultDownloadPath !== undefined) target.defaultDownloadPath = data.defaultDownloadPath
           if (data.iconResourceDir !== undefined) target.iconResourceDir = data.iconResourceDir
@@ -3029,12 +3240,15 @@ export class SftpSettingsTabComponent implements OnDestroy {
           if (data.panelHotkeys !== undefined) {
             const ph = (target as any).panelHotkeys
             if (ph) {
-              for (const a of ['delete', 'rename', 'refresh', 'up', 'back'] as const) {
+              for (const a of PANEL_HOTKEY_ACTIONS) {
                 const src = (data.panelHotkeys as any)[a]
                 const dst = ph[a]
                 if (src && dst) {
-                  dst.key = src.key
-                  dst.enabled = src.enabled !== false
+                  // 兼容旧备份的单键格式 key 与新格式 keys
+                  const keys = normalizePanelHotkeyKeys((src as any).keys ?? (src as any).key, PANEL_HOTKEY_CLEARED)
+                  dst.keys = keys
+                  dst.enabled = keys.length > 0 && src.enabled !== false
+                  dst.key = PANEL_HOTKEY_CLEARED
                 }
               }
             }
