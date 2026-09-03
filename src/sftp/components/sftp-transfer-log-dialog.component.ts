@@ -2,8 +2,8 @@
  * SFTP+ 传输日志对话框（从主面板抽离）
  * 创建人：DD1024z + Hy3 preview
  * 创建时间：2026-06-21
- * 修改人：DD1024z + Hy3
- * 修改时间：2026-08-03
+ * 修改人：DD1024z + Hy4 preview
+ * 修改时间：2026-09-03 — 新增目录传输模式（快速/tar 打包）与文件数标签展示
  */
 import { Component, EventEmitter, Input, Output } from '@angular/core'
 
@@ -82,6 +82,10 @@ import { onFileDialogOverlayWheel, onFileDialogScrollableWheel } from './file-di
                 {{ getLogFileName(entry) }}
               </span>
               <span class="log-meta">
+                <!-- ★ 2026-09-03：目录传输模式 / 文件数标签（快速模式 ⚡、tar 打包 📦、标准模式显示文件数） -->
+                <span *ngIf="entry.transferMode === 'fast'" class="log-mode-tag tag-fast" [title]="i18n.t('log.modeFast')">⚡ {{ i18n.t('log.modeFast') }}</span>
+                <span *ngIf="entry.transferMode === 'tar'" class="log-mode-tag tag-tar" [title]="i18n.t('log.modeTar')">📦 {{ i18n.t('log.modeTar') }}</span>
+                <span *ngIf="!entry.transferMode && entry.fileCount > 0" class="log-mode-tag tag-count">{{ i18n.t('log.fileCount', { n: entry.fileCount }) }}</span>
                 <span *ngIf="entry.size != null" class="log-size">{{ formatSize(entry.size) }}</span>
                 <!-- ★ 修复：传输进行中不显示速度/耗时（duration=0 算出 Infinity/NaN） -->
                 <span *ngIf="!entry.pending && entry.size && entry.duration" class="log-speed">{{ formatSpeedFromSize(entry.size, entry.duration) }}</span>
@@ -259,6 +263,20 @@ import { onFileDialogOverlayWheel, onFileDialogScrollableWheel } from './file-di
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
     .log-meta { display: inline-flex; gap: 10px; align-items: center; flex-shrink: 0; white-space: nowrap; }
+    /* ★ 2026-09-03：目录传输模式 / 文件数标签 */
+    .log-mode-tag {
+      display: inline-block; flex-shrink: 0;
+      font-size: 10px; padding: 0 6px; border-radius: 3px; line-height: 1.6;
+    }
+    .log-mode-tag.tag-fast {
+      color: #ff9800; background: rgba(255,152,0,0.12);
+      border: 1px solid rgba(255,152,0,0.4);
+    }
+    .log-mode-tag.tag-tar {
+      color: #26c6da; background: rgba(38,198,218,0.12);
+      border: 1px solid rgba(38,198,218,0.4);
+    }
+    .log-mode-tag.tag-count { color: var(--_text); opacity: 0.55; border: 1px solid var(--_border); }
     .log-size { font-size: 11px; color: var(--_text); opacity: 0.55; }
     .log-speed { font-size: 10px; color: var(--_primary); opacity: 0.75; }
     .log-duration { font-size: 10px; color: var(--_text); opacity: 0.45; }
@@ -315,9 +333,18 @@ export class SftpTransferLogDialogComponent {
   formatDuration = formatDuration
   formatSpeedFromSize = formatSpeedFromSize
   getLogFileName = getLogFileName
-  isUploadLike = isUploadLikeOperation
   onOverlayWheel = onFileDialogOverlayWheel
   onScrollableWheel = onFileDialogScrollableWheel
+
+  /** ★ 2026-08-30 修复：上传条目方向显示反转
+   *  原写法 `isUploadLike = isUploadLikeOperation` 直接暴露了工具函数，而该函数的入参是
+   *  operation 字符串，模板却按 isUploadLike(entry) 传入整个条目对象 ——
+   *  `entry === 'upload'` 恒为 false，导致上传条目误走下载分支（🌐远端→🖥本地），
+   *  方向看起来是反的（下载分支碰巧正确，故只有上传受害）。
+   *  改为接收条目对象、内部取 operation，使签名与调用方语义一致；同时防御空条目。 */
+  isUploadLike(entry: TransferLogEntry): boolean {
+    return isUploadLikeOperation(entry?.operation)
+  }
 
   @Input() i18n!: SftpI18nService
 

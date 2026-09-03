@@ -4,8 +4,8 @@
  *   存储到 localStorage，避免污染 Tabby 配置文件
  * 创建人：DD1024z + Claude
  * 创建时间：2026-06-21
- * 修改人：DD1024z + Hy3
- * 修改时间：2026-07-23
+ * 修改人：DD1024z + Hy4 preview
+ * 修改时间：2026-09-03 — 新增 transferMode/fileCount 字段（传输模式与文件数展示）
  */
 import { Injectable, Optional } from '@angular/core'
 import { ConfigService } from 'tabby-core'
@@ -29,6 +29,12 @@ export type TransferLogEntry = {
    *  修复"传输中误显示下载成功"——日志条目在 add 时即写入，传输完成才 update；缺此标志会导致
    *  进度期间日志显示 0ms ✓。 */
   pending?: boolean
+  /** ★ 2026-09-03：目录传输模式。fast=快速模式（跳过预扫描，无百分比进度）；
+   *  tar=tar 打包加速通道；undefined=标准逐文件模式（此时 fileCount 有值可显示） */
+  transferMode?: 'fast' | 'tar'
+  /** ★ 2026-09-03：目录传输的文件总数。仅标准模式预扫描后记录（快速模式未知不记、
+   *  tar 打包通道走整包不记）；单文件传输无此字段。0 表示未知/已被 tar 模式取代 */
+  fileCount?: number
 }
 
 const STORAGE_KEY = 'sftp-plus-transfer-logs'

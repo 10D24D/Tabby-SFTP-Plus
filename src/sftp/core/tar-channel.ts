@@ -221,6 +221,7 @@ export class TarChannel {
     const disp = (b: number) => displayTotal === tarSize ? b : Math.round(b * displayTotal / tarSize)
     const ctx = folder.start(name, 'upload', remoteTarget, localPath, displayTotal, 1)
     if (realSize > 0) folder.updateLogSize?.(ctx, realSize)
+    let remoteExtractDir: string | null = null
     try {
       if (folder.isAborted(ctx)) {
         folder.finish(ctx, false)
@@ -231,13 +232,18 @@ export class TarChannel {
         bytes => folder.updateProgress(ctx, disp(bytes), name, 0, displayTotal),
         () => folder.isAborted(ctx),
       )
-      if (!upOk || folder.isAborted(ctx)) {
+      if (folder.isAborted(ctx)) {
         folder.finish(ctx, false)
         return 'failed'
       }
+      if (!upOk) {
+        log.warn('tar channel upload tarball failed, fallback to regular sftp:', remoteTarget)
+        folder.finish(ctx, false)
+        return 'fallback'
+      }
       // 3. 服务端解包到临时目录再 mv 期望基名，降低 zip-slip 面
       // 注意：tar -f 后必须紧跟归档文件名，不能加 --（否则 -- 会被当作文件名）
-      const remoteExtractDir = path.posix.join(parent, `.sftp-plus-untar-${randomUUID()}`)
+      remoteExtractDir = path.posix.join(parent, `.sftp-plus-untar-${randomUUID()}`)
       const out = await this.deps.exec(
         `mkdir -p ${shellQuotePosix(remoteExtractDir)} ` +
         `&& tar xzf ${shellQuotePosix(remoteTar)} -C ${shellQuotePosix(remoteExtractDir)} ` +
@@ -248,20 +254,23 @@ export class TarChannel {
         REMOTE_TAR_TIMEOUT_MS,
       )
       if (!new RegExp(`\\b${TAR_OK}\\b`).test(out)) {
-        log.warn('tar channel: remote extract failed:', remoteTarget, out?.trim())
-        // 尽力清理临时解包目录
-        this.deps.exec(`rm -rf ${shellQuotePosix(remoteExtractDir)}`).catch(() => {})
+        log.warn('tar channel: remote extract failed, fallback to regular sftp:', remoteTarget, out?.trim())
+        // 尽力清理临时解包目录及可能残留的部分目标
+        this.deps.exec(`rm -rf ${shellQuotePosix(remoteExtractDir)} ${shellQuotePosix(remoteTarget)}`).catch(() => {})
         folder.finish(ctx, false)
-        return 'failed'
+        return 'fallback'
       }
       folder.updateProgress(ctx, displayTotal, name, 1, displayTotal)
       folder.finish(ctx, true)
       log.info('tar channel upload OK:', localPath, '->', remoteTarget)
       return 'success'
     } catch (e) {
-      log.warn('tar channel upload error:', remoteTarget, e)
+      log.warn('tar channel upload error, fallback to regular sftp:', remoteTarget, e)
+      if (remoteExtractDir) {
+        this.deps.exec(`rm -rf ${shellQuotePosix(remoteExtractDir)} ${shellQuotePosix(remoteTarget)}`).catch(() => {})
+      }
       try { folder.finish(ctx, false) } catch { /* ignore */ }
-      return 'failed'
+      return 'fallback'
     } finally {
       this.deps.remoteUnlink(remoteTar).catch(() => {})
       await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {})
@@ -324,16 +333,21 @@ export class TarChannel {
         bytes => folder.updateProgress(ctx, disp(bytes), name, 0, displayTotal),
         () => folder.isAborted(ctx),
       )
-      if (!dlOk || folder.isAborted(ctx)) {
+      if (folder.isAborted(ctx)) {
         folder.finish(ctx, false)
         return 'failed'
+      }
+      if (!dlOk) {
+        log.warn('tar channel download tarball failed, fallback to regular sftp:', remoteSrc)
+        folder.finish(ctx, false)
+        return 'fallback'
       }
       // 3. 本地安全解包（沙箱 + zip-slip 校验 + 原子移入；目标不存在由调用方保证）
       const extracted = await extractTarSafely(tarFile, localDest, base)
       if (!extracted) {
-        log.warn('tar channel: local extract failed:', localDest)
+        log.warn('tar channel: local extract failed, fallback to regular sftp:', localDest)
         folder.finish(ctx, false)
-        return 'failed'
+        return 'fallback'
       }
       // ★ 2026-08-11：扫描不可得真实大小时，解包成功后用本地解出目录大小兜底回填传输记录
       if (!(realSize > 0)) {
@@ -345,9 +359,9 @@ export class TarChannel {
       log.info('tar channel download OK:', remoteSrc, '->', localDest)
       return 'success'
     } catch (e) {
-      log.warn('tar channel download error:', remoteSrc, e)
+      log.warn('tar channel download error, fallback to regular sftp:', remoteSrc, e)
       try { folder.finish(ctx, false) } catch { /* ignore */ }
-      return 'failed'
+      return 'fallback'
     } finally {
       this.deps.remoteUnlink(remoteTar).catch(() => {})
       if (tmpDir) await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {})

@@ -149,11 +149,12 @@ export class DownloadDirUseCase {
 
     if (isTop) {
       // ★ 2026-08-11：tar 打包通道——仅当本地目标不存在（全新下载）时启用；
-      //   success/failed 均已自行收尾进度条目，不再走逐文件路径；fallback 继续常规流程
+      //   success 传输成功；failed 中止；fallback 则平滑回退到常规逐文件流式传输
       if (this.ports.tarChannel && !(await this.ports.localFs.pathExists(localDir))) {
         const r = await this.ports.tarChannel.tryDownloadDir(remoteSrc, localDest, this.ports.folder, base)
         if (r === 'success') return true
         if (r === 'failed') return false
+        log.info('[download-dir] tar channel fell back, starting standard file-by-file transfer:', remoteSrc)
       }
       // ★ 2026-08-11：快速模式跳过预扫描直接开传（总量未知 → 只显示已传字节/文件数）
       let totalSize = 0
@@ -500,11 +501,12 @@ export class UploadPathUseCase {
     if (isTop) {
       const base = path.basename(localPath)
       // ★ 2026-08-11：tar 打包通道——仅当远端目标不存在（全新上传）时启用；
-      //   success/failed 均已自行收尾进度条目，不再走逐文件路径；fallback 继续常规流程
+      //   success 传输成功；failed 中止；fallback 则平滑回退到常规逐文件流式传输
       if (this.ports.tarChannel && !(await this.ports.conflictDetection.checkRemotePathExists(remoteTarget, true))) {
         const r = await this.ports.tarChannel.tryUploadDir(localPath, remoteTarget, this.ports.folder, base)
         if (r === 'success') return true
         if (r === 'failed') return false
+        log.info('[upload-dir] tar channel fell back, starting standard file-by-file transfer:', localPath)
       }
       // ★ 2026-08-11：快速模式跳过预扫描直接开传（总量未知 → 只显示已传字节/文件数）
       let totalSize = 0

@@ -48,6 +48,8 @@ export interface PanelTransferHost {
   scanRemoteDir(remotePath: string): Promise<{ size: number; count: number }>
   /** ★ 2026-08-11：快速模式（实时读设置）：目录传输跳过预扫描直接开传，代价是没有百分比进度 */
   fastMode?(): boolean
+  /** ★ 2026-08-28：tar 打包加速开关（实时读设置） */
+  tarAcceleration?(): boolean
   startFolderTransfer(
     name: string,
     direction: 'upload' | 'download',
@@ -308,7 +310,7 @@ export class PanelTransferCoordinator {
       execution,
       conflictDetection: this.conflictDetection,
       // ★ 2026-08-11：tar 打包通道（用例层仅在目标不存在时启用）
-      tarChannel: this._tarChannel(),
+      tarChannel: host.tarAcceleration?.() === false ? undefined : this._tarChannel(),
       conflictQueue,
     }
   }
