@@ -19,17 +19,17 @@ SFTP+ is a plugin for [Tabby Terminal](https://tabby.sh/) that adds a **dual-pan
 | **🎨 File Icons** | Built-in colored SVG file/folder icons; customize extension mappings, icon directory, disabled built-in icons, and folder icon |
 | **🔄 Drag & Drop** | Drag across panes to upload/download; recursive folder transfer; drag from OS Explorer/Desktop into either pane |
 | **⬆️ Context Transfer** | Right-click upload on local pane, download on remote pane (multi-select batch) |
-| **⚡ High-Speed Transfer** | Intra-directory file-level parallelism (1-10 concurrent, adjustable); tar channel for massive small-file directories (pack → single-file transfer → unpack); batch delete via SSH `rm -rf` / `fs.rm(recursive)` |
+| **⚡ High-Speed Transfer** | Intra-directory file-level parallelism (1-10 concurrent, adjustable); tar channel for massive small-file directories (pack → single-file transfer → unpack), which can be disabled in settings; batch delete via SSH `rm -rf` / `fs.rm(recursive)` |
 | **🔖 Bookmark System** | Global bookmarks (visible across all connections) + connection bookmarks (per SSH session); drag-to-reorder |
 | **📋 Transfer Log** | Full operation history including **Edit Load** / **Edit Save** types; filtering, stats, JSON export |
-| **⚡ Transfer Control** | Progress bars (with percentage), pause/resume/cancel, resume support, real-time speed |
+| **⚡ Transfer Control** | Progress bars (with percentage), pause/resume/cancel, resume support, real-time speed; the tar channel falls back to the regular file-by-file transfer on failure; the transfer log tags folder transfers (⚡ fast mode / 📦 tar packing / file count) |
 | **⚠️ File Conflict** | Visual diff on conflict (shows upload⬆/download⬇ direction), with overwrite/skip/rename options and batch processing; merge-overwrite has its own progress panel |
 | **🔐 Permission Editor** | Remote chmod via 3×3 checkbox matrix with octal preview |
 | **📌 Context Menus** | Upload/download, view/edit, new/rename/delete, copy/cut/paste, refresh, select all/invert; text viewer/editor context menus; <br />Header: column visibility, fit widths, borders & zebra stripes |
 | **🔍 Filter & Sort** | Keyword filter, multi-column sorting (click headers), configurable visible columns |
 | **🧭 Path Mode** | Three modes: `off` / `remember` / `sync` (sync with terminal); configurable default |
 | **🎨 Theme System** | 7 presets + custom colors, supports following the Tabby system theme |
-| **⌨️ Panel Hotkey** | Customizable panel toggle hotkey with record/clear/conflict detection |
+| **⌨️ Panel Hotkey** | Customizable panel toggle hotkey with record/clear/conflict detection; panel actions (delete/rename/refresh/go up/back/forward) and common context-menu actions support **multiple key bindings** and mouse side buttons, plus an occupied-hotkey reference list |
 | **🌐 Internationalization** | Chinese (Simplified) and English, auto-detects Tabby/browser language |
 | **📦 Data Backup** | One-click export/import of all data (bookmarks, logs, settings, path memory) |
 
@@ -98,12 +98,13 @@ Navigate to Tabby Settings → "SFTP+" in the left sidebar:
 | **Table Style** | Show borders, show zebra stripes |
 | **Upload/Download Concurrency** | Intra-directory file-level concurrency (1-10), takes effect immediately |
 | **Fast Mode** | Skip pre-scan and start transfer immediately (no percentage, byte progress only) |
+| **Tar Packing Acceleration** | Folder transfers use the tar packing channel (on by default); falls back to regular file-by-file transfer if packing or extraction fails |
 | **Default Upload/Download Paths** | Configure separate upload and download target directories; empty values use the current pane directory |
 | **Default Path Mode** | Path mode for new connections on first open (off / remember / sync) |
 | **Default Show Hidden** | Whether to show hidden files on new connections |
 | **File Icons** | Choose an icon resource directory, configure extension mappings, disable built-in icons, and replace the folder icon |
 | **Toolbar Customization** | Drag-to-reorder toolbar buttons, hide unused items |
-| **Panel Hotkey** | Custom panel toggle hotkey |
+| **Panel Hotkey** | Custom panel toggle hotkey; panel actions (delete/rename/refresh/go up/back/forward) and common context-menu actions can be bound to multiple keys or mouse side buttons (Mouse3/Mouse4), with an occupied-hotkey reference list |
 | **Data Backup** | Export/import all data (JSON); clear all data (requires typing `DELETE` to confirm) |
 | **Compatibility** | Hide the native Tabby SFTP button to avoid conflicts |
 

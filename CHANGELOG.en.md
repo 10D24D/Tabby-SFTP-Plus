@@ -4,6 +4,35 @@ All notable changes to **tabby-sftp-plus** will be documented in this file.
 
 | [中文](https://github.com/10D24D/Tabby-SFTP-Plus/blob/main/CHANGELOG.md) | [English](https://github.com/10D24D/Tabby-SFTP-Plus/blob/main/CHANGELOG.en.md) |
 
+### [2.2.0] — 2026-09-03
+
+#### ✨ Added
+
+- **Multi-binding panel hotkeys** — One action can now be bound to several keys. Settings shows each binding as a chip: `+` to add, `×` to remove. Existing single-key configuration migrates automatically.
+- **Configurable mouse side buttons** — The previously hardcoded mouse back (Mouse3) / forward (Mouse4) buttons are now part of the hotkey configuration: they can be remapped to any action or cleared. A new `forward` action mirrors `back`.
+- **Hotkeys for context-menu actions** — Six common context-menu actions (upload / download / new folder / new file / properties / copy path) can now be bound to hotkeys. They are unbound by default and only fire when the corresponding pane has a selection, so they never steal keys from other features.
+- **Occupied-hotkey reference** — A collapsible read-only section in settings lists the reserved key bindings grouped by panel / viewer / dialog, making conflicts easier to diagnose.
+- **Tar packing acceleration toggle** — New `transferTarAcceleration` setting (on by default) to disable the tar packing channel for folder transfers.
+- **Transfer-log mode tags** — The transfer log now shows how a folder was transferred: ⚡ fast mode, 📦 tar packing, or the file count for the standard mode.
+
+#### 🐛 Fixed
+
+- **Duplicate log entries when overwriting a dragged folder** — Dropping a folder with a name conflict and choosing overwrite produced two entries for the same directory (one failed, one succeeded). The panel's merge-upload adapter dropped the reuse-log-entry id, so the entry already marked as failed when the conflict was queued could never be flipped back to success. Now only one successful entry remains.
+- **Reversed direction for upload entries in the transfer log** — Upload entries were rendered with the "remote → local" direction icon. Downloads were correct, so only uploads were affected.
+
+#### 🎨 Improved
+
+- **Graceful fallback for tar channel failures** — When packing, transferring, or extracting fails, the tar channel no longer aborts the whole transfer. It falls back to the regular file-by-file transfer and cleans up leftover remote temp extraction directories and partial targets.
+
+#### 🌐 Localization
+
+- Added strings for the new settings, hotkeys, and transfer-log labels (24 languages).
+
+#### 🔧 Technical / Build
+
+- Added idempotent i18n maintenance scripts `scripts/add-multi-hotkey-i18n.mjs` and `scripts/add-transfer-mode-i18n.mjs`.
+- Version bumped to **2.2.0**.
+
 ### [2.1.0] — 2026-08-27
 
 #### ✨ Added
