@@ -36,7 +36,7 @@ import {
   type PanelHotkeyAction,
 } from '../tabby/config-provider'
 import { detectSystemLocale, isColorDark, parseColorLuminance } from '@common/utils'
-import { DEFAULT_DATE_FORMAT, setDateFormatPattern } from '../sftp/core/file-utils'
+import { DEFAULT_DATE_FORMAT, normalizeEditableExtensions, setDateFormatPattern } from '../sftp/core/file-utils'
 import { DEFAULT_ICON_MAP, BUILTIN_ICON_FILES, BUILTIN_ICON_EXTS, FOLDER_ICON_SVG } from '../sftp/core/icon-defaults'
 import { ContextMenuAction, FILE_MENU_REGISTRY, DEFAULT_FILE_MENU_ORDER } from '../sftp/components/sftp-context-menu.component'
 
@@ -455,6 +455,18 @@ function loadTableSetting(key: string, fallback: boolean): boolean {
           <label class="ss-toggle-row" title="{{ i18n.t('settings.openUnsupportedInSystemDesc') }}">
             <span class="ss-toggle-label">{{ i18n.t('settings.openUnsupportedInSystem') }}</span>
             <span class="ss-toggle-track" [class.active]="openUnsupportedInSystem" (click)="toggleOpenUnsupportedInSystem()">
+              <span class="ss-toggle-thumb"></span>
+            </span>
+          </label>
+          <div class="ss-toggle-row ss-path-row" title="{{ i18n.t('settings.editableExtensionsHint') }}">
+            <span class="ss-toggle-label">{{ i18n.t('settings.editableExtensions') }}</span>
+            <input class="ss-path-input" type="text" [(ngModel)]="editableFileExtensionsText"
+              (change)="saveEditorOptions()" spellcheck="false"
+              placeholder="conf, service, tf" />
+          </div>
+          <label class="ss-toggle-row" title="{{ i18n.t('settings.allowEditAllFilesHint') }}">
+            <span class="ss-toggle-label">{{ i18n.t('settings.allowEditAllFiles') }}</span>
+            <span class="ss-toggle-track" [class.active]="allowEditAllFiles" (click)="toggleAllowEditAllFiles()">
               <span class="ss-toggle-thumb"></span>
             </span>
           </label>
@@ -1591,6 +1603,10 @@ export class SftpSettingsTabComponent implements OnDestroy {
   openOnClick: 'double' | 'single' = load('openOnClick', 'double')
   /** ★ 2026-08-22：查看器不支持的文件改用系统默认程序打开 */
   openUnsupportedInSystem = load('openUnsupportedInSystem', true)
+  /** 额外允许内置编辑器打开的扩展名；界面接受 .conf / *.conf / conf。 */
+  editableFileExtensionsText = normalizeEditableExtensions(load<unknown>('editableFileExtensions', [])).join(', ')
+  /** 忽略扩展名白名单，但仍拒绝在文本编辑器中打开二进制内容。 */
+  allowEditAllFiles = load('allowEditAllFiles', false)
   /** ★ 2026-08-22：右键菜单项顺序（数据驱动渲染） */
   contextMenuOrder: ContextMenuAction[] = [...DEFAULT_FILE_MENU_ORDER]
   /** 右键菜单排序拖拽中的项 */
@@ -2166,6 +2182,10 @@ export class SftpSettingsTabComponent implements OnDestroy {
       // ★ 2026-08-22：交互设置
       if (cfg.openOnClick === 'single' || cfg.openOnClick === 'double') this.openOnClick = cfg.openOnClick
       if (cfg.openUnsupportedInSystem !== undefined) this.openUnsupportedInSystem = cfg.openUnsupportedInSystem === true
+      if (cfg.editableFileExtensions !== undefined) {
+        this.editableFileExtensionsText = normalizeEditableExtensions(cfg.editableFileExtensions).join(', ')
+      }
+      if (cfg.allowEditAllFiles !== undefined) this.allowEditAllFiles = cfg.allowEditAllFiles === true
       if (Array.isArray(cfg.contextMenuOrder) && cfg.contextMenuOrder.length) {
         const valid = (cfg.contextMenuOrder as string[]).filter(a => (a in FILE_MENU_REGISTRY)) as ContextMenuAction[]
         // 补齐可能缺失的已知项（保证顺序数组始终含全部菜单项，缺失项追加末尾）
@@ -2236,6 +2256,8 @@ export class SftpSettingsTabComponent implements OnDestroy {
       target.paneHiddenItems = this.paneHiddenItems
       target.openOnClick = this.openOnClick
       target.openUnsupportedInSystem = this.openUnsupportedInSystem
+      target.editableFileExtensions = normalizeEditableExtensions(this.editableFileExtensionsText)
+      target.allowEditAllFiles = this.allowEditAllFiles
       target.contextMenuOrder = this.contextMenuOrder
       // ★ 2026-08-24 修复：panelHotkeys 是 ConfigProxy 的「结构成员」（对象），只有 getter 没有 setter。
       //    直接 `target.panelHotkeys = x` 不生效（严格模式抛 TypeError 被 catch 吞掉 / 非严格静默忽略），
@@ -2405,6 +2427,19 @@ export class SftpSettingsTabComponent implements OnDestroy {
   /** ★ 2026-08-22：切换「查看器不支持的文件改用系统默认程序打开」 */
   toggleOpenUnsupportedInSystem(): void {
     this.openUnsupportedInSystem = !this.openUnsupportedInSystem
+    this._saveToConfig()
+    this.notifyPanels()
+  }
+
+  /** 规范化扩展名后保存；例如 `.conf` 与 `*.conf` 都存为 `conf`。 */
+  saveEditorOptions(): void {
+    this.editableFileExtensionsText = normalizeEditableExtensions(this.editableFileExtensionsText).join(', ')
+    this._saveToConfig()
+    this.notifyPanels()
+  }
+
+  toggleAllowEditAllFiles(): void {
+    this.allowEditAllFiles = !this.allowEditAllFiles
     this._saveToConfig()
     this.notifyPanels()
   }
@@ -2720,16 +2755,24 @@ export class SftpSettingsTabComponent implements OnDestroy {
     this._saveToConfig()
   }
   /** 拼出规则内 svg 的完整 file:// 路径（供预览显示） */
-  /** 插件内置图标目录（dist/assets/icons），打包发布后依然可用 */
+  /**
+   * 插件内置图标目录，兼容开发链接的 <plugin>/dist/assets/icons 和
+   * 手动复制 dist 内容后的 <plugin>/assets/icons 两种布局。
+   */
   private get _bundledIconDir(): string {
     try {
       const info = (this.bootstrapData as any)?.installedPlugins?.find(
         (p: any) => p.packageName === 'tabby-sftp-plus',
       )
       if (info?.path) {
-        // 开发期 junction 指向源码目录；发布后指向安装目录；均含 dist/assets/icons
-        const dir = info.path.replace(/\\/g, '/').replace(/\/+$/, '') + '/dist/assets/icons'
-        return dir
+        const base = info.path.replace(/\\/g, '/').replace(/\/+$/, '')
+        const candidates = [
+          `${base}/dist/assets/icons`,
+          `${base}/assets/icons`,
+          `${base}/src/assets/icons`,
+        ]
+        const found = candidates.find(dir => fs.existsSync(dir))
+        if (found) return found
       }
     } catch { /* 取不到则回退空 */ }
     return ''
@@ -3091,6 +3134,8 @@ export class SftpSettingsTabComponent implements OnDestroy {
           data.folderIconSvg = cfg.folderIconSvg ?? 'folder.svg'
           data.openOnClick = cfg.openOnClick ?? 'double'
           data.openUnsupportedInSystem = cfg.openUnsupportedInSystem ?? true
+          data.editableFileExtensions = cfg.editableFileExtensions ?? []
+          data.allowEditAllFiles = cfg.allowEditAllFiles ?? false
           data.contextMenuOrder = cfg.contextMenuOrder ?? [...DEFAULT_FILE_MENU_ORDER]
           data.panelHotkeys = cfg.panelHotkeys ?? defaultPanelHotkeys()
           data.hideAuthorInfo = cfg.hideAuthorInfo ?? false
@@ -3132,6 +3177,8 @@ export class SftpSettingsTabComponent implements OnDestroy {
     data.hideAuthorInfo = false
     data.openOnClick = load('openOnClick', 'double')
     data.openUnsupportedInSystem = load('openUnsupportedInSystem', true)
+    data.editableFileExtensions = normalizeEditableExtensions(load<unknown>('editableFileExtensions', []))
+    data.allowEditAllFiles = load('allowEditAllFiles', false)
     try { data.contextMenuOrder = JSON.parse(localStorage.getItem('sftp-plus-context-menu-order') || '[]') } catch { data.contextMenuOrder = [] }
     data.panelHotkeys = defaultPanelHotkeys()
     try { data.paneCustomOrder = JSON.parse(localStorage.getItem('sftp-plus-pane-custom-order') || '["label","back","forward","up","refresh","home","path","hidden","filter","bookmark"]') } catch { data.paneCustomOrder = ['label', 'back', 'forward', 'up', 'refresh', 'home', 'path', 'hidden', 'filter', 'bookmark'] }
@@ -3235,6 +3282,8 @@ export class SftpSettingsTabComponent implements OnDestroy {
           if (data.hideAuthorInfo !== undefined) target.hideAuthorInfo = data.hideAuthorInfo
           if (data.openOnClick !== undefined) target.openOnClick = data.openOnClick
           if (data.openUnsupportedInSystem !== undefined) target.openUnsupportedInSystem = data.openUnsupportedInSystem
+          if (data.editableFileExtensions !== undefined) target.editableFileExtensions = normalizeEditableExtensions(data.editableFileExtensions)
+          if (data.allowEditAllFiles !== undefined) target.allowEditAllFiles = data.allowEditAllFiles === true
           if (data.contextMenuOrder !== undefined) target.contextMenuOrder = data.contextMenuOrder
           // ★ 2026-08-24 修复：与 _saveToConfig 同理，panelHotkeys 为结构成员须逐叶子赋值
           if (data.panelHotkeys !== undefined) {

@@ -16,7 +16,7 @@ import type { TransferLogEntry } from '../../services/sftp-transfer-log.service'
 import {
   isViewableRemoteFileType, isEditableRemoteFileType, isImageFile,
   isBinaryBuffer, bufferToText, bufferToDataUrl,
-  isRemoteFileTooLargeForView, isRemoteFileTooLargeForEdit,
+  isRemoteFileTooLargeForView,
   getViewMaxBytes, formatBytesLimit, EDIT_TEXT_MAX_BYTES, VIEW_TEXT_MAX_BYTES,
 } from '../core/file-utils'
 import {
@@ -47,6 +47,10 @@ export abstract class SftpPanelViewerController extends SftpPanelColumnControlle
     _startTime: number,
     _failReason?: TransferLogEntry['failReason'],
   ): void { /* overridden by subclass */ }
+  /** 可由面板覆写，从设置读取额外允许编辑的扩展名。 */
+  protected getCustomEditableExtensions(): string[] { return [] }
+  /** 可由面板覆写，允许所有非目录文件绕过扩展名白名单。二进制保护仍然生效。 */
+  protected getAllowEditAllFiles(): boolean { return false }
 
   // ===== 文件查看 / 编辑 状态字段（从组件抽取） =====
   // ========== 文件查看 / 编辑 ==========
@@ -320,17 +324,26 @@ export abstract class SftpPanelViewerController extends SftpPanelColumnControlle
     if (!entry || entry.isDirectory) return false
     if (isRemote && (!this.connected || !this.sftpSession)) return false
     this.closeContextMenu()
-    if (!isEditableRemoteFileType(entry.name)) {
+    if (!this.isFileNameEditable(entry.name)) {
       this.showToast(this.i18n.t('editor.typeNotSupported'))
       return false
     }
     const size = entry.size ?? 0
     const limit = formatBytesLimit(EDIT_TEXT_MAX_BYTES)
-    if (isRemoteFileTooLargeForEdit(entry.name, size)) {
+    if (size > EDIT_TEXT_MAX_BYTES) {
       this._showEditorError(entry.name, entry.fullPath, limit)
       return false
     }
     return true
+  }
+
+  /** 供子类的右键菜单可见性和实际打开校验共用，避免两处规则漂移。 */
+  protected isFileNameEditable(fileName: string): boolean {
+    return isEditableRemoteFileType(
+      fileName,
+      this.getCustomEditableExtensions(),
+      this.getAllowEditAllFiles(),
+    )
   }
 
   private _showEditorError(fileName: string, displayPath: string, limit: string): void {

@@ -914,6 +914,18 @@ msgstr "查看器不支持时系统打开"
 msgid "settings.openUnsupportedInSystemDesc"
 msgstr "查看器不支持的文件（如 .pdf/.docx 等）将使用系统默认程序打开，而非弹出不支持提示。"
 
+msgid "settings.editableExtensions"
+msgstr "额外可编辑扩展名"
+
+msgid "settings.editableExtensionsHint"
+msgstr "以逗号、空格或分号分隔；支持 .conf、*.conf 或 conf。"
+
+msgid "settings.allowEditAllFiles"
+msgstr "允许编辑所有文件类型"
+
+msgid "settings.allowEditAllFilesHint"
+msgstr "忽略扩展名限制；二进制内容仍会被保护，避免以文本方式损坏文件。"
+
 msgid "settings.transferSection"
 msgstr "传输设置"
 
