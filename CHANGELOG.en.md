@@ -11,6 +11,7 @@ All notable changes to **tabby-sftp-plus** will be documented in this file.
 - **Additional editable extensions / allow all types** ([PR #18](https://github.com/10D24D/Tabby-SFTP-Plus/pull/18) / issue #9, @Purgepyro) — “Allow editing all file types” is the master switch (off by default; binaries still blocked). Extra extensions only appear when it is off. Accepts `.conf` / `*.conf` / `conf`, separated by commas, spaces, or semicolons.
 - **Content digest on conflict** (issue #15) — When size matches but mtime differs, compute digests on both sides to detect “mtime changed but content did not”; identical content can be skipped automatically.
 - **Symlink / shortcut badge** (issue #16) — Local listing uses `lstat` to recognize symlinks, junctions, and `.lnk` files, and overlays a link badge on the icon.
+- **Type-ahead file locate** — With focus on a file list, typing a name prefix jumps to and selects the match (Explorer-style). Repeating the same letter cycles same-prefix items; if appending finds nothing, search restarts from the last character. IME commits (e.g. Chinese) participate. The buffer clears after ~800ms idle; Backspace edits the buffer, Esc clears it before closing the panel.
 
 ### 🐛 Fixed
 
@@ -23,7 +24,7 @@ All notable changes to **tabby-sftp-plus** will be documented in this file.
 
 ### 🌐 i18n
 
-- Added strings for editable extensions, allow-edit-all, conflict digest, and symlink-related UI (24 locales; digest strings complete in zh/en, others fall back to English).
+- Added strings for editable extensions, allow-edit-all, conflict digest, symlink, and type-ahead locate (24 locales; zh/en complete, others fall back to English).
 
 ### 🔧 Build
 

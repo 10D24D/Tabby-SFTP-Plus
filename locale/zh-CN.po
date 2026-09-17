@@ -1435,6 +1435,9 @@ msgstr "上下移动选中项"
 msgid "settings.occupied.multiSelect"
 msgstr "配合点击多选"
 
+msgid "settings.occupied.typeAhead"
+msgstr "键入文件名前缀跳转选中"
+
 msgid "settings.occupied.prevNextImage"
 msgstr "切换上一张 / 下一张图片"
 

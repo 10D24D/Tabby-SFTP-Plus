@@ -1431,6 +1431,9 @@ msgstr "Move selection up / down"
 msgid "settings.occupied.multiSelect"
 msgstr "Multi-select with click"
 
+msgid "settings.occupied.typeAhead"
+msgstr "Type a name prefix to jump to the match"
+
 msgid "settings.occupied.prevNextImage"
 msgstr "Previous / next image"
 

@@ -11,6 +11,7 @@ All notable changes to **tabby-sftp-plus** will be documented in this file.
 - **自定义可编辑扩展名 / 允许编辑所有文件类型**（[PR #18](https://github.com/10D24D/Tabby-SFTP-Plus/pull/18) / issue #9，@Purgepyro）— 「允许编辑所有类型」为总开关（默认关，二进制仍拦截）；关掉时才显示「额外可编辑扩展名」，避免两项并列。扩展名支持 `.conf` / `*.conf` / `conf`，可用逗号、空格或分号分隔。
 - **冲突内容摘要**（issue #15）— size 相同但 mtime 变化时计算两端内容摘要，识别「时间变了但内容没变」；可自动跳过相同内容，避免反复弹冲突框。
 - **符号链接 / 快捷方式角标**（issue #16）— 本地 `lstat` 识别 symlink / junction / `.lnk`，文件列表图标叠加链接角标。
+- **面板键入定位** — 焦点在文件列表时，连续输入文件名前缀即可跳转选中（类似资源管理器）。连按同一字母循环同前缀项；追加无匹配时用末字符重新开搜；中文等 IME 以上屏文字参与匹配。约 800ms 无输入后缓冲清空；Backspace 删缓冲，Esc 先清缓冲再关面板。
 
 ### 🐛 修复
 
@@ -23,7 +24,7 @@ All notable changes to **tabby-sftp-plus** will be documented in this file.
 
 ### 🌐 多语言
 
-- 补充可编辑扩展名、允许编辑全部类型、冲突摘要、符号链接等相关文案（24 种语言；冲突摘要中英完整，其余回退英文）。
+- 补充可编辑扩展名、允许编辑全部类型、冲突摘要、符号链接、键入定位等相关文案（24 种语言；中英完整，其余回退英文）。
 
 ### 🔧 技术 / 构建
 

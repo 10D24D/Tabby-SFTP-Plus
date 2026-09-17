@@ -26,7 +26,7 @@ SFTP+ is a plugin for [Tabby Terminal](https://tabby.sh/) that adds a **dual-pan
 | **⚠️ File Conflict** | Visual diff on conflict (shows upload⬆/download⬇ direction), with overwrite/skip/rename options and batch processing; merge-overwrite has its own progress panel; when size matches but mtime changed, optional content digest can auto-skip identical files |
 | **🔐 Permission Editor** | Remote chmod via 3×3 checkbox matrix with octal preview |
 | **📌 Context Menus** | Upload/download, view/edit, new/rename/delete, copy/cut/paste, refresh, select all/invert; text viewer/editor context menus; <br />Header: column visibility, fit widths, borders & zebra stripes |
-| **🔍 Filter & Sort** | Keyword filter, multi-column sorting (click headers), configurable visible columns |
+| **🔍 Filter & Sort** | Keyword filter, multi-column sorting (click headers), configurable visible columns; with focus on a file list, type a name prefix to jump to the match (Explorer-style; IME such as Chinese is supported) |
 | **🧭 Path Mode** | Three modes: `off` / `remember` / `sync` (sync with terminal); configurable default |
 | **🎨 Theme System** | 7 presets + custom colors, supports following the Tabby system theme |
 | **⌨️ Panel Hotkey** | Customizable panel toggle hotkey with record/clear/conflict detection; panel actions (delete/rename/refresh/go up/back/forward) and common context-menu actions support **multiple key bindings** and mouse side buttons, plus an occupied-hotkey reference list |

@@ -4,11 +4,8 @@
  *   支持双存储模式：Tabby 配置（config.yaml）或 浏览器缓存（localStorage）
  * 创建人：DD1024z + Hy3 preview
  * 创建时间：2026-06-21
- * 修改人：DD1024z + Composer
- * 修改时间：2026-09-17 — 删除自定义图标规则前增加确认提示
- *              2026-09-17 — 图标单元格：禁用/恢复与编辑按钮对调，操作顺序统一
- *              2026-09-17 — 编辑默认文件夹时显示只读规则名（与默认 file 一致）
- *              2026-09-17 — 合并为「允许查看与编辑所有文件类型」单开关；去掉「以文本方式查看」
+ * 修改人：DD1024z + Grok 4.6
+ * 修改时间：2026-09-17 — 已占用快捷键补充面板键入定位
  */
 import { Component, Injectable, Optional, OnDestroy, Inject } from '@angular/core'
 import { SettingsTabProvider } from 'tabby-settings'
@@ -2161,6 +2158,7 @@ export class SftpSettingsTabComponent implements OnDestroy {
         { keys: '${mod}+V', descKey: 'file.paste' },
         { keys: '↑ ↓', descKey: 'settings.occupied.moveSelection' },
         { keys: '${mod}+Click', descKey: 'settings.occupied.multiSelect' },
+        { keys: 'A–Z …', descKey: 'settings.occupied.typeAhead' },
       ],
     },
     {
