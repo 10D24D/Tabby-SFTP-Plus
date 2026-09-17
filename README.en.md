@@ -122,7 +122,7 @@ Path: Settings → Data Backup → Export / Import
 
 ## 📜 Changelog
 
-Current development version: **v2.1.0** (2026-08-27) — [Full changelog](CHANGELOG.en.md)
+Current development version: **v2.3.0** (2026-09-17) — [Full changelog](CHANGELOG.en.md)
 
 ---
 

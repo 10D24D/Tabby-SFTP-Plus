@@ -367,12 +367,14 @@ First usable release. A complete file-management implementation built on Tabby's
 
 ```bash
 # 1. Update the version in package.json
-# 2. Commit the version change
+# 2. Sync the hardcoded "Current development version" line in README.md / README.en.md (date + version)
+# 3. Update CHANGELOG.md / CHANGELOG.en.md
+# 4. Commit
 git commit -m "chore: bump to v<version>"
 git tag v<version>
-# 3. Build
+# 5. Build
 npm run build
-# 4. Publish to npm (if applicable)
+# 6. Publish to npm (if applicable)
 npm publish
 ```
 

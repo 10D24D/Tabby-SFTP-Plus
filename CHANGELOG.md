@@ -367,12 +367,15 @@ D  update_settings_layout.py
 
 ```bash
 # 1. 更新 package.json 版本号
-# 2. 提交版本变更
+# 2. 同步 README.md / README.en.md 的「版本历史 / Changelog」当前开发版本与日期
+#    （该行是硬编码，不会随 package.json 自动变）
+# 3. 更新 CHANGELOG.md / CHANGELOG.en.md
+# 4. 提交
 git commit -m "chore: bump to v<version>"
 git tag v<version>
-# 3. 构建
+# 5. 构建
 npm run build
-# 4. 发布到 npm（如有）
+# 6. 发布到 npm（如有）
 npm publish
 ```
 
