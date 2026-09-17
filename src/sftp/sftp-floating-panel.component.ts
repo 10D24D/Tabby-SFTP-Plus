@@ -6077,7 +6077,20 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
   }
 
 
-  /** 全局键盘快捷键——面板获得焦点时，Ctrl+C/X/V/A 不穿透到终端连接 */
+  @HostListener('keydown', ['$event'])
+  @HostListener('keyup', ['$event'])
+  onTextInputKeyEvent(event: KeyboardEvent): void {
+    if (!this._isPanelActive || event.key === 'Escape') return
+    const target = event.target as HTMLElement | null
+    if (!target || !this.elRef.nativeElement.contains(target)) return
+    if (!this._isPanelTyping(event)) return
+
+    // Tabby 在 document 冒泡阶段识别热键，必须在面板内提前隔离。
+    // 同时隔离按下/释放（含修饰键），保留原生编辑、粘贴和 Tab 焦点切换。
+    event.stopPropagation()
+  }
+
+  /** 全局面板快捷键；文本输入事件已在面板根节点隔离，Esc 仍由此处处理。 */
   @HostListener('document:keydown', ['$event'])
   onGlobalKeyDown(event: KeyboardEvent): void {
     if (!this._isPanelActive) return
@@ -6093,15 +6106,6 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     // 仅当焦点位于「本面板自身」的输入框（path input、filter input、对话框等）时才视为正在输入，
     // 终端 xterm 的隐藏 textarea 在面板之外，不拦截面板快捷键；Esc 例外（查看/编辑器要能关闭）
     if (this._isPanelTyping(event) && event.key !== 'Escape') {
-      // ★ 修复：面板内的 textarea（查看器/编辑器）按 Ctrl+C/X/V/A 时，
-      //   stopImmediatePropagation 阻止 Tabby 终端也收到并发送到 SSH（不 preventDefault 以保留原生复制粘贴行为）
-      const isMod = os.platform() === 'darwin' ? event.metaKey : event.ctrlKey
-      if (isMod && ['c','C','x','X','v','V','a','A'].includes(event.key)) {
-        const el = event.target as HTMLElement | null
-        if (el && this.elRef?.nativeElement?.contains(el)) {
-          event.stopImmediatePropagation()
-        }
-      }
       return
     }
 
