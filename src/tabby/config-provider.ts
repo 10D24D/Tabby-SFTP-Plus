@@ -69,6 +69,10 @@ export interface SftpPlusPluginConfig {
   openOnClick: 'double' | 'single'
   /** 查看器不支持的文件：开关开启时改用系统默认程序打开（而非提示不支持） */
   openUnsupportedInSystem: boolean
+  /** 在内置文本白名单之外，额外允许内置编辑器打开的扩展名（小写、无点）。 */
+  editableFileExtensions: string[]
+  /** 忽略扩展名白名单，允许编辑所有非目录文件；二进制内容仍会受到保护。 */
+  allowEditAllFiles: boolean
   /** 面板内置操作快捷键：一动作可绑多个键（keys 为空数组 = 未绑定即禁用；enabled=false 为清除双保险标志）。
    *  鼠标侧键以 Mouse3（后退）/Mouse4（前进）混存于 keys 中，与键盘键同等参与匹配。 */
   panelHotkeys: {
@@ -139,6 +143,8 @@ export function defaultSftpPlusConfig(): SftpPlusPluginConfig {
     openInNewTabByDefault: false,
     openOnClick: 'double',
     openUnsupportedInSystem: true,
+    editableFileExtensions: [],
+    allowEditAllFiles: false,
   panelHotkeys: defaultPanelHotkeys(),
     contextMenuOrder: ['upload', 'download', 'openLocal', 'viewFile', 'viewAsText', 'editFile', 'revealInExplorer', 'copy', 'cut', 'paste', 'rename', 'delete', 'chmod', 'details', 'newFolder', 'newFile', 'refresh', 'selectAll', 'selectInvert', 'copyPath'],
     singleWorkspaceInstance: true,

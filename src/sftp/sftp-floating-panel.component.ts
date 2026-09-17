@@ -99,16 +99,13 @@ import {
 } from './components/sftp-cwd-setup-dialog.component'
 import {
   isViewableRemoteFileType,
-  isEditableRemoteFileType,
   isImageFile,
   isBinaryBuffer,
   bufferToText,
   bufferToDataUrl,
   isRemoteFileTooLargeForView,
-  isRemoteFileTooLargeForEdit,
   getViewMaxBytes,
   formatBytesLimit,
-  EDIT_TEXT_MAX_BYTES,
 } from './core/file-utils'
 import {
   downloadRemoteToBuffer,
@@ -3335,6 +3332,17 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     return this.configService?.store?.['tabby-sftp-plus']?.openUnsupportedInSystem === true
   }
 
+  /** 设置页的额外可编辑扩展名（已在 file-utils 中再次规范化，防御手工配置）。 */
+  protected getCustomEditableExtensions(): string[] {
+    const value = this.configService?.store?.['tabby-sftp-plus']?.editableFileExtensions
+    return Array.isArray(value) ? value.filter((item: unknown): item is string => typeof item === 'string') : []
+  }
+
+  /** 忽略扩展名白名单；二进制文件仍由编辑器内容检测拦截。 */
+  protected getAllowEditAllFiles(): boolean {
+    return this.configService?.store?.['tabby-sftp-plus']?.allowEditAllFiles === true
+  }
+
   /** 默认上传路径（远程目标目录）；空串则回退当前远程目录 */
   private get _defaultUploadPath(): string {
     const v = this.configService?.store?.['tabby-sftp-plus']?.defaultUploadPath
@@ -3366,13 +3374,25 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     return (typeof v === 'string' && v) ? v : 'folder.svg'
   }
 
-  /** 插件内置图标目录（dist/assets/icons），打包发布后依然可用 */
+  /**
+   * 插件内置图标目录。
+   * Tabby 的开发链接通常是 <plugin>/dist/assets/icons，手动安装时常见的是
+   * 直接把 dist 内容复制到 <plugin>，对应 <plugin>/assets/icons；两种布局都兼容。
+   */
   private get _bundledIconDir(): string {
     try {
       const info = (this.bootstrapData as any)?.installedPlugins?.find(
         (p: any) => p.packageName === 'tabby-sftp-plus',
       )
-      if (info?.path) return path.join(info.path, 'dist', 'assets', 'icons')
+      if (info?.path) {
+        const candidates = [
+          path.join(info.path, 'dist', 'assets', 'icons'),
+          path.join(info.path, 'assets', 'icons'),
+          path.join(info.path, 'src', 'assets', 'icons'),
+        ]
+        const found = candidates.find(dir => fsSync.existsSync(dir))
+        if (found) return found
+      }
     } catch { /* 取不到则回退空，交由 iconBaseDir 判断 */ }
     return ''
   }
@@ -5603,7 +5623,7 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
 
   canEditEntry(entry: LocalEntry | SFTPFile | null): boolean {
     if (!entry || (entry as any).isDirectory) return false
-    return isEditableRemoteFileType(entry.name)
+    return this.isFileNameEditable(entry.name)
   }
 
   get viewerShowSystemAction(): boolean {

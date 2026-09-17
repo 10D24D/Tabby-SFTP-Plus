@@ -914,6 +914,18 @@ msgstr "Open unsupported files with system app"
 msgid "settings.openUnsupportedInSystemDesc"
 msgstr "Files the viewer cannot handle (e.g. .pdf/.docx) will be opened with the OS default app instead of showing an \"unsupported\" message."
 
+msgid "settings.editableExtensions"
+msgstr "Additional editable extensions"
+
+msgid "settings.editableExtensionsHint"
+msgstr "Separate with commas, spaces, or semicolons. Accepts .conf, *.conf, or conf."
+
+msgid "settings.allowEditAllFiles"
+msgstr "Allow editing all file types"
+
+msgid "settings.allowEditAllFilesHint"
+msgstr "Ignore extension restrictions. Binary content remains protected to avoid corrupting files in a text editor."
+
 msgid "settings.transferSection"
 msgstr "Transfer"
 

@@ -108,9 +108,29 @@ export function isEditableRemoteFile(fileName: string, size?: number): boolean {
   return size <= EDIT_TEXT_MAX_BYTES
 }
 
+/**
+ * 将设置页输入的扩展名规范化为小写、无点的形式。
+ * 接受 `.conf`、`*.conf`、`conf`，并兼容旧版/手工配置中的字符串数组。
+ */
+export function normalizeEditableExtensions(value: unknown): string[] {
+  const raw = Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === 'string')
+    : (typeof value === 'string' ? value.split(/[\s,;]+/) : [])
+  const normalized = raw
+    .map(item => item.trim().toLowerCase().replace(/^\*?\./, '').replace(/^\./, ''))
+    .filter(item => !!item && !/[\\/]/.test(item))
+  return [...new Set(normalized)]
+}
+
 /** 仅按扩展名判断是否可编辑（不含大小限制） */
-export function isEditableRemoteFileType(fileName: string): boolean {
+export function isEditableRemoteFileType(
+  fileName: string,
+  customExtensions: readonly string[] = [],
+  allowAllFiles = false,
+): boolean {
+  if (allowAllFiles) return true
   const ext = getFileExtension(fileName)
+  if (normalizeEditableExtensions(customExtensions).includes(ext)) return true
   if (ext === 'svg') return true
   if (!isTextFile(fileName)) return false
   if (isImageFile(fileName)) return false
