@@ -4,6 +4,33 @@ All notable changes to **tabby-sftp-plus** will be documented in this file.
 
 | [中文](https://github.com/10D24D/Tabby-SFTP-Plus/blob/main/CHANGELOG.md) | [English](https://github.com/10D24D/Tabby-SFTP-Plus/blob/main/CHANGELOG.en.md) |
 
+## [2.3.0] — 2026-09-17
+
+### ✨ 新增
+
+- **自定义可编辑扩展名 / 允许编辑所有文件类型**（[PR #18](https://github.com/10D24D/Tabby-SFTP-Plus/pull/18) / issue #9，@Purgepyro）— 「允许编辑所有类型」为总开关（默认关，二进制仍拦截）；关掉时才显示「额外可编辑扩展名」，避免两项并列。扩展名支持 `.conf` / `*.conf` / `conf`，可用逗号、空格或分号分隔。
+- **冲突内容摘要**（issue #15）— size 相同但 mtime 变化时计算两端内容摘要，识别「时间变了但内容没变」；可自动跳过相同内容，避免反复弹冲突框。
+- **符号链接 / 快捷方式角标**（issue #16）— 本地 `lstat` 识别 symlink / junction / `.lnk`，文件列表图标叠加链接角标。
+
+### 🐛 修复
+
+- **手动安装后内置图标空白**（[PR #18](https://github.com/10D24D/Tabby-SFTP-Plus/pull/18)，@Purgepyro）— 内置图标目录兼容 `<插件>/dist/assets/icons`、`<插件>/assets/icons`、`<插件>/src/assets/icons` 三种布局。
+- **复制/拖放到自身目录内死循环**（issue #17）— 拒绝把目录复制、粘贴、拖进自身或其子目录，避免无限递归。
+- **面板状态不落盘** — `paneState` 增加 `__nonStructural` 标记，路径记忆 / 列宽 / 布局等深路径写入才能真正写入 config.yaml。
+- **远端 `isDirectory` 误判** — 兼容函数形态与 russh 数字 type 字段，避免新建/重命名冲突提示把普通文件当成目录。
+- **外部编辑器频繁保存堆积** — 编辑器文件监视两次实际同步间隔不低于 800ms。
+- **编辑器粘贴同步进终端**（issue #21 / [PR #22](https://github.com/10D24D/Tabby-SFTP-Plus/pull/22)，@waylandun）— macOS 上编辑器 `Cmd+V` 会同时写入 SSH 终端。合入面板根 keydown/keyup 隔离，并保留 window 捕获阶段对剪贴板快捷键与 `paste` 事件的屏蔽。
+
+### 🌐 多语言
+
+- 补充可编辑扩展名、允许编辑全部类型、冲突摘要、符号链接等相关文案（24 种语言；冲突摘要中英完整，其余回退英文）。
+
+### 🔧 技术 / 构建
+
+- 内置图标目录解析抽到 `resolveSftpPlusBundledIconDir`，设置页与面板共用。
+- 文档按当前目录校正：主存储为 `config.yaml` + `paneState.__nonStructural`，翻译源为 `locale/*.po`。
+- 版本号 bump 至 **2.3.0**。
+
 ## [2.2.0] — 2026-09-03
 
 ### ✨ 新增

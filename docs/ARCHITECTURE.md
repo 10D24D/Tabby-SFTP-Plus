@@ -2,6 +2,8 @@
 
 > 创建人：DD1024z + Deepseek-V4-Flash
 > 创建时间：2026-06-25
+> 修改人：DD1024z + Grok 4.6
+> 修改时间：2026-09-17 — 按 v2.3.0 模块路径校正（sftp/components、core、controllers）
 
 ## 概述
 
@@ -96,35 +98,33 @@ export class SftpPlusModule {}
 
 ### 第 3 层 — 面板层
 
-主面板 `sftp-floating-panel.component.ts` 承载双栏文件管理核心业务逻辑；以下模块已从主文件拆出：
+主面板 `src/sftp/sftp-floating-panel.component.ts` 承载双栏文件管理核心业务编排；子模块按视图 / 控制器 / 核心逻辑拆分：
 
 | 模块 | 文件 | 职责 |
 |------|------|------|
-| 共享类型 | `panel/panel-types.ts` | LocalEntry、ConflictFileInfo、PanelTransferItem 等 |
-| 文件类型 | `panel/file-type-utils.ts` | 可查看/可编辑类型判断、大小上限 |
-| 远程读写 | `panel/remote-file-transfer.ts` | 查看/编辑用内存与临时文件读写 |
-| 对话框样式 | `panel/file-dialog-shared-styles.ts` | 查看/编辑对话框共用布局 |
-| 滚轮隔离 | `panel/file-dialog-wheel.ts` | 对话框内滚动不穿透底层面板 |
-| 格式化 | `panel/panel-format.ts` | formatSize、formatDate、日志格式化等纯函数 |
-| 主面板样式 | `panel/panel-main-styles.ts` | 主 overlay CSS（`SFTP_PANEL_STYLES`） |
-| 列表工具 | `panel/panel-list-utils.ts` | 排序、过滤、POSIX mode 目录判断 |
-| 导航历史 | `panel/panel-nav-history.ts` | 本地 / 远程路径后退、前进栈 |
-| 框选 | `panel/panel-rubber-band.ts` | Rubber Band 多选逻辑 |
-| 传输运行时 | `panel/panel-transfer-runtime.ts` | 传输进度轮询、暂停/续传、取消与清理 |
-| 冲突处理 | `panel/panel-conflict-resolver.ts` | 冲突对话框驱动、队列流转、覆盖/重命名策略 |
-| 连接生命周期 | `panel/connection-lifecycle.ts` | connect / disconnect / heartbeat / reconnect |
-| 文件列表面板 | `panel/sftp-file-pane.component.ts` | 本地 / 远程共用 pane（路径栏 + 列表 + 底栏） |
-| 右键菜单 | `panel/sftp-context-menu.component.ts` | 文件右键 + 表头列配置菜单 |
-| 书签弹窗 | `panel/sftp-bookmark-popup.component.ts` | 书签 CRUD UI |
-| 对话框 | `panel/sftp-*-dialog.component.ts` | 删除 / 输入 / 权限 / 详情 / 冲突 / 传输日志 / **查看 / 编辑** |
-| 传输队列 | `panel/sftp-transfer-queue.component.ts` | 进行中传输进度条 |
-| 工作区标签 | `sftp-workspace-tab.component.ts` | 将面板嵌入独立 Tab（`displayMode: workspace`） |
+| 共享类型 | `sftp/core/panel-types.ts` | LocalEntry、ConflictFileInfo 等 |
+| 文件类型 | `sftp/core/file-utils.ts` | 可查看/可编辑类型、排序过滤、格式化 |
+| 内容摘要 | `sftp/core/digest.ts` | 冲突时本地/远端 sha1（issue #15） |
+| 冲突策略 | `sftp/core/conflict.ts` | 覆盖/跳过/重命名与「内容相同」判定 |
+| 远程读写 | `sftp/core/transfer-adapters.ts` | 查看/编辑与队列用的本地路径适配器 |
+| 滚轮隔离 | `sftp/components/file-dialog-wheel.ts` | 对话框内滚动不穿透底层面板 |
+| 主面板样式 | `sftp/components/styles.ts` | overlay CSS |
+| 框选 | `sftp/components/panel-rubber-band.ts` | Rubber Band 多选 |
+| 冲突处理 | `sftp/components/panel-conflict-resolver.ts` | 冲突对话框驱动与队列流转 |
+| 连接生命周期 | `sftp/components/connection-lifecycle.ts` | connect / disconnect / heartbeat / reconnect |
+| 文件列表面板 | `sftp/components/sftp-file-pane.component.ts` | 本地 / 远程共用 pane |
+| 右键菜单 | `sftp/components/sftp-context-menu.component.ts` | 文件右键 + 表头列配置 |
+| 书签弹窗 | `sftp/components/sftp-bookmark-popup.component.ts` | 书签 CRUD UI |
+| 对话框 | `sftp/components/sftp-*-dialog.component.ts` | 删除 / 输入 / 权限 / 详情 / 冲突 / 日志 / 查看 / 编辑 |
+| 传输队列 | `sftp/components/sftp-transfer-queue.component.ts` | 进行中传输进度条 |
+| 列 / 查看器 / 书签 | `sftp/controllers/panel-*-controller.ts` | 从主面板抽出的控制器 |
+| 工作区标签 | `sftp/sftp-workspace-tab.component.ts` | 将面板嵌入独立 Tab（`displayMode: workspace`） |
 
 组件内部结构：
 
 ```
 SftpFloatingPanel 组件
-├── 模板（内联 template 字符串）
+├── 模板（sftp-floating-panel.component.html）
 │   ├── top-bar（标题栏：插件名 + 主机信息 + 日志入口 + 关闭按钮）
 │   ├── 主内容区
 │   │   ├── sftp-file-pane（本地 Pane，子组件）
@@ -136,18 +136,17 @@ SftpFloatingPanel 组件
 │   ├── sftp-transfer-log-dialog（传输日志弹窗，子组件）
 │   ├── sftp-conflict-dialog（冲突对话框，子组件）
 │   ├── sftp-viewer-dialog / sftp-editor-dialog（查看与编辑，子组件）
-│   └── 各 dialog 子组件（删除 / 输入 / 权限 / 详情）
-├── 样式（panel/panel-main-styles.ts → SFTP_PANEL_STYLES）
+│   └── 各 dialog 子组件（删除 / 输入 / 权限 / 详情 / CWD 设置）
+├── 样式（sftp/components/styles.ts）
 │   └── 全部使用 CSS 变量，支持亮/暗主题自适应
-└── 类逻辑（仍留在主组件）
+└── 类逻辑（主组件 + controllers / core）
     ├── 本地 / 远程文件操作（cd / ls / mkdir / rename / delete）
     ├── 拖拽上传 / 下载与传输队列调度
-    ├── 排序与过滤（计算委托 panel-list-utils）
-    ├── 框选多选（委托 panel-rubber-band）
-    ├── 路径导航历史（委托 panel-nav-history）
-    ├── 列配置与列宽管理
+    ├── 排序与过滤（file-utils）
+    ├── 框选多选（panel-rubber-band）
+    ├── 列配置与列宽管理（panel-column-controller）
     ├── 书签 / 右键菜单业务逻辑
-    ├── 键盘快捷键
+    ├── 键盘快捷键（window 捕获剪贴板屏蔽 + 面板根隔离）
     └── 响应式布局（<=960px 切换上下布局）
 ```
 
@@ -155,16 +154,17 @@ SftpFloatingPanel 组件
 
 ### 第 4 层 — 服务层
 
-四个纯 TypeScript 服务类，不依赖 Angular DI，通过 `new XxxService()` 直接实例化。
+服务位于 `src/services/`。部分通过 Angular 可选注入拿到 `ConfigService`，配置不可用时回退内存 / localStorage。
 
 | 服务 | 文件 | 职责 |
 |------|------|------|
 | `SftpConnectionService` | `sftp.service.ts` | 封装 Tabby SSH Session 的 SFTP 操作 |
-| `SftpBookmarksService` | `sftp-bookmarks.service.ts` | 书签 CRUD，localStorage 持久化 |
-| `SftpTransferLogService` | `sftp-transfer-log.service.ts` | 传输日志记录与查询 |
-| `SftpI18nService` | `sftp-i18n.service.ts` | 国际化翻译，五级语言回退 |
+| `SftpBookmarksService` | `sftp-bookmarks.service.ts` | 书签 CRUD，写入 `config.yaml`（localStorage 兼容回退） |
+| `SftpTransferLogService` | `sftp-transfer-log.service.ts` | 传输日志，只写 localStorage |
+| `SftpI18nService` | `sftp-i18n.service.ts` | 解析 `locale/*.po`，语言回退 |
+| `SftpConfigService` | `sftp-config.service.ts` | `tabby-sftp-plus` 嵌套读写、paneState 迁移与 flush |
 
-### 第 5 层 — 适配器层 (`local-transfers.ts`)
+### 第 5 层 — 适配器层 (`sftp/core/transfer-adapters.ts`)
 
 桥接本地文件系统与 Tabby SFTP 传输管道的适配器。
 
@@ -217,15 +217,15 @@ SftpFloatingPanel 事件处理器
     │                       └── SFTP 协议操作
     │
     ├── 书签操作 ──→ SftpBookmarksService
-    │                  └── localStorage
+    │                  └── config.yaml bookmarks（localStorage 回退）
     │
-    ├── 传输操作 ──→ local-transfers.ts (FileUpload/Download)
+    ├── 传输操作 ──→ sftp/core/transfer-adapters.ts
     │                  └── SftpTransferLogService → localStorage
     │
-    ├── 语言切换 ──→ SftpI18nService
-    │                  └── localStorage('sftp-plus-locale')
+    ├── 语言切换 ──→ SftpI18nService（locale/*.po）
+    │                  └── tabby-sftp-plus.lang
     │
-    └── UI 配置  ──→ 直接读写 localStorage
+    └── UI 配置  ──→ SftpConfigService → paneState / 顶层字段
 ```
 
 ## 初始化流程

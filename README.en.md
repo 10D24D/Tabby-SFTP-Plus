@@ -15,22 +15,22 @@ SFTP+ is a plugin for [Tabby Terminal](https://tabby.sh/) that adds a **dual-pan
 | Category | Description |
 |----------|-------------|
 | **📂 Dual-Pane Manager** | Local (left) + Remote (right); horizontal / vertical / adaptive / single-pane layouts; draggable splitter, double-click to reset |
-| **👁️ View / Edit** | Built-in text/image viewer and text editor (local + remote); image navigation (prev/next in same directory); copy / copy selection; text context menus for copy, cut, paste, and select-all; view-as-text; open or edit in the system default app |
-| **🎨 File Icons** | Built-in colored SVG file/folder icons; customize extension mappings, icon directory, disabled built-in icons, and folder icon |
+| **👁️ View / Edit** | Built-in text/image viewer and text editor (local + remote); extra editable extensions or allow-all-types (binaries still protected); image navigation (prev/next in same directory); copy / copy selection; text context menus for copy, cut, paste, and select-all; view-as-text; open or edit in the system default app |
+| **🎨 File Icons** | Built-in colored SVG file/folder icons; overlay badge for symlinks / shortcuts; customize extension mappings, icon directory, disabled built-in icons, and folder icon |
 | **🔄 Drag & Drop** | Drag across panes to upload/download; recursive folder transfer; drag from OS Explorer/Desktop into either pane |
 | **⬆️ Context Transfer** | Right-click upload on local pane, download on remote pane (multi-select batch) |
 | **⚡ High-Speed Transfer** | Intra-directory file-level parallelism (1-10 concurrent, adjustable); tar channel for massive small-file directories (pack → single-file transfer → unpack), which can be disabled in settings; batch delete via SSH `rm -rf` / `fs.rm(recursive)` |
 | **🔖 Bookmark System** | Global bookmarks (visible across all connections) + connection bookmarks (per SSH session); drag-to-reorder |
 | **📋 Transfer Log** | Full operation history including **Edit Load** / **Edit Save** types; filtering, stats, JSON export |
 | **⚡ Transfer Control** | Progress bars (with percentage), pause/resume/cancel, resume support, real-time speed; the tar channel falls back to the regular file-by-file transfer on failure; the transfer log tags folder transfers (⚡ fast mode / 📦 tar packing / file count) |
-| **⚠️ File Conflict** | Visual diff on conflict (shows upload⬆/download⬇ direction), with overwrite/skip/rename options and batch processing; merge-overwrite has its own progress panel |
+| **⚠️ File Conflict** | Visual diff on conflict (shows upload⬆/download⬇ direction), with overwrite/skip/rename options and batch processing; merge-overwrite has its own progress panel; when size matches but mtime changed, optional content digest can auto-skip identical files |
 | **🔐 Permission Editor** | Remote chmod via 3×3 checkbox matrix with octal preview |
 | **📌 Context Menus** | Upload/download, view/edit, new/rename/delete, copy/cut/paste, refresh, select all/invert; text viewer/editor context menus; <br />Header: column visibility, fit widths, borders & zebra stripes |
 | **🔍 Filter & Sort** | Keyword filter, multi-column sorting (click headers), configurable visible columns |
 | **🧭 Path Mode** | Three modes: `off` / `remember` / `sync` (sync with terminal); configurable default |
 | **🎨 Theme System** | 7 presets + custom colors, supports following the Tabby system theme |
 | **⌨️ Panel Hotkey** | Customizable panel toggle hotkey with record/clear/conflict detection; panel actions (delete/rename/refresh/go up/back/forward) and common context-menu actions support **multiple key bindings** and mouse side buttons, plus an occupied-hotkey reference list |
-| **🌐 Internationalization** | Chinese (Simplified) and English, auto-detects Tabby/browser language |
+| **🌐 Internationalization** | 24 locales (zh/en complete; other languages fall back to English for missing keys); auto-detects Tabby/browser language |
 | **📦 Data Backup** | One-click export/import of all data (bookmarks, logs, settings, path memory) |
 
 ---
@@ -102,6 +102,8 @@ Navigate to Tabby Settings → "SFTP+" in the left sidebar:
 | **Default Upload/Download Paths** | Configure separate upload and download target directories; empty values use the current pane directory |
 | **Default Path Mode** | Path mode for new connections on first open (off / remember / sync) |
 | **Default Show Hidden** | Whether to show hidden files on new connections |
+| **Additional editable extensions** | Extra extensions the built-in editor may open besides the text whitelist (e.g. `service, tf, plist`); accepts `.conf` / `*.conf` / `conf` |
+| **Allow editing all file types** | Ignore the extension whitelist (off by default); binary content is still blocked to avoid corrupting files in a text editor |
 | **File Icons** | Choose an icon resource directory, configure extension mappings, disable built-in icons, and replace the folder icon |
 | **Toolbar Customization** | Drag-to-reorder toolbar buttons, hide unused items |
 | **Panel Hotkey** | Custom panel toggle hotkey; panel actions (delete/rename/refresh/go up/back/forward) and common context-menu actions can be bound to multiple keys or mouse side buttons (Mouse3/Mouse4), with an occupied-hotkey reference list |
@@ -164,14 +166,15 @@ tabby-FTPS+/
 │   ├── services/                  # sftp.service / bookmarks / i18n / transfer-log / config (Tabby convention)
 │   ├── settings/                  # sftp-settings component (Tabby convention)
 │   ├── tabby/                     # Terminal integration: config/hotkey providers, terminal-decorator
-│   ├── sftp/                      # SFTP feature module
-│   │   ├── sftp-floating-panel.component.ts
-│   │   ├── sftp-workspace-tab.component.ts
-│   │   ├── components/            # View layer (V): file panes, dialogs, context menu, conflict, transfer queue…
-│   │   ├── controllers/           # Controller layer (C): column / viewer / bookmark controllers
-│   │   └── core/                  # Logic / utils / types: transfer, conflict, drop, clipboard, path…
-│   └── tabby-plugin-common/       # Shared utilities across plugins (theme / utils)
-├── dist/                                # Build output (index.js + package.json)
+│   └── sftp/                      # SFTP feature module
+│       ├── sftp-floating-panel.component.ts
+│       ├── sftp-workspace-tab.component.ts
+│       ├── components/            # View layer (V): file panes, dialogs, context menu, conflict, transfer queue…
+│       ├── controllers/           # Controller layer (C): column / viewer / bookmark controllers
+│       └── core/                  # Logic / utils / types: transfer, conflict, digest, drop, clipboard, path…
+├── locale/                        # 24 GNU gettext .po locales
+├── tabby-plugin-common/           # Shared utilities across plugins (theme / utils)
+├── dist/                          # Build output (index.js + package.json, gitignored)
 └── package.json
 ```
 
@@ -200,6 +203,8 @@ SFTP+ would not have grown without the foundational projects and the community's
 - [@HarpyWar](https://github.com/HarpyWar) — Issue #3: reported a broken hotkey settings page; fixed
 - [@xingkongxiademodeng](https://github.com/xingkongxiademodeng) — Issue #10: flagged the serial (non-concurrent) directory upload bottleneck, guiding the concurrency optimization
 - [@Hanzo-Huang](https://github.com/Hanzo-Huang) — Issue #5: suggested "get current working directory" like native SFTP; implemented
+- [@Purgepyro](https://github.com/Purgepyro) — PR #18: additional editable extensions, allow-edit-all-types, and a fix for blank built-in icons after a manual install
+- [@waylandun](https://github.com/waylandun) — Issue #21: editor paste leaked into the SSH terminal; PR #22 isolates text-input keys at the panel root (verified on macOS)
 - Thanks also to [@webbrain-one](https://github.com/webbrain-one) and [@JayceVane](https://github.com/JayceVane) for their Pull Request attempts
 
 ## 📝 License

@@ -4,8 +4,11 @@
  *   补正远程文件的真实大小与修改时间（readdir / 拖拽 payload 中的元数据不可靠）。
  * 创建人：DD1024z + Hy3
  * 创建时间：2026-07-11
- * 修改人：DD1024z + Hy3
- * 修改时间：2026-08-02 — B18：修复 stat 返回 mtime 为 number（秒）时误用 .getTime() 导致远程修改时间变成 1970-01-01；B19 增加 attrs 嵌套字段解析与诊断 log；B24：statMtimeToMs 过滤 Unix epoch 无效时间，避免目录正确 modified 被 stat 覆盖
+ * 修改人：DD1024z + Composer
+ * 修改时间：2026-09-17 — 目录冲突：已有本地内容大小则直接展示、免二次扫描；远程 mtime 优先用入队 listing 值，过滤 epoch
+ *              2026-09-17 — 目录冲突大小先显示「计算中…」，扫描完成后再填真实值；修正目录冲突文案
+ *              2026-09-17 — 冲突取消/跳过删除误记失败传输记录；目录冲突异步扫描内容总大小
+ *              2026-08-02 — B18：修复 stat 返回 mtime 为 number（秒）时误用 .getTime() 导致远程修改时间变成 1970-01-01；B19 增加 attrs 嵌套字段解析与诊断 log；B24：statMtimeToMs 过滤 Unix epoch 无效时间，避免目录正确 modified 被 stat 覆盖
  */
 import * as fs from 'fs/promises'
 import * as path from 'path'
@@ -62,6 +65,12 @@ export interface PanelConflictResolverHost {
   copyRemoteDir(srcRemotePath: string, destRemotePath: string, isDirectory: boolean): Promise<void>
   /** ★ 2026-08-11：冲突解决成功后翻正来源传输记录（入队时已被误记失败） */
   markTransferSucceeded(ctx: FolderTransferCtx): void
+  /** ★ 2026-09-17：冲突取消/跳过时删除误记失败传输记录 */
+  discardTransferLog(ctx: FolderTransferCtx): void
+  /** ★ 2026-09-17：目录冲突时扫描本地目录内容总大小 */
+  scanLocalDir(dirPath: string): Promise<{ size: number; count: number }>
+  /** ★ 2026-09-17：目录冲突时扫描远程目录内容总大小（与本地对照） */
+  scanRemoteDir(remotePath: string): Promise<{ size: number; count: number }>
 }
 
 export { pasteEntryKey }
@@ -83,35 +92,83 @@ export class PanelConflictResolver {
       this.host.cdr.detectChanges()
       return
     }
+    const isDir = !!item.isDirectory
+    // ★ 2026-09-17：拖拽/粘贴入队前若已扫过本地内容总大小（localStat.size>0），直接展示，免弹窗内二次扫描
+    const knownLocalContent = isDir && Number(item.localStat?.size) > 0
+    const knownRemoteMtime = validConflictMtime(item.remoteFileMtime)
     this.host.conflictData = {
       localPath: item.localPath,
       remotePath: item.remotePath,
       fileName: item.fileName,
-      localSize: item.localStat.size,
-      remoteSize: item.remoteFileSize ?? 0,
+      // 目录：无已知内容大小时先不展示 inode/readdir 元数据，等扫描完成再填，避免 4KB → 11MB 跳变
+      localSize: isDir ? (knownLocalContent ? Number(item.localStat.size) : 0) : item.localStat.size,
+      remoteSize: isDir ? 0 : (item.remoteFileSize ?? 0),
       localMtime: item.localStat.mtimeMs,
-      remoteMtime: item.remoteFileMtime ?? 0,
+      remoteMtime: knownRemoteMtime ?? 0,
       remoteDir: item.remoteDir,
       direction: item.direction,
       isSamePane: item.isSamePane ?? false,
-      isDirectory: item.isDirectory ?? false,
+      isDirectory: isDir,
+      localSizePending: isDir && !knownLocalContent,
+      remoteSizePending: isDir,
     }
-    // 异步取远程文件的真值（readdir / 拖拽 payload 中的元数据不可靠，必须用 stat）
+    // 异步取远程文件的真值；目录 mtime 优先保留 listing 入队值（stat 常返回 epoch）
     const remoteFilePath = item.remotePath || path.posix.join(item.remoteDir, item.fileName)
     log.info('[conflict-dialog] initial remoteMtime:', item.remoteFileMtime, 'remotePath:', remoteFilePath, 'hasStat:', typeof (this.host.sftpSession as any)?.stat)
     if (remoteFilePath && this.host.sftpSession && typeof (this.host.sftpSession as any).stat === 'function') {
       (this.host.sftpSession as any).stat(remoteFilePath).then((st: any) => {
         if (!this.host.showConflictDialog || !this.host.conflictData || !st) return
-        log.info('[conflict-dialog] stat result:', JSON.stringify(st))
-        const sz = statSize(st)
-        if (sz != null) this.host.conflictData.remoteSize = sz
+        // 目录：stat.size 只是 inode/元数据，后面用 scanRemoteDir 覆盖；此处仅补时间
+        if (!item.isDirectory) {
+          log.info('[conflict-dialog] stat result:', JSON.stringify(st))
+          const sz = statSize(st)
+          if (sz != null) this.host.conflictData.remoteSize = sz
+        }
         const mt = statMtimeToMs(st)
         log.info('[conflict-dialog] parsed remoteMtime:', mt, 'from stat')
-        if (mt != null && mt > 0) this.host.conflictData.remoteMtime = mt
+        // 仅在当前无有效 mtime 时用 stat 补齐；避免目录 epoch 覆盖 listing 正确值
+        if (mt != null && mt > 0) {
+          const cur = this.host.conflictData.remoteMtime
+          if (!validConflictMtime(cur)) this.host.conflictData.remoteMtime = mt
+        }
         this.host.cdr.detectChanges()
       }).catch((e: any) => {
         log.warn('[conflict-dialog] stat failed:', e?.message ?? e)
       })
+    }
+    // ★ 2026-09-17：目录冲突两侧扫描「内容总大小」，完成前 UI 显示「计算中…」
+    if (isDir) {
+      const localPath = item.localPath
+      if (!knownLocalContent && localPath) {
+        void this.host.scanLocalDir(localPath).then((r) => {
+          if (!this.host.showConflictDialog || !this.host.conflictData) return
+          this.host.conflictData.localSize = (r && r.size >= 0) ? r.size : 0
+          this.host.conflictData.localSizePending = false
+          this.host.cdr.detectChanges()
+        }).catch((e: any) => {
+          log.warn('[conflict-dialog] scanLocalDir failed:', e?.message ?? e)
+          if (!this.host.showConflictDialog || !this.host.conflictData) return
+          this.host.conflictData.localSizePending = false
+          this.host.cdr.detectChanges()
+        })
+      } else if (!knownLocalContent) {
+        this.host.conflictData.localSizePending = false
+      }
+      if (remoteFilePath) {
+        void this.host.scanRemoteDir(remoteFilePath).then((r) => {
+          if (!this.host.showConflictDialog || !this.host.conflictData) return
+          this.host.conflictData.remoteSize = (r && r.size >= 0) ? r.size : 0
+          this.host.conflictData.remoteSizePending = false
+          this.host.cdr.detectChanges()
+        }).catch((e: any) => {
+          log.warn('[conflict-dialog] scanRemoteDir failed:', e?.message ?? e)
+          if (!this.host.showConflictDialog || !this.host.conflictData) return
+          this.host.conflictData.remoteSizePending = false
+          this.host.cdr.detectChanges()
+        })
+      } else {
+        this.host.conflictData.remoteSizePending = false
+      }
     }
     this.host.showConflictDialog = true
     this.host.cdr.detectChanges()
@@ -163,6 +220,8 @@ export class PanelConflictResolver {
         },
         // ★ 2026-08-11：覆盖/重命名成功后翻正被误记失败的来源传输记录
         markTransferSucceeded: (ctx) => host.markTransferSucceeded(ctx),
+        // ★ 2026-09-17：取消/跳过时删除误记失败记录
+        discardTransferLog: (ctx) => host.discardTransferLog(ctx),
       },
       pendingPaste: {
         hasPendingPaste: () => host.pendingPasteEntries.length > 0,
@@ -195,6 +254,7 @@ export class PanelConflictResolver {
         shift: () => host.conflictQueue.shift(),
         clear: () => { host.conflictQueue = [] },
         length: () => host.conflictQueue.length,
+        snapshot: () => host.conflictQueue.slice(),
         markResolved: (key) => { host.conflictResolvedKeys.add(key) },
         getResolvedKeys: () => host.conflictResolvedKeys,
         clearResolvedKeys: () => { host.conflictResolvedKeys.clear() },
@@ -230,6 +290,12 @@ function statSize(st: any): number | undefined {
 
 /** Unix epoch 阈值：小于此值的毫秒时间戳视为 1970-01-01 附近的无效时间 */
 const EPOCH_THRESHOLD_MS = 86400000
+
+function validConflictMtime(ms?: number | null): number | undefined {
+  if (ms == null) return undefined
+  const n = Number(ms)
+  return Number.isFinite(n) && n >= EPOCH_THRESHOLD_MS ? n : undefined
+}
 
 /** 从 sftpSession.stat() 结果中安全提取修改时间（毫秒）。
  *  兼容字段：modified(Date/number/string) > mtime(number) > attrs.mtime/attrs.modified。

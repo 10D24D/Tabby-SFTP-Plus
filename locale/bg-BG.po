@@ -640,8 +640,7 @@ msgstr "Кликни за задаване на бърз клавиш"
 msgid "settings.hotkeyConflict"
 msgstr "Конфликт с: {names}"
 msgid "settings.hotkeyConflictConfirm"
-msgstr "Бързият клавиш {keys} вече се използва от: {names}
-Да се обвърже към SFTP+ въпреки това? (И двете могат да се задействат.)"
+msgstr "Shortcut {keys} is already used by: {names}\nBind it to SFTP+ anyway? (Both may fire.)"
 msgid "settings.hotkeySaved"
 msgstr "Запазено и синхронизирано към Tabby: {keys}"
 msgid "settings.hotkeyCleared"
@@ -1089,3 +1088,182 @@ msgstr "tar-опаковка"
 
 msgid "log.fileCount"
 msgstr "{n} файла"
+
+msgid "settings.editableExtensions"
+msgstr "Допълнителни редактируеми разширения"
+
+msgid "settings.editableExtensionsHint"
+msgstr "Разделяйте с интервали. Приема .conf, *.conf или conf. Бял списък, когато „преглед и редакция на всички“ е изключено."
+msgid "settings.allowViewEditAllFiles"
+msgstr "Разреши преглед и редактиране на всички типове файлове"
+
+msgid "settings.allowViewEditAllFilesHint"
+msgstr "Игнорира ограниченията за разширения. Всеки файл може да се преглежда; при редакция двоичното съдържание остава защитено."
+
+msgid "conflict.digest"
+msgstr "Дайджест"
+
+msgid "conflict.contentIdentical"
+msgstr "Съдържанието е идентично — безопасно е да се пропусне"
+
+msgid "file.symlink"
+msgstr "Символна връзка"
+
+msgid "file.shortcut"
+msgstr "Пряк път"
+
+msgid "file.copyAll"
+msgstr "Копирай всички"
+
+msgid "file.copyImage"
+msgstr "Копирай изображение"
+
+msgid "file.copyImageAddress"
+msgstr "Копирай адрес на изображението"
+
+msgid "transfer.skippedAsDuplicate"
+msgstr "Пропуснато · идентично съдържание"
+
+msgid "settings.font"
+msgstr "Шрифт"
+
+msgid "settings.fontSize"
+msgstr "Размер на шрифта"
+
+msgid "settings.resetFont"
+msgstr "Нулирай размера на шрифта"
+
+msgid "settings.fontHint"
+msgstr "Настройте размера на текста в панела SFTP+ (11–18px)"
+
+msgid "settings.defaultUploadPath"
+msgstr "Път за качване по подразбиране"
+
+msgid "settings.defaultUploadPathPh"
+msgstr "Отдалечена директория, напр. /home/user/uploads (празно = текущата отдалечена)"
+
+msgid "settings.defaultDownloadPath"
+msgstr "Път за изтегляне по подразбиране"
+
+msgid "settings.defaultDownloadPathPh"
+msgstr "Локална директория, напр. C:\\Downloads (празно = текущата локална)"
+
+msgid "settings.iconSettings"
+msgstr "Икони за типове файлове"
+
+msgid "settings.iconResourceDir"
+msgstr "Директория за икони"
+
+msgid "settings.iconResourceDirPh"
+msgstr "Локална директория със svg файлове, напр. C:\\icons"
+
+msgid "settings.iconSvgFile"
+msgstr "SVG файл"
+
+msgid "settings.iconPreview"
+msgstr "Преглед"
+
+msgid "settings.iconAdd"
+msgstr "Добави правило"
+
+msgid "settings.iconDelete"
+msgstr "Изтрий"
+
+msgid "settings.iconDeleteConfirm"
+msgstr "Изтриване на правило „{name}“? Това не може да се отмени."
+
+msgid "settings.iconRuleHint"
+msgstr "Свържете разширенията с SVG файловете."
+
+msgid "settings.builtinIcons"
+msgstr "Вградени икони"
+
+msgid "settings.builtinIconDir"
+msgstr "Директория на вградените икони"
+
+msgid "settings.builtinIconDesc"
+msgstr "Следните SVG икони са включени в приставката. Добавете свои svg тук, за да ги разширите."
+
+msgid "settings.iconEdit"
+msgstr "Редактирай"
+
+msgid "settings.iconDisable"
+msgstr "Деактивирай"
+
+msgid "settings.iconEnable"
+msgstr "Възстанови"
+
+msgid "settings.iconAddRule"
+msgstr "Добави правило"
+
+msgid "settings.iconFolderHint"
+msgstr "Папка (по подразбиране)"
+
+msgid "settings.iconFileHint"
+msgstr "Файл (по подразбиране)"
+
+msgid "settings.iconExtLockedHint"
+msgstr "Файловете по подразбиране не могат да променят разширения"
+
+msgid "settings.iconSvgNameHint"
+msgstr "Име на файл"
+
+msgid "settings.iconRuleName"
+msgstr "Име на правило"
+
+msgid "settings.iconRuleNamePh"
+msgstr "напр. Scripts, Documents"
+
+msgid "settings.iconExtLabel"
+msgstr "Разширения"
+
+msgid "settings.iconErrorExtConflict"
+msgstr "Разширението „{ext}“ вече се използва от икона {svg}"
+
+msgid "settings.iconErrorEmpty"
+msgstr "Името на правилото, разширението и името на svg не могат да са празни"
+
+msgid "settings.iconErrorEmptyName"
+msgstr "Името на правилото не може да е празно"
+
+msgid "settings.iconErrorNameConflict"
+msgstr "Името на правило „{name}“ вече съществува"
+
+msgid "settings.iconErrorNameSvgMismatch"
+msgstr "Правилото „{name}“ вече е свързано с икона {svg}; използвайте същия файл или друго име"
+
+msgid "settings.iconErrorMissingSvg"
+msgstr "SVG файлът не е намерен в директорията за икони"
+
+msgid "settings.iconErrorInvalidExt"
+msgstr "Невалиден формат на разширение: „{ext}“. Използвайте .txt или txt; разделете с интервали/запетаи"
+
+msgid "settings.resetIcons"
+msgstr "Нулирай настройките на иконите"
+
+msgid "op.cannotCopyIntoSelf"
+msgstr "Не може да копирате папка в себе си или подпапка: {name}"
+
+msgid "settings.tarAcceleration"
+msgstr "Ускоряване на TAR прехвърляне"
+
+msgid "settings.tarAccelerationDesc"
+msgstr "Автоматично пакетира прехвърляния на папки с tar за ускоряване на малки файлове; при грешка се връща към нормално прехвърляне"
+
+msgid "settings.conflictDigest"
+msgstr "Дайджест на съдържанието при конфликт"
+
+msgid "settings.conflictDigestDesc"
+msgstr "Когато размерът съвпада, но времето на промяна се различава, изчислява дайджест дали файлът наистина е променен (напр. след смяна на Git клон). Изисква shell на отдалечения хост; иначе предишното поведение"
+
+msgid "settings.conflictAutoSkip"
+msgstr "Автоматично пропускай идентично съдържание"
+
+msgid "settings.conflictAutoSkipDesc"
+msgstr "Ако и двата дайджеста са налични и равни, считай за без конфликт и пропусни безпитане"
+
+msgid "settings.conflictDigestMaxSize"
+msgstr "Лимит на размера на дайджеста (MB)"
+
+msgid "settings.conflictDigestMaxSizeDesc"
+msgstr "По-големите файлове не се дайджестват и винаги се третират като конфликт, за да не се забави откриването"

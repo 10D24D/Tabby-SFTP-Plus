@@ -1295,3 +1295,182 @@ msgstr "Tar-Paket"
 
 msgid "log.fileCount"
 msgstr "{n} Dateien"
+
+msgid "settings.editableExtensions"
+msgstr "Zusätzliche bearbeitbare Erweiterungen"
+
+msgid "settings.editableExtensionsHint"
+msgstr "Durch Leerzeichen trennen. Akzeptiert .conf, *.conf oder conf. Whitelist, wenn „Alles anzeigen & bearbeiten“ aus ist."
+msgid "settings.allowViewEditAllFiles"
+msgstr "Anzeigen und Bearbeiten aller Dateitypen erlauben"
+
+msgid "settings.allowViewEditAllFilesHint"
+msgstr "Erweiterungsbeschränkungen ignorieren. Beliebige Dateien können angezeigt werden; Binärinhalt bleibt beim Bearbeiten geschützt."
+
+msgid "conflict.digest"
+msgstr "Prüfsumme"
+
+msgid "conflict.contentIdentical"
+msgstr "Inhalt ist identisch — Überspringen ist sicher"
+
+msgid "file.symlink"
+msgstr "Symbolische Verknüpfung"
+
+msgid "file.shortcut"
+msgstr "Verknüpfung"
+
+msgid "file.copyAll"
+msgstr "Alles kopieren"
+
+msgid "file.copyImage"
+msgstr "Bild kopieren"
+
+msgid "file.copyImageAddress"
+msgstr "Bildadresse kopieren"
+
+msgid "transfer.skippedAsDuplicate"
+msgstr "Übersprungen · Inhalt identisch"
+
+msgid "settings.font"
+msgstr "Schrift"
+
+msgid "settings.fontSize"
+msgstr "Schriftgröße"
+
+msgid "settings.resetFont"
+msgstr "Schriftgröße zurücksetzen"
+
+msgid "settings.fontHint"
+msgstr "Textgröße im SFTP+-Panel anpassen (11–18px)"
+
+msgid "settings.defaultUploadPath"
+msgstr "Standard-Uploadpfad"
+
+msgid "settings.defaultUploadPathPh"
+msgstr "Entferntes Verzeichnis, z. B. /home/user/uploads (leer = aktuelles Remote)"
+
+msgid "settings.defaultDownloadPath"
+msgstr "Standard-Downloadpfad"
+
+msgid "settings.defaultDownloadPathPh"
+msgstr "Lokales Verzeichnis, z. B. C:\\Downloads (leer = aktuelles lokal)"
+
+msgid "settings.iconSettings"
+msgstr "Dateityp-Symbole"
+
+msgid "settings.iconResourceDir"
+msgstr "Symbolverzeichnis"
+
+msgid "settings.iconResourceDirPh"
+msgstr "Lokales Verzeichnis mit SVG-Dateien, z. B. C:\\icons"
+
+msgid "settings.iconSvgFile"
+msgstr "SVG-Datei"
+
+msgid "settings.iconPreview"
+msgstr "Vorschau"
+
+msgid "settings.iconAdd"
+msgstr "Regel hinzufügen"
+
+msgid "settings.iconDelete"
+msgstr "Löschen"
+
+msgid "settings.iconDeleteConfirm"
+msgstr "Regel „{name}“ löschen? Dies kann nicht rückgängig gemacht werden."
+
+msgid "settings.iconRuleHint"
+msgstr "Erweiterungen den SVG-Dateien zuordnen."
+
+msgid "settings.builtinIcons"
+msgstr "Integrierte Symbole"
+
+msgid "settings.builtinIconDir"
+msgstr "Verzeichnis der integrierten Symbole"
+
+msgid "settings.builtinIconDesc"
+msgstr "Die folgenden SVG-Symbole sind im Plugin enthalten. Legen Sie eigene SVGs hier ab, um sie zu erweitern."
+
+msgid "settings.iconEdit"
+msgstr "Bearbeiten"
+
+msgid "settings.iconDisable"
+msgstr "Deaktivieren"
+
+msgid "settings.iconEnable"
+msgstr "Wiederherstellen"
+
+msgid "settings.iconAddRule"
+msgstr "Regel hinzufügen"
+
+msgid "settings.iconFolderHint"
+msgstr "Ordner (Standard)"
+
+msgid "settings.iconFileHint"
+msgstr "Datei (Standard)"
+
+msgid "settings.iconExtLockedHint"
+msgstr "Standarddateien können Erweiterungen nicht ändern"
+
+msgid "settings.iconSvgNameHint"
+msgstr "Dateiname"
+
+msgid "settings.iconRuleName"
+msgstr "Regelname"
+
+msgid "settings.iconRuleNamePh"
+msgstr "z. B. Scripts, Documents"
+
+msgid "settings.iconExtLabel"
+msgstr "Erweiterungen"
+
+msgid "settings.iconErrorExtConflict"
+msgstr "Erweiterung „{ext}“ wird bereits von Symbol {svg} verwendet"
+
+msgid "settings.iconErrorEmpty"
+msgstr "Regelname, Erweiterung und SVG-Dateiname dürfen nicht leer sein"
+
+msgid "settings.iconErrorEmptyName"
+msgstr "Regelname darf nicht leer sein"
+
+msgid "settings.iconErrorNameConflict"
+msgstr "Regelname „{name}“ existiert bereits"
+
+msgid "settings.iconErrorNameSvgMismatch"
+msgstr "Regel „{name}“ ist bereits an Symbol {svg} gebunden; dieselbe Datei verwenden oder anderen Regelnamen wählen"
+
+msgid "settings.iconErrorMissingSvg"
+msgstr "Die SVG-Datei wurde im Symbolverzeichnis nicht gefunden"
+
+msgid "settings.iconErrorInvalidExt"
+msgstr "Ungültiges Erweiterungsformat: „{ext}“. Formen wie .txt oder txt; mehrere mit Leerzeichen/Kommas trennen"
+
+msgid "settings.resetIcons"
+msgstr "Symboleinstellungen zurücksetzen"
+
+msgid "op.cannotCopyIntoSelf"
+msgstr "Ordner kann nicht in sich selbst oder einen Unterordner kopiert werden: {name}"
+
+msgid "settings.tarAcceleration"
+msgstr "TAR-Übertragungsbeschleunigung"
+
+msgid "settings.tarAccelerationDesc"
+msgstr "Ordnerübertragungen automatisch mit tar paketieren und stark beschleunigen; bei Nichtunterstützung/Fehler nahtloser Rückfall auf Normalübertragung"
+
+msgid "settings.conflictDigest"
+msgstr "Inhaltsprüfsumme bei Konflikt"
+
+msgid "settings.conflictDigestDesc"
+msgstr "Bei gleicher Größe aber unterschiedlicher Änderungszeit Inhaltsprüfsumme berechnen (z. B. nach Git-Branch-Wechsel). Benötigt Shell-Zugriff remote; sonst bisheriges Verhalten"
+
+msgid "settings.conflictAutoSkip"
+msgstr "Identischen Inhalt automatisch überspringen"
+
+msgid "settings.conflictAutoSkipDesc"
+msgstr "Wenn beide Prüfsummen verfügbar und gleich sind, als konfliktfrei behandeln und still überspringen"
+
+msgid "settings.conflictDigestMaxSize"
+msgstr "Prüfsummen-Größenlimit (MB)"
+
+msgid "settings.conflictDigestMaxSizeDesc"
+msgstr "Größere Dateien werden nicht geprüft und immer als Konflikt behandelt, um die Erkennung nicht zu verlangsamen"

@@ -1290,3 +1290,182 @@ msgstr "Paquet tar"
 
 msgid "log.fileCount"
 msgstr "{n} fichiers"
+
+msgid "settings.editableExtensions"
+msgstr "Extensions éditables supplémentaires"
+
+msgid "settings.editableExtensionsHint"
+msgstr "Séparés par des espaces. Accepte .conf, *.conf ou conf. Liste blanche si « tout afficher et éditer » est désactivé."
+msgid "settings.allowViewEditAllFiles"
+msgstr "Autoriser l’affichage et l’édition de tous les types de fichiers"
+
+msgid "settings.allowViewEditAllFilesHint"
+msgstr "Ignore les restrictions d’extension. Tout fichier peut être affiché ; le contenu binaire reste protégé à l’édition."
+
+msgid "conflict.digest"
+msgstr "Empreinte"
+
+msgid "conflict.contentIdentical"
+msgstr "Contenu identique — peut être ignoré en toute sécurité"
+
+msgid "file.symlink"
+msgstr "Lien symbolique"
+
+msgid "file.shortcut"
+msgstr "Raccourci"
+
+msgid "file.copyAll"
+msgstr "Tout copier"
+
+msgid "file.copyImage"
+msgstr "Copier l’image"
+
+msgid "file.copyImageAddress"
+msgstr "Copier l’adresse de l’image"
+
+msgid "transfer.skippedAsDuplicate"
+msgstr "Ignoré · contenu identique"
+
+msgid "settings.font"
+msgstr "Police"
+
+msgid "settings.fontSize"
+msgstr "Taille de police"
+
+msgid "settings.resetFont"
+msgstr "Réinitialiser la taille"
+
+msgid "settings.fontHint"
+msgstr "Ajuster la taille du texte dans le panneau SFTP+ (11–18px)"
+
+msgid "settings.defaultUploadPath"
+msgstr "Chemin d’upload par défaut"
+
+msgid "settings.defaultUploadPathPh"
+msgstr "Répertoire distant, ex. /home/user/uploads (vide = répertoire distant actuel)"
+
+msgid "settings.defaultDownloadPath"
+msgstr "Chemin de téléchargement par défaut"
+
+msgid "settings.defaultDownloadPathPh"
+msgstr "Répertoire local, ex. C:\\Downloads (vide = répertoire local actuel)"
+
+msgid "settings.iconSettings"
+msgstr "Icônes de type de fichier"
+
+msgid "settings.iconResourceDir"
+msgstr "Répertoire d’icônes"
+
+msgid "settings.iconResourceDirPh"
+msgstr "Répertoire local contenant les SVG, ex. C:\\icons"
+
+msgid "settings.iconSvgFile"
+msgstr "Fichier SVG"
+
+msgid "settings.iconPreview"
+msgstr "Aperçu"
+
+msgid "settings.iconAdd"
+msgstr "Ajouter une règle"
+
+msgid "settings.iconDelete"
+msgstr "Supprimer"
+
+msgid "settings.iconDeleteConfirm"
+msgstr "Supprimer la règle « {name} » ? Cette action est irréversible."
+
+msgid "settings.iconRuleHint"
+msgstr "Associer les extensions à leurs fichiers SVG."
+
+msgid "settings.builtinIcons"
+msgstr "Icônes intégrées"
+
+msgid "settings.builtinIconDir"
+msgstr "Répertoire des icônes intégrées"
+
+msgid "settings.builtinIconDesc"
+msgstr "Les icônes SVG suivantes sont fournies avec le plugin. Ajoutez vos propres SVG ici pour les étendre."
+
+msgid "settings.iconEdit"
+msgstr "Modifier"
+
+msgid "settings.iconDisable"
+msgstr "Désactiver"
+
+msgid "settings.iconEnable"
+msgstr "Restaurer"
+
+msgid "settings.iconAddRule"
+msgstr "Ajouter une règle"
+
+msgid "settings.iconFolderHint"
+msgstr "Dossier (par défaut)"
+
+msgid "settings.iconFileHint"
+msgstr "Fichier (par défaut)"
+
+msgid "settings.iconExtLockedHint"
+msgstr "Les fichiers par défaut ne peuvent pas changer d’extension"
+
+msgid "settings.iconSvgNameHint"
+msgstr "Nom de fichier"
+
+msgid "settings.iconRuleName"
+msgstr "Nom de la règle"
+
+msgid "settings.iconRuleNamePh"
+msgstr "ex. Scripts, Documents"
+
+msgid "settings.iconExtLabel"
+msgstr "Extensions"
+
+msgid "settings.iconErrorExtConflict"
+msgstr "L’extension « {ext} » est déjà utilisée par l’icône {svg}"
+
+msgid "settings.iconErrorEmpty"
+msgstr "Le nom de règle, l’extension et le nom du fichier SVG ne doivent pas être vides"
+
+msgid "settings.iconErrorEmptyName"
+msgstr "Le nom de la règle ne doit pas être vide"
+
+msgid "settings.iconErrorNameConflict"
+msgstr "Le nom de règle « {name} » existe déjà"
+
+msgid "settings.iconErrorNameSvgMismatch"
+msgstr "La règle « {name} » est déjà liée à l’icône {svg} ; utilisez le même fichier ou un autre nom"
+
+msgid "settings.iconErrorMissingSvg"
+msgstr "Le fichier SVG est introuvable dans le répertoire d’icônes"
+
+msgid "settings.iconErrorInvalidExt"
+msgstr "Format d’extension invalide : « {ext} ». Utilisez .txt ou txt ; séparez par espaces/virgules"
+
+msgid "settings.resetIcons"
+msgstr "Réinitialiser les icônes"
+
+msgid "op.cannotCopyIntoSelf"
+msgstr "Impossible de copier un dossier dans lui-même ou un sous-dossier : {name}"
+
+msgid "settings.tarAcceleration"
+msgstr "Accélération de transfert TAR"
+
+msgid "settings.tarAccelerationDesc"
+msgstr "Empaquette automatiquement les transferts de dossiers avec tar pour accélérer les petits fichiers ; bascule vers le transfert normal en cas d’échec"
+
+msgid "settings.conflictDigest"
+msgstr "Empreinte du contenu en cas de conflit"
+
+msgid "settings.conflictDigestDesc"
+msgstr "Si la taille est égale mais la date diffère, calcule une empreinte pour savoir si le fichier a vraiment changé (ex. après un changement de branche Git). Nécessite un accès shell distant ; sinon comportement précédent"
+
+msgid "settings.conflictAutoSkip"
+msgstr "Ignorer automatiquement le contenu identique"
+
+msgid "settings.conflictAutoSkipDesc"
+msgstr "Si les deux empreintes sont disponibles et égales, considérer qu’il n’y a pas de conflit et ignorer sans demander"
+
+msgid "settings.conflictDigestMaxSize"
+msgstr "Limite de taille d’empreinte (Mo)"
+
+msgid "settings.conflictDigestMaxSizeDesc"
+msgstr "Les fichiers plus grands ne sont pas empreintés et sont toujours traités comme conflits, pour ne pas ralentir la détection"

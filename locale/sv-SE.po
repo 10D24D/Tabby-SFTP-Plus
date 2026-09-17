@@ -640,8 +640,7 @@ msgstr "Klicka för att ställa in genväg"
 msgid "settings.hotkeyConflict"
 msgstr "Konflikt med: {names}"
 msgid "settings.hotkeyConflictConfirm"
-msgstr "Genväg {keys} används redan av: {names}
-Vill du ändå binda den till SFTP+? (Båda kan utlösas.)"
+msgstr "Shortcut {keys} is already used by: {names}\nBind it to SFTP+ anyway? (Both may fire.)"
 msgid "settings.hotkeySaved"
 msgstr "Sparad och synkroniserad till Tabby: {keys}"
 msgid "settings.hotkeyCleared"
@@ -1088,3 +1087,182 @@ msgstr "Tar-paketering"
 
 msgid "log.fileCount"
 msgstr "{n} filer"
+
+msgid "settings.editableExtensions"
+msgstr "Ytterligare redigerbara tillägg"
+
+msgid "settings.editableExtensionsHint"
+msgstr "Separera med mellanslag. Godtar .conf, *.conf eller conf. Vitlista när ”visa & redigera alla” är av."
+msgid "settings.allowViewEditAllFiles"
+msgstr "Tillåt visning och redigering av alla filtyper"
+
+msgid "settings.allowViewEditAllFilesHint"
+msgstr "Ignorera tilläggsbegränsningar. Vilken fil som helst kan visas; binärt innehåll skyddas vid redigering."
+
+msgid "conflict.digest"
+msgstr "Sammandrag"
+
+msgid "conflict.contentIdentical"
+msgstr "Innehållet är identiskt — säkert att hoppa över"
+
+msgid "file.symlink"
+msgstr "Symbolisk länk"
+
+msgid "file.shortcut"
+msgstr "Genväg"
+
+msgid "file.copyAll"
+msgstr "Kopiera allt"
+
+msgid "file.copyImage"
+msgstr "Kopiera bild"
+
+msgid "file.copyImageAddress"
+msgstr "Kopiera bildadress"
+
+msgid "transfer.skippedAsDuplicate"
+msgstr "Hoppad över · identiskt innehåll"
+
+msgid "settings.font"
+msgstr "Typsnitt"
+
+msgid "settings.fontSize"
+msgstr "Teckenstorlek"
+
+msgid "settings.resetFont"
+msgstr "Återställ teckenstorlek"
+
+msgid "settings.fontHint"
+msgstr "Justera textstorlek i SFTP+-panelen (11–18px)"
+
+msgid "settings.defaultUploadPath"
+msgstr "Standarduppladdningssökväg"
+
+msgid "settings.defaultUploadPathPh"
+msgstr "Fjärrkatalog, t.ex. /home/user/uploads (tomt = aktuell fjärrkatalog)"
+
+msgid "settings.defaultDownloadPath"
+msgstr "Standardnedladdningssökväg"
+
+msgid "settings.defaultDownloadPathPh"
+msgstr "Lokal katalog, t.ex. C:\\Downloads (tomt = aktuell lokal katalog)"
+
+msgid "settings.iconSettings"
+msgstr "Filtypsikoner"
+
+msgid "settings.iconResourceDir"
+msgstr "Ikondkatalog"
+
+msgid "settings.iconResourceDirPh"
+msgstr "Lokal katalog med svg-filer, t.ex. C:\\icons"
+
+msgid "settings.iconSvgFile"
+msgstr "SVG-fil"
+
+msgid "settings.iconPreview"
+msgstr "Förhandsvisning"
+
+msgid "settings.iconAdd"
+msgstr "Lägg till regel"
+
+msgid "settings.iconDelete"
+msgstr "Ta bort"
+
+msgid "settings.iconDeleteConfirm"
+msgstr "Ta bort regeln \"{name}\"? Detta kan inte ångras."
+
+msgid "settings.iconRuleHint"
+msgstr "Koppla tillägg till deras SVG-filer."
+
+msgid "settings.builtinIcons"
+msgstr "Inbyggda ikoner"
+
+msgid "settings.builtinIconDir"
+msgstr "Katalog för inbyggda ikoner"
+
+msgid "settings.builtinIconDesc"
+msgstr "Följande SVG-ikoner ingår i tillägget. Lägg egna svg-filer här för att utöka dem."
+
+msgid "settings.iconEdit"
+msgstr "Redigera"
+
+msgid "settings.iconDisable"
+msgstr "Inaktivera"
+
+msgid "settings.iconEnable"
+msgstr "Återställ"
+
+msgid "settings.iconAddRule"
+msgstr "Lägg till regel"
+
+msgid "settings.iconFolderHint"
+msgstr "Mapp (standard)"
+
+msgid "settings.iconFileHint"
+msgstr "Fil (standard)"
+
+msgid "settings.iconExtLockedHint"
+msgstr "Standardfiler kan inte ändra tillägg"
+
+msgid "settings.iconSvgNameHint"
+msgstr "Filnamn"
+
+msgid "settings.iconRuleName"
+msgstr "Regelnamn"
+
+msgid "settings.iconRuleNamePh"
+msgstr "t.ex. Scripts, Documents"
+
+msgid "settings.iconExtLabel"
+msgstr "Tillägg"
+
+msgid "settings.iconErrorExtConflict"
+msgstr "Tillägget \"{ext}\" används redan av ikonen {svg}"
+
+msgid "settings.iconErrorEmpty"
+msgstr "Regelnamn, tillägg och svg-filnamn får inte vara tomma"
+
+msgid "settings.iconErrorEmptyName"
+msgstr "Regelnamn får inte vara tomt"
+
+msgid "settings.iconErrorNameConflict"
+msgstr "Regelnamnet \"{name}\" finns redan"
+
+msgid "settings.iconErrorNameSvgMismatch"
+msgstr "Regeln \"{name}\" är redan bunden till ikonen {svg}; använd samma fil eller ett annat namn"
+
+msgid "settings.iconErrorMissingSvg"
+msgstr "SVG-filen hittades inte i ikonkatalogen"
+
+msgid "settings.iconErrorInvalidExt"
+msgstr "Ogiltigt tilläggsformat: \"{ext}\". Använd .txt eller txt; separera flera med mellanslag/komman"
+
+msgid "settings.resetIcons"
+msgstr "Återställ ikoninställningar"
+
+msgid "op.cannotCopyIntoSelf"
+msgstr "Kan inte kopiera en mapp till sig själv eller en undermapp: {name}"
+
+msgid "settings.tarAcceleration"
+msgstr "TAR-överföringsacceleration"
+
+msgid "settings.tarAccelerationDesc"
+msgstr "Paketerar automatiskt mappöverföringar med tar för snabbare småfiler; återgår smidigt till normal överföring vid fel"
+
+msgid "settings.conflictDigest"
+msgstr "Innehållssammandrag vid konflikt"
+
+msgid "settings.conflictDigestDesc"
+msgstr "När storleken stämmer men ändringstiden skiljer beräknas ett sammandrag för att se om filen verkligen ändrats (t.ex. efter Git-grenbyte). Kräver shell på fjärrvärden; annars tidigare beteende"
+
+msgid "settings.conflictAutoSkip"
+msgstr "Hoppa över identiskt innehåll automatiskt"
+
+msgid "settings.conflictAutoSkipDesc"
+msgstr "Om båda sammandragen finns och är lika, behandla som ingen konflikt och hoppa över tyst"
+
+msgid "settings.conflictDigestMaxSize"
+msgstr "Storleksgräns för sammandrag (MB)"
+
+msgid "settings.conflictDigestMaxSizeDesc"
+msgstr "Större filer summeras inte och behandlas alltid som konflikt för att inte sakta ner detekteringen"

@@ -2,8 +2,10 @@
  * 功能描述：SFTP+ conflict 逻辑聚合模块（由旧 core 多文件合并）
  * 创建人：DD1024z + Hy3
  * 创建时间：2026-07-16
- * 修改人：DD1024z + Claude
- * 修改时间：2026-08-24 — _drainQueue 在 resumePaste 后加防御性复查：若 resumePaste→executePaste 入队了新冲突但未弹窗，确保 showNextDialog 被调用，防止新冲突静默滞留队列
+ * 修改人：DD1024z + Composer
+ * 修改时间：2026-09-17 — 冲突「取消/跳过」删除误记的失败传输记录（未真正传输）
+ *              2026-09-07 — issue #15：冲突检测支持内容摘要，size 相同但 mtime 超出容差时按摘要判同，内容相同则不弹冲突框
+ *              2026-09-07 — issue #15+：detector 的 autoSkipSameContent 改为回调，避免 panel 构造时序导致 settings 失联（用户关掉自动跳过却仍按 true 跑）
  * 合并来源：conflict-rules, conflict-resolve, sftp-conflict-detector
  */
 
@@ -13,7 +15,8 @@ import { type ConflictQueueItem, type ConflictFileInfo, type FolderTransferCtx }
 
 import * as fs from 'fs/promises'
 
-import { buildDownloadConflictInfo, buildUploadConflictInfo, DEFAULT_MTIME_TOLERANCE_MS, filesAreSame } from './transfer-types'
+import { buildDownloadConflictInfo, buildUploadConflictInfo, DEFAULT_MTIME_TOLERANCE_MS, filesAreSame, isContentIdentical, type ConflictDigestInfo } from './transfer-types'
+import type { ContentDigestPort } from './digest'
 
 
 import { log } from '../../services/sftp-logger'
@@ -113,11 +116,53 @@ export function parseRemoteMtime(st: any): number | undefined {
  */
 
 
+/** 自动跳过回调参数：用于协调器通知面板更新传输记录 */
+export type AutoSkippedInfo = {
+  direction: 'upload' | 'download'
+  localPath: string
+  remotePath: string
+  /** 计算结果摘要（任一端为 null 都视为不可信，结果仍按 auto-skipped 处理：内容相同） */
+  digest?: ConflictDigestInfo | null
+}
+
+/**
+ * ★ 2026-09-07 issue #15+：冲突检测的完整结果枚举，把「自动跳过」与「无冲突」分离。
+ * - no-conflict：文件不存在或不应处理，调用方继续正常传输
+ * - auto-skipped：内容已确认为相同（摘要匹配），调用方必须跳过，不下载/不上传
+ * - conflict：需由用户决定覆盖/重命名/跳过，调用方入队弹框
+ */
+export type ConflictCheckOutcome =
+  | { kind: 'no-conflict' }
+  | { kind: 'auto-skipped'; digest?: ConflictDigestInfo | null }
+  | { kind: 'conflict'; info: ConflictFileInfo }
+
 // ─── 冲突检测端口 ───────────────────────────────────────────
 
 export interface ConflictDetectionPort {
-  checkUploadConflict(remotePath: string, localPath: string, localSize: number, localMtime: number): Promise<ConflictFileInfo | null>
-  checkLocalConflict(localPath: string, remotePath: string, remoteSize: number, remoteMtime: number): Promise<ConflictFileInfo | null>
+  /**
+   * 上传方向冲突检测：
+   * - no-conflict ⇒ 远端不存在，调用方上传（首次）
+   * - auto-skipped ⇒ 内容已确认相同，调用方必须跳过
+   * - conflict ⇒ 入队弹框
+   */
+  checkUploadConflict(
+    remotePath: string,
+    localPath: string,
+    localSize: number,
+    localMtime: number,
+  ): Promise<ConflictCheckOutcome>
+  /**
+   * 下载方向冲突检测，语义同上：
+   * - no-conflict ⇒ 本地不存在，调用方下载（首次）
+   * - auto-skipped ⇒ 内容已确认相同，调用方必须跳过
+   * - conflict ⇒ 入队弹框
+   */
+  checkLocalConflict(
+    localPath: string,
+    remotePath: string,
+    remoteSize: number,
+    remoteMtime: number,
+  ): Promise<ConflictCheckOutcome>
   checkRemotePathExists(remotePath: string, expectDir?: boolean): Promise<boolean>
 }
 
@@ -144,6 +189,8 @@ export interface ConflictResolveExecutionPort {
   readdirRemote(parentDir: string): Promise<Array<{ name: string; isDirectory: boolean }>>
   /** ★ 2026-08-11：冲突解决成功后，把已被 finish(false) 误记失败的来源传输记录翻正 */
   markTransferSucceeded(ctx: FolderTransferCtx): void
+  /** ★ 2026-09-17：冲突取消/跳过时删除误记的失败传输记录（实际未传） */
+  discardTransferLog(ctx: FolderTransferCtx): void
   hasSftpSession(): boolean
   /** 删除本地文件（剪切模式冲突解决后清理源文件） */
   unlinkLocal(path: string): Promise<void>
@@ -162,6 +209,8 @@ export interface ConflictQueueStatePort {
   shift(): ConflictQueueItem | undefined
   clear(): void
   length(): number
+  /** 当前队列快照（不含已 shift 的当前项） */
+  snapshot(): ConflictQueueItem[]
   markResolved(key: string): void
   getResolvedKeys(): Set<string>
   clearResolvedKeys(): void
@@ -272,13 +321,19 @@ export class ConflictResolveUseCase {
     const exec = this.ports.execution
 
     switch (action) {
-      case 'cancel':
+      case 'cancel': {
+        // ★ 2026-09-17：冲突入队时已 finish(false) 误记失败；用户取消=未传输，应删除记录而非留红叉
+        this._discardConflictTransferLog(item)
+        for (const q of this.ports.queue.snapshot()) this._discardConflictTransferLog(q)
         this.ports.queue.clear()
         this.ports.pendingPaste.restoreClipboardFromPending()
         this.ports.pendingPaste.clearPending()
         this.ports.queue.clearResolvedKeys()
         return false
+      }
       case 'skip':
+        // 跳过同样未真正传输，去掉误记失败记录
+        this._discardConflictTransferLog(item)
         return true
       case 'overwrite':
         if (item.isDirectory) {
@@ -343,6 +398,12 @@ export class ConflictResolveUseCase {
   private _flipTransferLog(item: ConflictQueueItem, ok: boolean): void {
     if (!ok || !item.transferCtx) return
     try { this.ports.execution.markTransferSucceeded(item.transferCtx) } catch { /* ignore */ }
+  }
+
+  /** ★ 2026-09-17：取消/跳过时删除误记失败记录 */
+  private _discardConflictTransferLog(item: ConflictQueueItem): void {
+    if (!item.transferCtx) return
+    try { this.ports.execution.discardTransferLog(item.transferCtx) } catch { /* ignore */ }
   }
 
   async processNext(): Promise<void> {
@@ -524,6 +585,21 @@ export class SftpConflictDetector implements ConflictDetectionPort {
   constructor(
     private readonly getSession: () => SftpConflictSession | null,
     private readonly mtimeToleranceMs = DEFAULT_MTIME_TOLERANCE_MS,
+    /** ★ 2026-09-07 issue #15：可选内容摘要服务；未提供时退化为仅 size+mtime 判定（与旧行为一致） */
+    private readonly digest: ContentDigestPort | null = null,
+    /**
+     * ★ 2026-09-07 issue #15+：内容被确认相同时是否自动跳过（不弹冲突框）。
+     * 必须是回调而不是 boolean —— panel 字段在 ngOnInit 之后才会被 _readBehaviorConfig 填充，
+     * 而 coordinator 在 constructor 期间就已被构造；用回调才能让用户改设置即时生效，
+     * 避免「关掉了自动跳过却仍然跳过」的"配置失联"bug。
+     */
+    private readonly isAutoSkipSameContent: () => boolean = () => true,
+    /**
+     * ★ 2026-09-07 issue #15+：命中「自动跳过」时同步回调，host 用它通知面板把传输记录标为「已跳过」。
+     * 设计成构造回调（而非 setter）—— 多个并发 use case 不会互相覆盖，每个面板一个 detector 实例。
+     * 默认空函数，回调由 PanelTransferCoordinator 注入。
+     */
+    private readonly onAutoSkipped: (info: AutoSkippedInfo) => void = () => {},
   ) {}
 
   // ★ 2026-08-22 修复（fork #8）：同目录多文件上传不再逐文件 stat。
@@ -566,9 +642,9 @@ export class SftpConflictDetector implements ConflictDetectionPort {
     localPath: string,
     localSize: number,
     localMtime: number,
-  ): Promise<ConflictFileInfo | null> {
+  ): Promise<ConflictCheckOutcome> {
     const session = this.getSession()
-    if (!session) return null
+    if (!session) return { kind: 'no-conflict' }
     const parentDir = path.posix.dirname(remotePath)
     const fileName = path.basename(remotePath)
 
@@ -606,13 +682,34 @@ export class SftpConflictDetector implements ConflictDetectionPort {
 
     log.info('[check-upload-conflict] final remoteSize:', remoteSize, 'remoteMtime:', remoteMtime)
 
-    // 两个来源都无法确认远程文件存在 → 不冲突（按"不存在"处理，直接上传覆盖）
-    if (remoteSize == null) return null
+    // ★ 2026-09-14 F5 审计修复：listing 命中（远端文件确实存在）但 size 不可得
+    //   （listing 缺字段且 stat 回退失败）时，不得按「不存在」返回 no-conflict 直接覆盖——
+    //   保守判冲突；size/mtime 传 NaN，UI 层 formatSize/formatDate 对非有限值渲染为空串
+    if (remoteSize == null) {
+      if (found) {
+        log.warn('[check-upload-conflict] remote file exists but size unknown, forcing conflict:', remotePath)
+        return {
+          kind: 'conflict',
+          info: buildUploadConflictInfo(remotePath, localPath, fileName, localSize, localMtime, Number.NaN, Number.NaN),
+        }
+      }
+      // 两个来源都无法确认远程文件存在 → 不冲突（按"不存在"处理，直接上传覆盖）
+      return { kind: 'no-conflict' }
+    }
 
     const rs = remoteSize
     const rm = remoteMtime ?? 0
-    if (filesAreSame(localSize, localMtime, rs, rm, this.mtimeToleranceMs)) return null
-    return buildUploadConflictInfo(remotePath, localPath, fileName, localSize, localMtime, rs, rm)
+    if (filesAreSame(localSize, localMtime, rs, rm, this.mtimeToleranceMs)) return { kind: 'no-conflict' }
+
+    // ★ 2026-09-07 issue #15：size 相同但 mtime 超出容差时，用内容摘要判断内容是否真的变了。
+    //   典型场景：Git 切换分支 / rsync 同步后 mtime 变化但内容一致，不应反复弹冲突框。
+    const digest = await this._resolveDigest(localPath, remotePath, localSize, localMtime, rs, rm)
+    if (this.isAutoSkipSameContent() && isContentIdentical(digest)) {
+      log.info('[check-upload-conflict] content identical, auto-skipped:', remotePath)
+      this.onAutoSkipped({ direction: 'upload', localPath, remotePath, digest: digest ?? null })
+      return { kind: 'auto-skipped', digest: digest ?? null }
+    }
+    return { kind: 'conflict', info: buildUploadConflictInfo(remotePath, localPath, fileName, localSize, localMtime, rs, rm, digest) }
   }
 
   async checkLocalConflict(
@@ -620,13 +717,61 @@ export class SftpConflictDetector implements ConflictDetectionPort {
     remotePath: string,
     remoteSize: number,
     remoteMtime: number,
-  ): Promise<ConflictFileInfo | null> {
+  ): Promise<ConflictCheckOutcome> {
     try {
+      // ★ 2026-09-14 F8 审计修复：先 lstat 识别符号链接。下载覆盖走 .tmp + rename，
+      //   会「替换链接本身」而非写入其目标；旧实现 fs.stat 跟随链接比对目标内容，
+      //   语义错位——目标内容相同时被静默跳过（链接尚在，勉强可接受），目标不同时
+      //   弹框展示的是目标的大小/mtime，用户选覆盖后链接被换成普通文件、目标残留旧数据。
+      //   链接一律按冲突处理，交由用户显式决定（展示链接自身的 lstat 元数据）。
+      const lst = await fs.lstat(localPath)
+      if (lst.isSymbolicLink()) {
+        log.info('[check-local-conflict] local path is a symlink, forcing conflict:', localPath)
+        return {
+          kind: 'conflict',
+          info: buildDownloadConflictInfo(localPath, remotePath, remoteSize, remoteMtime, lst.size, lst.mtimeMs),
+        }
+      }
       const st = await fs.stat(localPath)
-      if (filesAreSame(st.size, st.mtimeMs, remoteSize, remoteMtime, this.mtimeToleranceMs)) return null
-      return buildDownloadConflictInfo(localPath, remotePath, remoteSize, remoteMtime, st.size, st.mtimeMs)
+      if (filesAreSame(st.size, st.mtimeMs, remoteSize, remoteMtime, this.mtimeToleranceMs)) return { kind: 'no-conflict' }
+
+      const digest = await this._resolveDigest(localPath, remotePath, st.size, st.mtimeMs, remoteSize, remoteMtime)
+      if (this.isAutoSkipSameContent() && isContentIdentical(digest)) {
+        log.info('[check-local-conflict] content identical, auto-skipped:', remotePath)
+        this.onAutoSkipped({ direction: 'download', localPath, remotePath, digest: digest ?? null })
+        return { kind: 'auto-skipped', digest: digest ?? null }
+      }
+      return { kind: 'conflict', info: buildDownloadConflictInfo(localPath, remotePath, remoteSize, remoteMtime, st.size, st.mtimeMs, digest) }
     } catch { /* 文件不存在，不冲突 */ }
-    return null
+    return { kind: 'no-conflict' }
+  }
+
+  /**
+   * 计算两端内容摘要，仅在「size 相同」时才有意义（size 不同则内容必然不同）。
+   * 返回 undefined 表示无法确认（无摘要服务 / size 不同 / 任一端计算失败），
+   * 调用方必须按「可能不同」保守处理——宁可多弹一次冲突框，也绝不能漏传文件。
+   */
+  private async _resolveDigest(
+    localPath: string,
+    remotePath: string,
+    localSize: number,
+    localMtime: number,
+    remoteSize: number | undefined,
+    remoteMtime: number | undefined,
+  ): Promise<ConflictDigestInfo | undefined> {
+    if (!this.digest) return undefined
+    // size 不同 → 内容必然不同，无需计算（省掉一次 exec 与一次本地读盘）
+    if (remoteSize == null || localSize !== remoteSize) return undefined
+    try {
+      const [localDigest, remoteDigest] = await Promise.all([
+        this.digest.localDigest(localPath, localSize, localMtime),
+        this.digest.remoteDigest(remotePath, remoteSize, remoteMtime),
+      ])
+      if (!localDigest || !remoteDigest) return undefined
+      return { localDigest, remoteDigest }
+    } catch {
+      return undefined
+    }
   }
 
   async checkRemotePathExists(remotePath: string, expectDir?: boolean): Promise<boolean> {

@@ -2,8 +2,8 @@
  * 功能描述：SFTP+ transfer-types 逻辑聚合模块（由旧 core 多文件合并）
  * 创建人：DD1024z + Hy3
  * 创建时间：2026-07-16
- * 修改人：DD1024z + Hy3
- * 修改时间：2026-08-02 — B19：SftpTransferPort 增加 stat 方法；SftpDirEntry 扩展 mtime/attrs 字段
+ * 修改人：DD1024z + Hy4 preview
+ * 修改时间：2026-09-07 — issue #15：新增 ConflictDigestInfo / isContentIdentical，两个 buildXxxConflictInfo 支持携带两端摘要
  * 合并来源：transfer-ports, transfer-rules
  */
 
@@ -138,6 +138,21 @@ export function filesAreSame(
     && Math.abs(localMtime - remoteMtime) <= toleranceMs
 }
 
+/**
+ * ★ 2026-09-07 issue #15：冲突比对用的内容摘要。
+ * 任一端为 null/undefined 表示「无法确认」，调用方必须按「可能不同」保守处理，
+ * 绝不能据此判定内容相同（否则会导致文件该传没传）。
+ */
+export interface ConflictDigestInfo {
+  localDigest?: string | null
+  remoteDigest?: string | null
+}
+
+/** 两端摘要均可得且完全相等时，才认为内容实际相同 */
+export function isContentIdentical(d?: ConflictDigestInfo | null): boolean {
+  return !!d && !!d.localDigest && !!d.remoteDigest && d.localDigest === d.remoteDigest
+}
+
 /** 构建上传方向冲突信息（保持与原实现字段一致） */
 export function buildUploadConflictInfo(
   remotePath: string,
@@ -147,6 +162,8 @@ export function buildUploadConflictInfo(
   localMtime: number,
   remoteSize: number,
   remoteMtime: number,
+  /** ★ 2026-09-07 issue #15：可选的内容摘要（用于 UI 展示「内容是否真变了」） */
+  digest?: ConflictDigestInfo,
 ): ConflictFileInfo {
   const parentDir = path.posix.dirname(remotePath)
   return {
@@ -160,6 +177,9 @@ export function buildUploadConflictInfo(
     remoteDir: parentDir,
     direction: 'upload',
     isSamePane: false,
+    localDigest: digest?.localDigest ?? null,
+    remoteDigest: digest?.remoteDigest ?? null,
+    contentIdentical: isContentIdentical(digest),
   }
 }
 
@@ -171,6 +191,8 @@ export function buildDownloadConflictInfo(
   remoteMtime: number,
   localSize: number,
   localMtime: number,
+  /** ★ 2026-09-07 issue #15：可选的内容摘要 */
+  digest?: ConflictDigestInfo,
 ): ConflictFileInfo {
   return {
     localPath,
@@ -183,6 +205,9 @@ export function buildDownloadConflictInfo(
     remoteDir: path.posix.dirname(remotePath),
     direction: 'download',
     isSamePane: false,
+    localDigest: digest?.localDigest ?? null,
+    remoteDigest: digest?.remoteDigest ?? null,
+    contentIdentical: isContentIdentical(digest),
   }
 }
 

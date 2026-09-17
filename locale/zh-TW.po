@@ -763,6 +763,18 @@ msgstr "邊框"
 msgid "settings.layout"
 msgstr "佈局"
 
+msgid "settings.font"
+msgstr "字體"
+
+msgid "settings.fontSize"
+msgstr "字號大小"
+
+msgid "settings.resetFont"
+msgstr "恢復預設字號"
+
+msgid "settings.fontHint"
+msgstr "調整 SFTP+ 面板內文字大小（11–18px）"
+
 msgid "settings.layoutAdaptive"
 msgstr "自適應"
 
@@ -927,6 +939,8 @@ msgid "settings.iconAdd"
 msgstr "新增規則"
 msgid "settings.iconDelete"
 msgstr "刪除"
+msgid "settings.iconDeleteConfirm"
+msgstr "確定刪除規則「{name}」嗎？此操作不可復原。"
 
 msgid "settings.iconLocked"
 msgstr "已鎖定（系統兜底圖示）"
@@ -954,14 +968,29 @@ msgid "settings.iconExtLockedHint"
 msgstr "預設檔案不可修改副檔名"
 msgid "settings.iconSvgNameHint"
 msgstr "檔案名稱"
+msgid "settings.iconRuleName"
+msgstr "規則名稱"
+msgid "settings.iconRuleNamePh"
+msgstr "例如：腳本、文件"
 msgid "settings.iconExtLabel"
 msgstr "副檔名"
 msgid "settings.iconErrorExtConflict"
 msgstr "副檔名「{ext}」已被圖示 {svg} 佔用"
 msgid "settings.iconErrorEmpty"
-msgstr "副檔名與 svg 檔名均不可為空"
+msgstr "規則名稱、副檔名與 svg 檔名均不可為空"
+msgid "settings.iconErrorEmptyName"
+msgstr "規則名稱不可為空"
+msgid "settings.iconErrorNameConflict"
+msgstr "規則名稱「{name}」已存在"
+msgid "settings.iconErrorNameSvgMismatch"
+msgstr "規則「{name}」已綁定圖示 {svg}，請使用相同檔名或換一個規則名稱"
 msgid "settings.iconErrorMissingSvg"
 msgstr "圖示目錄中找不到該 svg 檔案"
+msgid "settings.iconErrorInvalidExt"
+msgstr "副檔名格式不正確：「{ext}」。請使用如 .txt 或 txt，多個以空白/逗號分隔"
+
+msgid "settings.resetIcons"
+msgstr "恢復預設圖示設定"
 
 msgid "settings.hotkeys"
 msgstr "快捷鍵"
@@ -1370,3 +1399,55 @@ msgstr "打包加速"
 
 msgid "log.fileCount"
 msgstr "{n} 個檔案"
+
+msgid "settings.editableExtensions"
+msgstr "可檢視與編輯的副檔名"
+
+msgid "settings.editableExtensionsHint"
+msgstr "以空格分隔；支援 .conf、*.conf 或 conf。未開啟「檢視與編輯全部」時作為白名單。"
+msgid "settings.allowViewEditAllFiles"
+msgstr "允許檢視與編輯所有檔案類型"
+msgid "settings.allowViewEditAllFilesHint"
+msgstr "忽略副檔名限制；可檢視任意檔案，編輯時二進位內容仍會受保護。"
+
+msgid "conflict.digest"
+msgstr "內容摘要"
+
+msgid "conflict.contentIdentical"
+msgstr "內容實際相同，可安全略過"
+
+msgid "file.symlink"
+msgstr "符號連結"
+
+msgid "file.shortcut"
+msgstr "捷徑"
+
+msgid "transfer.skippedAsDuplicate"
+msgstr "已略過 · 內容相同"
+
+msgid "op.cannotCopyIntoSelf"
+msgstr "無法將資料夾複製到自身或其子目錄內: {name}"
+
+msgid "settings.tarAcceleration"
+msgstr "TAR 打包傳輸加速"
+
+msgid "settings.tarAccelerationDesc"
+msgstr "全新傳輸資料夾時自動使用 tar 壓縮包打包傳輸並在遠端/本機解壓，顯著提升大量小檔案傳輸速度；失敗時自動平滑回退到普通傳輸"
+
+msgid "settings.conflictDigest"
+msgstr "衝突時比對內容摘要"
+
+msgid "settings.conflictDigestDesc"
+msgstr "當檔案大小相同但修改時間不同時，計算內容摘要判斷檔案是否真的被修改（如 Git 切換分支後）。需要遠端具備 shell 執行權限；不可用時自動回退為依大小與修改時間判定"
+
+msgid "settings.conflictAutoSkip"
+msgstr "內容相同則自動略過"
+
+msgid "settings.conflictAutoSkipDesc"
+msgstr "兩端摘要均可取得且完全一致時，視為無衝突並靜默略過，不再彈出衝突框"
+
+msgid "settings.conflictDigestMaxSize"
+msgstr "摘要計算上限（MB）"
+
+msgid "settings.conflictDigestMaxSizeDesc"
+msgstr "超過此大小的檔案不計算摘要，一律按衝突處理，以免拖慢衝突偵測"

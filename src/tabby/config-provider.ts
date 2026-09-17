@@ -4,14 +4,15 @@
  *   包含界面设置、书签、路径记忆数据
  * 创建人：DD1024z + Deepseek-V4-Flash
  * 创建时间：2026-06-29
- * 修改人：DD1024z + Hy3 preview
- * 修改时间：2026-08-31 — 面板快捷键升级为多绑定：panelHotkeys 由 {key:string} 改为 {keys:string[]}
- *   （一动作可绑多个键，鼠标侧键以 Mouse3/Mouse4 混存其中）；新增 forward 动作项与 back 对称；
- *   默认：back=[Backspace, Mouse3]、forward=[Mouse4]，使原先硬编码的鼠标侧键变为可配置且行为不退化
+ * 修改人：DD1024z + Composer
+ * 修改时间：2026-09-17 — 合并为 allowViewEditAllFiles（允许查看与编辑所有类型）
  */
 import { ConfigProvider } from 'tabby-core'
 import type { Locale } from '../services/sftp-i18n.service'
 import { MOUSE_BACK_SPEC, MOUSE_FORWARD_SPEC } from './hotkey-util'
+
+/** 自定义文件图标规则：扩展名 → svg；name 为设置页分组/展示用规则名（可选，兼容旧配置） */
+export type FileTypeIconRule = { ext: string; svg: string; name?: string }
 
 /** 面板内置快捷键动作名；数组顺序即设置页展示顺序 */
 export const PANEL_HOTKEY_ACTIONS = [
@@ -50,6 +51,8 @@ export function defaultPanelHotkeys(): Record<PanelHotkeyAction, { keys: string[
 export interface SftpPlusPluginConfig {
   lang: '' | Locale
   layoutMode: string
+  /** 面板界面字号（px），默认 13 */
+  fontSize: number
   theme: string
   colorPrimary: string
   colorBg: string
@@ -69,10 +72,14 @@ export interface SftpPlusPluginConfig {
   openOnClick: 'double' | 'single'
   /** 查看器不支持的文件：开关开启时改用系统默认程序打开（而非提示不支持） */
   openUnsupportedInSystem: boolean
-  /** 在内置文本白名单之外，额外允许内置编辑器打开的扩展名（小写、无点）。 */
+  /** 在内置文本白名单之外，额外允许内置查看/编辑器打开的扩展名（小写、无点）；空 = 使用内置预置列表。 */
   editableFileExtensions: string[]
-  /** 忽略扩展名白名单，允许编辑所有非目录文件；二进制内容仍会受到保护。 */
-  allowEditAllFiles: boolean
+  /** 忽略扩展名白名单，允许查看与编辑所有非目录文件；编辑时二进制内容仍会受到保护。 */
+  allowViewEditAllFiles: boolean
+  /** @deprecated 已并入 allowViewEditAllFiles，保留以兼容旧配置读取 */
+  allowViewAllAsText?: boolean
+  /** @deprecated 已并入 allowViewEditAllFiles，保留以兼容旧配置读取 */
+  allowEditAllFiles?: boolean
   /** 面板内置操作快捷键：一动作可绑多个键（keys 为空数组 = 未绑定即禁用；enabled=false 为清除双保险标志）。
    *  鼠标侧键以 Mouse3（后退）/Mouse4（前进）混存于 keys 中，与键盘键同等参与匹配。 */
   panelHotkeys: {
@@ -104,14 +111,22 @@ export interface SftpPlusPluginConfig {
   defaultDownloadPath: string
   /** 自定义文件图标：全局 SVG 资源目录（本地绝对路径），空串 = 不使用自定义图标 */
   iconResourceDir: string
-  /** 自定义文件图标规则：扩展名（含点，如 .pdf）→ 资源目录内的 svg 文件名 */
-  fileTypeIcons: { ext: string; svg: string }[]
+  /** 自定义文件图标规则：扩展名（含点，如 .pdf）→ 资源目录内的 svg 文件名；可选 name 为规则名 */
+  fileTypeIcons: FileTypeIconRule[]
   /** 被禁用的内置图标 svg 文件名列表（这些图标不会用于自动扩展名匹配） */
   disabledIconSvgs: string[]
   /** 文件夹图标 svg 文件名（空串 = 使用 emoji 📁），用于文件列表中所有目录项 */
   folderIconSvg: string
   /** ★ 2026-08-11：隐藏关于区的插件作者信息 */
   hideAuthorInfo: boolean
+  /** ★ 2026-09-07 issue #15：冲突时计算文件内容摘要（识别「mtime 变了但内容没变」） */
+  conflictDigestEnabled: boolean
+  /** 内容确认相同时自动跳过，不弹冲突框 */
+  conflictAutoSkipSameContent: boolean
+  /** 摘要计算的单文件大小上限（MB），超过则跳过计算并按冲突处理 */
+  conflictDigestMaxSizeMB: number
+  /** 摘要算法：sha1 兼容性最好；sha256 在部分老旧环境无对应命令 */
+  conflictDigestAlgo: 'sha1' | 'sha256'
   paneCustomOrder: Array<'label' | 'path' | 'back' | 'forward' | 'up' | 'refresh' | 'home' | 'filter' | 'bookmark' | 'hidden'>
   /** 被隐藏的工具栏项 */
   paneHiddenItems: string[]
@@ -128,6 +143,7 @@ export function defaultSftpPlusConfig(): SftpPlusPluginConfig {
   return {
     lang: '',
     layoutMode: 'auto',
+    fontSize: 13,
     theme: '',
     colorPrimary: '',
     colorBg: '',
@@ -144,9 +160,9 @@ export function defaultSftpPlusConfig(): SftpPlusPluginConfig {
     openOnClick: 'double',
     openUnsupportedInSystem: true,
     editableFileExtensions: [],
-    allowEditAllFiles: false,
-  panelHotkeys: defaultPanelHotkeys(),
-    contextMenuOrder: ['upload', 'download', 'openLocal', 'viewFile', 'viewAsText', 'editFile', 'revealInExplorer', 'copy', 'cut', 'paste', 'rename', 'delete', 'chmod', 'details', 'newFolder', 'newFile', 'refresh', 'selectAll', 'selectInvert', 'copyPath'],
+    allowViewEditAllFiles: false,
+    panelHotkeys: defaultPanelHotkeys(),
+    contextMenuOrder: ['upload', 'download', 'openLocal', 'viewFile', 'editFile', 'revealInExplorer', 'copy', 'cut', 'paste', 'rename', 'delete', 'chmod', 'details', 'newFolder', 'newFile', 'refresh', 'selectAll', 'selectInvert', 'copyPath'],
     singleWorkspaceInstance: true,
     closeBookmarkPanelOnSelect: false,
     dateFormat: '',
@@ -161,12 +177,21 @@ export function defaultSftpPlusConfig(): SftpPlusPluginConfig {
     disabledIconSvgs: [],
     folderIconSvg: 'folder.svg',
     hideAuthorInfo: false,
+    conflictDigestEnabled: true,
+    conflictAutoSkipSameContent: true,
+    conflictDigestMaxSizeMB: 256,
+    conflictDigestAlgo: 'sha1',
     paneCustomOrder: ['label', 'back', 'forward', 'up', 'refresh', 'home', 'path', 'hidden', 'filter', 'bookmark'],
     paneHiddenItems: [],
     bookmarks: [],
+    // ★ 2026-09-14 F1 审计修复：pathMemory 仅作老备份导出/导入兼容字段保留（业务无写入方，勿删）
     pathMemory: {},
     transferLogs: [],
-    paneState: {},
+    // ★ 2026-09-14 F1 审计修复：__nonStructural 标记让 ConfigProxy 把空对象按「非结构成员」处理——
+    //   首次读取（real 无值）时执行 real[key]=clone 并剥离标记（Tabby 官方自举模式），
+    //   之后 paneState 下的深路径写入（perHost 路径记忆/布局/列宽等）才会真正落盘。
+    //   无此标记时空对象默认被当叶子成员，getter 返回脱离 _store 的临时克隆，深写永不持久化。
+    paneState: { __nonStructural: true } as Record<string, any>,
     panelGeometry: {},
   }
 }

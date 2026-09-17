@@ -1288,3 +1288,182 @@ msgstr "Paket tar"
 
 msgid "log.fileCount"
 msgstr "{n} berkas"
+
+msgid "settings.editableExtensions"
+msgstr "Ekstensi tambahan yang dapat diedit"
+
+msgid "settings.editableExtensionsHint"
+msgstr "Dipisah spasi. Menerima .conf, *.conf, atau conf. Daftar putih saat «lihat & edit semua» nonaktif."
+msgid "settings.allowViewEditAllFiles"
+msgstr "Izinkan melihat dan mengedit semua jenis file"
+
+msgid "settings.allowViewEditAllFilesHint"
+msgstr "Abaikan batasan ekstensi. File apa pun dapat dilihat; konten biner tetap dilindungi saat mengedit."
+
+msgid "conflict.digest"
+msgstr "Digest"
+
+msgid "conflict.contentIdentical"
+msgstr "Konten identik — aman untuk dilewati"
+
+msgid "file.symlink"
+msgstr "Tautan simbolik"
+
+msgid "file.shortcut"
+msgstr "Pintasan"
+
+msgid "file.copyAll"
+msgstr "Salin semua"
+
+msgid "file.copyImage"
+msgstr "Salin gambar"
+
+msgid "file.copyImageAddress"
+msgstr "Salin alamat gambar"
+
+msgid "transfer.skippedAsDuplicate"
+msgstr "Dilewati · konten identik"
+
+msgid "settings.font"
+msgstr "Font"
+
+msgid "settings.fontSize"
+msgstr "Ukuran font"
+
+msgid "settings.resetFont"
+msgstr "Reset ukuran font"
+
+msgid "settings.fontHint"
+msgstr "Sesuaikan ukuran teks di panel SFTP+ (11–18px)"
+
+msgid "settings.defaultUploadPath"
+msgstr "Jalur unggah default"
+
+msgid "settings.defaultUploadPathPh"
+msgstr "Direktori remote, mis. /home/user/uploads (kosong = remote saat ini)"
+
+msgid "settings.defaultDownloadPath"
+msgstr "Jalur unduh default"
+
+msgid "settings.defaultDownloadPathPh"
+msgstr "Direktori lokal, mis. C:\\Downloads (kosong = lokal saat ini)"
+
+msgid "settings.iconSettings"
+msgstr "Ikon jenis file"
+
+msgid "settings.iconResourceDir"
+msgstr "Direktori ikon"
+
+msgid "settings.iconResourceDirPh"
+msgstr "Direktori lokal berisi file svg, mis. C:\\icons"
+
+msgid "settings.iconSvgFile"
+msgstr "File SVG"
+
+msgid "settings.iconPreview"
+msgstr "Pratinjau"
+
+msgid "settings.iconAdd"
+msgstr "Tambah aturan"
+
+msgid "settings.iconDelete"
+msgstr "Hapus"
+
+msgid "settings.iconDeleteConfirm"
+msgstr "Hapus aturan \"{name}\"? Tindakan ini tidak dapat dibatalkan."
+
+msgid "settings.iconRuleHint"
+msgstr "Petakan ekstensi ke file SVG-nya."
+
+msgid "settings.builtinIcons"
+msgstr "Ikon bawaan"
+
+msgid "settings.builtinIconDir"
+msgstr "Direktori ikon bawaan"
+
+msgid "settings.builtinIconDesc"
+msgstr "Ikon SVG berikut dibundle dengan plugin. Taruh svg Anda di sini untuk memperluasnya."
+
+msgid "settings.iconEdit"
+msgstr "Edit"
+
+msgid "settings.iconDisable"
+msgstr "Nonaktifkan"
+
+msgid "settings.iconEnable"
+msgstr "Pulihkan"
+
+msgid "settings.iconAddRule"
+msgstr "Tambah aturan"
+
+msgid "settings.iconFolderHint"
+msgstr "Folder (default)"
+
+msgid "settings.iconFileHint"
+msgstr "File (default)"
+
+msgid "settings.iconExtLockedHint"
+msgstr "File default tidak dapat mengubah ekstensi"
+
+msgid "settings.iconSvgNameHint"
+msgstr "Nama file"
+
+msgid "settings.iconRuleName"
+msgstr "Nama aturan"
+
+msgid "settings.iconRuleNamePh"
+msgstr "mis. Scripts, Documents"
+
+msgid "settings.iconExtLabel"
+msgstr "Ekstensi"
+
+msgid "settings.iconErrorExtConflict"
+msgstr "Ekstensi \"{ext}\" sudah digunakan oleh ikon {svg}"
+
+msgid "settings.iconErrorEmpty"
+msgstr "Nama aturan, ekstensi, dan nama file svg tidak boleh kosong"
+
+msgid "settings.iconErrorEmptyName"
+msgstr "Nama aturan tidak boleh kosong"
+
+msgid "settings.iconErrorNameConflict"
+msgstr "Nama aturan \"{name}\" sudah ada"
+
+msgid "settings.iconErrorNameSvgMismatch"
+msgstr "Aturan \"{name}\" sudah terikat ke ikon {svg}; gunakan file yang sama atau nama lain"
+
+msgid "settings.iconErrorMissingSvg"
+msgstr "File svg tidak ditemukan di direktori ikon"
+
+msgid "settings.iconErrorInvalidExt"
+msgstr "Format ekstensi tidak valid: \"{ext}\". Gunakan .txt atau txt; pisahkan dengan spasi/koma"
+
+msgid "settings.resetIcons"
+msgstr "Reset pengaturan ikon"
+
+msgid "op.cannotCopyIntoSelf"
+msgstr "Tidak dapat menyalin folder ke dirinya sendiri atau subfoldernya: {name}"
+
+msgid "settings.tarAcceleration"
+msgstr "Akselerasi transfer TAR"
+
+msgid "settings.tarAccelerationDesc"
+msgstr "Mengemas transfer folder otomatis dengan tar untuk mempercepat file kecil; kembali ke transfer normal jika gagal/tidak didukung"
+
+msgid "settings.conflictDigest"
+msgstr "Digest konten saat konflik"
+
+msgid "settings.conflictDigestDesc"
+msgstr "Saat ukuran sama tetapi waktu ubah berbeda, hitung digest untuk memastikan file benar-benar berubah (mis. setelah ganti cabang Git). Memerlukan shell di host remote; jika tidak, perilaku lama"
+
+msgid "settings.conflictAutoSkip"
+msgstr "Lewati otomatis konten identik"
+
+msgid "settings.conflictAutoSkipDesc"
+msgstr "Jika kedua digest tersedia dan sama, anggap tanpa konflik dan lewati tanpa menanya"
+
+msgid "settings.conflictDigestMaxSize"
+msgstr "Batas ukuran digest (MB)"
+
+msgid "settings.conflictDigestMaxSizeDesc"
+msgstr "File lebih besar tidak di-digest dan selalu dianggap konflik agar deteksi tidak melambat"

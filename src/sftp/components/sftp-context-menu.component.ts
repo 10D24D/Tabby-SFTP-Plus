@@ -1,8 +1,7 @@
 ﻿/**
  * SFTP+ 右键菜单（文件列表 + 表头列配置）
- * 修改人：DD1024z + Hy3
- * 修改时间：2026-07-12 — 重命名/删除菜单项增加快捷键提示（F2 / Del）
- *              2026-08-10 — 新增"以文本方式查看"菜单项（viewAsText，对未预定义文件类型显示）
+ * 修改人：DD1024z + Composer
+ * 修改时间：2026-09-17 — 移除「以文本方式查看」菜单项（改由设置页「允许查看所有文件类型」承担）
  */
 import { Component, EventEmitter, Input, Output, ViewChild, ElementRef, AfterViewInit, OnChanges, SimpleChanges } from '@angular/core'
 
@@ -10,7 +9,7 @@ import { SftpI18nService } from '../../services/sftp-i18n.service'
 
 export type ContextMenuAction =
   | 'newFolder' | 'newFile' | 'rename' | 'delete'
-  | 'openLocal' | 'viewFile' | 'viewAsText' | 'editFile' | 'upload' | 'download'
+  | 'openLocal' | 'viewFile' | 'editFile' | 'upload' | 'download'
   | 'revealInExplorer' | 'chmod' | 'details'
   | 'copy' | 'cut' | 'paste' | 'refresh' | 'selectAll' | 'selectInvert' | 'copyPath'
 
@@ -48,7 +47,6 @@ export const FILE_MENU_REGISTRY: Record<ContextMenuAction, FileMenuItemDef> = {
   download:         { labelKey: 'app.download', category: 'transfer' },
   openLocal:        { labelKey: 'file.open', category: 'open' },
   viewFile:         { labelKey: 'file.view', category: 'open' },
-  viewAsText:       { labelKey: 'file.viewAsText', category: 'open' },
   editFile:         { labelKey: 'file.edit', category: 'open' },
   revealInExplorer: { labelKey: 'file.showInFolder', category: 'open' },
   copy:             { labelKey: 'file.copy', shortcut: '${mod}C', category: 'clipboard' },
@@ -67,7 +65,7 @@ export const FILE_MENU_REGISTRY: Record<ContextMenuAction, FileMenuItemDef> = {
 }
 
 export const DEFAULT_FILE_MENU_ORDER: ContextMenuAction[] = [
-  'upload', 'download', 'openLocal', 'viewFile', 'viewAsText', 'editFile', 'revealInExplorer',
+  'upload', 'download', 'openLocal', 'viewFile', 'editFile', 'revealInExplorer',
   'copy', 'cut', 'paste', 'rename', 'delete', 'chmod', 'details',
   'newFolder', 'newFile', 'refresh', 'selectAll', 'selectInvert', 'copyPath',
 ]
@@ -173,7 +171,6 @@ export class SftpContextMenuComponent implements OnChanges {
   @Input() clipboardHasEntries = false
   @Input() canView = false
   @Input() canEdit = false
-  @Input() canViewAsText = false
   @Input() canTransfer = false
   @Input() modKey = 'Ctrl'
   @Input() isZh = true
@@ -187,11 +184,6 @@ export class SftpContextMenuComponent implements OnChanges {
 
   get hasView(): boolean {
     return this.singleSelected && !!this.entry && !this.entry.isDirectory && this.canView
-  }
-
-  /** 未预定义文件类型的"以文本方式查看"：非目录 + 不在可查看列表中 */
-  get hasViewAsText(): boolean {
-    return this.singleSelected && !!this.entry && !this.entry.isDirectory && this.canViewAsText && !this.canView
   }
 
   get hasEdit(): boolean {
@@ -306,7 +298,6 @@ export class SftpContextMenuComponent implements OnChanges {
       case 'download': return this.hasDownload
       case 'openLocal': return this.hasLocalOpen
       case 'viewFile': return this.hasView
-      case 'viewAsText': return this.hasViewAsText
       case 'editFile': return this.hasEdit
       case 'revealInExplorer': return this.hasLocalReveal
       case 'copy': return this.hasSelection

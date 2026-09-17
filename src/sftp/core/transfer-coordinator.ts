@@ -2,8 +2,9 @@
  * 功能描述：SFTP+ transfer-coordinator 逻辑聚合模块（由旧 core 多文件合并）
  * 创建人：DD1024z + Hy3
  * 创建时间：2026-07-16
- * 修改人：DD1024z + Hy3
- * 修改时间：2026-08-02 — B19：SftpTransferPort 实现 stat 方法，支持 attrs 嵌套字段
+ * 修改人：DD1024z + Hy4 preview
+ * 修改时间：2026-09-07 — issue #15：host 新增 conflictDigestOptions，按配置装配 ContentDigestService 并注入冲突检测器
+ * 修改时间：2026-09-07 — issue #15+：detector 的 autoSkipSameContent 改为 callback（每次判定实时读 panel 字段），修复「关掉设置仍按默认 true 跑」的构造时序 bug
  * 合并来源：panel-transfer-coordinator, panel-transfer-runtime
  */
 
@@ -11,7 +12,7 @@ import * as fs from 'fs/promises'
 
 import { type SFTPFile } from '../../services/sftp.service'
 
-import { type ConflictDetectionPort, type ConflictQueuePort, SftpConflictDetector } from './conflict'
+import { type AutoSkippedInfo, type ConflictCheckOutcome, type ConflictDetectionPort, type ConflictQueuePort, SftpConflictDetector } from './conflict'
 
 import { DownloadDirUseCase, DownloadOneUseCase, MergeLocalDirUseCase, UploadPathUseCase } from './transfer-ops'
 
@@ -29,17 +30,30 @@ import { TarChannel } from './tar-channel'
 
 import { execSshCommand } from './path-utils'
 
+import { ContentDigestService, type DigestAlgo } from './digest'
+
 import { log } from '../../services/sftp-logger'
 ﻿/**
  * 传输用例协调器：组装 ports、冲突检测器与用例，供面板组件委托调用
  */
 
 
+/** ★ 2026-09-07 issue #15：冲突内容摘要设置（由面板按当前配置实时提供） */
+export interface ConflictDigestSettings {
+  enabled: boolean
+  /** 内容被确认相同时自动跳过（不弹冲突框） */
+  autoSkipSameContent: boolean
+  maxBytes: number
+  algo: DigestAlgo
+}
+
 export interface PanelTransferHost {
   sftpSession: unknown
   /** ★ 2026-08-11：SSH 会话（tar 打包通道经 exec 打包/解包；可为 null） */
   sshSession?: unknown
   mtimeToleranceMs: number
+  /** ★ 2026-09-07 issue #15：冲突内容摘要配置（返回 null / 不提供 = 关闭摘要，行为同旧版） */
+  conflictDigestOptions?(): ConflictDigestSettings | null
   localPath: string
   enqueueConflict(item: ConflictQueueItem): void
   showConflictDialog(): void
@@ -70,6 +84,12 @@ export interface PanelTransferHost {
     itemDone: number,
     currentItemSize?: number,
   ): void
+  /**
+   * ★ 2026-09-07 issue #15+：单个文件被「自动跳过」（内容已确认相同）时的回调。
+   * 协调器把 detector 的回调桥接到 host，由面板把对应传输记录标为「已跳过 · 内容相同」，
+   * 与「已成功」区分开——解决"重复拖相同文件看不到任何反馈"的问题。
+   */
+  onTransferSkipped?(info: AutoSkippedInfo): void
   // ★ 2026-08-10：传输方法返回 boolean（true=完整成功），供剪切粘贴删源前校验
   uploadTopLevel(remotePath: string, localPath: string): Promise<boolean>
   uploadRaw(remotePath: string, localPath: string): Promise<boolean>
@@ -97,9 +117,26 @@ export class PanelTransferCoordinator {
   private readonly mergeLocalDirUseCase: MergeLocalDirUseCase
 
   constructor(private readonly host: PanelTransferHost) {
+    // ★ 2026-09-07 issue #15：内容摘要服务（可选）。未启用时传 null，退化为仅 size+mtime 判定。
+    const digestSettings = host.conflictDigestOptions?.() ?? null
+    const digestService = digestSettings?.enabled
+      ? new ContentDigestService(() => host.sshSession ?? null, {
+          algo: digestSettings.algo,
+          maxBytes: digestSettings.maxBytes,
+        })
+      : null
     this.conflictDetection = new SftpConflictDetector(
       () => host.sftpSession as any,
       host.mtimeToleranceMs,
+      digestService,
+      // ★ 2026-09-07 issue #15+：必须是回调而非 boolean——
+      //   panel 在 ngOnInit 之前就已构造 coordinator，此时 _conflictAutoSkipSameContent 还是默认 true，
+      //   把当时的 boolean 固化进 detector 会导致"用户关了自动跳过、却仍按 true 跑"的 bug。
+      //   改为回调 → 每次判定实时读 panel 字段 → 设置变更即时生效。
+      () => host.conflictDigestOptions?.()?.autoSkipSameContent ?? true,
+      // ★ 2026-09-07 issue #15+：detector 命中「自动跳过」时同步回调 host.onTransferSkipped，
+      //   由面板把对应传输记录标为「已跳过 · 内容相同」。空函数兜底防止 host 未注册回调
+      (info) => { try { host.onTransferSkipped?.(info) } catch (e) { log.warn('onTransferSkipped host callback threw:', e) } },
     )
     const ports = this._buildPorts()
     this.downloadDirUseCase = new DownloadDirUseCase(
@@ -149,7 +186,7 @@ export class PanelTransferCoordinator {
     localPath: string,
     localSize: number,
     localMtime: number,
-  ): Promise<ConflictFileInfo | null> {
+  ): Promise<ConflictCheckOutcome> {
     return this.conflictDetection.checkUploadConflict(remotePath, localPath, localSize, localMtime)
   }
 
@@ -158,7 +195,7 @@ export class PanelTransferCoordinator {
     remotePath: string,
     remoteSize: number,
     remoteMtime: number,
-  ): Promise<ConflictFileInfo | null> {
+  ): Promise<ConflictCheckOutcome> {
     return this.conflictDetection.checkLocalConflict(localPath, remotePath, remoteSize, remoteMtime)
   }
 
@@ -178,7 +215,7 @@ export class PanelTransferCoordinator {
     const host = this.host
     return new TarChannel({
       hasSsh: () => !!host.sshSession,
-      exec: (cmd, timeoutMs) => execSshCommand(host.sshSession, cmd, timeoutMs),
+      exec: (cmd, timeoutMs, opts) => execSshCommand(host.sshSession, cmd, timeoutMs, opts),
       uploadFile: async (localPath, remotePath, onProgress, shouldAbort) => {
         const raw = host.sftpSession as any
         if (!raw) return false
@@ -355,6 +392,8 @@ export class PanelTransferRuntime {
    */
   private _queuedCancelKeys = new Map<string, number>()
   private static readonly QUEUED_CANCEL_TTL_MS = 10_000
+  /** 组件已销毁标记，防止异步回调对已销毁对象操作 */
+  private _disposed = false
 
   constructor(private readonly host: PanelTransferRuntimeHost) {}
 
@@ -399,7 +438,8 @@ export class PanelTransferRuntime {
   ): Promise<void> {
     // ★ 2026-08-10 修复：排队期间已被取消（竞态窗口内传输已启动）——
     //   直接 abort 底层传输且不认领/新建条目，避免"取消后文件照传、条目再现"
-    if (this.consumeQueuedCancel(direction, localPath)) {
+    // ★ 2026-09-14 F6：消费也带 remotePath（consumeQueuedCancel 兼容新旧两种键）
+    if (this.consumeQueuedCancel(direction, localPath, remotePath)) {
       try { await t.cancel?.() } catch { /* ignore */ }
       return
     }
@@ -684,6 +724,7 @@ export class PanelTransferRuntime {
   }
 
   dispose(): void {
+    this._disposed = true
     this._stopTransferTimer()
   }
 
@@ -834,6 +875,7 @@ export class PanelTransferRuntime {
         // ★ 2026-08-10：补 catch——流错误时避免 unhandled rejection（对比非 raw 分支已有 catch）
         // ★ 2026-08-15 修复 #1：流失败时标记 failed，避免 UI 僵尸态（最长等 15 分钟 stall 超时）
         uploadViaRawToTemp(rawSftp, remotePath, up, remoteOffset).catch(async (e: unknown) => {
+          if (this._disposed) return
           if (!up.isCancelled?.() && !up.isPaused()) {
             try { await up._markFailed?.() } catch {}
             log.error('Resume raw upload failed', e)
@@ -846,6 +888,7 @@ export class PanelTransferRuntime {
         up = new LocalPathFileUpload(localPath)
         // ★ 2026-08-15 修复 #1：标准 upload 失败也标记 failed
         this.host.sftpSession.upload(remotePath, up as any).catch(async (e: any) => {
+          if (this._disposed) return
           if (!up.isCancelled?.()) {
             try { await up._markFailed?.() } catch {}
             log.error('Resume upload failed', e)
@@ -962,7 +1005,8 @@ export class PanelTransferRuntime {
       log.warn('Raw SFTP open/read not available, fallback to full redownload')
       // 清理 .tmp，全量重下
       try { fsSync.unlinkSync(tmpPath) } catch {}
-      try { fsSync.unlinkSync(localPath) } catch {}
+      // ★ 2026-09-14 F10：不再预删 localPath——全量重下走 .tmp + rename 原子覆盖，无需先删；
+      //   若此处先 unlink 而重下中途失败，用户既有的完整本地文件就永久丢失（数据窗口）
       return this._resumeTransfer(entry, 'download', remotePath, localPath, 0)
     }
     const bufSize = 1024 * 1024

@@ -1292,3 +1292,182 @@ msgstr "Tar balíček"
 
 msgid "log.fileCount"
 msgstr "{n} souborů"
+
+msgid "settings.editableExtensions"
+msgstr "Další upravitelné přípony"
+
+msgid "settings.editableExtensionsHint"
+msgstr "Oddělujte mezerami. Přijímá .conf, *.conf nebo conf. Whitelist, když je „prohlížet a upravovat vše“ vypnuto."
+msgid "settings.allowViewEditAllFiles"
+msgstr "Povolit prohlížení a úpravy všech typů souborů"
+
+msgid "settings.allowViewEditAllFilesHint"
+msgstr "Ignorovat omezení přípon. Libovolný soubor lze prohlížet; při úpravách zůstává binární obsah chráněn."
+
+msgid "conflict.digest"
+msgstr "Digest"
+
+msgid "conflict.contentIdentical"
+msgstr "Obsah je stejný — lze bezpečně přeskočit"
+
+msgid "file.symlink"
+msgstr "Symbolický odkaz"
+
+msgid "file.shortcut"
+msgstr "Zástupce"
+
+msgid "file.copyAll"
+msgstr "Kopírovat vše"
+
+msgid "file.copyImage"
+msgstr "Kopírovat obrázek"
+
+msgid "file.copyImageAddress"
+msgstr "Kopírovat adresu obrázku"
+
+msgid "transfer.skippedAsDuplicate"
+msgstr "Přeskočeno · obsah stejný"
+
+msgid "settings.font"
+msgstr "Písmo"
+
+msgid "settings.fontSize"
+msgstr "Velikost písma"
+
+msgid "settings.resetFont"
+msgstr "Obnovit velikost písma"
+
+msgid "settings.fontHint"
+msgstr "Upravit velikost textu v panelu SFTP+ (11–18px)"
+
+msgid "settings.defaultUploadPath"
+msgstr "Výchozí cesta nahrávání"
+
+msgid "settings.defaultUploadPathPh"
+msgstr "Vzdálený adresář, např. /home/user/uploads (prázdné = aktuální vzdálený)"
+
+msgid "settings.defaultDownloadPath"
+msgstr "Výchozí cesta stahování"
+
+msgid "settings.defaultDownloadPathPh"
+msgstr "Místní adresář, např. C:\\Downloads (prázdné = aktuální místní)"
+
+msgid "settings.iconSettings"
+msgstr "Ikony typů souborů"
+
+msgid "settings.iconResourceDir"
+msgstr "Adresář ikon"
+
+msgid "settings.iconResourceDirPh"
+msgstr "Místní adresář s SVG, např. C:\\icons"
+
+msgid "settings.iconSvgFile"
+msgstr "Soubor SVG"
+
+msgid "settings.iconPreview"
+msgstr "Náhled"
+
+msgid "settings.iconAdd"
+msgstr "Přidat pravidlo"
+
+msgid "settings.iconDelete"
+msgstr "Smazat"
+
+msgid "settings.iconDeleteConfirm"
+msgstr "Smazat pravidlo „{name}“? Tuto akci nelze vrátit zpět."
+
+msgid "settings.iconRuleHint"
+msgstr "Namapovat přípony na soubory SVG."
+
+msgid "settings.builtinIcons"
+msgstr "Vestavěné ikony"
+
+msgid "settings.builtinIconDir"
+msgstr "Adresář vestavěných ikon"
+
+msgid "settings.builtinIconDesc"
+msgstr "Následující ikony SVG jsou součástí zásuvného modulu. Vložte sem vlastní svg pro rozšíření."
+
+msgid "settings.iconEdit"
+msgstr "Upravit"
+
+msgid "settings.iconDisable"
+msgstr "Zakázat"
+
+msgid "settings.iconEnable"
+msgstr "Obnovit"
+
+msgid "settings.iconAddRule"
+msgstr "Přidat pravidlo"
+
+msgid "settings.iconFolderHint"
+msgstr "Složka (výchozí)"
+
+msgid "settings.iconFileHint"
+msgstr "Soubor (výchozí)"
+
+msgid "settings.iconExtLockedHint"
+msgstr "Výchozí soubory nemohou měnit přípony"
+
+msgid "settings.iconSvgNameHint"
+msgstr "Název souboru"
+
+msgid "settings.iconRuleName"
+msgstr "Název pravidla"
+
+msgid "settings.iconRuleNamePh"
+msgstr "např. Scripts, Documents"
+
+msgid "settings.iconExtLabel"
+msgstr "Přípony"
+
+msgid "settings.iconErrorExtConflict"
+msgstr "Přípona „{ext}“ je již používána ikonou {svg}"
+
+msgid "settings.iconErrorEmpty"
+msgstr "Název pravidla, přípona a název SVG nesmí být prázdné"
+
+msgid "settings.iconErrorEmptyName"
+msgstr "Název pravidla nesmí být prázdný"
+
+msgid "settings.iconErrorNameConflict"
+msgstr "Název pravidla „{name}“ již existuje"
+
+msgid "settings.iconErrorNameSvgMismatch"
+msgstr "Pravidlo „{name}“ je již vázáno na ikonu {svg}; použijte stejný soubor nebo jiný název"
+
+msgid "settings.iconErrorMissingSvg"
+msgstr "Soubor SVG nebyl v adresáři ikon nalezen"
+
+msgid "settings.iconErrorInvalidExt"
+msgstr "Neplatný formát přípony: „{ext}“. Použijte .txt nebo txt; více oddělte mezerami/čárkami"
+
+msgid "settings.resetIcons"
+msgstr "Obnovit nastavení ikon"
+
+msgid "op.cannotCopyIntoSelf"
+msgstr "Nelze zkopírovat složku do sebe nebo její podsložky: {name}"
+
+msgid "settings.tarAcceleration"
+msgstr "Zrychlení přenosu TAR"
+
+msgid "settings.tarAccelerationDesc"
+msgstr "Automaticky balí přenosy složek do tar pro zrychlení malých souborů; při nepodpoře/chybě plynule přejde na běžný přenos"
+
+msgid "settings.conflictDigest"
+msgstr "Digest obsahu při konfliktu"
+
+msgid "settings.conflictDigestDesc"
+msgstr "Když se velikost shoduje, ale čas změny liší, spočítá digest, zda se soubor opravdu změnil (např. po přepnutí větve Git). Vyžaduje shell na vzdáleném hostiteli; jinak předchozí chování"
+
+msgid "settings.conflictAutoSkip"
+msgstr "Automaticky přeskočit stejný obsah"
+
+msgid "settings.conflictAutoSkipDesc"
+msgstr "Pokud jsou oba digesty dostupné a shodné, považovat za bez konfliktu a tiše přeskočit"
+
+msgid "settings.conflictDigestMaxSize"
+msgstr "Limit velikosti digestu (MB)"
+
+msgid "settings.conflictDigestMaxSizeDesc"
+msgstr "Větší soubory se nepočítají a vždy se berou jako konflikt, aby se nezpomalila detekce"

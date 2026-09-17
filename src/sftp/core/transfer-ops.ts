@@ -2,7 +2,8 @@
  * 功能描述：SFTP+ transfer-ops 逻辑聚合模块（由旧 core 多文件合并）
  * 创建人：DD1024z + Hy3
  * 创建时间：2026-07-16
- * 修改人：DD1024z + Hy3
+ * 修改人：DD1024z + Composer
+ * 修改时间：2026-09-17 — 目录冲突：本地大小用递归扫描结果，不再用 inode 的 Stats.size（常为 0）
  * 修改时间：2026-08-02 — B18：下载用例兼容 modified 为 Date/number/string 及 mtime 秒单位，避免远程修改时间被解析成 1970-01-01；B19 增加 sftp.stat 兜底与 attrs 嵌套字段解析；B24：目录冲突优先信任 readdir/payload 的 modified，stat 仅兜底且过滤 epoch 无效时间
  * 合并来源：download-use-cases, upload-use-cases
  */
@@ -210,14 +211,20 @@ export class DownloadDirUseCase {
               log.warn('stat fallback for folder download conflict failed:', remoteP, e)
             }
           }
-          const conflict = await this.ports.conflictDetection.checkLocalConflict(localP, remoteP, sz, remoteMtime)
-          if (conflict) {
+          const conflictResult = await this.ports.conflictDetection.checkLocalConflict(localP, remoteP, sz, remoteMtime)
+          if (conflictResult.kind === 'auto-skipped') {
+            // ★ 2026-09-07 issue #15+：内容已确认相同，跳过该子文件（不覆盖本地）。
+            log.info('[download-dir] auto-skipped (content identical):', remoteP)
+            return true
+          }
+          if (conflictResult.kind === 'conflict') {
+            const conflictInfo = conflictResult.info
             this.ports.conflictQueue.enqueue({
               localPath: localP,
               remoteDir: path.posix.dirname(remoteP),
               fileName: safeName,
               remotePath: remoteP,
-              localStat: { size: conflict.localSize, mtimeMs: conflict.localMtime } as Stats,
+              localStat: { size: conflictInfo.localSize, mtimeMs: conflictInfo.localMtime } as Stats,
               direction: 'download',
               remoteFileSize: sz,
               remoteFileMtime: remoteMtime,
@@ -343,16 +350,23 @@ export class DownloadOneUseCase {
     }
     if (remoteMtime == null) remoteMtime = 0
     log.info('[download-one] final remoteMtime:', remoteMtime)
-    const conflict = await this.ports.conflictDetection.checkLocalConflict(
+    const conflictResult = await this.ports.conflictDetection.checkLocalConflict(
       localPath, file.fullPath, file.size ?? 0, remoteMtime,
     )
-    if (conflict) {
+    if (conflictResult.kind === 'auto-skipped') {
+      // ★ 2026-09-07 issue #15+：内容已确认相同，跳过本次下载（不覆盖本地文件）。
+      //   detector 已通过构造回调同步通知 host 把对应的传输记录标为「已跳过」。
+      log.info('[download-one] auto-skipped (content identical):', file.fullPath)
+      return
+    }
+    if (conflictResult.kind === 'conflict') {
+      const conflictInfo = conflictResult.info
       this.ports.conflictQueue.enqueue({
         localPath,
         remoteDir: path.posix.dirname(file.fullPath),
         fileName: safeName,
         remotePath: file.fullPath,
-        localStat: { size: conflict.localSize, mtimeMs: conflict.localMtime } as Stats,
+        localStat: { size: conflictInfo.localSize, mtimeMs: conflictInfo.localMtime } as Stats,
         direction: 'download',
         remoteFileSize: file.size ?? 0,
         remoteFileMtime: remoteMtime,
@@ -360,6 +374,7 @@ export class DownloadOneUseCase {
       return
     }
 
+    // no-conflict：正常下载
     await this.ports.execution.downloadTopLevel(
       file.fullPath, localPath, file.mode, file.size,
     )
@@ -549,12 +564,24 @@ export class UploadPathUseCase {
           }
         }
 
+        // ★ 2026-09-17：冲突对话框展示「目录内容总大小」；fs.Stats.size 对目录无意义（Windows 常为 0）
+        let localContentSize = totalSize
+        if (localContentSize <= 0) {
+          try {
+            const s = await this.ports.localFs.scanDir(localPath)
+            localContentSize = s.size
+            if (itemCount <= 0) itemCount = s.count
+          } catch (e) {
+            log.warn('[upload-dir] scan local dir size for conflict failed:', localPath, e)
+          }
+        }
+
         this.ports.conflictQueue.enqueue({
           localPath,
           remoteDir,
           fileName: base,
           remotePath: remoteTarget,
-          localStat: st,
+          localStat: { size: localContentSize, mtimeMs: st.mtimeMs } as Stats,
           direction: 'upload',
           isDirectory: true,
           remoteFileSize,
@@ -621,11 +648,19 @@ export class UploadPathUseCase {
     topCtx?: FolderTransferCtx,
   ): Promise<boolean> {
     const base = path.basename(localPath)
-    const conflict = await this.ports.conflictDetection.checkUploadConflict(
+    const conflictResult = await this.ports.conflictDetection.checkUploadConflict(
       remoteTarget, localPath, st.size, st.mtimeMs,
     )
-    if (conflict) {
-      log.info('[upload-one] conflict for', remoteTarget, 'remoteSize:', conflict.remoteSize, 'remoteMtime:', conflict.remoteMtime)
+    if (conflictResult.kind === 'auto-skipped') {
+      // ★ 2026-09-07 issue #15+：内容已确认相同，跳过本次上传。
+      //   detector 已通过构造回调同步通知 host 把对应的传输记录标为「已跳过」。
+      log.info('[upload-file] auto-skipped (content identical):', remoteTarget)
+      // 对调用方而言视作"成功完成"（不阻断父级文件计数/进度推进），不调任何 download/upload。
+      return true
+    }
+    if (conflictResult.kind === 'conflict') {
+      const conflictInfo = conflictResult.info
+      log.info('[upload-one] conflict for', remoteTarget, 'remoteSize:', conflictInfo.remoteSize, 'remoteMtime:', conflictInfo.remoteMtime)
       this.ports.conflictQueue.enqueue({
         localPath,
         remoteDir,
@@ -633,8 +668,8 @@ export class UploadPathUseCase {
         remotePath: remoteTarget,
         localStat: st,
         direction: 'upload',
-        remoteFileSize: conflict.remoteSize,
-        remoteFileMtime: conflict.remoteMtime,
+        remoteFileSize: conflictInfo.remoteSize,
+        remoteFileMtime: conflictInfo.remoteMtime,
         // ★ 2026-08-11：携带来源传输 ctx（目录内子文件冲突时存在），解决成功后翻正记录
         transferCtx: topCtx,
       })
@@ -643,6 +678,7 @@ export class UploadPathUseCase {
       return true
     }
 
+    // no-conflict：正常上传
     if (isTop) {
       return this.ports.execution.uploadTopLevel(remoteTarget, localPath)
     }

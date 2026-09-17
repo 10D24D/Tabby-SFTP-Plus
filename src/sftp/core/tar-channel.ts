@@ -34,8 +34,9 @@ export type TarChannelResult = 'fallback' | 'success' | 'failed'
 
 export interface TarChannelDeps {
   hasSsh(): boolean
-  /** SSH exec 收集 stdout；timeoutMs 缺省由实现决定 */
-  exec(cmd: string, timeoutMs?: number): Promise<string>
+  /** SSH exec 收集 stdout；timeoutMs 缺省由实现决定
+   *  ★ 2026-09-14 F2：opts.retryOnEmpty=false 时禁用空输出重试（非幂等命令用） */
+  exec(cmd: string, timeoutMs?: number, opts?: { retryOnEmpty?: boolean }): Promise<string>
   /** 单文件 SFTP 传输（不产生 UI 条目）；onProgress 上报字节数，shouldAbort 返回 true 时中断 */
   uploadFile(localPath: string, remotePath: string, onProgress?: (bytes: number) => void, shouldAbort?: () => boolean): Promise<boolean>
   downloadFile(remotePath: string, localPath: string, size: number, onProgress?: (bytes: number) => void, shouldAbort?: () => boolean): Promise<boolean>
@@ -72,6 +73,11 @@ function runLocalTar(args: string[]): Promise<boolean> {
 /**
  * ★ 2026-08-26 C2：校验解包树全部落在 root 内（防 zip-slip）。
  * 遇越界路径返回 false；不跟随 symlink 递归（lstat）。
+ * ★ 2026-09-14 F4 审计修复：symlink 此前「只查链接本身在 root 下」被放行，
+ *   恶意 tar 包可携带指向 /etc/... 等沙箱外绝对路径的链接，落地后经
+ *   rename/fs.cp(dereference:false) 进入用户目录，后续覆盖操作会写穿沙箱。
+ *   现对每个 symlink 的目标做词法解析（readlink + resolve），逃出 root 即整体拒绝
+ *   （回退逐文件通道，其对 symlink 一律跳过，语义更严）。
  */
 async function assertExtractedUnderRoot(root: string): Promise<boolean> {
   const rootReal = await fs.realpath(root).catch(() => path.resolve(root))
@@ -85,10 +91,24 @@ async function assertExtractedUnderRoot(root: string): Promise<boolean> {
     }
     for (const e of entries) {
       const full = path.join(dir, e.name)
-      // symlink：只允许链接本身存在于 root 下，不跟随
+      if (e.isSymbolicLink()) {
+        // ★ F4：链接本身允许存在于 root 下，但其目标（词法解析后）必须也落在 root 内
+        let target: string
+        try {
+          target = await fs.readlink(full)
+        } catch {
+          return false
+        }
+        const resolved = path.resolve(path.dirname(full), target)
+        if (resolved !== rootReal && !resolved.startsWith(prefix)) {
+          log.warn('tar channel: symlink target escapes sandbox, rejected:', full, '->', target)
+          return false
+        }
+        continue
+      }
       let real: string
       try {
-        real = e.isSymbolicLink() ? full : await fs.realpath(full)
+        real = await fs.realpath(full)
       } catch {
         return false
       }
@@ -96,7 +116,7 @@ async function assertExtractedUnderRoot(root: string): Promise<boolean> {
         log.warn('tar channel: zip-slip rejected path:', real)
         return false
       }
-      if (e.isDirectory() && !e.isSymbolicLink()) {
+      if (e.isDirectory()) {
         if (!(await walk(full))) return false
       }
     }
@@ -252,11 +272,15 @@ export class TarChannel {
         `&& rm -rf ${shellQuotePosix(remoteExtractDir)} ` +
         `&& printf '${TAR_OK}\\n'`,
         REMOTE_TAR_TIMEOUT_MS,
+        // ★ 2026-09-14 F2：含 mv 的链非幂等——首次成功而标记丢失时重放，mv 会把源移进已存在的
+        //   remoteTarget 目录内（嵌套副本），禁用空输出重试，宁误报失败回退逐文件通道
+        { retryOnEmpty: false },
       )
       if (!new RegExp(`\\b${TAR_OK}\\b`).test(out)) {
         log.warn('tar channel: remote extract failed, fallback to regular sftp:', remoteTarget, out?.trim())
-        // 尽力清理临时解包目录及可能残留的部分目标
-        this.deps.exec(`rm -rf ${shellQuotePosix(remoteExtractDir)} ${shellQuotePosix(remoteTarget)}`).catch(() => {})
+        // ★ 2026-09-14 F3：只清理临时解包目录。mv 是同文件系统原子重命名，不产生「部分目标」残留；
+        //   此刻 remoteTarget 若存在，只可能是竞态/契约违背下的既有数据——删它会误删用户文件
+        this.deps.exec(`rm -rf ${shellQuotePosix(remoteExtractDir)}`).catch(() => {})
         folder.finish(ctx, false)
         return 'fallback'
       }
@@ -267,7 +291,8 @@ export class TarChannel {
     } catch (e) {
       log.warn('tar channel upload error, fallback to regular sftp:', remoteTarget, e)
       if (remoteExtractDir) {
-        this.deps.exec(`rm -rf ${shellQuotePosix(remoteExtractDir)} ${shellQuotePosix(remoteTarget)}`).catch(() => {})
+        // ★ 2026-09-14 F3：同上，只清理解包沙箱，不动 remoteTarget
+        this.deps.exec(`rm -rf ${shellQuotePosix(remoteExtractDir)}`).catch(() => {})
       }
       try { folder.finish(ctx, false) } catch { /* ignore */ }
       return 'fallback'

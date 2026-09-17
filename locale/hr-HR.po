@@ -640,8 +640,7 @@ msgstr "Klikni za postavljanje prečaca"
 msgid "settings.hotkeyConflict"
 msgstr "Sukob s: {names}"
 msgid "settings.hotkeyConflictConfirm"
-msgstr "Prečac {keys} već koristi: {names}
-IPAK ga povezati sa SFTP+? (Oba mogu pokrenuti.)"
+msgstr "Shortcut {keys} is already used by: {names}\nBind it to SFTP+ anyway? (Both may fire.)"
 msgid "settings.hotkeySaved"
 msgstr "Spremljeno i sinkronizirano u Tabby: {keys}"
 msgid "settings.hotkeyCleared"
@@ -1089,3 +1088,182 @@ msgstr "Tar paket"
 
 msgid "log.fileCount"
 msgstr "{n} datoteka"
+
+msgid "settings.editableExtensions"
+msgstr "Dodatne uređive ekstenzije"
+
+msgid "settings.editableExtensionsHint"
+msgstr "Odvojite razmacima. Prihvaća .conf, *.conf ili conf. Bijela lista kada je „pregledaj i uredi sve“ isključeno."
+msgid "settings.allowViewEditAllFiles"
+msgstr "Dopusti pregled i uređivanje svih tipova datoteka"
+
+msgid "settings.allowViewEditAllFilesHint"
+msgstr "Zanemari ograničenja ekstenzija. Bilo koju datoteku možete pregledati; binarni sadržaj ostaje zaštićen pri uređivanju."
+
+msgid "conflict.digest"
+msgstr "Sažetak"
+
+msgid "conflict.contentIdentical"
+msgstr "Sadržaj je identičan — sigurno za preskočiti"
+
+msgid "file.symlink"
+msgstr "Simbolička veza"
+
+msgid "file.shortcut"
+msgstr "Prečac"
+
+msgid "file.copyAll"
+msgstr "Kopiraj sve"
+
+msgid "file.copyImage"
+msgstr "Kopiraj sliku"
+
+msgid "file.copyImageAddress"
+msgstr "Kopiraj adresu slike"
+
+msgid "transfer.skippedAsDuplicate"
+msgstr "Preskočeno · identičan sadržaj"
+
+msgid "settings.font"
+msgstr "Font"
+
+msgid "settings.fontSize"
+msgstr "Veličina fonta"
+
+msgid "settings.resetFont"
+msgstr "Vrati veličinu fonta"
+
+msgid "settings.fontHint"
+msgstr "Prilagodi veličinu teksta u SFTP+ panelu (11–18px)"
+
+msgid "settings.defaultUploadPath"
+msgstr "Zadana putanja prijenosa"
+
+msgid "settings.defaultUploadPathPh"
+msgstr "Udaljeni direktorij, npr. /home/user/uploads (prazno = trenutni udaljeni)"
+
+msgid "settings.defaultDownloadPath"
+msgstr "Zadana putanja preuzimanja"
+
+msgid "settings.defaultDownloadPathPh"
+msgstr "Lokalni direktorij, npr. C:\\Downloads (prazno = trenutni lokalni)"
+
+msgid "settings.iconSettings"
+msgstr "Ikone tipova datoteka"
+
+msgid "settings.iconResourceDir"
+msgstr "Direktorij ikona"
+
+msgid "settings.iconResourceDirPh"
+msgstr "Lokalni direktorij sa svg datotekama, npr. C:\\icons"
+
+msgid "settings.iconSvgFile"
+msgstr "SVG datoteka"
+
+msgid "settings.iconPreview"
+msgstr "Pregled"
+
+msgid "settings.iconAdd"
+msgstr "Dodaj pravilo"
+
+msgid "settings.iconDelete"
+msgstr "Izbriši"
+
+msgid "settings.iconDeleteConfirm"
+msgstr "Izbrisati pravilo „{name}“? Ovo se ne može poništiti."
+
+msgid "settings.iconRuleHint"
+msgstr "Poveži ekstenzije s SVG datotekama."
+
+msgid "settings.builtinIcons"
+msgstr "Ugrađene ikone"
+
+msgid "settings.builtinIconDir"
+msgstr "Direktorij ugrađenih ikona"
+
+msgid "settings.builtinIconDesc"
+msgstr "Sljedeće SVG ikone dolaze s dodatkom. Dodajte vlastite svg datoteke ovdje za proširenje."
+
+msgid "settings.iconEdit"
+msgstr "Uredi"
+
+msgid "settings.iconDisable"
+msgstr "Onemogući"
+
+msgid "settings.iconEnable"
+msgstr "Vrati"
+
+msgid "settings.iconAddRule"
+msgstr "Dodaj pravilo"
+
+msgid "settings.iconFolderHint"
+msgstr "Mapa (zadano)"
+
+msgid "settings.iconFileHint"
+msgstr "Datoteka (zadano)"
+
+msgid "settings.iconExtLockedHint"
+msgstr "Zadane datoteke ne mogu mijenjati ekstenzije"
+
+msgid "settings.iconSvgNameHint"
+msgstr "Naziv datoteke"
+
+msgid "settings.iconRuleName"
+msgstr "Naziv pravila"
+
+msgid "settings.iconRuleNamePh"
+msgstr "npr. Scripts, Documents"
+
+msgid "settings.iconExtLabel"
+msgstr "Ekstenzije"
+
+msgid "settings.iconErrorExtConflict"
+msgstr "Ekstenzija „{ext}“ već je u upotrebi kod ikone {svg}"
+
+msgid "settings.iconErrorEmpty"
+msgstr "Naziv pravila, ekstenzija i naziv svg datoteke ne smiju biti prazni"
+
+msgid "settings.iconErrorEmptyName"
+msgstr "Naziv pravila ne smije biti prazan"
+
+msgid "settings.iconErrorNameConflict"
+msgstr "Naziv pravila „{name}“ već postoji"
+
+msgid "settings.iconErrorNameSvgMismatch"
+msgstr "Pravilo „{name}“ već je vezano uz ikonu {svg}; koristite istu datoteku ili drugi naziv"
+
+msgid "settings.iconErrorMissingSvg"
+msgstr "SVG datoteka nije pronađena u direktoriju ikona"
+
+msgid "settings.iconErrorInvalidExt"
+msgstr "Neispravan format ekstenzije: „{ext}“. Koristite .txt ili txt; više odvojite razmacima/zarezima"
+
+msgid "settings.resetIcons"
+msgstr "Vrati postavke ikona"
+
+msgid "op.cannotCopyIntoSelf"
+msgstr "Ne može se kopirati mapa u sebe ili podmapu: {name}"
+
+msgid "settings.tarAcceleration"
+msgstr "Ubrzanje TAR prijenosa"
+
+msgid "settings.tarAccelerationDesc"
+msgstr "Automatski pakira prijenose mapa tarom radi ubrzanja malih datoteka; pri grešci se vraća na normalni prijenos"
+
+msgid "settings.conflictDigest"
+msgstr "Sažetak sadržaja pri sukobu"
+
+msgid "settings.conflictDigestDesc"
+msgstr "Kad se veličina podudara, a vrijeme izmjene razlikuje, računa sažetak je li datoteka stvarno promijenjena (npr. nakon promjene Git grane). Zahtijeva shell na udaljenom hostu; inače staro ponašanje"
+
+msgid "settings.conflictAutoSkip"
+msgstr "Automatski preskoči identičan sadržaj"
+
+msgid "settings.conflictAutoSkipDesc"
+msgstr "Ako su oba sažetka dostupna i jednaka, tretiraj kao bez sukoba i tiho preskoči"
+
+msgid "settings.conflictDigestMaxSize"
+msgstr "Ograničenje veličine sažetka (MB)"
+
+msgid "settings.conflictDigestMaxSizeDesc"
+msgstr "Veće datoteke se ne sažimaju i uvijek se tretiraju kao sukob kako se ne bi usporilo otkrivanje"

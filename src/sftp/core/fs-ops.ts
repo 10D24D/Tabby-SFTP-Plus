@@ -13,6 +13,21 @@ import { execSshCommand } from './path-utils'
 import { ConcurrencyLimiter } from './concurrency'
 
 import { log } from '../../services/sftp-logger'
+
+/**
+ * ★ 2026-09-14 issue #17 修复：判断 child 是否落在 parent 之内（含相等）。
+ * 用于复制守卫，避免「把目录复制到自身或其子目录」导致无限递归
+ * （如 cp -a /a /a/a 在 BusyBox 上会无限循环 data3t/data3t/data3t/…）。
+ * @param posix true=远程 POSIX 路径；false=本地 OS 路径
+ */
+export function isPathInside(parent: string, child: string, posix = false): boolean {
+  const norm = posix ? path.posix.resolve(parent) : path.resolve(parent)
+  const normChild = posix ? path.posix.resolve(child) : path.resolve(child)
+  if (normChild === norm) return true
+  const sep = posix ? '/' : path.sep
+  return normChild.startsWith(norm + sep)
+}
+
 /* ── 递归删除 ───────────────────────────────────
  * failed: 可选，收集删除失败（被占用/无权限等）的路径，便于上层统一提示。
  * 失败时只记录到 failed 并继续处理同级其它项，避免单个占用文件中断整批删除。
@@ -110,7 +125,18 @@ async function copyFileWithRetry(src: string, dest: string, maxRetries = 3): Pro
   }
 }
 
-export async function copyLocalDir(src: string, dest: string): Promise<void> {
+/** ★ 2026-09-14 issue #17 修复 #18：递归深度上限，防止异常目录结构 / 自包含复制导致无限递归 */
+const LOCAL_COPY_MAX_DEPTH = 64
+
+export async function copyLocalDir(src: string, dest: string, depth = 0): Promise<void> {
+  // ★ 2026-09-14 issue #17：拒绝「目标落在源目录之内」（如把 /a 复制到 /a/a），
+  //   否则会无限递归 data3t/data3t/data3t/…，最终栈溢出或磁盘写满。
+  if (isPathInside(src, dest, false)) {
+    throw new Error('Cannot copy a directory into itself or its subdirectory: ' + src)
+  }
+  if (depth > LOCAL_COPY_MAX_DEPTH) {
+    throw new Error('Local copy exceeded max depth: ' + src)
+  }
   await fs.mkdir(dest, { recursive: true })
   for (const item of await fs.readdir(src, { withFileTypes: true })) {
     const srcP = path.join(src, item.name)
@@ -120,7 +146,7 @@ export async function copyLocalDir(src: string, dest: string): Promise<void> {
       continue
     }
     if (item.isDirectory()) {
-      await copyLocalDir(srcP, destP)
+      await copyLocalDir(srcP, destP, depth + 1)
     } else {
       await copyFileWithRetry(srcP, destP)
     }
@@ -157,6 +183,13 @@ export async function tryRemoteCpViaSsh(
   isDir: boolean,
 ): Promise<boolean> {
   if (!sshSession || !src || !dest || src === dest) return false
+  // ★ 2026-09-14 issue #17：拒绝「目标落在源目录之内」的请求（如 cp -a /a /a/a）。
+  //   BusyBox 的 cp 无自我包含检测，会无限递归 data3t/data3t/data3t/… 直到磁盘写满；
+  //   即便 GNU cp 会自我保护，这种复制也无意义，直接拒绝让上层回退/报错。
+  if (isPathInside(src, dest, true)) {
+    log.warn('Remote server-side cp refused: dest is inside src (would recurse):', src, '->', dest)
+    return false
+  }
   // 拒绝明显危险的空字节，避免截断命令
   if (src.includes('\0') || dest.includes('\0')) return false
   const flag = isDir ? '-a' : '-p'
@@ -164,7 +197,8 @@ export async function tryRemoteCpViaSsh(
     `cp ${flag} -- ${shellQuotePosix(src)} ${shellQuotePosix(dest)} ` +
     `&& printf 'SFTP_PLUS_CP_OK\\n' || printf 'SFTP_PLUS_CP_FAIL\\n'`
   try {
-    const out = await execSshCommand(sshSession, cmd)
+    // ★ 2026-09-14 F2：cp 非幂等——首次成功而标记丢失时空输出重放会把 src 复制进已存在的 dest（嵌套副本），禁用重试
+    const out = await execSshCommand(sshSession, cmd, 12000, { retryOnEmpty: false })
     if (/\bSFTP_PLUS_CP_OK\b/.test(out)) {
       log.info('Remote server-side cp OK:', src, '->', dest)
       return true
@@ -228,6 +262,11 @@ export async function copyRemoteDir(
   depth = 0,
 ): Promise<void> {
   if (!deps.hasSession()) return
+  // ★ 2026-09-14 issue #17：拒绝「目标落在源目录之内」（如把 /a 复制到 /a/a）。
+  //   既防止无自我检测能力的服务端 cp 无限递归，也避免下载+上传回退路径产生无意义的嵌套副本。
+  if (isPathInside(src, dest, true)) {
+    throw new Error('Cannot copy a directory into itself or its subdirectory: ' + src)
+  }
   if (depth > REMOTE_COPY_MAX_DEPTH) {
     throw new Error('Remote copy exceeded max depth: ' + src)
   }

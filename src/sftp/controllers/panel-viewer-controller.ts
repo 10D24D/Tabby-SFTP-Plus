@@ -3,9 +3,9 @@
  * 功能描述：承载文件查看（文本/图片预览）与编辑器（在系统中编辑、自动同步、保存回传）逻辑与状态，供浮动面板组件继承
  * 创建人：DD1024z + Hy3
  * 创建时间：2026-07-11
- * 修改人：DD1024z + Hy3
- * 修改时间：2026-08-08 — 图片预览支持同目录图片上一张/下一张切换（viewerImageList/viewerImageIndex/gotoViewerImage）
- *              2026-08-10 — 新增"以文本方式查看"功能（ctxViewFileAsText/forceText/_fillViewerFromBufferAsText）
+ * 修改人：DD1024z + Composer
+ * 修改时间：2026-09-17 — onEditorContentChange 仅在 dirty 翻转时触发视图刷新，减轻粘贴卡顿
+ *              2026-09-17 — 合并为 allowViewEditAllFiles；移除「以文本方式查看」
  */
 import * as fs from 'fs/promises'
 import * as fsSync from 'fs'
@@ -17,7 +17,7 @@ import {
   isViewableRemoteFileType, isEditableRemoteFileType, isImageFile,
   isBinaryBuffer, bufferToText, bufferToDataUrl,
   isRemoteFileTooLargeForView,
-  getViewMaxBytes, formatBytesLimit, EDIT_TEXT_MAX_BYTES, VIEW_TEXT_MAX_BYTES,
+  getViewMaxBytes, formatBytesLimit, EDIT_TEXT_MAX_BYTES,
 } from '../core/file-utils'
 import {
   downloadRemoteToBuffer, downloadRemoteToTempFile, writeTextToFile,
@@ -47,10 +47,10 @@ export abstract class SftpPanelViewerController extends SftpPanelColumnControlle
     _startTime: number,
     _failReason?: TransferLogEntry['failReason'],
   ): void { /* overridden by subclass */ }
-  /** 可由面板覆写，从设置读取额外允许编辑的扩展名。 */
+  /** 可由面板覆写，从设置读取可查看/编辑的文本扩展名白名单。 */
   protected getCustomEditableExtensions(): string[] { return [] }
-  /** 可由面板覆写，允许所有非目录文件绕过扩展名白名单。二进制保护仍然生效。 */
-  protected getAllowEditAllFiles(): boolean { return false }
+  /** 可由面板覆写：忽略扩展名白名单，允许查看与编辑所有非目录文件。 */
+  protected getAllowViewEditAllFiles(): boolean { return false }
 
   // ===== 文件查看 / 编辑 状态字段（从组件抽取） =====
   // ========== 文件查看 / 编辑 ==========
@@ -90,6 +90,8 @@ export abstract class SftpPanelViewerController extends SftpPanelColumnControlle
   _editorFileWatcher: fsSync.FSWatcher | null = null
 
   protected _editorWatchDebounce: ReturnType<typeof setTimeout> | null = null
+  /** 限制外部编辑器频繁保存导致 watch 回调堆积：两次实际同步间隔不低于 800ms */
+  private _editorWatchLastSync = 0
 
   // ===== 在系统中打开相关字段 =====
   protected _openPathKeyupHandler: ((ev: KeyboardEvent) => void) | null = null
@@ -100,15 +102,6 @@ export abstract class SftpPanelViewerController extends SftpPanelColumnControlle
       await this._viewLocalFile(this.contextMenuEntry as LocalEntry | null)
     } else {
       await this._viewRemoteFile(this.contextMenuEntry as SFTPFile | null)
-    }
-  }
-
-  /** "以文本方式查看"：跳过预定义文件类型检查，强制以文本模式打开 */
-  async ctxViewFileAsText(): Promise<void> {
-    if (this.contextMenuPane === 'local') {
-      await this._viewLocalFileAsText(this.contextMenuEntry as LocalEntry | null)
-    } else {
-      await this._viewRemoteFileAsText(this.contextMenuEntry as SFTPFile | null)
     }
   }
 
@@ -129,22 +122,6 @@ export abstract class SftpPanelViewerController extends SftpPanelColumnControlle
     } catch (e) {
       this.viewerError = this.i18n.t('viewer.loadFailed')
       log.error('View local file failed', e)
-    } finally {
-      this.viewerLoading = false
-      this.cdr.detectChanges()
-    }
-  }
-
-  /** 以文本方式查看本地文件（跳过文件类型预检查） */
-  protected async _viewLocalFileAsText(entry: LocalEntry | null): Promise<void> {
-    if (!this._prepareViewer(entry, false, true)) return
-    /* 强制文本模式不设置图片导航 */
-    try {
-      const buf = await readLocalFileToBuffer(entry!.linkTarget || entry!.fullPath)
-      await this._fillViewerFromBufferAsText(buf, entry!.name)
-    } catch (e) {
-      this.viewerError = this.i18n.t('viewer.loadFailed')
-      log.error('View local file as text failed', e)
     } finally {
       this.viewerLoading = false
       this.cdr.detectChanges()
@@ -178,51 +155,18 @@ export abstract class SftpPanelViewerController extends SftpPanelColumnControlle
     }
   }
 
-  /** 以文本方式查看远程文件（跳过文件类型预检查） */
-  protected async _viewRemoteFileAsText(entry: SFTPFile | null): Promise<void> {
-    if (!this._prepareViewer(entry, true, true)) return
-    /* 强制文本模式不设置图片导航 */
-    const gen = ++this._viewerGen
-    try {
-      const buf = await downloadRemoteToBuffer(
-        this.sftpSession!, entry.fullPath, entry.size ?? 0, entry.mode,
-        VIEW_TEXT_MAX_BYTES,
-      )
-      if (gen !== this._viewerGen) return
-      await this._fillViewerFromBufferAsText(buf, entry.name)
-      await this._cleanupViewerTemp()
-      this.viewerTempPath = await writeBufferToTemp(buf, entry.name)
-      this.viewerSystemPath = this.viewerTempPath
-    } catch (e) {
-      if (gen !== this._viewerGen) return
-      this.viewerError = this.i18n.t('viewer.loadFailed')
-      log.error('View remote file as text failed', e)
-    } finally {
-      if (gen === this._viewerGen) {
-        this.viewerLoading = false
-        this.cdr.detectChanges()
-      }
-    }
-  }
-
   /** 查看器公共校验 + 状态初始化：条目有效性、文件类型、大小限制、viewer 状态重置 */
-  private _prepareViewer(entry: { name: string; fullPath: string; size?: number; isDirectory?: boolean } | null, isRemote: boolean, forceText = false): boolean {
+  private _prepareViewer(entry: { name: string; fullPath: string; size?: number; isDirectory?: boolean } | null, isRemote: boolean): boolean {
     if (!entry || entry.isDirectory) return false
     if (isRemote && (!this.connected || !this.sftpSession)) return false
     this.closeContextMenu()
-    if (!forceText && !isViewableRemoteFileType(entry.name)) {
+    const allowAll = this.getAllowViewEditAllFiles()
+    if (!isViewableRemoteFileType(entry.name, this.getCustomEditableExtensions(), allowAll)) {
       this.showToast(this.i18n.t('viewer.typeNotSupported'))
       return false
     }
     const size = entry.size ?? 0
-    if (forceText) {
-      /* 强制文本模式：统一用文本上限 */
-      if (size > VIEW_TEXT_MAX_BYTES) {
-        const limit = formatBytesLimit(VIEW_TEXT_MAX_BYTES)
-        this._showViewerError(entry.name, entry.fullPath, limit, false)
-        return false
-      }
-    } else if (isRemoteFileTooLargeForView(entry.name, size)) {
+    if (isRemoteFileTooLargeForView(entry.name, size, this.getCustomEditableExtensions(), allowAll)) {
       const limit = formatBytesLimit(getViewMaxBytes(entry.name))
       this._showViewerError(entry.name, entry.fullPath, limit, isImageFile(entry.name))
       return false
@@ -231,7 +175,7 @@ export abstract class SftpPanelViewerController extends SftpPanelColumnControlle
     this.viewerFileName = entry.name
     this.viewerDisplayPath = entry.fullPath
     if (!isRemote) this.viewerSystemPath = entry.fullPath
-    this.viewerMode = forceText ? 'text' : (isImageFile(entry.name) ? 'image' : 'text')
+    this.viewerMode = isImageFile(entry.name) ? 'image' : 'text'
     this.viewerVisible = true
     this.viewerLoading = true
     return true
@@ -262,17 +206,13 @@ export abstract class SftpPanelViewerController extends SftpPanelColumnControlle
     if (isImageFile(fileName)) {
       this.viewerImageUrl = bufferToDataUrl(buf, fileName)
     } else if (isBinaryBuffer(buf)) {
-      this.viewerError = this.i18n.t('viewer.binaryNotSupported')
-    } else {
-      this.viewerTextContent = bufferToText(buf).text
-    }
-  }
-
-  /** 强制文本模式填充：始终尝试文本解码，二进制时显示警告 */
-  private async _fillViewerFromBufferAsText(buf: Buffer, fileName: string): Promise<void> {
-    if (isBinaryBuffer(buf)) {
-      this.viewerTextContent = bufferToText(buf).text
-      this.showToast(this.i18n.t('viewer.binaryShownAsText'))
+      if (this.getAllowViewEditAllFiles()) {
+        // 「查看全部」开启：二进制也以文本解码展示（与旧「以文本方式查看」一致）
+        this.viewerTextContent = bufferToText(buf).text
+        this.showToast(this.i18n.t('viewer.binaryShownAsText'))
+      } else {
+        this.viewerError = this.i18n.t('viewer.binaryNotSupported')
+      }
     } else {
       this.viewerTextContent = bufferToText(buf).text
     }
@@ -342,7 +282,7 @@ export abstract class SftpPanelViewerController extends SftpPanelColumnControlle
     return isEditableRemoteFileType(
       fileName,
       this.getCustomEditableExtensions(),
-      this.getAllowEditAllFiles(),
+      this.getAllowViewEditAllFiles(),
     )
   }
 
@@ -477,6 +417,10 @@ export abstract class SftpPanelViewerController extends SftpPanelColumnControlle
     if (!this.editorVisible || !this.editorLocalPath || this.editorLoading || this.editorSaving) return
     // ★ 2026-08-26：面板内已有未保存编辑时，不让外部 watch 静默覆盖内存内容
     if (this.editorDirty) return
+    // ★ 限制外部编辑器频繁保存导致 watch 回调堆积：两次实际同步间隔不低于 800ms
+    const now = Date.now()
+    if (now - this._editorWatchLastSync < 800) return
+    this._editorWatchLastSync = now
     try {
       const text = await readTextFromFile(this.editorLocalPath)
       this.zone.run(() => {
@@ -614,7 +558,9 @@ export abstract class SftpPanelViewerController extends SftpPanelColumnControlle
 
   onEditorContentChange(value: string): void {
     this.editorContent = value
-    this.editorDirty = value !== this.editorOriginalContent
+    const dirty = value !== this.editorOriginalContent
+    if (dirty === this.editorDirty) return
+    this.editorDirty = dirty
   }
 
   async saveEditor(): Promise<void> {

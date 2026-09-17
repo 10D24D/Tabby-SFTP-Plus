@@ -3,7 +3,7 @@
  * 修改人：DD1024z + Hy3
  * 修改时间：2026-07-24
  */
-import { Component, ElementRef, EventEmitter, Input, OnChanges, Output, SimpleChanges, ViewChild } from '@angular/core'
+import { Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, Output, SimpleChanges, ViewChild } from '@angular/core'
 
 import { SftpI18nService } from '../../services/sftp-i18n.service'
 
@@ -133,7 +133,7 @@ import { SftpI18nService } from '../../services/sftp-i18n.service'
     .delete-action-perm { color: #f44336; }
   `],
 })
-export class SftpDeleteDialogComponent implements OnChanges {
+export class SftpDeleteDialogComponent implements OnChanges, OnDestroy {
   @Input() visible = false
   @Input() batch = false
   @Input() batchText = ''
@@ -151,11 +151,23 @@ export class SftpDeleteDialogComponent implements OnChanges {
 
   @ViewChild('overlayEl', { static: false }) overlayEl?: ElementRef<HTMLDivElement>
 
+  private _focusTimer: ReturnType<typeof setTimeout> | null = null
+
   // ★ 修复：对话框显示时把焦点移入 overlay（tabindex=-1 可聚焦但不进入 Tab 序列），
   //   确保回车/Esc 的 keydown 能落到 overlay 的 onKeyDown（此前 overlay 不可聚焦、焦点在面板外，回车无法确认）
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['visible'] && this.visible) {
-      setTimeout(() => this.overlayEl?.nativeElement?.focus())
+      this._focusTimer = setTimeout(() => {
+        this._focusTimer = null
+        this.overlayEl?.nativeElement?.focus()
+      })
+    }
+  }
+
+  ngOnDestroy(): void {
+    if (this._focusTimer) {
+      clearTimeout(this._focusTimer)
+      this._focusTimer = null
     }
   }
 

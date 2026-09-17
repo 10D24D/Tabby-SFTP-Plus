@@ -1088,3 +1088,182 @@ msgstr "Tar-pakket"
 
 msgid "log.fileCount"
 msgstr "{n} lêers"
+
+msgid "settings.editableExtensions"
+msgstr "Bykomende wysigbare uitbreidings"
+
+msgid "settings.editableExtensionsHint"
+msgstr "Skei met spasies. Aanvaar .conf, *.conf of conf. Witlys wanneer “besigtig & wysig alles” af is."
+msgid "settings.allowViewEditAllFiles"
+msgstr "Laat besigtiging en wysiging van alle lêertipes toe"
+
+msgid "settings.allowViewEditAllFilesHint"
+msgstr "Ignoreer uitbreidingsbeperkings. Enige lêer kan besigtig word; binêre inhoud bly beskerm tydens wysiging."
+
+msgid "conflict.digest"
+msgstr "Samevatting"
+
+msgid "conflict.contentIdentical"
+msgstr "Inhoud is identies — veilig om oor te slaan"
+
+msgid "file.symlink"
+msgstr "Simboliese skakel"
+
+msgid "file.shortcut"
+msgstr "Kortpad"
+
+msgid "file.copyAll"
+msgstr "Kopieer alles"
+
+msgid "file.copyImage"
+msgstr "Kopieer prent"
+
+msgid "file.copyImageAddress"
+msgstr "Kopieer prentadres"
+
+msgid "transfer.skippedAsDuplicate"
+msgstr "Oorgeslaan · inhoud identies"
+
+msgid "settings.font"
+msgstr "Lettertipe"
+
+msgid "settings.fontSize"
+msgstr "Lettergrootte"
+
+msgid "settings.resetFont"
+msgstr "Stel lettergrootte terug"
+
+msgid "settings.fontHint"
+msgstr "Pas teksgrootte in die SFTP+-paneel aan (11–18px)"
+
+msgid "settings.defaultUploadPath"
+msgstr "Verstek-oplaaipad"
+
+msgid "settings.defaultUploadPathPh"
+msgstr "Afgeleë gids, bv. /home/user/uploads (leeg = huidige afgeleë gids)"
+
+msgid "settings.defaultDownloadPath"
+msgstr "Verstek-aflaaipad"
+
+msgid "settings.defaultDownloadPathPh"
+msgstr "Plaaslike gids, bv. C:\\Downloads (leeg = huidige plaaslike gids)"
+
+msgid "settings.iconSettings"
+msgstr "Lêertipe-ikone"
+
+msgid "settings.iconResourceDir"
+msgstr "Ikongids"
+
+msgid "settings.iconResourceDirPh"
+msgstr "Plaaslike gids met svg-lêers, bv. C:\\icons"
+
+msgid "settings.iconSvgFile"
+msgstr "SVG-lêer"
+
+msgid "settings.iconPreview"
+msgstr "Voorskou"
+
+msgid "settings.iconAdd"
+msgstr "Voeg reël by"
+
+msgid "settings.iconDelete"
+msgstr "Skrap"
+
+msgid "settings.iconDeleteConfirm"
+msgstr "Skrap reël \"{name}\"? Dit kan nie ontdoen word nie."
+
+msgid "settings.iconRuleHint"
+msgstr "Koppel uitbreidings aan hul SVG-lêers."
+
+msgid "settings.builtinIcons"
+msgstr "Ingeboude ikone"
+
+msgid "settings.builtinIconDir"
+msgstr "Ingeboude-ikongids"
+
+msgid "settings.builtinIconDesc"
+msgstr "Die volgende SVG-ikone word met die inprop gebundel. Sit jou eie svg’s hier om dit uit te brei."
+
+msgid "settings.iconEdit"
+msgstr "Wysig"
+
+msgid "settings.iconDisable"
+msgstr "Deaktiveer"
+
+msgid "settings.iconEnable"
+msgstr "Herstel"
+
+msgid "settings.iconAddRule"
+msgstr "Voeg reël by"
+
+msgid "settings.iconFolderHint"
+msgstr "Gids (verstek)"
+
+msgid "settings.iconFileHint"
+msgstr "Lêer (verstek)"
+
+msgid "settings.iconExtLockedHint"
+msgstr "Versteklêers kan nie uitbreidings verander nie"
+
+msgid "settings.iconSvgNameHint"
+msgstr "Lêernaam"
+
+msgid "settings.iconRuleName"
+msgstr "Reëlnaam"
+
+msgid "settings.iconRuleNamePh"
+msgstr "bv. Scripts, Documents"
+
+msgid "settings.iconExtLabel"
+msgstr "Uitbreidings"
+
+msgid "settings.iconErrorExtConflict"
+msgstr "Uitbreiding \"{ext}\" word reeds deur ikoon {svg} gebruik"
+
+msgid "settings.iconErrorEmpty"
+msgstr "Reëlnaam, uitbreiding en svg-lêernaam mag nie leeg wees nie"
+
+msgid "settings.iconErrorEmptyName"
+msgstr "Reëlnaam mag nie leeg wees nie"
+
+msgid "settings.iconErrorNameConflict"
+msgstr "Reëlnaam \"{name}\" bestaan reeds"
+
+msgid "settings.iconErrorNameSvgMismatch"
+msgstr "Reël \"{name}\" is reeds aan ikoon {svg} gebind; gebruik dieselfde lêer of ’n ander naam"
+
+msgid "settings.iconErrorMissingSvg"
+msgstr "Die svg-lêer is nie in die ikongids gevind nie"
+
+msgid "settings.iconErrorInvalidExt"
+msgstr "Ongeldige uitbreidingformaat: \"{ext}\". Gebruik .txt of txt; skei meer met spasies/kommas"
+
+msgid "settings.resetIcons"
+msgstr "Stel ikooninstellings terug"
+
+msgid "op.cannotCopyIntoSelf"
+msgstr "Kan nie ’n gids na homself of ’n subgids kopieer nie: {name}"
+
+msgid "settings.tarAcceleration"
+msgstr "TAR-oordragversnelling"
+
+msgid "settings.tarAccelerationDesc"
+msgstr "Pak gids-oordragte outomaties met tar om klein lêers te versnel; val terug na normale oordrag as dit misluk"
+
+msgid "settings.conflictDigest"
+msgstr "Inhoudsamevatting by konflik"
+
+msgid "settings.conflictDigestDesc"
+msgstr "Wanneer grootte ooreenstem maar wysigingstyd verskil, bereken ’n samevatting om te sien of die lêer regtig verander het (bv. na Git-takwissel). Vereis shell op die afgeleë gasheer; anders vorige gedrag"
+
+msgid "settings.conflictAutoSkip"
+msgstr "Slaan outomaties identiese inhoud oor"
+
+msgid "settings.conflictAutoSkipDesc"
+msgstr "As albei samevattings beskikbaar en gelyk is, behandel as geen konflik en slaan stil oor"
+
+msgid "settings.conflictDigestMaxSize"
+msgstr "Grootteperk vir samevatting (MB)"
+
+msgid "settings.conflictDigestMaxSizeDesc"
+msgstr "Groter lêers word nie opgesom nie en altyd as konflik behandel om opsporing nie te vertraag nie"

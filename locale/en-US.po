@@ -61,6 +61,13 @@ msgstr "Modified"
 msgid "conflict.path"
 msgstr "Path"
 
+# ★ 2026-09-07 issue #15：内容摘要（用于识别「mtime 变了但内容没变」）
+msgid "conflict.digest"
+msgstr "Digest"
+
+msgid "conflict.contentIdentical"
+msgstr "Content is identical — safe to skip"
+
 msgid "conflict.cancel"
 msgstr "Cancel"
 
@@ -392,6 +399,12 @@ msgstr "Directory reporting enabled, syncing…"
 msgid "path.cwdSetupFailed"
 msgstr "Failed to enable. Check remote permissions or shell type"
 
+msgid "file.symlink"
+msgstr "Symbolic link"
+
+msgid "file.shortcut"
+msgstr "Shortcut"
+
 msgid "file.name"
 msgstr "Name"
 
@@ -596,6 +609,9 @@ msgstr "Cancel current"
 msgid "transfer.paused"
 msgstr "Paused"
 
+msgid "transfer.skippedAsDuplicate"
+msgstr "Skipped · content identical"
+
 msgid "transfer.inProgress"
 msgstr "In Progress"
 
@@ -773,6 +789,18 @@ msgstr "Border"
 msgid "settings.layout"
 msgstr "Layout"
 
+msgid "settings.font"
+msgstr "Font"
+
+msgid "settings.fontSize"
+msgstr "Font size"
+
+msgid "settings.resetFont"
+msgstr "Reset font size"
+
+msgid "settings.fontHint"
+msgstr "Adjust text size inside the SFTP+ panel (11–18px)"
+
 msgid "settings.layoutAdaptive"
 msgstr "Adaptive"
 
@@ -915,17 +943,14 @@ msgid "settings.openUnsupportedInSystemDesc"
 msgstr "Files the viewer cannot handle (e.g. .pdf/.docx) will be opened with the OS default app instead of showing an \"unsupported\" message."
 
 msgid "settings.editableExtensions"
-msgstr "Additional editable extensions"
+msgstr "Viewable & editable extensions"
 
 msgid "settings.editableExtensionsHint"
-msgstr "Separate with commas, spaces, or semicolons. Accepts .conf, *.conf, or conf."
-
-msgid "settings.allowEditAllFiles"
-msgstr "Allow editing all file types"
-
-msgid "settings.allowEditAllFilesHint"
-msgstr "Ignore extension restrictions. Binary content remains protected to avoid corrupting files in a text editor."
-
+msgstr "Space-separated. Accepts .conf, *.conf, or conf. Used as the whitelist when \"view & edit all\" is off."
+msgid "settings.allowViewEditAllFiles"
+msgstr "Allow viewing and editing all file types"
+msgid "settings.allowViewEditAllFilesHint"
+msgstr "Ignore extension restrictions. Any file can be viewed; binary content remains protected when editing."
 msgid "settings.transferSection"
 msgstr "Transfer"
 
@@ -943,7 +968,6 @@ msgid "settings.iconResourceDir"
 msgstr "Icon directory"
 msgid "settings.iconResourceDirPh"
 msgstr "Local dir containing the svg files, e.g. C:\\icons"
-msgstr "Extension"
 msgid "settings.iconSvgFile"
 msgstr "SVG file"
 msgid "settings.iconPreview"
@@ -952,6 +976,8 @@ msgid "settings.iconAdd"
 msgstr "Add rule"
 msgid "settings.iconDelete"
 msgstr "Delete"
+msgid "settings.iconDeleteConfirm"
+msgstr "Delete rule \"{name}\"? This cannot be undone."
 
 msgid "settings.iconLocked"
 msgstr "Locked (system default rule, cannot be deleted)"
@@ -979,14 +1005,29 @@ msgid "settings.iconExtLockedHint"
 msgstr "Default files cannot change extensions"
 msgid "settings.iconSvgNameHint"
 msgstr "File name"
+msgid "settings.iconRuleName"
+msgstr "Rule name"
+msgid "settings.iconRuleNamePh"
+msgstr "e.g. Scripts, Documents"
 msgid "settings.iconExtLabel"
 msgstr "Extensions"
 msgid "settings.iconErrorExtConflict"
 msgstr "Extension \"{ext}\" is already used by icon {svg}"
 msgid "settings.iconErrorEmpty"
-msgstr "Extension and svg file name must not be empty"
+msgstr "Rule name, extension and svg file name must not be empty"
+msgid "settings.iconErrorEmptyName"
+msgstr "Rule name must not be empty"
+msgid "settings.iconErrorNameConflict"
+msgstr "Rule name \"{name}\" already exists"
+msgid "settings.iconErrorNameSvgMismatch"
+msgstr "Rule \"{name}\" is already bound to icon {svg}; use the same file or choose another rule name"
 msgid "settings.iconErrorMissingSvg"
 msgstr "The svg file was not found in the icon directory"
+msgid "settings.iconErrorInvalidExt"
+msgstr "Invalid extension format: \"{ext}\". Use forms like .txt or txt; separate multiple with spaces/commas"
+
+msgid "settings.resetIcons"
+msgstr "Reset icon settings"
 
 msgid "settings.hotkeys"
 msgstr "Shortcuts"
@@ -1153,6 +1194,9 @@ msgstr "Chmod failed: {reason}"
 msgid "op.failed"
 msgstr "Operation failed: {reason}"
 
+msgid "op.cannotCopyIntoSelf"
+msgstr "Cannot copy a folder into itself or its subfolder: {name}"
+
 msgid "notify.deleteFailed"
 msgstr "{n} item(s) failed to delete (maybe in use or no permission)"
 
@@ -1298,6 +1342,25 @@ msgstr "TAR Transfer Acceleration"
 
 msgid "settings.tarAccelerationDesc"
 msgstr "Automatically package folder transfers with tar to dramatically speed up small files; falls back smoothly to normal transfer if unsupported or failed"
+
+# ★ 2026-09-07 issue #15：冲突内容摘要设置
+msgid "settings.conflictDigest"
+msgstr "Content Digest on Conflict"
+
+msgid "settings.conflictDigestDesc"
+msgstr "When size matches but modification time differs, compute a content digest to tell whether the file really changed (e.g. after switching Git branches). Requires shell access on the remote host; falls back to the old behavior when unavailable"
+
+msgid "settings.conflictAutoSkip"
+msgstr "Auto-skip Identical Content"
+
+msgid "settings.conflictAutoSkipDesc"
+msgstr "If both digests are available and equal, treat it as no conflict and skip silently instead of prompting"
+
+msgid "settings.conflictDigestMaxSize"
+msgstr "Digest Size Limit (MB)"
+
+msgid "settings.conflictDigestMaxSizeDesc"
+msgstr "Files larger than this are not digested and are always treated as conflicts, to avoid slowing down conflict detection"
 
 msgid "file.sizeCalculate"
 msgstr "Calculate"

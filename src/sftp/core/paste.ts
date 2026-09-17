@@ -2,8 +2,9 @@
  * 功能描述：SFTP+ paste 逻辑聚合模块（由旧 core 多文件合并）
  * 创建人：DD1024z + Hy3
  * 创建时间：2026-07-16
- * 修改人：DD1024z + Hy3
- * 修改时间：2026-07-25 — safeEntryName 防路径穿越
+ * 修改人：DD1024z + Composer
+ * 修改时间：2026-09-17 — 目录冲突预检补齐远程 mtime（与拖拽上传一致，避免粘贴显示 1970）
+ *              2026-07-25 — safeEntryName 防路径穿越
  * 合并来源：paste-use-case, panel-paste-adapter
  */
 
@@ -11,7 +12,7 @@ import * as path from 'path'
 
 import { type Stats } from 'fs'
 
-import { pasteEntryKey } from './conflict'
+import { pasteEntryKey, parseRemoteMtime } from './conflict'
 
 import { safeEntryName } from './path-utils'
 
@@ -19,7 +20,7 @@ import { type ConflictQueueItem } from './panel-types'
 
 import * as fs from 'fs/promises'
 
-import { copyLocalDir, copyRemoteDir, deleteLocalRecursive, deleteRemoteRecursive, tryRemoteCpViaSsh } from './fs-ops'
+import { copyLocalDir, copyRemoteDir, deleteLocalRecursive, deleteRemoteRecursive, isPathInside, tryRemoteCpViaSsh } from './fs-ops'
 
 
 import { log } from '../../services/sftp-logger'
@@ -65,7 +66,15 @@ export interface PasteFsPort {
   deleteRemoteRecursive(path: string): Promise<void>
   localDirExists(path: string): Promise<boolean>
   statLocal(path: string): Promise<Stats | null>
-  readdirRemote(parentDir: string): Promise<Array<{ name: string; size?: number; modified?: Date }>>
+  /** 目录内容总大小（与拖拽上传预扫描一致，供冲突框直接展示） */
+  scanLocalDir?(dirPath: string): Promise<{ size: number; count: number }>
+  readdirRemote(parentDir: string): Promise<Array<{
+    name: string
+    size?: number
+    modified?: Date | number | string
+    mtime?: number
+    attrs?: { size?: number; mtime?: number; modified?: Date | number | string }
+  }>>
 }
 
 export interface PasteConflictPort {
@@ -94,6 +103,10 @@ export interface PastePorts {
   conflict: PasteConflictPort
   pending: PastePendingPort
   ui: PasteUiPort
+  /** ★ 2026-09-14 issue #17：用于复制守卫被拦截时向用户提示（如「不能复制到自身内」） */
+  notify: {
+    error(key: string, params?: Record<string, string | number>): void
+  }
 }
 
 // ─── 用例实现 ───────────────────────────────────────────────
@@ -124,30 +137,55 @@ export class PasteUseCase {
         if (source === 'local' && destPane === 'remote') {
           if (await this.ports.conflict.checkRemotePathExists(destFilePath, true)) {
             const st = await this.ports.fs.statLocal(entry.fullPath ?? '')
+            // ★ 2026-09-17：与拖拽上传一致，从父目录 listing 取远程目录真实 mtime
+            //   （sftp.stat 对目录常返回 epoch，不填则冲突框显示 1970-01-01）
+            const remoteMeta = await this._remoteListingMeta(destPath, safeName)
+            // 本地目录 fs.Stats.size 无意义；预扫内容总大小，冲突框可直接展示免二次扫描
+            let localContentSize = 0
+            const localPath = entry.fullPath ?? ''
+            if (localPath && this.ports.fs.scanLocalDir) {
+              try {
+                const scanned = await this.ports.fs.scanLocalDir(localPath)
+                localContentSize = scanned?.size ?? 0
+              } catch (e) {
+                log.warn('[paste] scanLocalDir for conflict failed:', localPath, e)
+              }
+            }
             this.ports.conflict.enqueue({
-              localPath: entry.fullPath ?? '',
+              localPath,
               remoteDir: destPath,
               fileName: safeName,
-                remotePath: destFilePath,
-                localStat: (st ?? { size: 0, mtimeMs: Date.now() }) as Stats,
-                direction: 'upload',
-                isDirectory: true,
-                entryKey: pasteEntryKey(entry),
-                mode,
+              remotePath: destFilePath,
+              localStat: {
+                size: localContentSize,
+                mtimeMs: st?.mtimeMs ?? Date.now(),
+              } as Stats,
+              direction: 'upload',
+              isDirectory: true,
+              remoteFileSize: remoteMeta.size,
+              remoteFileMtime: remoteMeta.mtimeMs,
+              entryKey: pasteEntryKey(entry),
+              mode,
             })
           }
         } else if (source === 'remote' && destPane === 'local') {
           if (await this.ports.fs.localDirExists(destFilePath)) {
+            const remoteMeta = await this._remoteListingMeta(
+              path.posix.dirname(entry.fullPath ?? ''),
+              safeName,
+            )
             this.ports.conflict.enqueue({
               localPath: destFilePath,
               remoteDir: path.posix.dirname(entry.fullPath ?? ''),
               fileName: safeName,
-                remotePath: entry.fullPath ?? '',
-                localStat: { size: 0, mtimeMs: Date.now() } as Stats,
-                direction: 'download',
-                isDirectory: true,
-                entryKey: pasteEntryKey(entry),
-                mode,
+              remotePath: entry.fullPath ?? '',
+              localStat: { size: 0, mtimeMs: Date.now() } as Stats,
+              direction: 'download',
+              isDirectory: true,
+              remoteFileSize: remoteMeta.size ?? entry.size,
+              remoteFileMtime: remoteMeta.mtimeMs ?? entry.mtimeMs,
+              entryKey: pasteEntryKey(entry),
+              mode,
             })
           }
         }
@@ -175,8 +213,8 @@ export class PasteUseCase {
             const found = remoteEntries.find(e => e.name === name)
             if (found) {
               destStat = {
-                size: found.size ?? 0,
-                mtimeMs: found.modified?.getTime?.() ?? Date.now(),
+                size: found.size ?? found.attrs?.size ?? 0,
+                mtimeMs: parseRemoteMtime(found) ?? Date.now(),
               } as Stats
             }
           } catch { /* ignore */ }
@@ -242,6 +280,14 @@ export class PasteUseCase {
       ? path.resolve(srcPath) === path.resolve(destFilePath)
       : srcPath === destFilePath) {
       log.warn('_pasteSamePane self-copy skipped:', srcPath)
+      return
+    }
+    // ★ 2026-09-14 issue #17：防御「把目录粘贴/复制到自身或其子目录内」（如 /a 粘贴进 /a/a），
+    //   否则会触发无限递归复制（BusyBox cp 无自我包含检测）。入口即拦截并给出明确提示，
+    //   与底层 copyLocalDir/copyRemoteDir 的守卫形成纵深防御。
+    if (entry.isDirectory && isPathInside(srcPath, destFilePath, destPane !== 'local')) {
+      log.warn('_pasteSamePane refused copy into self:', srcPath, '->', destFilePath)
+      this.ports.notify.error('op.cannotCopyIntoSelf', { name: entry.name })
       return
     }
     if (destPane === 'local') {
@@ -358,14 +404,35 @@ export class PasteUseCase {
       mode,
     }
   }
+
+  /** 从父目录 listing 读取目标条目 size/mtime（目录 stat 常为 epoch，listing 更可靠） */
+  private async _remoteListingMeta(
+    parentDir: string,
+    name: string,
+  ): Promise<{ size?: number; mtimeMs?: number }> {
+    if (!parentDir || !name) return {}
+    try {
+      const entries = await this.ports.fs.readdirRemote(parentDir)
+      const found = entries.find(e => e.name === name)
+      if (!found) return {}
+      const sz = found.size ?? found.attrs?.size
+      const mtimeMs = parseRemoteMtime(found)
+      return {
+        size: sz != null && Number.isFinite(Number(sz)) ? Number(sz) : undefined,
+        mtimeMs,
+      }
+    } catch (e) {
+      log.warn('[paste] readdir remote listing meta failed:', parentDir, name, e)
+      return {}
+    }
+  }
 }
 
 /**
  * 粘贴基础设施适配器
- * 修改人：DD1024z + Hy3
- * 修改时间：2026-07-12
- *   copyLocalFile 加底层 realpath 自我拷贝守卫（fs.copyFile(src,src) 会清空文件），
- *   兜住所有上层调用方与路径格式差异；加诊断日志定位"重命名后文件变空白"
+ * 修改人：DD1024z + Composer
+ * 修改时间：2026-09-17 — readdirRemote 透传 attrs/mtime；接入 scanLocalDir 供目录冲突预扫
+ *              2026-07-12 — copyLocalFile 加底层 realpath 自我拷贝守卫
  */
 
 
@@ -376,6 +443,8 @@ export interface PanelPasteHost {
   effectiveLang: string
   i18n: { t(key: string, params?: Record<string, string | number>): string }
   notifications: { error?(msg: string, detail: string): void } | null
+  /** ★ 2026-09-17：粘贴目录冲突预扫本地内容总大小 */
+  scanLocalDir?(dirPath: string): Promise<{ size: number; count: number }>
 
   uploadFile(remotePath: string, localPath: string): Promise<boolean>
   downloadFile(remotePath: string, localPath: string, mode?: number, size?: number): Promise<boolean>
@@ -459,6 +528,11 @@ export class PanelPasteAdapter {
         downloadDirectory: (remoteSrc, localDestParent) =>
           host.downloadDirectory(remoteSrc, localDestParent),
       },
+      notify: {
+        error: (key, params) => {
+          try { host.notifications?.error?.(host.i18n.t(key, params), '') } catch { /* ignore */ }
+        },
+      },
       fs: {
         copyLocalDir: (src, dest) => copyLocalDir(src, dest),
         copyLocalFile: async (src, dest) => {
@@ -483,9 +557,18 @@ export class PanelPasteAdapter {
         deleteRemoteRecursive: (p) => deleteRemoteRecursive(host.sftpSession as any, p),
         localDirExists: (p) => fs.stat(p).then(() => true).catch(() => false),
         statLocal: (p) => fs.stat(p).catch(() => null),
+        scanLocalDir: host.scanLocalDir
+          ? (p) => host.scanLocalDir!(p)
+          : undefined,
         readdirRemote: async (parentDir) => {
           const entries = await (host.sftpSession as any).readdir(parentDir)
-          return entries.map((e: any) => ({ name: e.name, size: e.size, modified: e.modified }))
+          return entries.map((e: any) => ({
+            name: e.name,
+            size: e.size ?? e.attrs?.size,
+            modified: e.modified ?? e.attrs?.modified,
+            mtime: e.mtime ?? e.attrs?.mtime,
+            attrs: e.attrs,
+          }))
         },
       },
       conflict: {

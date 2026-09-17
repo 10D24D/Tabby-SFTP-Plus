@@ -1090,3 +1090,182 @@ msgstr "Pacote tar"
 
 msgid "log.fileCount"
 msgstr "{n} ficheiros"
+
+msgid "settings.editableExtensions"
+msgstr "Extensões editáveis adicionais"
+
+msgid "settings.editableExtensionsHint"
+msgstr "Separados por espaços. Aceita .conf, *.conf ou conf. Lista branca quando «ver e editar tudo» está desativado."
+msgid "settings.allowViewEditAllFiles"
+msgstr "Permitir visualizar e editar todos os tipos de ficheiro"
+
+msgid "settings.allowViewEditAllFilesHint"
+msgstr "Ignora restrições de extensão. Qualquer ficheiro pode ser visualizado; o conteúdo binário permanece protegido ao editar."
+
+msgid "conflict.digest"
+msgstr "Resumo"
+
+msgid "conflict.contentIdentical"
+msgstr "Conteúdo idêntico — seguro ignorar"
+
+msgid "file.symlink"
+msgstr "Ligação simbólica"
+
+msgid "file.shortcut"
+msgstr "Atalho"
+
+msgid "file.copyAll"
+msgstr "Copiar tudo"
+
+msgid "file.copyImage"
+msgstr "Copiar imagem"
+
+msgid "file.copyImageAddress"
+msgstr "Copiar endereço da imagem"
+
+msgid "transfer.skippedAsDuplicate"
+msgstr "Ignorado · conteúdo idêntico"
+
+msgid "settings.font"
+msgstr "Tipo de letra"
+
+msgid "settings.fontSize"
+msgstr "Tamanho do tipo de letra"
+
+msgid "settings.resetFont"
+msgstr "Repor tamanho do tipo de letra"
+
+msgid "settings.fontHint"
+msgstr "Ajustar o tamanho do texto no painel SFTP+ (11–18px)"
+
+msgid "settings.defaultUploadPath"
+msgstr "Caminho de carregamento predefinido"
+
+msgid "settings.defaultUploadPathPh"
+msgstr "Diretório remoto, ex.: /home/user/uploads (vazio = remoto atual)"
+
+msgid "settings.defaultDownloadPath"
+msgstr "Caminho de transferência predefinido"
+
+msgid "settings.defaultDownloadPathPh"
+msgstr "Diretório local, ex.: C:\\Downloads (vazio = local atual)"
+
+msgid "settings.iconSettings"
+msgstr "Ícones de tipo de ficheiro"
+
+msgid "settings.iconResourceDir"
+msgstr "Diretório de ícones"
+
+msgid "settings.iconResourceDirPh"
+msgstr "Diretório local com os SVG, ex.: C:\\icons"
+
+msgid "settings.iconSvgFile"
+msgstr "Ficheiro SVG"
+
+msgid "settings.iconPreview"
+msgstr "Pré-visualização"
+
+msgid "settings.iconAdd"
+msgstr "Adicionar regra"
+
+msgid "settings.iconDelete"
+msgstr "Eliminar"
+
+msgid "settings.iconDeleteConfirm"
+msgstr "Eliminar a regra \"{name}\"? Isto não pode ser anulado."
+
+msgid "settings.iconRuleHint"
+msgstr "Mapear extensões para os respetivos ficheiros SVG."
+
+msgid "settings.builtinIcons"
+msgstr "Ícones incorporados"
+
+msgid "settings.builtinIconDir"
+msgstr "Diretório de ícones incorporados"
+
+msgid "settings.builtinIconDesc"
+msgstr "Os seguintes ícones SVG vêm com o suplemento. Coloque os seus SVG aqui para os alargar."
+
+msgid "settings.iconEdit"
+msgstr "Editar"
+
+msgid "settings.iconDisable"
+msgstr "Desativar"
+
+msgid "settings.iconEnable"
+msgstr "Restaurar"
+
+msgid "settings.iconAddRule"
+msgstr "Adicionar regra"
+
+msgid "settings.iconFolderHint"
+msgstr "Pasta (predefinida)"
+
+msgid "settings.iconFileHint"
+msgstr "Ficheiro (predefinido)"
+
+msgid "settings.iconExtLockedHint"
+msgstr "Ficheiros predefinidos não podem alterar extensões"
+
+msgid "settings.iconSvgNameHint"
+msgstr "Nome do ficheiro"
+
+msgid "settings.iconRuleName"
+msgstr "Nome da regra"
+
+msgid "settings.iconRuleNamePh"
+msgstr "ex.: Scripts, Documents"
+
+msgid "settings.iconExtLabel"
+msgstr "Extensões"
+
+msgid "settings.iconErrorExtConflict"
+msgstr "A extensão \"{ext}\" já é usada pelo ícone {svg}"
+
+msgid "settings.iconErrorEmpty"
+msgstr "Nome da regra, extensão e nome do SVG não podem ficar vazios"
+
+msgid "settings.iconErrorEmptyName"
+msgstr "O nome da regra não pode ficar vazio"
+
+msgid "settings.iconErrorNameConflict"
+msgstr "O nome da regra \"{name}\" já existe"
+
+msgid "settings.iconErrorNameSvgMismatch"
+msgstr "A regra \"{name}\" já está associada ao ícone {svg}; use o mesmo ficheiro ou outro nome"
+
+msgid "settings.iconErrorMissingSvg"
+msgstr "O ficheiro SVG não foi encontrado no diretório de ícones"
+
+msgid "settings.iconErrorInvalidExt"
+msgstr "Formato de extensão inválido: \"{ext}\". Use .txt ou txt; separe vários com espaços/vírgulas"
+
+msgid "settings.resetIcons"
+msgstr "Repor ícones"
+
+msgid "op.cannotCopyIntoSelf"
+msgstr "Não é possível copiar uma pasta para si própria ou subpasta: {name}"
+
+msgid "settings.tarAcceleration"
+msgstr "Aceleração de transferência TAR"
+
+msgid "settings.tarAccelerationDesc"
+msgstr "Empacota automaticamente pastas com tar para acelerar ficheiros pequenos; volta à transferência normal se não suportado ou falhar"
+
+msgid "settings.conflictDigest"
+msgstr "Resumo de conteúdo em conflito"
+
+msgid "settings.conflictDigestDesc"
+msgstr "Quando o tamanho coincide mas a data difere, calcula um resumo para saber se o ficheiro realmente mudou (ex.: após trocar branch Git). Requer shell remoto; senão, comportamento anterior"
+
+msgid "settings.conflictAutoSkip"
+msgstr "Ignorar automaticamente conteúdo idêntico"
+
+msgid "settings.conflictAutoSkipDesc"
+msgstr "Se ambos os resumos estiverem disponíveis e iguais, trate como sem conflito e ignore em silêncio"
+
+msgid "settings.conflictDigestMaxSize"
+msgstr "Limite de tamanho do resumo (MB)"
+
+msgid "settings.conflictDigestMaxSizeDesc"
+msgstr "Ficheiros maiores não recebem resumo e são sempre tratados como conflito, para não atrasar a deteção"

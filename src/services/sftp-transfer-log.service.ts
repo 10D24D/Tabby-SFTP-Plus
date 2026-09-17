@@ -35,6 +35,11 @@ export type TransferLogEntry = {
   /** ★ 2026-09-03：目录传输的文件总数。仅标准模式预扫描后记录（快速模式未知不记、
    *  tar 打包通道走整包不记）；单文件传输无此字段。0 表示未知/已被 tar 模式取代 */
   fileCount?: number
+  /** ★ 2026-09-07 issue #15+：本条目因「内容已确认相同」被自动跳过，未实际传输。
+   *  与 success:true 共存——成功语义是「传输意图已完成」，跳过也是意图达成。
+   *  UI 通过这个字段区分「真的下载/上传了」与「内容相同未传」，
+   *  解决「重复拖同一个文件看不到任何反馈」的问题。 */
+  skippedAsDuplicate?: { reason: 'content-identical'; algo?: 'sha1' | 'sha256'; at: number }
 }
 
 const STORAGE_KEY = 'sftp-plus-transfer-logs'

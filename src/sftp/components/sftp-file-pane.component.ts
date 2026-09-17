@@ -132,8 +132,12 @@ export type PaneSortAction = { col: string }
                 <img *ngIf="iconSrc(e) as src" class="custom-file-icon" [src]="src" [alt]="e.name" draggable="false" />
                 <ng-container *ngIf="!iconSrc(e)">📄</ng-container>
               </ng-container>
+              <!-- ★ 2026-09-08 issue #16：符号链接 / 快捷方式在图标右下角叠加 ↗ 角标 -->
+              <span class="link-badge" *ngIf="isLinkEntry(e)" [title]="linkBadgeTitle(e)">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 10.5 L10.5 5.5 M7 5.5 H10.5 V9"/></svg>
+              </span>
             </span>
-            <span class="name" [attr.title]="e.name">{{ inaccessiblePrefix(e) }}{{ e.name }}</span>
+            <span class="name" [attr.title]="e.name">{{ inaccessiblePrefix(e) }}{{ displayName(e) }}</span>
             <span *ngFor="let col of visibleCols; trackBy: trackByCol" class="{{col}}" [attr.title]="colValue(col, e)">{{ colValue(col, e) }}</span>
           </div>
           <div class="pane-empty" *ngIf="showEmpty">
@@ -178,7 +182,7 @@ export class SftpFilePaneComponent {
   /** 自定义图标：用户指定的 SVG 资源目录（本地绝对路径，可空） */
   @Input() iconBaseDir = ''
   /** 自定义图标规则：扩展名（含点，如 .pdf）→ 资源目录内的 svg 文件名 */
-  @Input() fileTypeIcons: { ext: string; svg: string }[] = []
+  @Input() fileTypeIcons: { ext: string; svg: string; name?: string }[] = []
   /** 被禁用的内置图标 svg 文件名（这些图标不用于自动扩展名匹配） */
   @Input() disabledIconSvgs: string[] = []
   /** 文件夹图标 svg 文件名（空串 = 走 emoji 📁） */
@@ -262,9 +266,12 @@ export class SftpFilePaneComponent {
   iconSrc(e: any): string | null {
     if (!e || e.isDirectory) return null
     const name: string = e.name || ''
-    const dot = name.lastIndexOf('.')
+    // ★ 2026-09-08 issue #16：Windows .lnk 快捷方式文件名后缀是 .lnk，需改用 linkTarget 的扩展名去匹配目标类型图标
+    //   （真 symlink 无 linkTarget，链接名本身通常已带目标扩展名，直接用 name 即可）
+    const iconName = (e.linkTarget && !e.isSymlink) ? (e.linkTarget || name) : name
+    const dot = iconName.lastIndexOf('.')
     // ★ 2026-08-25 修复：不再对无扩展名文件提前返回 null——应让其走到步骤3 default.svg 兜底，统一显示彩色 SVG 而非回退 emoji
-    const ext = (dot > 0) ? name.slice(dot).toLowerCase() : ''
+    const ext = (dot > 0) ? iconName.slice(dot).toLowerCase() : ''
 
     // 1) 用户自定义规则（最高优先级）；svg 必须真实存在于图标目录（缓存校验），否则跳过以避免 404
     if (ext && this.fileTypeIcons && this.fileTypeIcons.length) {
@@ -517,6 +524,27 @@ export class SftpFilePaneComponent {
 
   inaccessiblePrefix(e: any): string {
     return this.isLocal && e.inaccessible ? '* ' : ''
+  }
+
+  /** ★ 2026-09-08 issue #16：是否为链接（符号链接 / Windows .lnk 快捷方式），叠加角标 */
+  isLinkEntry(e: any): boolean {
+    return !!(e?.isSymlink || e?.linkTarget)
+  }
+
+  /** 链接角标悬停提示：符号链接与快捷方式分别用不同文案 */
+  linkBadgeTitle(e: any): string {
+    const t = (k: string) => (this.i18n ? this.i18n.t(k) : '')
+    return e?.isSymlink ? t('file.symlink') : t('file.shortcut')
+  }
+
+  /** ★ 2026-09-08 issue #16：本地面板 Windows .lnk 快捷方式去掉后缀显示（与资源管理器一致）。
+   *  仅对「有 linkTarget 且非真 symlink 且以 .lnk 结尾」的本地条目生效；远程与真符号链接保持原名。 */
+  displayName(e: any): string {
+    const name: string = e?.name || ''
+    if (this.isLocal && !e?.isSymlink && e?.linkTarget && /\.lnk$/i.test(name)) {
+      return name.replace(/\.lnk$/i, '')
+    }
+    return name
   }
 
   /** 是否为隐藏文件/文件夹（与 filterByHidden 同规则：名称以 '.' 开头），列表中淡化显示 */

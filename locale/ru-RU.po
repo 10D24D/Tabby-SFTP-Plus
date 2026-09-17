@@ -1303,3 +1303,182 @@ msgstr "tar-упаковка"
 
 msgid "log.fileCount"
 msgstr "{n} файлов"
+
+msgid "settings.editableExtensions"
+msgstr "Дополнительные редактируемые расширения"
+
+msgid "settings.editableExtensionsHint"
+msgstr "Через пробел. Допускается .conf, *.conf или conf. Белый список, если «просмотр и правка всех» выключен."
+msgid "settings.allowViewEditAllFiles"
+msgstr "Разрешить просмотр и редактирование всех типов файлов"
+
+msgid "settings.allowViewEditAllFilesHint"
+msgstr "Игнорировать ограничения расширений. Любой файл можно просмотреть; при правке двоичное содержимое остаётся защищённым."
+
+msgid "conflict.digest"
+msgstr "Дайджест"
+
+msgid "conflict.contentIdentical"
+msgstr "Содержимое одинаково — можно безопасно пропустить"
+
+msgid "file.symlink"
+msgstr "Символическая ссылка"
+
+msgid "file.shortcut"
+msgstr "Ярлык"
+
+msgid "file.copyAll"
+msgstr "Копировать всё"
+
+msgid "file.copyImage"
+msgstr "Копировать изображение"
+
+msgid "file.copyImageAddress"
+msgstr "Копировать адрес изображения"
+
+msgid "transfer.skippedAsDuplicate"
+msgstr "Пропущено · содержимое одинаково"
+
+msgid "settings.font"
+msgstr "Шрифт"
+
+msgid "settings.fontSize"
+msgstr "Размер шрифта"
+
+msgid "settings.resetFont"
+msgstr "Сбросить размер шрифта"
+
+msgid "settings.fontHint"
+msgstr "Изменить размер текста в панели SFTP+ (11–18px)"
+
+msgid "settings.defaultUploadPath"
+msgstr "Путь загрузки по умолчанию"
+
+msgid "settings.defaultUploadPathPh"
+msgstr "Удалённый каталог, напр. /home/user/uploads (пусто = текущий удалённый)"
+
+msgid "settings.defaultDownloadPath"
+msgstr "Путь скачивания по умолчанию"
+
+msgid "settings.defaultDownloadPathPh"
+msgstr "Локальный каталог, напр. C:\\Downloads (пусто = текущий локальный)"
+
+msgid "settings.iconSettings"
+msgstr "Значки типов файлов"
+
+msgid "settings.iconResourceDir"
+msgstr "Каталог значков"
+
+msgid "settings.iconResourceDirPh"
+msgstr "Локальный каталог с SVG, напр. C:\\icons"
+
+msgid "settings.iconSvgFile"
+msgstr "SVG-файл"
+
+msgid "settings.iconPreview"
+msgstr "Предпросмотр"
+
+msgid "settings.iconAdd"
+msgstr "Добавить правило"
+
+msgid "settings.iconDelete"
+msgstr "Удалить"
+
+msgid "settings.iconDeleteConfirm"
+msgstr "Удалить правило «{name}»? Это действие нельзя отменить."
+
+msgid "settings.iconRuleHint"
+msgstr "Сопоставить расширения с SVG-файлами."
+
+msgid "settings.builtinIcons"
+msgstr "Встроенные значки"
+
+msgid "settings.builtinIconDir"
+msgstr "Каталог встроенных значков"
+
+msgid "settings.builtinIconDesc"
+msgstr "Следующие SVG-значки входят в плагин. Положите свои svg сюда, чтобы расширить набор."
+
+msgid "settings.iconEdit"
+msgstr "Изменить"
+
+msgid "settings.iconDisable"
+msgstr "Отключить"
+
+msgid "settings.iconEnable"
+msgstr "Восстановить"
+
+msgid "settings.iconAddRule"
+msgstr "Добавить правило"
+
+msgid "settings.iconFolderHint"
+msgstr "Папка (по умолчанию)"
+
+msgid "settings.iconFileHint"
+msgstr "Файл (по умолчанию)"
+
+msgid "settings.iconExtLockedHint"
+msgstr "У файлов по умолчанию нельзя менять расширения"
+
+msgid "settings.iconSvgNameHint"
+msgstr "Имя файла"
+
+msgid "settings.iconRuleName"
+msgstr "Имя правила"
+
+msgid "settings.iconRuleNamePh"
+msgstr "напр. Scripts, Documents"
+
+msgid "settings.iconExtLabel"
+msgstr "Расширения"
+
+msgid "settings.iconErrorExtConflict"
+msgstr "Расширение «{ext}» уже используется значком {svg}"
+
+msgid "settings.iconErrorEmpty"
+msgstr "Имя правила, расширение и имя SVG не должны быть пустыми"
+
+msgid "settings.iconErrorEmptyName"
+msgstr "Имя правила не должно быть пустым"
+
+msgid "settings.iconErrorNameConflict"
+msgstr "Имя правила «{name}» уже существует"
+
+msgid "settings.iconErrorNameSvgMismatch"
+msgstr "Правило «{name}» уже привязано к значку {svg}; используйте тот же файл или другое имя"
+
+msgid "settings.iconErrorMissingSvg"
+msgstr "SVG-файл не найден в каталоге значков"
+
+msgid "settings.iconErrorInvalidExt"
+msgstr "Неверный формат расширения: «{ext}». Используйте .txt или txt; несколько через пробел/запятую"
+
+msgid "settings.resetIcons"
+msgstr "Сбросить настройки значков"
+
+msgid "op.cannotCopyIntoSelf"
+msgstr "Нельзя скопировать папку в саму себя или её подпапку: {name}"
+
+msgid "settings.tarAcceleration"
+msgstr "Ускорение передачи TAR"
+
+msgid "settings.tarAccelerationDesc"
+msgstr "Автоматически упаковывает передачу папок в tar для ускорения мелких файлов; при ошибке плавно возвращается к обычной передаче"
+
+msgid "settings.conflictDigest"
+msgstr "Дайджест содержимого при конфликте"
+
+msgid "settings.conflictDigestDesc"
+msgstr "При одинаковом размере, но разном времени изменения вычисляет дайджест, чтобы понять, изменился ли файл (например после смены ветки Git). Нужен shell на удалённом хосте; иначе прежнее поведение"
+
+msgid "settings.conflictAutoSkip"
+msgstr "Автопропуск одинакового содержимого"
+
+msgid "settings.conflictAutoSkipDesc"
+msgstr "Если оба дайджеста доступны и равны, считать без конфликта и тихо пропускать без запроса"
+
+msgid "settings.conflictDigestMaxSize"
+msgstr "Лимит размера дайджеста (МБ)"
+
+msgid "settings.conflictDigestMaxSizeDesc"
+msgstr "Файлы больше этого размера не хешируются и всегда считаются конфликтом, чтобы не замедлять проверку"

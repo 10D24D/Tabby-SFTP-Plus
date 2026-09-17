@@ -18,6 +18,8 @@ import { type ChangeDetectorRef } from '@angular/core'
 
 import { type SFTPFile } from '../../services/sftp.service'
 
+import { isPathInside } from './fs-ops'
+
 import * as os from 'os'
 
 import { safeEntryName } from './path-utils'
@@ -354,6 +356,14 @@ export class PanelDropAdapter {
       const baseName = path.basename(p)
       const dest = path.join(destDir, baseName)
       try {
+        // ★ 2026-09-14 issue #17：拒绝「把目录拖到自己或其子目录内」（如 /a 拖进 /a/a），
+        //   否则本地复制会无限递归直到磁盘写满；与底层 copyLocalDir 守卫形成纵深防御。
+        if (await fs.stat(p).then(s => s.isDirectory()).catch(() => false) && isPathInside(p, dest, false)) {
+          const msg = this.host.i18n.t('op.cannotCopyIntoSelf', { name: baseName })
+          this.host.notifications?.error?.(msg, '')
+          log.warn('Skip OS drop into local: destination is inside source (would recurse):', p, '->', dest)
+          continue
+        }
         // ★ 2026-08-26：同名已存在时拒绝静默覆盖，提示用户（对齐冲突语义）
         const exists = await fs.stat(dest).then(() => true).catch(() => false)
         if (exists) {
@@ -439,34 +449,54 @@ export async function getDroppedOsPaths(ev: DragEvent): Promise<string[]> {
 
   // 策略2: File 对象有内容但没有 .path → 写入临时目录后返回路径（仅单文件，非目录）
   // ★ 2026-08-26 C1：每轮 UUID 子目录 + safeEntryName，防 file.name 路径穿越与同名碰撞
-  if (files.length) {
-    const sessionDir = path.join(os.tmpdir(), 'sftp-plus-dragdrop', randomUUID())
-    await fs.mkdir(sessionDir, { recursive: true }).catch(() => {})
-    const sessionReal = await fs.realpath(sessionDir).catch(() => sessionDir)
-    const tmpPaths: string[] = []
-    for (const file of files) {
-      const safe = safeEntryName(file.name)
-      if (!safe) {
-        log.warn('[drop] skip unsafe drag file name:', file.name)
-        continue
+  // ★ 2026-09-14 D1 修复：dt.files 为空时从 dt.items 提取 file 对象，
+  //   修复偶现 OS 拖入无响应（Electron 某些场景下 dt.files 为空但 items 有内容）
+  let fileObjects = files
+  if (!fileObjects.length && dt.items?.length) {
+    fileObjects = []
+    for (const item of Array.from(dt.items)) {
+      if (item.kind === 'file') {
+        const file = item.getAsFile()
+        if (file) fileObjects.push(file)
       }
-      const tmpPath = path.join(sessionDir, safe)
-      try {
-        const buf = Buffer.from(await file.arrayBuffer())
-        // ★ 2026-08-10 修复 #19：0 字节也是合法空文件，照常落盘传输，不得静默丢弃
-        await fs.writeFile(tmpPath, buf)
-        const real = await fs.realpath(tmpPath).catch(() => tmpPath)
-        const prefix = sessionReal.endsWith(path.sep) ? sessionReal : sessionReal + path.sep
-        if (real !== sessionReal && !real.startsWith(prefix)) {
-          log.warn('[drop] reject path escape after write:', file.name, real)
-          await fs.unlink(tmpPath).catch(() => {})
+    }
+  }
+  if (fileObjects.length) {
+    const sessionDir = path.join(os.tmpdir(), 'sftp-plus-dragdrop', randomUUID())
+    let dirOk = false
+    try {
+      await fs.mkdir(sessionDir, { recursive: true })
+      dirOk = true
+    } catch (e) {
+      log.error('[drop] failed to create temp dir for drag-drop:', e)
+    }
+    if (dirOk) {
+      const sessionReal = await fs.realpath(sessionDir).catch(() => sessionDir)
+      const tmpPaths: string[] = []
+      for (const file of fileObjects) {
+        const safe = safeEntryName(file.name)
+        if (!safe) {
+          log.warn('[drop] skip unsafe drag file name:', file.name)
           continue
         }
-        tmpPaths.push(tmpPath)
-      } catch { /* 跳过无法读取的文件（含文件夹占位项） */ }
+        const tmpPath = path.join(sessionDir, safe)
+        try {
+          const buf = Buffer.from(await file.arrayBuffer())
+          // ★ 2026-08-10 修复 #19：0 字节也是合法空文件，照常落盘传输，不得静默丢弃
+          await fs.writeFile(tmpPath, buf)
+          const real = await fs.realpath(tmpPath).catch(() => tmpPath)
+          const prefix = sessionReal.endsWith(path.sep) ? sessionReal : sessionReal + path.sep
+          if (real !== sessionReal && !real.startsWith(prefix)) {
+            log.warn('[drop] reject path escape after write:', file.name, real)
+            await fs.unlink(tmpPath).catch(() => {})
+            continue
+          }
+          tmpPaths.push(tmpPath)
+        } catch { /* 跳过无法读取的文件（含文件夹占位项） */ }
+      }
+      if (tmpPaths.length) return tmpPaths
+      await fs.rm(sessionDir, { recursive: true, force: true }).catch(() => {})
     }
-    if (tmpPaths.length) return tmpPaths
-    await fs.rm(sessionDir, { recursive: true, force: true }).catch(() => {})
   }
 
   // 策略3: text/uri-list 回退（处理 Windows file:///C:/path 格式）

@@ -828,8 +828,7 @@ msgid "settings.hotkeyConflict"
 msgstr "Konflikty z: {names}"
 
 msgid "settings.hotkeyConflictConfirm"
-msgstr "Skrót {keys} jest już używany przez: {names}
-Czy mimo to powiązać z SFTP+? (Oba mogą zostać wyzwolone.)"
+msgstr "Shortcut {keys} is already used by: {names}\nBind it to SFTP+ anyway? (Both may fire.)"
 msgid "settings.hotkeySaved"
 msgstr "Zapisane i zsynchronizowane do Tabby: {keys}"
 
@@ -1296,3 +1295,182 @@ msgstr "Paczka tar"
 
 msgid "log.fileCount"
 msgstr "{n} plików"
+
+msgid "settings.editableExtensions"
+msgstr "Dodatkowe edytowalne rozszerzenia"
+
+msgid "settings.editableExtensionsHint"
+msgstr "Oddzielaj spacjami. Akceptuje .conf, *.conf lub conf. Biała lista, gdy „przeglądaj i edytuj wszystkie” jest wyłączone."
+msgid "settings.allowViewEditAllFiles"
+msgstr "Zezwól na przeglądanie i edycję wszystkich typów plików"
+
+msgid "settings.allowViewEditAllFilesHint"
+msgstr "Ignoruj ograniczenia rozszerzeń. Każdy plik można przeglądać; przy edycji treść binarna pozostaje chroniona."
+
+msgid "conflict.digest"
+msgstr "Skrót"
+
+msgid "conflict.contentIdentical"
+msgstr "Treść jest identyczna — bezpiecznie pominąć"
+
+msgid "file.symlink"
+msgstr "Link symboliczny"
+
+msgid "file.shortcut"
+msgstr "Skrót"
+
+msgid "file.copyAll"
+msgstr "Kopiuj wszystko"
+
+msgid "file.copyImage"
+msgstr "Kopiuj obraz"
+
+msgid "file.copyImageAddress"
+msgstr "Kopiuj adres obrazu"
+
+msgid "transfer.skippedAsDuplicate"
+msgstr "Pominięto · treść identyczna"
+
+msgid "settings.font"
+msgstr "Czcionka"
+
+msgid "settings.fontSize"
+msgstr "Rozmiar czcionki"
+
+msgid "settings.resetFont"
+msgstr "Przywróć rozmiar czcionki"
+
+msgid "settings.fontHint"
+msgstr "Dostosuj rozmiar tekstu w panelu SFTP+ (11–18px)"
+
+msgid "settings.defaultUploadPath"
+msgstr "Domyślna ścieżka wysyłania"
+
+msgid "settings.defaultUploadPathPh"
+msgstr "Katalog zdalny, np. /home/user/uploads (puste = bieżący zdalny)"
+
+msgid "settings.defaultDownloadPath"
+msgstr "Domyślna ścieżka pobierania"
+
+msgid "settings.defaultDownloadPathPh"
+msgstr "Katalog lokalny, np. C:\\Downloads (puste = bieżący lokalny)"
+
+msgid "settings.iconSettings"
+msgstr "Ikony typów plików"
+
+msgid "settings.iconResourceDir"
+msgstr "Katalog ikon"
+
+msgid "settings.iconResourceDirPh"
+msgstr "Lokalny katalog z plikami SVG, np. C:\\icons"
+
+msgid "settings.iconSvgFile"
+msgstr "Plik SVG"
+
+msgid "settings.iconPreview"
+msgstr "Podgląd"
+
+msgid "settings.iconAdd"
+msgstr "Dodaj regułę"
+
+msgid "settings.iconDelete"
+msgstr "Usuń"
+
+msgid "settings.iconDeleteConfirm"
+msgstr "Usunąć regułę „{name}”? Tej operacji nie można cofnąć."
+
+msgid "settings.iconRuleHint"
+msgstr "Przypisz rozszerzenia do plików SVG."
+
+msgid "settings.builtinIcons"
+msgstr "Wbudowane ikony"
+
+msgid "settings.builtinIconDir"
+msgstr "Katalog wbudowanych ikon"
+
+msgid "settings.builtinIconDesc"
+msgstr "Poniższe ikony SVG są dołączone do wtyczki. Wrzuć własne pliki svg tutaj, aby je rozszerzyć."
+
+msgid "settings.iconEdit"
+msgstr "Edytuj"
+
+msgid "settings.iconDisable"
+msgstr "Wyłącz"
+
+msgid "settings.iconEnable"
+msgstr "Przywróć"
+
+msgid "settings.iconAddRule"
+msgstr "Dodaj regułę"
+
+msgid "settings.iconFolderHint"
+msgstr "Folder (domyślny)"
+
+msgid "settings.iconFileHint"
+msgstr "Plik (domyślny)"
+
+msgid "settings.iconExtLockedHint"
+msgstr "Pliki domyślne nie mogą zmieniać rozszerzeń"
+
+msgid "settings.iconSvgNameHint"
+msgstr "Nazwa pliku"
+
+msgid "settings.iconRuleName"
+msgstr "Nazwa reguły"
+
+msgid "settings.iconRuleNamePh"
+msgstr "np. Scripts, Documents"
+
+msgid "settings.iconExtLabel"
+msgstr "Rozszerzenia"
+
+msgid "settings.iconErrorExtConflict"
+msgstr "Rozszerzenie „{ext}” jest już używane przez ikonę {svg}"
+
+msgid "settings.iconErrorEmpty"
+msgstr "Nazwa reguły, rozszerzenie i nazwa pliku SVG nie mogą być puste"
+
+msgid "settings.iconErrorEmptyName"
+msgstr "Nazwa reguły nie może być pusta"
+
+msgid "settings.iconErrorNameConflict"
+msgstr "Nazwa reguły „{name}” już istnieje"
+
+msgid "settings.iconErrorNameSvgMismatch"
+msgstr "Reguła „{name}” jest już powiązana z ikoną {svg}; użyj tego samego pliku lub innej nazwy"
+
+msgid "settings.iconErrorMissingSvg"
+msgstr "Nie znaleziono pliku SVG w katalogu ikon"
+
+msgid "settings.iconErrorInvalidExt"
+msgstr "Nieprawidłowy format rozszerzenia: „{ext}”. Użyj .txt lub txt; wiele oddziel spacjami/przecinkami"
+
+msgid "settings.resetIcons"
+msgstr "Przywróć ustawienia ikon"
+
+msgid "op.cannotCopyIntoSelf"
+msgstr "Nie można skopiować folderu do siebie lub podfolderu: {name}"
+
+msgid "settings.tarAcceleration"
+msgstr "Przyspieszenie transferu TAR"
+
+msgid "settings.tarAccelerationDesc"
+msgstr "Automatycznie pakuje transfery folderów tar, by przyspieszyć małe pliki; w razie braku wsparcia/błędu wraca do zwykłego transferu"
+
+msgid "settings.conflictDigest"
+msgstr "Skrót treści przy konflikcie"
+
+msgid "settings.conflictDigestDesc"
+msgstr "Gdy rozmiar jest taki sam, a czas zmiany inny, oblicza skrót, by sprawdzić, czy plik naprawdę się zmienił (np. po zmianie gałęzi Git). Wymaga dostępu shell na hoście zdalnym; w przeciwnym razie poprzednie zachowanie"
+
+msgid "settings.conflictAutoSkip"
+msgstr "Automatycznie pomijaj identyczną treść"
+
+msgid "settings.conflictAutoSkipDesc"
+msgstr "Jeśli oba skróty są dostępne i równe, traktuj jako brak konfliktu i pomiń bez pytania"
+
+msgid "settings.conflictDigestMaxSize"
+msgstr "Limit rozmiaru skrótu (MB)"
+
+msgid "settings.conflictDigestMaxSizeDesc"
+msgstr "Większe pliki nie są skracane i zawsze traktowane jako konflikt, by nie spowalniać wykrywania"

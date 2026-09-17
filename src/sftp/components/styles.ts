@@ -1,4 +1,7 @@
-/** SFTP+ 面板样式（合并自 panel-main-styles + file-dialog-shared-styles） */
+/** SFTP+ 面板样式（合并自 panel-main-styles + file-dialog-shared-styles）
+ * 修改人：DD1024z + Composer
+ * 修改时间：2026-09-17 — 编辑器未保存 * 紧挨文件名；支持 --sftp-font-size / --_fs；修复 .entry 字号
+ */
 
 /* ───────── 主面板样式 ───────── */
 export const SFTP_PANEL_STYLES = `
@@ -25,6 +28,7 @@ export const SFTP_PANEL_STYLES = `
       --_primary: var(--sftp-primary, var(--primary-color, #3b82f6));
       --_border: var(--sftp-border, var(--border-color, #e5e7eb));
       --_content: var(--sftp-content, var(--_bg));
+      --_fs: var(--sftp-font-size, 13px);
       --_surface: rgba(128, 128, 128, 0.06);
       --_hover: rgba(128, 128, 128, 0.12);
       --_active: rgba(128, 128, 128, 0.18);
@@ -48,7 +52,7 @@ export const SFTP_PANEL_STYLES = `
       position: relative;
       background: var(--_bg);
       color: var(--_text);
-      font-size: 13px;
+      font-size: var(--_fs);
       font-family: var(--font-family, 'Segoe UI', sans-serif);
       box-sizing: border-box;
       pointer-events: auto;
@@ -187,8 +191,8 @@ export const SFTP_PANEL_STYLES = `
       flex-shrink: 0;
       border-bottom: 1px solid var(--_border);
     }
-    .sftp-root .title { font-weight: 700; color: var(--_primary); font-size: 15px; }
-    .sftp-root .host-info { font-size: 12px; opacity: 0.6; margin-left: 4px; flex-shrink: 0; }
+    .sftp-root .title { font-weight: 700; color: var(--_primary); font-size: 1.15em; }
+    .sftp-root .host-info { font-size: 0.92em; opacity: 0.6; margin-left: 4px; flex-shrink: 0; }
     /* 断开连接指示器 - 嵌入标题栏 */
     .sftp-root .disconnect-indicator {
       display: inline-flex; align-items: center; gap: 6px;
@@ -423,13 +427,13 @@ export const SFTP_PANEL_STYLES = `
       border-radius: 8px 8px 0 0;
       min-width: 0;
     }
-    .sftp-root .pane-label { font-weight: 600; font-size: 12px; white-space: nowrap; flex-shrink: 0; }
+    .sftp-root .pane-label { font-weight: 600; font-size: 1em; white-space: nowrap; flex-shrink: 0; }
     .sftp-root .pane-path { display: flex; gap: 4px; min-width: 0; overflow: hidden; flex: 1 1 auto; }
     .sftp-root .path-input {
       flex: 1; min-width: 40px; padding: 3px 6px; border-radius: 4px;
       border: 1px solid var(--_border);
       background: var(--input-bg, var(--_input-bg));
-      color: var(--_text); font-size: 12px;
+      color: var(--_text); font-size: 1em;
       caret-color: var(--_text, currentColor);
       -webkit-text-fill-color: var(--_text, currentColor);
       cursor: text;
@@ -519,7 +523,7 @@ export const SFTP_PANEL_STYLES = `
       flex: 1; padding: 3px 6px; margin-right: 5px; border-radius: 4px;
       border: 1px solid var(--_border);
       background: var(--input-bg, var(--_input-bg));
-      color: var(--_text); font-size: 12px;
+      color: var(--_text); font-size: 1em;
       caret-color: var(--_text, currentColor);
       -webkit-text-fill-color: var(--_text, currentColor);
       cursor: text;
@@ -629,7 +633,7 @@ export const SFTP_PANEL_STYLES = `
       gap: 4px; padding: 0 8px;
       cursor: pointer; user-select: none;
       align-items: center;
-      font-size: 12px;
+      font-size: 1em;
       line-height: 1.4;
       width: max-content;
       min-width: 100%;
@@ -677,7 +681,7 @@ export const SFTP_PANEL_STYLES = `
     .sftp-root .entry.header {
       /* 确保表头完全不透明 */
       background: var(--_content);
-      font-weight: 600; font-size: 12px;
+      font-weight: 600; font-size: 1em;
       position: sticky; top: 0;
       z-index: 5;
       color: var(--_primary);
@@ -710,18 +714,30 @@ export const SFTP_PANEL_STYLES = `
     }
     .sftp-root .entry.up-entry { opacity: 0.6; }
     .sftp-root .entry.dim { opacity: 0.5; }
-    .sftp-root .icon { text-align: center; font-size: 14px; width: 24px; display: flex; align-items: center; justify-content: center; }
-    .sftp-root .icon .custom-file-icon { width: 16px; height: 16px; object-fit: contain; flex-shrink: 0; }
-    .sftp-root .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-family: inherit; }
-    .sftp-root .size { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12px; font-family: inherit; text-align: left; }
-    .sftp-root .date { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12px; font-family: inherit; }
-    .sftp-root .perms { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12px; font-family: inherit; text-align: left; }
-    .sftp-root .mode { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12px; font-family: inherit; text-align: left; }
-    .sftp-root .access { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12px; font-family: inherit; }
-    .sftp-root .owner { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12px; font-family: inherit; text-align: left; }
-    .sftp-root .group { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12px; font-family: inherit; text-align: left; }
-    .sftp-root .path { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12px; font-family: inherit; }
-    .sftp-root .ext { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12px; font-family: inherit; text-align: left; }
+    .sftp-root .icon { text-align: center; font-size: 1.08em; width: 24px; display: flex; align-items: center; justify-content: center; position: relative; }
+    .sftp-root .icon .custom-file-icon { width: 1.23em; height: 1.23em; object-fit: contain; flex-shrink: 0; }
+    /* ★ 2026-09-08 issue #16：链接角标（符号链接 / 快捷方式），叠在图标左下角 */
+    .sftp-root .icon .link-badge {
+      position: absolute; left: -1px; bottom: -1px;
+      width: 12px; height: 12px;
+      display: inline-flex; align-items: center; justify-content: center;
+      background: var(--_bg, var(--body-bg, #1e1e1e));
+      border: 1px solid var(--_border, rgba(128,128,128,0.3));
+      border-radius: 50%;
+      color: var(--_primary, #4dabff);
+      pointer-events: none;
+    }
+    .sftp-root .icon .link-badge svg { width: 9px; height: 9px; display: block; }
+    .sftp-root .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 1em; font-family: inherit; }
+    .sftp-root .size { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 1em; font-family: inherit; text-align: left; }
+    .sftp-root .date { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 1em; font-family: inherit; }
+    .sftp-root .perms { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 1em; font-family: inherit; text-align: left; }
+    .sftp-root .mode { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 1em; font-family: inherit; text-align: left; }
+    .sftp-root .access { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 1em; font-family: inherit; }
+    .sftp-root .owner { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 1em; font-family: inherit; text-align: left; }
+    .sftp-root .group { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 1em; font-family: inherit; text-align: left; }
+    .sftp-root .path { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 1em; font-family: inherit; }
+    .sftp-root .ext { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 1em; font-family: inherit; text-align: left; }
     .sftp-root .sortable { cursor: pointer; display: inline-flex; align-items: center; gap: 2px; }
     .sftp-root .entry.header > span.sortable:not(.name) { cursor: grab; }
     .sftp-root .entry.header > span.sortable.header-col-dragging { cursor: grabbing; }
@@ -797,7 +813,7 @@ export const SFTP_PANEL_STYLES = `
     .header-col-ghost .col-resize-handle { display: none !important; }
     .sftp-root .sortable:hover { color: var(--_primary); }
     .sftp-root .sort-arrow { font-size: 11px; opacity: 1; margin-left: 1px; }
-    .sftp-root .pane-empty { padding: 20px; text-align: center; opacity: 0.4; font-size: 12px; }
+    .sftp-root .pane-empty { padding: 20px; text-align: center; opacity: 0.4; font-size: 1em; }
 
     /* 加载提示 - 绝对定位覆盖整个 pane（不受 scroll 影响） */
     .sftp-root .pane-loading {
@@ -854,8 +870,8 @@ export const SFTP_PANEL_STYLES = `
       flex-shrink: 0;
       border-radius: 0 0 8px 8px;
     }
-    .sftp-root .selection-info { font-size: 12px; opacity: 0.7; min-width: 60px; }
-    .sftp-root .size-hint { opacity: 0.5; font-size: 11px; }
+    .sftp-root .selection-info { font-size: 1em; opacity: 0.7; min-width: 60px; }
+    .sftp-root .size-hint { opacity: 0.5; font-size: 0.85em; }
     .sftp-root .action-buttons { display: flex; gap: 3px; margin-left: auto; }
     .sftp-root .action-buttons button {
       padding: 2px 6px; border-radius: 4px;
@@ -893,7 +909,7 @@ export const SFTP_PANEL_STYLES = `
       width: 100%; padding: 6px 8px; border-radius: 6px;
       border: 1px solid var(--_border);
       background: var(--_input-bg);
-      color: var(--_text); font-size: 12px;
+      color: var(--_text); font-size: 1em;
       caret-color: var(--_text, currentColor);
       -webkit-text-fill-color: var(--_text, currentColor);
       cursor: text;
@@ -1005,7 +1021,7 @@ export const SFTP_PANEL_STYLES = `
       width: 100%; padding: 6px 8px; border-radius: 4px;
       border: 1px solid var(--_border);
       background: var(--_input-bg);
-      color: var(--_text); font-size: 12px;
+      color: var(--_text); font-size: 1em;
       caret-color: var(--_text, currentColor);
       -webkit-text-fill-color: var(--_text, currentColor);
       cursor: text;
@@ -1131,7 +1147,7 @@ export const SFTP_PANEL_STYLES = `
       opacity: 0.5;
       font-size: 11px;
     }
-    .sftp-root .mode { font-size: 12px; font-family: inherit; text-align: left; }
+    .sftp-root .mode { font-size: 1em; font-family: inherit; text-align: left; }
     /* 详细信息对话框 */
     .sftp-root .details-dialog { min-width: 400px; max-width: 500px; }
     .sftp-root .details-body { margin: 8px 0; }
@@ -1463,7 +1479,13 @@ export const FILE_DIALOG_SHARED_STYLES = `
     display: flex; align-items: center; gap: 4px;
     flex: 1; min-width: 0;
   }
-  .editor-dirty { color: #f59e0b; font-size: 16px; flex-shrink: 0; }
+  /* 未保存标记紧挨文件名，避免被 title 的 flex:1 顶到最大化按钮旁 */
+  .editor-dirty {
+    color: #f59e0b;
+    font-weight: 700;
+    font-size: inherit;
+    margin-left: 2px;
+  }
   /* 编辑器：由 textarea 自行滚动，外层 body 不截断滚轮 */
   .editor-body {
     overflow: hidden;

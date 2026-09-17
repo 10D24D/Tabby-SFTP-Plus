@@ -2,6 +2,10 @@
 
 > 创建人：DD1024z + Deepseek-V4-Flash
 > 创建时间：2026-06-25
+> 修改人：DD1024z + Grok 4.6
+> 修改时间：2026-09-17 — 按 v2.3.0 实际目录与 .po / config.yaml 工作流校正
+
+## 环境要求
 
 ## 环境要求
 
@@ -31,48 +35,28 @@ npm run build
 
 ```
 tabby-FTPS+/
-├── docs/                        # 文档
-├── dist/                        # 构建输出
-│   └── index.js                 #   插件打包产物（Tabby 加载入口）
-├── src/                         # 源码目录
-│   ├── index.ts                 #   入口：NgModule 注册 + 扩展点声明
-│   ├── sftp-floating-panel.component.ts  #   主面板组件（≈5000 行，业务逻辑；UI/部分逻辑已拆至 panel/）
-│   ├── panel/                   #   从主面板拆出的子模块
-│   │   ├── panel-types.ts       #     共享类型（LocalEntry、ConflictFileInfo 等）
-│   │   ├── panel-format.ts      #     纯函数格式化工具
-│   │   ├── panel-main-styles.ts #     主面板 CSS（从组件 styles 提取）
-│   │   ├── panel-list-utils.ts  #     列表排序 / 过滤 / mode 位判断
-│   │   ├── panel-nav-history.ts #     路径导航后退 / 前进栈
-│   │   ├── panel-rubber-band.ts #     框选（Rubber Band Selection）
-│   │   ├── panel-transfer-runtime.ts #  传输进度轮询 / 暂停 / 续传运行时
-│   │   ├── panel-conflict-resolver.ts # 冲突队列处理与覆盖/重命名策略
-│   │   ├── connection-lifecycle.ts      # connect / heartbeat / reconnect
-│   │   ├── sftp-file-pane.component.ts  # 本地 / 远程文件列表面板
-│   │   ├── sftp-context-menu.component.ts # 右键 + 表头列配置菜单
-│   │   ├── sftp-bookmark-popup.component.ts
-│   │   ├── sftp-delete-dialog.component.ts
-│   │   ├── sftp-input-dialog.component.ts
-│   │   ├── sftp-perm-dialog.component.ts
-│   │   ├── sftp-details-dialog.component.ts
-│   │   ├── sftp-conflict-dialog.component.ts
-│   │   ├── sftp-transfer-queue.component.ts
-│   │   ├── sftp-transfer-log-dialog.component.ts
-│   │   ├── sftp-viewer-dialog.component.ts
-│   │   ├── sftp-editor-dialog.component.ts
-│   │   ├── file-type-utils.ts
-│   │   ├── remote-file-transfer.ts
-│   │   ├── file-dialog-shared-styles.ts
-│   │   └── file-dialog-wheel.ts
-│   ├── sftp-workspace-tab.component.ts # 工作区独立标签页
-│   ├── sftp-open-settings.ts        #   从面板跳转设置页
-│   ├── sftp-terminal-decorator.ts   #   终端装饰器
-│   ├── sftp.service.ts              #   SFTP 连接服务
-│   ├── sftp-bookmarks.service.ts    #   书签服务
-│   ├── sftp-transfer-log.service.ts #   传输日志服务
-│   ├── sftp-i18n.service.ts     #   国际化服务
-│   ├── sftp-settings.component.ts #   设置页组件
-│   ├── local-transfers.ts       #   本地传输适配器
-│   └── tabby-shims.d.ts         #   Tabby 类型声明
+├── docs/                        # 架构 / 存储 / i18n / API / 开发指南
+├── locale/                      # 24 语言 GNU gettext .po（webpack 内联）
+├── scripts/                     # 构建与一次性 i18n 维护脚本
+│   ├── copy-icons.mjs           # 内置 SVG 复制到 dist/assets/icons
+│   ├── copy-sftp-manifest.mjs   # 从根 package.json 生成 dist/package.json
+│   └── check-common-sync.mjs    # prebuild：同步 tabby-plugin-common
+├── src/
+│   ├── index.ts                 # 入口：NgModule 注册 + Tabby 扩展点
+│   ├── tabby-shims.d.ts
+│   ├── assets/icons/            # 内置文件/文件夹 SVG
+│   ├── services/                # 连接 / 书签 / 传输日志 / i18n / 配置 / logger
+│   ├── settings/                # 设置页组件 + 从面板跳转设置
+│   ├── tabby/                   # ConfigProvider / HotkeyProvider / TerminalDecorator
+│   └── sftp/
+│       ├── sftp-floating-panel.component.ts   # 主面板编排
+│       ├── sftp-floating-panel.component.html
+│       ├── sftp-workspace-tab.component.ts
+│       ├── components/          # 视图：文件列表、对话框、右键菜单、冲突、传输队列
+│       ├── controllers/         # 列 / 查看器 / 书签控制器
+│       └── core/                # 传输、冲突、digest（issue #15）、拖放、剪贴板、路径
+├── tabby-plugin-common/         # 跨插件 theme / utils（不在 src 内）
+├── dist/                        # 构建输出（gitignore，Tabby 加载 dist/index.js）
 ├── package.json
 ├── tsconfig.json
 ├── webpack.config.js
@@ -139,8 +123,8 @@ tabby-FTPS+/
 ### 1. 代码修改
 
 - 源文件全部在 `src/` 目录下
-- 内联模板和样式在组件 `.ts` 文件中直接定义
-- 所有服务不依赖 Angular DI，通过构造函数直接 `new` 实例化
+- 主面板模板在 `sftp-floating-panel.component.html`；多数对话框仍用内联 `template`
+- 配置走 `SftpConfigService`（Tabby `config.yaml` 的 `tabby-sftp-plus` 段）；传输日志仍写 localStorage
 
 ### 2. 构建
 
@@ -151,12 +135,11 @@ npm run watch    # 监听模式，文件变化自动构建
 
 ### 3. 测试
 
-当前没有单元测试或端到端测试框架。建议通过以下方式验证：
+没有正式单元测试框架。验证方式：
 
-- 构建后将 `dist/index.js` 复制到 Tabby 插件目录
-- 重启 Tabby 或在开发者工具中 `Ctrl+R` 重载扩展
-- 检查终端工具栏是否出现 SFTP+ 按钮
-- 点击按钮打开面板，验证 SSH 连接与文件操作
+- 构建后将仓库通过 junction / 复制放到 Tabby 插件目录（可用 `npm run use-in-tabby`）
+- **完全退出再打开 Tabby**（只刷新页面往往仍加载旧 `dist/index.js`）
+- `scripts/test-text-input-isolation.mjs` 是 PR #22 带来的可选 Playwright harness，未列入 `package.json` 依赖，不作为发布验收
 
 ### 4. 调试
 
@@ -183,47 +166,44 @@ npm run watch    # 监听模式，文件变化自动构建
 
 ### Angular 特有
 
-- 组件使用内联 `template` 和 `styles`，不分离 `.html`/`.css` 文件
-- `ChangeDetectionStrategy.OnPush` 不适用，使用默认策略
-- 服务类不继承或实现任何 Angular 类，独立实例化
-- 通过 `Injector.get()` 获取 Tabby 核心服务，而非构造函数注入
+- 组件模板：主面板使用独立 `.html`；对话框多为内联 `template` / `styles`
+- 通过 `Injector.get()` 获取 Tabby 核心服务；部分服务（如 `SftpConfigService`）已 `@Injectable`
 
 ### 国际化规范
 
-- 所有用户可见文本必须使用 `i18n.t()` 方法
-- 新翻译键按功能分组（`app.*`、`file.*`、`transfer.*`、`bookmark.*`、`permission.*`、`notify.*`）
-- 字典中使用 `{placeholder}` 语法进行参数替换
-- 新增语言时，必须提供 **所有翻译键** 的对应翻译（可先复制 `zh-CN` 后翻译）
+- 所有用户可见文本必须使用 `i18n.t()`
+- 翻译源文件是 `locale/*.po`，由 `sftp-i18n.service.ts` 在构建时内联解析（详见 [I18N.md](I18N.md)）
+- 新键先写入 `locale/zh-CN.po` 与 `locale/en-US.po`，再同步其余 22 个语言（可先留空，运行时回退英文）
 
 ## 扩展指南
 
 ### 新增功能
 
-1. **新增服务**：在 `src/` 下创建 `sftp-xxx.service.ts`，使用 `new` 实例化
-2. **新增 UI 组件**：复杂 UI 应放入 `src/panel/` 子组件，并在 `index.ts` 的 `declarations` 中注册；简单改动可直接改主组件模板
-3. **新增 Tabby 扩展点**：在 `index.ts` 的 `providers` 数组中注册
+1. **新增服务**：在 `src/services/` 下创建 `sftp-xxx.service.ts`
+2. **新增 UI 组件**：放入 `src/sftp/components/`，并在 `src/index.ts` 的 `declarations` 中注册
+3. **纯逻辑**：放入 `src/sftp/core/`（如 `digest.ts`）
+4. **新增 Tabby 扩展点**：在 `index.ts` 的 `providers` 数组中注册
 
 ### 修改数据模型
 
-1. 在对应的 Service 中修改接口定义
-2. 增加版本迁移逻辑（如果 localStorage 中已有旧格式数据）
+1. 在 `src/tabby/config-provider.ts` 的 `SftpPlusPluginConfig` / `defaultSftpPlusConfig()` 中改默认值
+2. 深路径写入走 `SftpConfigService`；`paneState` 必须带 `__nonStructural` 才能落盘（见 [STORAGE.md](STORAGE.md)）
 3. 更新 `docs/STORAGE.md`
 
 ### 新增翻译
 
-1. 在 `sftp-i18n.service.ts` 的 `TRANSLATIONS` 中添加键值对
-2. 在 `zh-CN` 和 `en-US` 中分别添加
-3. 新键按分组放入已有分组中，或新建分组
+1. 在 `locale/zh-CN.po` 与 `locale/en-US.po` 添加 msgid/msgstr
+2. 同步到其余 `locale/*.po`（缺失时运行时回退 `en-US`）
+3. 代码中用 `this.i18n.t('group.key')`
 
 ## 注意事项
 
 ### 已知限制
 
-1. **Angular DI 不可用**：由于组件动态创建，服务无法通过 DI 注入
-2. **Tabby 类型不完整**：`tabby-shims.d.ts` 中的类型声明可能不全，需根据 Tabby 源码补充
-3. **单 Tab 隔离**：每个终端 Tab 有独立的浮动面板实例，互不干扰
-4. **localStorage 限制**：所有数据存储在 localStorage 中，单键值大小约 5MB，日志和书签需控制数据量
-5. **SSH 会话依赖**：插件仅在有活跃 SSH 会话的 Tab 中可用，本地终端无效
+1. **Tabby 类型不完整**：`tabby-shims.d.ts` 中的类型声明可能不全，需根据 Tabby 源码补充
+2. **单 Tab 隔离**：每个终端 Tab 有独立的浮动面板实例，互不干扰
+3. **双存储**：设置/书签/面板状态以 `config.yaml` 为准；传输日志与部分瞬时 UI 仍用 localStorage（约 5MB 配额）
+4. **SSH 会话依赖**：插件仅在有活跃 SSH 会话的 Tab 中可用，本地终端无效
 
 ### 常见问题
 

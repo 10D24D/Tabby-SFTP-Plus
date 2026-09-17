@@ -1278,3 +1278,182 @@ msgstr "Tar-pakning"
 
 msgid "log.fileCount"
 msgstr "{n} filer"
+
+msgid "settings.editableExtensions"
+msgstr "Yderligere redigerbare filtyper"
+
+msgid "settings.editableExtensionsHint"
+msgstr "Adskil med mellemrum. Accepterer .conf, *.conf eller conf. Hvidliste når »vis og rediger alle« er slået fra."
+msgid "settings.allowViewEditAllFiles"
+msgstr "Tillad visning og redigering af alle filtyper"
+
+msgid "settings.allowViewEditAllFilesHint"
+msgstr "Ignorer udvidelsesbegrænsninger. Enhver fil kan vises; binært indhold forbliver beskyttet under redigering."
+
+msgid "conflict.digest"
+msgstr "Digest"
+
+msgid "conflict.contentIdentical"
+msgstr "Indholdet er identisk — sikkert at springe over"
+
+msgid "file.symlink"
+msgstr "Symbolsk link"
+
+msgid "file.shortcut"
+msgstr "Genvej"
+
+msgid "file.copyAll"
+msgstr "Kopiér alt"
+
+msgid "file.copyImage"
+msgstr "Kopiér billede"
+
+msgid "file.copyImageAddress"
+msgstr "Kopiér billedadresse"
+
+msgid "transfer.skippedAsDuplicate"
+msgstr "Sprunget over · identisk indhold"
+
+msgid "settings.font"
+msgstr "Skrifttype"
+
+msgid "settings.fontSize"
+msgstr "Skriftstørrelse"
+
+msgid "settings.resetFont"
+msgstr "Nulstil skriftstørrelse"
+
+msgid "settings.fontHint"
+msgstr "Juster tekststørrelse i SFTP+-panelet (11–18px)"
+
+msgid "settings.defaultUploadPath"
+msgstr "Standard uploadsti"
+
+msgid "settings.defaultUploadPathPh"
+msgstr "Fjernmappe, f.eks. /home/user/uploads (tom = aktuel fjernmappe)"
+
+msgid "settings.defaultDownloadPath"
+msgstr "Standard downloadsti"
+
+msgid "settings.defaultDownloadPathPh"
+msgstr "Lokal mappe, f.eks. C:\\Downloads (tom = aktuel lokal mappe)"
+
+msgid "settings.iconSettings"
+msgstr "Filtypeikoner"
+
+msgid "settings.iconResourceDir"
+msgstr "Ikonmappe"
+
+msgid "settings.iconResourceDirPh"
+msgstr "Lokal mappe med svg-filer, f.eks. C:\\icons"
+
+msgid "settings.iconSvgFile"
+msgstr "SVG-fil"
+
+msgid "settings.iconPreview"
+msgstr "Forhåndsvisning"
+
+msgid "settings.iconAdd"
+msgstr "Tilføj regel"
+
+msgid "settings.iconDelete"
+msgstr "Slet"
+
+msgid "settings.iconDeleteConfirm"
+msgstr "Slet reglen \"{name}\"? Dette kan ikke fortrydes."
+
+msgid "settings.iconRuleHint"
+msgstr "Tilknyt filendelser til deres SVG-filer."
+
+msgid "settings.builtinIcons"
+msgstr "Indbyggede ikoner"
+
+msgid "settings.builtinIconDir"
+msgstr "Mappe til indbyggede ikoner"
+
+msgid "settings.builtinIconDesc"
+msgstr "Følgende SVG-ikoner følger med pluginet. Læg dine egne svg-filer her for at udvide dem."
+
+msgid "settings.iconEdit"
+msgstr "Rediger"
+
+msgid "settings.iconDisable"
+msgstr "Deaktivér"
+
+msgid "settings.iconEnable"
+msgstr "Gendan"
+
+msgid "settings.iconAddRule"
+msgstr "Tilføj regel"
+
+msgid "settings.iconFolderHint"
+msgstr "Mappe (standard)"
+
+msgid "settings.iconFileHint"
+msgstr "Fil (standard)"
+
+msgid "settings.iconExtLockedHint"
+msgstr "Standardfiler kan ikke ændre filendelser"
+
+msgid "settings.iconSvgNameHint"
+msgstr "Filnavn"
+
+msgid "settings.iconRuleName"
+msgstr "Regelnavn"
+
+msgid "settings.iconRuleNamePh"
+msgstr "f.eks. Scripts, Documents"
+
+msgid "settings.iconExtLabel"
+msgstr "Filendelser"
+
+msgid "settings.iconErrorExtConflict"
+msgstr "Filendelsen \"{ext}\" bruges allerede af ikonet {svg}"
+
+msgid "settings.iconErrorEmpty"
+msgstr "Regelnavn, filendelse og svg-filnavn må ikke være tomme"
+
+msgid "settings.iconErrorEmptyName"
+msgstr "Regelnavn må ikke være tomt"
+
+msgid "settings.iconErrorNameConflict"
+msgstr "Regelnavnet \"{name}\" findes allerede"
+
+msgid "settings.iconErrorNameSvgMismatch"
+msgstr "Reglen \"{name}\" er allerede bundet til ikonet {svg}; brug samme fil eller et andet navn"
+
+msgid "settings.iconErrorMissingSvg"
+msgstr "SVG-filen blev ikke fundet i ikonmappen"
+
+msgid "settings.iconErrorInvalidExt"
+msgstr "Ugyldigt filendelsesformat: \"{ext}\". Brug .txt eller txt; adskil flere med mellemrum/kommaer"
+
+msgid "settings.resetIcons"
+msgstr "Nulstil indstillinger for ikoner"
+
+msgid "op.cannotCopyIntoSelf"
+msgstr "Kan ikke kopiere en mappe ind i sig selv eller en undermappe: {name}"
+
+msgid "settings.tarAcceleration"
+msgstr "TAR-overførselsacceleration"
+
+msgid "settings.tarAccelerationDesc"
+msgstr "Pakker automatisk mappeoverførsler med tar for at fremskynde små filer; falder tilbage til normal overførsel ved fejl"
+
+msgid "settings.conflictDigest"
+msgstr "Indholdsdigest ved konflikt"
+
+msgid "settings.conflictDigestDesc"
+msgstr "Når størrelsen matcher, men ændringstiden afviger, beregnes et digest for at se om filen virkelig er ændret (f.eks. efter Git-grenskift). Kræver shell på fjernværten; ellers tidligere adfærd"
+
+msgid "settings.conflictAutoSkip"
+msgstr "Spring automatisk over identisk indhold"
+
+msgid "settings.conflictAutoSkipDesc"
+msgstr "Hvis begge digests er tilgængelige og ens, behandle som ingen konflikt og spring over uden spørgsmål"
+
+msgid "settings.conflictDigestMaxSize"
+msgstr "Størrelsesgrænse for digest (MB)"
+
+msgid "settings.conflictDigestMaxSizeDesc"
+msgstr "Større filer digestes ikke og behandles altid som konflikt for ikke at forsinke registreringen"

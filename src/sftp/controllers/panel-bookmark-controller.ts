@@ -274,6 +274,7 @@ export abstract class SftpPanelBookmarkController extends SftpPanelViewerControl
     const all = this.bookmarks.getAll()
     const moved = list[srcIdx]
     const targetItem = list[targetIdx]
+    if (!moved || !targetItem) return
     const fromAllIdx = all.findIndex(b => b.id === moved.id)
     const toAllIdx = all.findIndex(b => b.id === targetItem.id)
     if (fromAllIdx < 0 || toAllIdx < 0) return

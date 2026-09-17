@@ -1364,3 +1364,265 @@ msgstr "Tar packing"
 
 msgid "log.fileCount"
 msgstr "{n} files"
+
+msgid "settings.editableExtensions"
+msgstr "Viewable & editable extensions"
+
+msgid "settings.editableExtensionsHint"
+msgstr "Space-separated. Accepts .conf, *.conf, or conf. Used as the whitelist when \"view & edit all\" is off."
+msgid "settings.allowViewEditAllFiles"
+msgstr "Allow viewing and editing all file types"
+msgid "settings.allowViewEditAllFilesHint"
+msgstr "Ignore extension restrictions. Any file can be viewed; binary content remains protected when editing."
+
+msgid "conflict.digest"
+msgstr "Digest"
+
+msgid "conflict.contentIdentical"
+msgstr "Content is identical — safe to skip"
+
+msgid "app.trashHint"
+msgstr "Move to Recycle Bin"
+
+msgid "app.permDeleteHint"
+msgstr "Permanently delete (cannot be undone)"
+
+msgid "file.symlink"
+msgstr "Symbolic link"
+
+msgid "file.shortcut"
+msgstr "Shortcut"
+
+msgid "file.viewAsText"
+msgstr "View as Text"
+
+msgid "file.copied"
+msgstr "Copied"
+
+msgid "file.copySelection"
+msgstr "Copy Selection"
+
+msgid "file.copyAll"
+msgstr "Copy All"
+
+msgid "file.copyImage"
+msgstr "Copy Image"
+
+msgid "file.copyImageAddress"
+msgstr "Copy Image Address"
+
+msgid "viewer.binaryShownAsText"
+msgstr "Binary content shown as text (may not display correctly)"
+
+msgid "viewer.prevImage"
+msgstr "Previous image"
+
+msgid "viewer.nextImage"
+msgstr "Next image"
+
+msgid "editor.saveSuccessLocal"
+msgstr "Saved"
+
+msgid "transfer.skippedAsDuplicate"
+msgstr "Skipped · content identical"
+
+msgid "settings.font"
+msgstr "Font"
+
+msgid "settings.fontSize"
+msgstr "Font size"
+
+msgid "settings.resetFont"
+msgstr "Reset font size"
+
+msgid "settings.fontHint"
+msgstr "Adjust text size inside the SFTP+ panel (11–18px)"
+
+msgid "settings.interaction"
+msgstr "Interaction"
+
+msgid "settings.openOnClick"
+msgstr "Open file/folder on"
+
+msgid "settings.clickDouble"
+msgstr "Double click"
+
+msgid "settings.clickSingle"
+msgstr "Single click"
+
+msgid "settings.openOnClickHint"
+msgstr "Single click opens files/folders directly; double click still works in single-click mode."
+
+msgid "settings.openUnsupportedInSystem"
+msgstr "Open unsupported files with system app"
+
+msgid "settings.openUnsupportedInSystemDesc"
+msgstr "Files the viewer cannot handle (e.g. .pdf/.docx) will be opened with the OS default app instead of showing an \"unsupported\" message."
+
+msgid "settings.transferSection"
+msgstr "Transfer"
+
+msgid "settings.defaultUploadPath"
+msgstr "Default upload path"
+
+msgid "settings.defaultUploadPathPh"
+msgstr "Remote dir, e.g. /home/user/uploads (empty = current remote dir)"
+
+msgid "settings.defaultDownloadPath"
+msgstr "Default download path"
+
+msgid "settings.defaultDownloadPathPh"
+msgstr "Local dir, e.g. C:\\Downloads (empty = current local dir)"
+
+msgid "settings.iconSettings"
+msgstr "File type icons"
+
+msgid "settings.iconResourceDir"
+msgstr "Icon directory"
+
+msgid "settings.iconResourceDirPh"
+msgstr "Local dir containing the svg files, e.g. C:\\icons"
+
+msgid "settings.iconSvgFile"
+msgstr "SVG file"
+
+msgid "settings.iconPreview"
+msgstr "Preview"
+
+msgid "settings.iconAdd"
+msgstr "Add rule"
+
+msgid "settings.iconDelete"
+msgstr "Delete"
+
+msgid "settings.iconDeleteConfirm"
+msgstr "Delete rule \"{name}\"? This cannot be undone."
+
+msgid "settings.iconRuleHint"
+msgstr "Map extensions to their SVG files."
+
+msgid "settings.builtinIcons"
+msgstr "Built-in icons"
+
+msgid "settings.builtinIconDir"
+msgstr "Built-in icon directory"
+
+msgid "settings.builtinIconDesc"
+msgstr "The following SVG icons are bundled with the plugin. Drop your own svgs here to extend them."
+
+msgid "settings.iconEdit"
+msgstr "Edit"
+
+msgid "settings.iconDisable"
+msgstr "Disable"
+
+msgid "settings.iconEnable"
+msgstr "Restore"
+
+msgid "settings.iconAddRule"
+msgstr "Add rule"
+
+msgid "settings.iconFolderHint"
+msgstr "Folder (default)"
+
+msgid "settings.iconFileHint"
+msgstr "File (default)"
+
+msgid "settings.iconExtLockedHint"
+msgstr "Default files cannot change extensions"
+
+msgid "settings.iconSvgNameHint"
+msgstr "File name"
+
+msgid "settings.iconRuleName"
+msgstr "Rule name"
+
+msgid "settings.iconRuleNamePh"
+msgstr "e.g. Scripts, Documents"
+
+msgid "settings.iconExtLabel"
+msgstr "Extensions"
+
+msgid "settings.iconErrorExtConflict"
+msgstr "Extension \"{ext}\" is already used by icon {svg}"
+
+msgid "settings.iconErrorEmpty"
+msgstr "Rule name, extension and svg file name must not be empty"
+
+msgid "settings.iconErrorEmptyName"
+msgstr "Rule name must not be empty"
+
+msgid "settings.iconErrorNameConflict"
+msgstr "Rule name \"{name}\" already exists"
+
+msgid "settings.iconErrorNameSvgMismatch"
+msgstr "Rule \"{name}\" is already bound to icon {svg}; use the same file or choose another rule name"
+
+msgid "settings.iconErrorMissingSvg"
+msgstr "The svg file was not found in the icon directory"
+
+msgid "settings.iconErrorInvalidExt"
+msgstr "Invalid extension format: \"{ext}\". Use forms like .txt or txt; separate multiple with spaces/commas"
+
+msgid "settings.resetIcons"
+msgstr "Reset icon settings"
+
+msgid "settings.hotkeys"
+msgstr "Shortcuts"
+
+msgid "settings.resetPanelHotkeys"
+msgstr "Reset to defaults"
+
+msgid "settings.phk.delete"
+msgstr "Delete"
+
+msgid "settings.phk.rename"
+msgstr "Rename"
+
+msgid "settings.phk.refresh"
+msgstr "Refresh"
+
+msgid "settings.phk.up"
+msgstr "Go up (parent dir)"
+
+msgid "settings.phk.back"
+msgstr "Back"
+
+msgid "settings.panelHotkeyConflict"
+msgstr "Shortcut {keys} is already used by another action"
+
+msgid "settings.customContextMenu"
+msgstr "Customise right-click menu"
+
+msgid "settings.resetMenu"
+msgstr "Reset menu order"
+
+msgid "op.cannotCopyIntoSelf"
+msgstr "Cannot copy a folder into itself or its subfolder: {name}"
+
+msgid "notify.trashFailed"
+msgstr "{n} item(s) failed to move to Recycle Bin (not deleted; try Shift+Delete for permanent)"
+
+msgid "settings.tarAcceleration"
+msgstr "TAR Transfer Acceleration"
+
+msgid "settings.tarAccelerationDesc"
+msgstr "Automatically package folder transfers with tar to dramatically speed up small files; falls back smoothly to normal transfer if unsupported or failed"
+
+msgid "settings.conflictDigest"
+msgstr "Content Digest on Conflict"
+
+msgid "settings.conflictDigestDesc"
+msgstr "When size matches but modification time differs, compute a content digest to tell whether the file really changed (e.g. after switching Git branches). Requires shell access on the remote host; falls back to the old behaviour when unavailable"
+
+msgid "settings.conflictAutoSkip"
+msgstr "Auto-skip Identical Content"
+
+msgid "settings.conflictAutoSkipDesc"
+msgstr "If both digests are available and equal, treat it as no conflict and skip silently instead of prompting"
+
+msgid "settings.conflictDigestMaxSize"
+msgstr "Digest Size Limit (MB)"
+
+msgid "settings.conflictDigestMaxSizeDesc"
+msgstr "Files larger than this are not digested and are always treated as conflicts, to avoid slowing down conflict detection"

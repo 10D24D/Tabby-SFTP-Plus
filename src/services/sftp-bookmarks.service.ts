@@ -140,7 +140,11 @@ export class SftpBookmarksService {
     // 回退：写入 localStorage
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(this.bookmarks))
-    } catch {}
+    } catch (e) {
+      if (e instanceof DOMException && e.name === 'QuotaExceededError') {
+        log.warn('localStorage quota exceeded for bookmarks; config save may still succeed')
+      }
+    }
   }
 
   /** 获取所有书签 */

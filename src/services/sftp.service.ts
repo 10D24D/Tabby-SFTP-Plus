@@ -49,6 +49,9 @@ type RusshSftpClient = {
 function asNumber(v: unknown): number | undefined {
   if (typeof v === 'number' && !Number.isNaN(v) && Number.isFinite(v)) return v
   if (typeof v === 'bigint') {
+    if (v > BigInt(Number.MAX_SAFE_INTEGER) || v < BigInt(-Number.MAX_SAFE_INTEGER)) {
+      log.warn('asNumber: BigInt exceeds safe integer range, precision may be lost:', v.toString())
+    }
     return Number(v)
   }
   if (typeof v === 'string' && v.trim() !== '') {

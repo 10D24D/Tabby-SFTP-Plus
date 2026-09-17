@@ -1304,3 +1304,182 @@ msgstr "パック転送"
 
 msgid "log.fileCount"
 msgstr "{n} ファイル"
+
+msgid "settings.editableExtensions"
+msgstr "追加の編集可能拡張子"
+
+msgid "settings.editableExtensionsHint"
+msgstr "スペース区切り。.conf、*.conf、conf に対応。「すべて表示・編集」がオフのときのホワイトリストです。"
+msgid "settings.allowViewEditAllFiles"
+msgstr "すべてのファイル種類の表示と編集を許可"
+
+msgid "settings.allowViewEditAllFilesHint"
+msgstr "拡張子の制限を無視します。任意のファイルを表示でき、編集時はバイナリ内容が保護されます。"
+
+msgid "conflict.digest"
+msgstr "ダイジェスト"
+
+msgid "conflict.contentIdentical"
+msgstr "内容は同一です — スキップして問題ありません"
+
+msgid "file.symlink"
+msgstr "シンボリックリンク"
+
+msgid "file.shortcut"
+msgstr "ショートカット"
+
+msgid "file.copyAll"
+msgstr "すべてコピー"
+
+msgid "file.copyImage"
+msgstr "画像をコピー"
+
+msgid "file.copyImageAddress"
+msgstr "画像のアドレスをコピー"
+
+msgid "transfer.skippedAsDuplicate"
+msgstr "スキップ · 内容同一"
+
+msgid "settings.font"
+msgstr "フォント"
+
+msgid "settings.fontSize"
+msgstr "フォントサイズ"
+
+msgid "settings.resetFont"
+msgstr "フォントサイズをリセット"
+
+msgid "settings.fontHint"
+msgstr "SFTP+ パネル内の文字サイズを調整（11–18px）"
+
+msgid "settings.defaultUploadPath"
+msgstr "デフォルトのアップロード先"
+
+msgid "settings.defaultUploadPathPh"
+msgstr "リモートディレクトリ（例: /home/user/uploads、空欄 = 現在のリモート）"
+
+msgid "settings.defaultDownloadPath"
+msgstr "デフォルトのダウンロード先"
+
+msgid "settings.defaultDownloadPathPh"
+msgstr "ローカルディレクトリ（例: C:\\Downloads、空欄 = 現在のローカル）"
+
+msgid "settings.iconSettings"
+msgstr "ファイル種別アイコン"
+
+msgid "settings.iconResourceDir"
+msgstr "アイコンディレクトリ"
+
+msgid "settings.iconResourceDirPh"
+msgstr "svg ファイルを置くローカルディレクトリ（例: C:\\icons）"
+
+msgid "settings.iconSvgFile"
+msgstr "SVG ファイル"
+
+msgid "settings.iconPreview"
+msgstr "プレビュー"
+
+msgid "settings.iconAdd"
+msgstr "ルールを追加"
+
+msgid "settings.iconDelete"
+msgstr "削除"
+
+msgid "settings.iconDeleteConfirm"
+msgstr "ルール「{name}」を削除しますか？この操作は取り消せません。"
+
+msgid "settings.iconRuleHint"
+msgstr "拡張子を SVG ファイルに対応付けます。"
+
+msgid "settings.builtinIcons"
+msgstr "内蔵アイコン"
+
+msgid "settings.builtinIconDir"
+msgstr "内蔵アイコンディレクトリ"
+
+msgid "settings.builtinIconDesc"
+msgstr "以下はプラグイン同梱の SVG アイコンです。このディレクトリに独自の svg を追加して拡張できます。"
+
+msgid "settings.iconEdit"
+msgstr "編集"
+
+msgid "settings.iconDisable"
+msgstr "無効化"
+
+msgid "settings.iconEnable"
+msgstr "復元"
+
+msgid "settings.iconAddRule"
+msgstr "ルールを追加"
+
+msgid "settings.iconFolderHint"
+msgstr "フォルダ（デフォルト）"
+
+msgid "settings.iconFileHint"
+msgstr "ファイル（デフォルト）"
+
+msgid "settings.iconExtLockedHint"
+msgstr "デフォルトファイルの拡張子は変更できません"
+
+msgid "settings.iconSvgNameHint"
+msgstr "ファイル名"
+
+msgid "settings.iconRuleName"
+msgstr "ルール名"
+
+msgid "settings.iconRuleNamePh"
+msgstr "例: Scripts, Documents"
+
+msgid "settings.iconExtLabel"
+msgstr "拡張子"
+
+msgid "settings.iconErrorExtConflict"
+msgstr "拡張子「{ext}」は既にアイコン {svg} で使用されています"
+
+msgid "settings.iconErrorEmpty"
+msgstr "ルール名、拡張子、svg ファイル名は空にできません"
+
+msgid "settings.iconErrorEmptyName"
+msgstr "ルール名は空にできません"
+
+msgid "settings.iconErrorNameConflict"
+msgstr "ルール名「{name}」は既に存在します"
+
+msgid "settings.iconErrorNameSvgMismatch"
+msgstr "ルール「{name}」は既にアイコン {svg} に紐づいています。同じファイルを使うか別のルール名にしてください"
+
+msgid "settings.iconErrorMissingSvg"
+msgstr "アイコンディレクトリにその svg ファイルが見つかりません"
+
+msgid "settings.iconErrorInvalidExt"
+msgstr "拡張子の形式が不正です：「{ext}」。.txt や txt の形式で、複数は空白/カンマ区切り"
+
+msgid "settings.resetIcons"
+msgstr "アイコン設定をリセット"
+
+msgid "op.cannotCopyIntoSelf"
+msgstr "フォルダを自身またはそのサブフォルダへコピーできません: {name}"
+
+msgid "settings.tarAcceleration"
+msgstr "TAR パック転送加速"
+
+msgid "settings.tarAccelerationDesc"
+msgstr "フォルダ転送を自動で tar にまとめて高速化。非対応・失敗時は通常転送へスムーズにフォールバックします"
+
+msgid "settings.conflictDigest"
+msgstr "競合時に内容ダイジェストを照合"
+
+msgid "settings.conflictDigestDesc"
+msgstr "サイズが同じでも更新時刻が異なる場合、内容ダイジェストで実変更を判定（例: Git ブランチ切替後）。リモートの shell 実行権限が必要で、不可時は従来判定に戻ります"
+
+msgid "settings.conflictAutoSkip"
+msgstr "内容同一なら自動スキップ"
+
+msgid "settings.conflictAutoSkipDesc"
+msgstr "双方のダイジェストが取得でき一致する場合、競合なしとして確認なくスキップします"
+
+msgid "settings.conflictDigestMaxSize"
+msgstr "ダイジェスト計算上限（MB）"
+
+msgid "settings.conflictDigestMaxSizeDesc"
+msgstr "このサイズを超えるファイルはダイジェストせず常に競合扱いし、検出の遅延を防ぎます"

@@ -4,9 +4,36 @@ All notable changes to **tabby-sftp-plus** will be documented in this file.
 
 | [中文](https://github.com/10D24D/Tabby-SFTP-Plus/blob/main/CHANGELOG.md) | [English](https://github.com/10D24D/Tabby-SFTP-Plus/blob/main/CHANGELOG.en.md) |
 
-### [2.2.0] — 2026-09-03
+## [2.3.0] — 2026-09-17
 
-#### ✨ Added
+### ✨ Added
+
+- **Additional editable extensions / allow all types** ([PR #18](https://github.com/10D24D/Tabby-SFTP-Plus/pull/18) / issue #9, @Purgepyro) — “Allow editing all file types” is the master switch (off by default; binaries still blocked). Extra extensions only appear when it is off. Accepts `.conf` / `*.conf` / `conf`, separated by commas, spaces, or semicolons.
+- **Content digest on conflict** (issue #15) — When size matches but mtime differs, compute digests on both sides to detect “mtime changed but content did not”; identical content can be skipped automatically.
+- **Symlink / shortcut badge** (issue #16) — Local listing uses `lstat` to recognize symlinks, junctions, and `.lnk` files, and overlays a link badge on the icon.
+
+### 🐛 Fixed
+
+- **Blank built-in icons after a manual install** ([PR #18](https://github.com/10D24D/Tabby-SFTP-Plus/pull/18), @Purgepyro) — Built-in icon lookup now accepts `<plugin>/dist/assets/icons`, `<plugin>/assets/icons`, and `<plugin>/src/assets/icons`.
+- **Copy/drop into self caused infinite recursion** (issue #17) — Refuse copying, pasting, or dragging a directory into itself or a subdirectory.
+- **Pane state never persisted** — `paneState` is marked `__nonStructural` so path memory, column widths, and layout actually write through to config.yaml.
+- **Remote `isDirectory` mis-detection** — Handle function-shaped `isDirectory` and russh numeric `type`, so conflict prompts no longer treat regular files as directories.
+- **External-editor save storms** — Editor file watch actually syncs at most once every 800ms.
+- **Editor paste leaked into the terminal** (issue #21 / [PR #22](https://github.com/10D24D/Tabby-SFTP-Plus/pull/22), @waylandun) — On macOS, editor `Cmd+V` also wrote into the SSH terminal. Keep the panel-root keydown/keyup isolation from the PR, plus the window-capture clipboard/paste shields.
+
+### 🌐 i18n
+
+- Added strings for editable extensions, allow-edit-all, conflict digest, and symlink-related UI (24 locales; digest strings complete in zh/en, others fall back to English).
+
+### 🔧 Build
+
+- Shared `resolveSftpPlusBundledIconDir` for settings and the panel.
+- Docs aligned with the current tree: `config.yaml` + `paneState.__nonStructural`, `locale/*.po`, and `src/sftp/{components,controllers,core}`.
+- Version bumped to **2.3.0**.
+
+## [2.2.0] — 2026-09-03
+
+### ✨ Added
 
 - **Multi-binding panel hotkeys** — One action can now be bound to several keys. Settings shows each binding as a chip: `+` to add, `×` to remove. Existing single-key configuration migrates automatically.
 - **Configurable mouse side buttons** — The previously hardcoded mouse back (Mouse3) / forward (Mouse4) buttons are now part of the hotkey configuration: they can be remapped to any action or cleared. A new `forward` action mirrors `back`.
@@ -15,20 +42,20 @@ All notable changes to **tabby-sftp-plus** will be documented in this file.
 - **Tar packing acceleration toggle** — New `transferTarAcceleration` setting (on by default) to disable the tar packing channel for folder transfers.
 - **Transfer-log mode tags** — The transfer log now shows how a folder was transferred: ⚡ fast mode, 📦 tar packing, or the file count for the standard mode.
 
-#### 🐛 Fixed
+### 🐛 Fixed
 
 - **Duplicate log entries when overwriting a dragged folder** — Dropping a folder with a name conflict and choosing overwrite produced two entries for the same directory (one failed, one succeeded). The panel's merge-upload adapter dropped the reuse-log-entry id, so the entry already marked as failed when the conflict was queued could never be flipped back to success. Now only one successful entry remains.
 - **Reversed direction for upload entries in the transfer log** — Upload entries were rendered with the "remote → local" direction icon. Downloads were correct, so only uploads were affected.
 
-#### 🎨 Improved
+### 🎨 Improved
 
 - **Graceful fallback for tar channel failures** — When packing, transferring, or extracting fails, the tar channel no longer aborts the whole transfer. It falls back to the regular file-by-file transfer and cleans up leftover remote temp extraction directories and partial targets.
 
-#### 🌐 Localization
+### 🌐 Localization
 
 - Added strings for the new settings, hotkeys, and transfer-log labels (24 languages).
 
-#### 🔧 Technical / Build
+### 🔧 Technical / Build
 
 - Added idempotent i18n maintenance scripts `scripts/add-multi-hotkey-i18n.mjs` and `scripts/add-transfer-mode-i18n.mjs`.
 - Version bumped to **2.2.0**.

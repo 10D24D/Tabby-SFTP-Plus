@@ -3,7 +3,7 @@
  * 创建人：DD1024z + Hy3 preview
  * 创建时间：2026-06-21
  * 修改人：DD1024z + Hy4 preview
- * 修改时间：2026-09-03 — 新增目录传输模式（快速/tar 打包）与文件数标签展示
+ * 修改时间：2026-09-07 — issue #15+：渲染 skippedAsDuplicate 徽章，区分「真的下载/上传了」与「内容相同自动跳过」
  */
 import { Component, EventEmitter, Input, Output } from '@angular/core'
 
@@ -91,13 +91,16 @@ import { onFileDialogOverlayWheel, onFileDialogScrollableWheel } from './file-di
                 <span *ngIf="!entry.pending && entry.size && entry.duration" class="log-speed">{{ formatSpeedFromSize(entry.size, entry.duration) }}</span>
                 <span *ngIf="!entry.pending && entry.duration != null" class="log-duration">{{ formatDuration(entry.duration) }}</span>
                 <span *ngIf="entry.pending" class="log-pending-tag">{{ i18n.t('transfer.inProgress') }}</span>
+                <!-- ★ 2026-09-07 issue #15+：内容已确认相同 → 自动跳过；与 success ✓ 区分，避免「重复拖同文件看不到任何反馈」 -->
+                <span *ngIf="entry.skippedAsDuplicate" class="log-skipped-tag" [title]="i18n.t('transfer.skippedAsDuplicate')">⏭ {{ i18n.t('transfer.skippedAsDuplicate') }}</span>
               </span>
               <span class="log-status-icon"
-                    [class.success]="!entry.pending && entry.success"
+                    [class.success]="!entry.pending && !entry.skippedAsDuplicate && entry.success"
                     [class.failed]="!entry.pending && !entry.success"
                     [class.pending]="entry.pending"
-                    [title]="entry.pending ? i18n.t('transfer.inProgress') : (entry.success ? i18n.t('transfer.success') : formatFailReason(entry))">
-                {{ entry.pending ? '⏳' : (entry.success ? '✓' : '✗') }}
+                    [class.skipped]="!!entry.skippedAsDuplicate"
+                    [title]="entry.pending ? i18n.t('transfer.inProgress') : (entry.skippedAsDuplicate ? i18n.t('transfer.skippedAsDuplicate') : (entry.success ? i18n.t('transfer.success') : formatFailReason(entry)))">
+                {{ entry.pending ? '⏳' : (entry.skippedAsDuplicate ? '⏭' : (entry.success ? '✓' : '✗')) }}
               </span>
             </div>
             <div class="log-row-paths">
@@ -291,6 +294,13 @@ import { onFileDialogOverlayWheel, onFileDialogScrollableWheel } from './file-di
       padding: 0 6px; border: 1px solid #ff9800; border-radius: 3px;
       line-height: 1.4; opacity: 0.85;
     }
+    /* ★ 2026-09-07 issue #15+：内容相同自动跳过；与 success ✓ 区分，蓝色提示而非绿色对勾 */
+    .log-skipped-tag {
+      font-size: 10px; color: #3b82f6;
+      padding: 0 6px; border: 1px solid #3b82f6; border-radius: 3px;
+      line-height: 1.4; opacity: 0.85;
+    }
+    .log-status-icon.skipped { color: #3b82f6; opacity: 0.85; }
     .log-row-paths { display: flex; align-items: center; gap: 6px; padding-left: 4px; margin-top: 2px; }
     .log-path-line {
       font-size: 10px; color: var(--_text); opacity: 0.35;

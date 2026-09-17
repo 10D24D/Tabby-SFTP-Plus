@@ -2,252 +2,140 @@
 
 > 创建人：DD1024z + Deepseek-V4-Flash
 > 创建时间：2026-06-25
+> 修改人：DD1024z + Grok 4.6
+> 修改时间：2026-09-17 — 按 v2.3.0 校正：主存储为 config.yaml，paneState `__nonStructural`，传输日志仍走 localStorage
 
 ## 概述
 
-SFTP+ 全部持久化数据均通过浏览器 **`localStorage`** 存储。不使用 Tabby 配置文件、文件系统或数据库。每个存储键都以 `sftp-plus-` 为前缀，便于识别和管理。
+v2.x 起，设置、书签和面板 UI 状态的**权威存储**是 Tabby 的 `config.yaml` 段 `tabby-sftp-plus`（由 `SftpPlusConfigProvider` 声明默认值，`SftpConfigService` 做嵌套读写与 flush）。
 
-## 存储键总览
+localStorage 仍用于：
 
-| 存储键 | 用途 | 数据模型 |
-|--------|------|---------|
-| `sftp-plus-bookmarks-v2` | 书签数据 | `Bookmark[]` |
-| `sftp-plus-transfer-log` | 传输日志 | `TransferLogEntry[]` |
-| `sftp-plus-locale` | 语言设置 | `string` |
-| `sftp-plus-settings.lang` | 设置页 - 语言 | `string` |
-| `sftp-plus-settings.theme` | 设置页 - 主题 | `string` |
-| `sftp-plus-settings.primaryColor` | 设置页 - 主色 | `string` |
-| `sftp-plus-settings.bgColor` | 设置页 - 背景色 | `string` |
-| `sftp-plus-settings.textColor` | 设置页 - 文字色 | `string` |
-| `sftp-plus-cols` | 设置页 - 列可见性 | `Record<string, boolean>` |
-| `sftp-plus-cols-order` | 设置页 - 列顺序 | `string[]` |
-| `sftp-plus-table.colBorders` | 设置页 - 列边框 | `boolean` |
-| `sftp-plus-table.zebra` | 设置页 - 斑马纹 | `boolean` |
-| `sftp-plus-local-cols` | 本地面板 - 列可见性 | `Record<string, boolean>` |
-| `sftp-plus-local-cols-order` | 本地面板 - 列顺序 | `string[]` |
-| `sftp-plus-remote-cols` | 远程面板 - 列可见性 | `Record<string, boolean>` |
-| `sftp-plus-remote-cols-order` | 远程面板 - 列顺序 | `string[]` |
-| `sftp-plus-local-sort` | 本地面板 - 排序 | `{ by: string, asc: boolean }` |
-| `sftp-plus-remote-sort` | 远程面板 - 排序 | `{ by: string, asc: boolean }` |
-| `sftp-plus-col-widths` | 列宽 | `Record<string, number>` |
-| `sftp-plus-path-mem.{hostKey}` | 路径记忆开关 | `"true"` / `"false"` |
-| `sftp-plus-saved-local-path.{hostKey}` | 保存的本地路径 | `string` |
-| `sftp-plus-saved-remote-path.{hostKey}` | 保存的远程路径 | `string` |
-| `sftp-plus-vertical-split-ratio` | 窄屏分割比例 | `number` |
+- **传输日志**（避免把大量历史写入 yaml）
+- 部分瞬时 UI（查看/编辑器最大化）
+- 旧版扁平 key 的升级回退
 
----
+导入/导出在设置页收集 `config.store` + 传输日志，再写回两端。
 
-## 详细数据模型
+## 主存储：`config.yaml` → `tabby-sftp-plus`
 
-### 书签 (`sftp-plus-bookmarks-v2`)
+默认值见 `src/tabby/config-provider.ts` 的 `defaultSftpPlusConfig()`。发布相关字段：
 
-由 `SftpBookmarksService` 管理。存储一个 JSON 序列化的 `Bookmark` 数组。
+| 字段 | 说明 |
+|------|------|
+| `lang` / `theme` / `fontSize` / 配色 | 界面 |
+| `editableFileExtensions` | 额外可查看/编辑扩展名（无点、小写） |
+| `allowViewEditAllFiles` | 允许查看与编辑所有非目录类型（二进制编辑仍拦截） |
+| `panelHotkeys` | 面板多绑定快捷键 |
+| `conflictDigestEnabled` | issue #15：冲突时计算内容摘要 |
+| `conflictAutoSkipSameContent` | 摘要确认相同则自动跳过 |
+| `conflictDigestMaxSizeMB` / `conflictDigestAlgo` | 摘要大小上限与算法（默认 sha1） |
+| `bookmarks` | 书签数组 |
+| `paneState` | 布局、列、per-host 路径记忆等 UI 状态 |
+| `panelGeometry` | 浮动面板位置/尺寸 |
+| `pathMemory` | **仅兼容导出/导入**，业务不再写入 |
+| `transferLogs` | **不再作为权威存储**；导入时日志只写 localStorage |
 
-**接口定义：**
+### `paneState` 与 `__nonStructural`
+
+Tabby 的 ConfigProxy 会把默认值为 `{}` 的对象当成叶子：getter 返回脱离 `_store` 的克隆，深路径写入不会进 `config.yaml`。
+
+因此默认值必须是：
 
 ```typescript
-interface Bookmark {
-  id: string;           // 唯一标识：Date.now().toString(36) + Math.random()
-  name: string;         // 书签显示名称
-  path: string;         // 路径（绝对路径）
-  type: 'local' | 'remote';  // 书签类型
-  connectionKey?: string;    // 连接键（"user@host" 格式）
-                             // 空/未定义 = 全局书签
-  createdAt: number;    // 创建时间戳（Unix 毫秒）
-}
+paneState: { __nonStructural: true }
 ```
 
-**作用域模型：**
+首次读取时 ConfigProxy 会 `real[key]=clone` 并剥掉该标记，之后 `paneState/layout/mode`、`paneState/perHost/{host}/pathMode` 等才能落盘。
+
+### `paneState` 嵌套结构
 
 ```
-全局书签 (connectionKey = "")
-  ├── 本地书签 (type = "local")  → 在所有连接的本地面板可见
-  └── 远程书签 (type = "remote") → 在所有连接的远程面板可见
-
-连接书签 (connectionKey = "user@host")
-  ├── 本地书签 (type = "local")  → 仅在该连接的本地面板可见
-  └── 远程书签 (type = "remote") → 仅在该连接的远程面板可见
+paneState/
+  layout/
+    mode
+    horizontalSplitRatio
+    verticalSplitRatio
+  local|remote/
+    sort
+    cols
+    colsOrder
+    colWidths
+  perHost/{user@host}/
+    pathMode
+    rememberPath
+    savedLocalPath
+    savedRemotePath
 ```
 
-**API：**
+`SftpConfigService` 在首次注入时把旧扁平 key（如 `sftp-plus-path-mode.{host}`）迁到上述路径，**旧 key 不删**，`get()` 仍双读回退。
 
-| 方法 | 说明 |
-|------|------|
-| `getBookmarks(connectionKey?, type?)` | 获取书签列表，可按连接键和类型筛选 |
-| `addBookmark(name, path, type, connectionKey?)` | 添加书签 |
-| `removeBookmark(id)` | 删除书签 |
-| `getGlobalBookmarks(type?)` | 获取全局书签 |
-| `getConnectionBookmarks(connectionKey, type?)` | 获取指定连接的书签 |
+路径模式与「上次路径」在面板侧仍会同步写一份 localStorage（`sftp-plus-path-mode.{host}` 等），与 yaml 双写，避免多窗口/升级空窗。
 
----
+## 传输日志：localStorage
 
-### 传输日志 (`sftp-plus-transfer-log`)
-
-由 `SftpTransferLogService` 管理。存储一个 JSON 序列化的 `TransferLogEntry` 数组。
-
-**接口定义：**
+| 键 | 用途 |
+|----|------|
+| `sftp-plus-transfer-logs` | `TransferLogEntry[]`，最多 1000 条 |
+| `sftp-plus-transfer-logs-deleted` | 已删 id，防止多窗口 save 合并把记录救活 |
 
 ```typescript
 interface TransferLogEntry {
-  id: string;            // 唯一标识
-  timestamp: number;     // 操作时间戳（Unix 毫秒）
-  operation:             // 操作类型
-    | 'upload'
-    | 'download'
-    | 'delete'
-    | 'rename'
-    | 'mkdir'
-    | 'chmod';
-  localPath: string;     // 本地路径
-  remotePath: string;    // 远程路径
-  profileName?: string;  // 连接配置名称（Tabby profile 名）
-  success: boolean;      // 是否成功
-  error?: string;        // 错误信息（失败时）
-  size?: number;         // 文件大小（字节）
-  duration?: number;     // 耗时（毫秒）
+  id: string
+  timestamp: number
+  operation: 'upload' | 'download' | 'edit-upload' | 'edit-download'
+    | 'delete' | 'rename' | 'mkdir' | 'chmod'
+  localPath: string
+  remotePath: string
+  profileName?: string
+  success: boolean
+  error?: string
+  size?: number
+  duration?: number
+  pending?: boolean
+  transferMode?: 'fast' | 'tar'
+  fileCount?: number
+  skippedAsDuplicate?: { reason: 'content-identical'; algo?: 'sha1' | 'sha256'; at: number }
 }
 ```
 
-**限制：** 最多保留 **1000 条** 记录，超过时移除最早的条目。
+`skippedAsDuplicate` 表示 issue #15 判定内容相同后自动跳过，并未实际传输。
 
-**API：**
+## 书签
 
-| 方法 | 说明 |
-|------|------|
-| `addLog(entry)` | 添加一条日志 |
-| `getLogs(filter?)` | 获取日志列表，支持按操作类型和成功状态筛选 |
-| `clearLogs()` | 清空全部日志 |
-| `exportToJson()` | 导出全部日志为 JSON 字符串 |
-
----
-
-### 语言设置 (`sftp-plus-locale` / `sftp-plus-settings.lang`)
-
-由 `SftpI18nService` 和 `SftpSettingsTabComponent` 共同管理。
-
-| 值 | 含义 |
-|----|------|
-| `""`（空字符串） | 自动检测（五级回退） |
-| `"zh-CN"` | 简体中文 |
-| `"en-US"` | English |
-
-**注意：** `sftp-plus-locale` 是 i18n 服务直接读取的 key，`sftp-plus-settings.lang` 是设置页使用的 key。两者会通过设置页同步（设置页变更时写 `sftp-plus-locale`）。
-
----
-
-### 设置页 — 主题 (`sftp-plus-settings.theme`)
-
-| 值 | 含义 |
-|----|------|
-| `""`（空字符串） | Follow（跟随 Tabby 系统主题） |
-| `"dark"` | 暗色主题 |
-| `"light"` | 亮色主题 |
-| `"blue"` | 蓝色主题 |
-| `"green"` | 绿色主题 |
-| `"purple"` | 紫色主题 |
-| `"red"` | 红色主题 |
-| `"custom"` | 自定义配色（使用 primaryColor/bgColor/textColor） |
-
----
-
-### 列可见性
-
-**数据结构：** `Record<string, boolean>`
-
-| 键名 | 说明 |
-|------|------|
-| `name` | 文件名 |
-| `size` | 文件大小 |
-| `modified` | 修改时间 |
-| `mode` | 权限（仅远程面板） |
-| `owner` | 所有者（预留） |
-| `group` | 用户组（预留） |
-| `type` | 文件类型 |
-| `target` | 链接目标（预留） |
-| `permissions` | 权限字符串（预留） |
-
-**存储位置：**
-- `sftp-plus-cols` — 设置页全局列可见性
-- `sftp-plus-local-cols` — 本地面板独立列可见性
-- `sftp-plus-remote-cols` — 远程面板独立列可见性
-
----
-
-### 列顺序
-
-**数据结构：** `string[]`
-
-列名的有序数组，按显示顺序排列。例如：
-```json
-["name", "size", "modified", "permissions"]
-```
-
-**存储位置：**
-- `sftp-plus-cols-order` — 设置页列顺序
-- `sftp-plus-local-cols-order` — 本地面板独立列顺序
-- `sftp-plus-remote-cols-order` — 远程面板独立列顺序
-
----
-
-### 排序列宽
-
-**列宽** (`sftp-plus-col-widths`)
+权威数据在 `config.yaml` 的 `bookmarks`。localStorage 键 `sftp-plus-bookmarks-v2` 仅作旧版回退；tombstone：`sftp-plus-bookmarks-tombstones-v1`。
 
 ```typescript
-// 所有面板共用同一组列宽值
-Record<string, number>
-// 示例：{ "name": 250, "size": 100, "modified": 180 }
-// 支持以下列名：name, size, modified, mode, type, target, owner, group, permissions, permissionsStr
-```
-
-**排序** (`sftp-plus-local-sort` / `sftp-plus-remote-sort`)
-
-```typescript
-{
-  by: string;    // 排序列名（如 "name", "size", "modified"）
-  asc: boolean;  // true=升序, false=降序
+interface Bookmark {
+  id: string
+  name: string
+  path: string
+  type: 'local' | 'remote'
+  connectionKey?: string  // 空 = 全局书签
+  createdAt: number
 }
 ```
 
----
+## 语言
 
-### 路径记忆（按连接隔离）
+当前语言写在 `tabby-sftp-plus.lang`（空串 = 自动检测）。旧 key `sftp-plus-locale` 仍可被 i18n 服务回退读取。支持的 Locale 见 [I18N.md](I18N.md)。
 
-每个 SSH 连接独立记忆路径，键名中包含 `hostKey`。
+## 旧版 localStorage 键（只读回退 / 迁移源）
 
-| 存储键 | 示例值 | 说明 |
-|--------|--------|------|
-| `sftp-plus-path-mem.root@192.168.1.1` | `"true"` | 是否记忆路径 |
-| `sftp-plus-saved-local-path.root@192.168.1.1` | `"/home/user/local"` | 上次访问的本地路径 |
-| `sftp-plus-saved-remote-path.root@192.168.1.1` | `"/var/www"` | 上次访问的远程路径 |
+升级前若 yaml 尚无对应字段，面板仍可能读到这些键：
 
----
+| 旧键 | 现对应 |
+|------|--------|
+| `sftp-plus-layout-mode` | `paneState/layout/mode` |
+| `sftp-plus-local-sort` 等列/排序/列宽 | `paneState/local\|remote/...` |
+| `sftp-plus-path-mode.{host}` | `paneState/perHost/{host}/pathMode` |
+| `sftp-plus-saved-local-path.{host}` | `paneState/perHost/{host}/savedLocalPath` |
+| `sftp-plus-settings.*` | 顶层 `lang` / `theme` / 配色等 |
 
-### 窄屏布局
+新写入应走 `SftpConfigService.set()` + `flush()`，不要只写 localStorage（传输日志除外）。
 
-`sftp-plus-vertical-split-ratio` — 在 ≤580px 宽度的垂直布局中，上下区域的分割比例。
+## 数据迁移注意
 
-```typescript
-number;  // 取值范围 0.15 ~ 0.85，默认 0.5
-```
-
----
-
-## 存储与主题的 CSS 变量映射
-
-运行时通过 CSS 变量实现主题展示，这些值**不持久化**，每次从设置中加载：
-
-```
---sftp-primary   ← 预设主题主色 / sftp-plus-settings.primaryColor / Tabby --primary-color / #4a90d9
---sftp-bg        ← 预设主题背景色 / sftp-plus-settings.bgColor / Tabby --body-bg / 自动检测亮/暗
---sftp-text      ← 预设主题文字色 / sftp-plus-settings.textColor / Tabby --text-color / 自动检测亮/暗
---sftp-border    ← 计算自 --sftp-text 透明化 (0.15 alpha)
-```
-
-## 数据迁移
-
-当前存储格式为 `v2`（书签名带 `-v2` 后缀）。未来如有格式变更，建议：
-
-1. 在 localStorage 中增加版本号 key（`sftp-plus-storage-version`）
-2. 在服务初始化时检测版本并运行迁移脚本
-3. 避免破坏性变更，优先使用 JSON schema 扩展
+1. 不要把 `paneState` 默认值改回 `{}`，否则路径记忆/列宽会再次静默丢失。
+2. `allowEditAllFiles` / `allowViewAllAsText` 已并入 `allowViewEditAllFiles`，读取时兼容旧字段。
+3. 重置设置会清 `config.yaml` 段，并删除所有 `sftp-plus-*` localStorage 键。

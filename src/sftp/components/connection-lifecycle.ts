@@ -222,6 +222,8 @@ export class PanelConnectionLifecycle {
           c.sftpSession = fresh
           log.info('Heartbeat recovered with new SFTP session')
           c.zone.run(() => {
+            // 再次检查：zone.run 是异步的，期间可能组件已销毁
+            if (this._heartbeatDisposed) return
             try {
               const msg = c.getI18n().t('notify.sftpRecovered') || 'SFTP session recovered; please retry interrupted transfers'
               ;(c.notifications as any)?.success?.(msg, '')

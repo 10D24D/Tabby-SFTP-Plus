@@ -831,8 +831,7 @@ msgid "settings.hotkeyConflict"
 msgstr "Şu ile çakışıyor: {names}"
 
 msgid "settings.hotkeyConflictConfirm"
-msgstr "Kısayol {keys} zaten kullanımda: {names}
-Yine de SFTP+'a bağlamak ister misiniz? (Her ikisi de tetiklenebilir.)"
+msgstr "Shortcut {keys} is already used by: {names}\nBind it to SFTP+ anyway? (Both may fire.)"
 msgid "settings.hotkeySaved"
 msgstr "Tabby ile kaydedildi ve senkronize edildi: {keys}"
 
@@ -1300,3 +1299,182 @@ msgstr "Tar paketleme"
 
 msgid "log.fileCount"
 msgstr "{n} dosya"
+
+msgid "settings.editableExtensions"
+msgstr "Ek düzenlenebilir uzantılar"
+
+msgid "settings.editableExtensionsHint"
+msgstr "Boşlukla ayırın. .conf, *.conf veya conf kabul edilir. «tümünü görüntüle ve düzenle» kapalıyken beyaz liste olarak kullanılır."
+msgid "settings.allowViewEditAllFiles"
+msgstr "Tüm dosya türlerini görüntülemeye ve düzenlemeye izin ver"
+
+msgid "settings.allowViewEditAllFilesHint"
+msgstr "Uzantı kısıtlamalarını yok say. Her dosya görüntülenebilir; düzenlerken ikili içerik korunur."
+
+msgid "conflict.digest"
+msgstr "Özet"
+
+msgid "conflict.contentIdentical"
+msgstr "İçerik aynı — güvenle atlanabilir"
+
+msgid "file.symlink"
+msgstr "Sembolik bağlantı"
+
+msgid "file.shortcut"
+msgstr "Kısayol"
+
+msgid "file.copyAll"
+msgstr "Tümünü kopyala"
+
+msgid "file.copyImage"
+msgstr "Görüntüyü kopyala"
+
+msgid "file.copyImageAddress"
+msgstr "Görüntü adresini kopyala"
+
+msgid "transfer.skippedAsDuplicate"
+msgstr "Atlandı · içerik aynı"
+
+msgid "settings.font"
+msgstr "Yazı tipi"
+
+msgid "settings.fontSize"
+msgstr "Yazı tipi boyutu"
+
+msgid "settings.resetFont"
+msgstr "Yazı tipi boyutunu sıfırla"
+
+msgid "settings.fontHint"
+msgstr "SFTP+ panelindeki metin boyutunu ayarla (11–18px)"
+
+msgid "settings.defaultUploadPath"
+msgstr "Varsayılan yükleme yolu"
+
+msgid "settings.defaultUploadPathPh"
+msgstr "Uzak dizin, örn. /home/user/uploads (boş = geçerli uzak dizin)"
+
+msgid "settings.defaultDownloadPath"
+msgstr "Varsayılan indirme yolu"
+
+msgid "settings.defaultDownloadPathPh"
+msgstr "Yerel dizin, örn. C:\\Downloads (boş = geçerli yerel dizin)"
+
+msgid "settings.iconSettings"
+msgstr "Dosya türü simgeleri"
+
+msgid "settings.iconResourceDir"
+msgstr "Simge dizini"
+
+msgid "settings.iconResourceDirPh"
+msgstr "SVG dosyalarını içeren yerel dizin, örn. C:\\icons"
+
+msgid "settings.iconSvgFile"
+msgstr "SVG dosyası"
+
+msgid "settings.iconPreview"
+msgstr "Önizleme"
+
+msgid "settings.iconAdd"
+msgstr "Kural ekle"
+
+msgid "settings.iconDelete"
+msgstr "Sil"
+
+msgid "settings.iconDeleteConfirm"
+msgstr "\"{name}\" kuralı silinsin mi? Bu geri alınamaz."
+
+msgid "settings.iconRuleHint"
+msgstr "Uzantıları SVG dosyalarına eşleyin."
+
+msgid "settings.builtinIcons"
+msgstr "Yerleşik simgeler"
+
+msgid "settings.builtinIconDir"
+msgstr "Yerleşik simge dizini"
+
+msgid "settings.builtinIconDesc"
+msgstr "Aşağıdaki SVG simgeler eklentiyle birlikte gelir. Genişletmek için kendi svg dosyalarınızı buraya koyun."
+
+msgid "settings.iconEdit"
+msgstr "Düzenle"
+
+msgid "settings.iconDisable"
+msgstr "Devre dışı bırak"
+
+msgid "settings.iconEnable"
+msgstr "Geri yükle"
+
+msgid "settings.iconAddRule"
+msgstr "Kural ekle"
+
+msgid "settings.iconFolderHint"
+msgstr "Klasör (varsayılan)"
+
+msgid "settings.iconFileHint"
+msgstr "Dosya (varsayılan)"
+
+msgid "settings.iconExtLockedHint"
+msgstr "Varsayılan dosyaların uzantıları değiştirilemez"
+
+msgid "settings.iconSvgNameHint"
+msgstr "Dosya adı"
+
+msgid "settings.iconRuleName"
+msgstr "Kural adı"
+
+msgid "settings.iconRuleNamePh"
+msgstr "örn. Scripts, Documents"
+
+msgid "settings.iconExtLabel"
+msgstr "Uzantılar"
+
+msgid "settings.iconErrorExtConflict"
+msgstr "\"{ext}\" uzantısı zaten {svg} simgesi tarafından kullanılıyor"
+
+msgid "settings.iconErrorEmpty"
+msgstr "Kural adı, uzantı ve svg dosya adı boş olamaz"
+
+msgid "settings.iconErrorEmptyName"
+msgstr "Kural adı boş olamaz"
+
+msgid "settings.iconErrorNameConflict"
+msgstr "\"{name}\" kural adı zaten var"
+
+msgid "settings.iconErrorNameSvgMismatch"
+msgstr "\"{name}\" kuralı zaten {svg} simgesine bağlı; aynı dosyayı kullanın veya başka ad seçin"
+
+msgid "settings.iconErrorMissingSvg"
+msgstr "SVG dosyası simge dizininde bulunamadı"
+
+msgid "settings.iconErrorInvalidExt"
+msgstr "Geçersiz uzantı biçimi: \"{ext}\". .txt veya txt kullanın; birden fazlasını boşluk/virgülle ayırın"
+
+msgid "settings.resetIcons"
+msgstr "Simge ayarlarını sıfırla"
+
+msgid "op.cannotCopyIntoSelf"
+msgstr "Klasör kendisine veya alt klasörüne kopyalanamaz: {name}"
+
+msgid "settings.tarAcceleration"
+msgstr "TAR aktarım hızlandırma"
+
+msgid "settings.tarAccelerationDesc"
+msgstr "Klasör aktarımlarını otomatik tar ile paketleyerek küçük dosyaları hızlandırır; desteklenmezse veya başarısız olursa normal aktarıma döner"
+
+msgid "settings.conflictDigest"
+msgstr "Çakışmada içerik özeti"
+
+msgid "settings.conflictDigestDesc"
+msgstr "Boyut aynı ama değişiklik zamanı farklıysa, dosyanın gerçekten değişip değişmediğini anlamak için özet hesaplar (örn. Git dalı değişince). Uzak shell gerekir; yoksa eski davranışa döner"
+
+msgid "settings.conflictAutoSkip"
+msgstr "Aynı içeriği otomatik atla"
+
+msgid "settings.conflictAutoSkipDesc"
+msgstr "Her iki özet de alınabiliyorsa ve eşitse çakışma yok sayıp sessizce atla"
+
+msgid "settings.conflictDigestMaxSize"
+msgstr "Özet boyut sınırı (MB)"
+
+msgid "settings.conflictDigestMaxSizeDesc"
+msgstr "Bundan büyük dosyalar özetlenmez ve her zaman çakışma sayılır; algılamayı yavaşlatmamak için"

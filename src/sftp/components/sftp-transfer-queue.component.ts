@@ -30,20 +30,23 @@ import { formatPercent, formatSize } from '../core/file-utils'
             <span class="transfer-size" *ngIf="!(t.bytesTotal > 0) && t.bytesDone > 0">{{ formatSize(t.bytesDone) }}</span>
             <span class="paused-tag" *ngIf="t.paused">{{ i18n.t('transfer.paused') }}</span>
             <span class="queued-tag" *ngIf="t.queued" title="{{ i18n.t('transfer.queued') }}">⏳</span>
+            <!-- ★ 2026-09-07 issue #15+：自动跳过（内容相同），用灰色 tag + 不显示速度/百分比区分于常规成功 -->
+            <span class="skipped-tag" *ngIf="t.skippedAsDuplicate" title="issue #15: content identical, transfer not executed">↪ {{ i18n.t('transfer.skippedAsDuplicate') }}</span>
           </div>
           <div class="transfer-sub" *ngIf="t.isFolder && t.currentItem">
             {{ t.currentItem }}<span *ngIf="t.currentItemSize != null">  {{ formatSize(t.currentItemSize) }}</span> ({{ t.itemDone }}{{ t.itemCount > 0 ? '/' + t.itemCount : '' }})
           </div>
-          <div class="bar"><div class="fill" [style.width.%]="t.percent"></div></div>
+          <div class="bar" *ngIf="!t.skippedAsDuplicate"><div class="fill" [style.width.%]="t.percent"></div></div>
         </div>
         <div class="transfer-stats">
-          <span>{{ t.queued ? '--' : (t.speed || '--') }}</span>
-          <span>{{ t.bytesTotal > 0 ? formatPercent(t.percent) + '%' : '--' }}</span>
-          <button *ngIf="!t.paused && !t.queued" class="btn-pause" (click)="pause.emit(t)" title="{{ i18n.t('transfer.pause') }}">⏸</button>
+          <!-- ★ issue #15+：已跳过不显示速度（实际未传），仅显示「跳过」结束态 -->
+          <span>{{ (t.queued || t.skippedAsDuplicate) ? '--' : (t.speed || '--') }}</span>
+          <span *ngIf="!t.skippedAsDuplicate">{{ t.bytesTotal > 0 ? formatPercent(t.percent) + '%' : '--' }}</span>
+          <button *ngIf="!t.paused && !t.queued && !t.skippedAsDuplicate" class="btn-pause" (click)="pause.emit(t)" title="{{ i18n.t('transfer.pause') }}">⏸</button>
           <button *ngIf="t.paused" class="btn-resume" (click)="resume.emit(t)" title="{{ i18n.t('transfer.resume') }}">▶</button>
-          <button *ngIf="t.isFolder && !t.queued" class="btn-cancel-current" (click)="cancelCurrent.emit(t)" title="{{ i18n.t('transfer.cancelCurrent') }}">⏹</button>
-          <button *ngIf="!t.isFolder" class="btn-cancel" (click)="cancel.emit(t)" title="{{ i18n.t('transfer.cancel') }}">⏹</button>
-          <button *ngIf="t.isFolder" class="btn-cancel" (click)="cancel.emit(t)" title="{{ i18n.t('transfer.cancelAll') }}">✕</button>
+          <button *ngIf="t.isFolder && !t.queued && !t.skippedAsDuplicate" class="btn-cancel-current" (click)="cancelCurrent.emit(t)" title="{{ i18n.t('transfer.cancelCurrent') }}">⏹</button>
+          <button *ngIf="!t.isFolder && !t.skippedAsDuplicate" class="btn-cancel" (click)="cancel.emit(t)" title="{{ i18n.t('transfer.cancel') }}">⏹</button>
+          <button *ngIf="t.isFolder && !t.skippedAsDuplicate" class="btn-cancel" (click)="cancel.emit(t)" title="{{ i18n.t('transfer.cancelAll') }}">✕</button>
         </div>
       </div>
     </div>

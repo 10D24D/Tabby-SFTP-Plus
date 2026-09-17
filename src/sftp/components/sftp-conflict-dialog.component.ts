@@ -3,10 +3,12 @@
  * 功能描述：上传/下载覆盖冲突确认对话框，展示本地/远程两侧文件大小、修改时间、路径供用户选择
  * 创建人：DD1024z + Hy3
  * 创建时间：2026-07-16
- * 修改人：DD1024z + Hy3
- * 修改时间：2026-08-02 — conflict-side-title 图标：远程侧 ☁️→🌐、本地侧 📁→🖥
+ * 修改人：DD1024z + Composer
+ * 修改时间：2026-09-17 — 无效/epoch 修改时间不显示 1970；mtime 对比忽略未就绪值
+ *              2026-09-17 — 目录大小扫描中显示「计算中…」；目录冲突文案按方向区分本地/远程
+ *              2026-09-07 — issue #15：两侧新增内容摘要行，内容实际相同时显示绿色提示
  */
-import { Component, ElementRef, EventEmitter, Input, OnChanges, Output, SimpleChanges, ViewChild } from '@angular/core'
+import { Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, Output, SimpleChanges, ViewChild } from '@angular/core'
 
 import { SftpI18nService } from '../../services/sftp-i18n.service'
 import type { ConflictFileInfo } from '../core/panel-types'
@@ -31,30 +33,30 @@ import { formatDate, formatSize } from '../core/file-utils'
         <div class="conflict-desc">
           <span *ngIf="data.isDirectory">📁</span><span *ngIf="!data.isDirectory">📄</span>
           <strong>{{ data.fileName }}</strong>
-          <ng-container *ngIf="data.isDirectory; else fileConflictDesc">
-            {{ i18n.t('conflict.existsLocal') || '已存在于本地目录' }}
-          </ng-container>
-          <ng-template #fileConflictDesc>
-            {{ data.isSamePane ? i18n.t('conflict.existsSamePane') : (data.direction === 'download' ? i18n.t('conflict.existsLocal') : i18n.t('conflict.existsRemote')) }}
-          </ng-template>
+          {{ data.isSamePane ? i18n.t('conflict.existsSamePane') : (data.direction === 'download' ? i18n.t('conflict.existsLocal') : i18n.t('conflict.existsRemote')) }}
         </div>
         <div class="conflict-compare">
           <div class="conflict-side conflict-side-remote">
             <div class="conflict-side-title">{{ data.isSamePane ? '📄 ' + i18n.t('conflict.sourceFile') : '🌐 ' + i18n.t('conflict.remoteFile') }}</div>
             <div class="conflict-file-info">
-              <div class="conflict-info-row" [class.conflict-diff]="data.localSize !== data.remoteSize">
+              <div class="conflict-info-row" [class.conflict-diff]="sizeDiffers">
                 <span class="conflict-label">{{ i18n.t('conflict.size') }}</span>
-                <span class="conflict-val">{{ formatSizeWithPrecision(data.remoteSize, data.localSize) }}</span>
-                <span class="conflict-diff-dot" *ngIf="data.localSize !== data.remoteSize">≠</span>
+                <span class="conflict-val" [class.conflict-val--pending]="data.remoteSizePending">{{ remoteSizeLabel }}</span>
+                <span class="conflict-diff-dot" *ngIf="sizeDiffers">≠</span>
               </div>
-              <div class="conflict-info-row" [class.conflict-diff]="data.localMtime !== data.remoteMtime">
+              <div class="conflict-info-row" [class.conflict-diff]="mtimeDiffers">
                 <span class="conflict-label">{{ i18n.t('conflict.modified') }}</span>
-                <span class="conflict-val">{{ formatDate(data.remoteMtime) }}</span>
-                <span class="conflict-diff-dot" *ngIf="data.localMtime !== data.remoteMtime">≠</span>
+                <span class="conflict-val">{{ formatConflictMtime(data.remoteMtime) }}</span>
+                <span class="conflict-diff-dot" *ngIf="mtimeDiffers">≠</span>
               </div>
               <div class="conflict-info-row conflict-path">
                 <span class="conflict-label">{{ i18n.t('conflict.path') }}</span>
                 <span class="conflict-val" [title]="data.remotePath">{{ data.remotePath }}</span>
+              </div>
+              <!-- ★ 2026-09-07 issue #15：内容摘要，用于识别「mtime 变了但内容没变」 -->
+              <div class="conflict-info-row conflict-digest" *ngIf="data.remoteDigest">
+                <span class="conflict-label">{{ i18n.t('conflict.digest') }}</span>
+                <span class="conflict-val conflict-digest-val" [title]="data.remoteDigest">{{ shortDigest(data.remoteDigest) }}</span>
               </div>
             </div>
           </div>
@@ -66,22 +68,31 @@ import { formatDate, formatSize } from '../core/file-utils'
           <div class="conflict-side conflict-side-local">
             <div class="conflict-side-title">{{ data.isSamePane ? '📂 ' + i18n.t('conflict.targetFileExists') : '🖥 ' + i18n.t('conflict.localFile') }}</div>
             <div class="conflict-file-info">
-              <div class="conflict-info-row" [class.conflict-diff]="data.localSize !== data.remoteSize">
+              <div class="conflict-info-row" [class.conflict-diff]="sizeDiffers">
                 <span class="conflict-label">{{ i18n.t('conflict.size') }}</span>
-                <span class="conflict-val">{{ formatSizeWithPrecision(data.localSize, data.remoteSize) }}</span>
-                <span class="conflict-diff-dot" *ngIf="data.localSize !== data.remoteSize">≠</span>
+                <span class="conflict-val" [class.conflict-val--pending]="data.localSizePending">{{ localSizeLabel }}</span>
+                <span class="conflict-diff-dot" *ngIf="sizeDiffers">≠</span>
               </div>
-              <div class="conflict-info-row" [class.conflict-diff]="data.localMtime !== data.remoteMtime">
+              <div class="conflict-info-row" [class.conflict-diff]="mtimeDiffers">
                 <span class="conflict-label">{{ i18n.t('conflict.modified') }}</span>
-                <span class="conflict-val">{{ formatDate(data.localMtime) }}</span>
-                <span class="conflict-diff-dot" *ngIf="data.localMtime !== data.remoteMtime">≠</span>
+                <span class="conflict-val">{{ formatConflictMtime(data.localMtime) }}</span>
+                <span class="conflict-diff-dot" *ngIf="mtimeDiffers">≠</span>
               </div>
               <div class="conflict-info-row conflict-path">
                 <span class="conflict-label">{{ i18n.t('conflict.path') }}</span>
                 <span class="conflict-val" [title]="data.localPath">{{ data.localPath }}</span>
               </div>
+              <!-- ★ 2026-09-07 issue #15：内容摘要 -->
+              <div class="conflict-info-row conflict-digest" *ngIf="data.localDigest">
+                <span class="conflict-label">{{ i18n.t('conflict.digest') }}</span>
+                <span class="conflict-val conflict-digest-val" [title]="data.localDigest">{{ shortDigest(data.localDigest) }}</span>
+              </div>
             </div>
           </div>
+        </div>
+        <!-- ★ 2026-09-07 issue #15：内容实际相同的提示（此时选「跳过」是安全的） -->
+        <div class="conflict-identical-hint" *ngIf="data.contentIdentical">
+          <span>✅</span> {{ i18n.t('conflict.contentIdentical') }}
         </div>
         <div class="conflict-actions">
           <button class="conflict-btn" (click)="resolve.emit('cancel')">{{ i18n.t('conflict.cancel') }}</button>
@@ -140,9 +151,31 @@ import { formatDate, formatSize } from '../core/file-utils'
     .conflict-info-row { display: flex; align-items: center; gap: 6px; font-size: 12px; min-height: 20px; }
     .conflict-label { flex-shrink: 0; color: var(--_text); opacity: 0.45; min-width: 52px; font-size: 11px; }
     .conflict-val { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .conflict-val--pending { opacity: 0.55; font-style: italic; }
     .conflict-diff { background: rgba(255,152,0,0.08); border-radius: 3px; padding: 0 2px; }
     .conflict-diff-dot { flex-shrink: 0; font-size: 10px; font-weight: 700; color: #ff9800; width: 14px; text-align: center; }
     .conflict-path .conflict-val { font-size: 11px; opacity: 0.7; }
+    /* ★ 2026-09-07 issue #15：摘要行——等宽字体避免字符跳动，弱化呈现 */
+    .conflict-digest .conflict-digest-val {
+      font-family: ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace;
+      font-size: 11px;
+      opacity: 0.75;
+      letter-spacing: 0.2px;
+    }
+    /* 内容实际相同提示（深/浅色主题均可见） */
+    .conflict-identical-hint {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      margin: 0 0 10px;
+      padding: 7px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      line-height: 1.4;
+      color: #4caf50;
+      background: rgba(76, 175, 80, 0.12);
+      border: 1px solid rgba(76, 175, 80, 0.32);
+    }
     .conflict-vs-row { display: flex; align-items: center; gap: 10px; padding: 2px 0; }
     .conflict-vs-line { flex: 1; height: 1px; background: var(--_border, rgba(128,128,128,0.2)); }
     .conflict-vs { flex-shrink: 0; font-size: 11px; font-weight: 700; padding: 0 10px; color: var(--_text); opacity: 0.4; letter-spacing: 1px; }
@@ -172,7 +205,7 @@ import { formatDate, formatSize } from '../core/file-utils'
     .conflict-sep { color: var(--_text); opacity: 0.3; font-size: 12px; }
   `],
 })
-export class SftpConflictDialogComponent implements OnChanges {
+export class SftpConflictDialogComponent implements OnChanges, OnDestroy {
   @Input() visible = false
   @Input() data: ConflictFileInfo | null = null
   @Input() currIdx = 1
@@ -183,9 +216,37 @@ export class SftpConflictDialogComponent implements OnChanges {
   formatSize = formatSize
   formatDate = formatDate
 
+  /** 过滤 Unix epoch / 0，避免冲突框误显示 1970-01-01 */
+  formatConflictMtime(ms?: number): string {
+    if (ms == null || !Number.isFinite(Number(ms)) || Number(ms) < 86400000) return '—'
+    return formatDate(ms)
+  }
+
+  /** 两侧都有有效 mtime 且不相等时才标 ≠ */
+  get mtimeDiffers(): boolean {
+    const d = this.data
+    if (!d) return false
+    const localOk = d.localMtime != null && Number(d.localMtime) >= 86400000
+    const remoteOk = d.remoteMtime != null && Number(d.remoteMtime) >= 86400000
+    if (!localOk || !remoteOk) return false
+    return d.localMtime !== d.remoteMtime
+  }
+
+  private _focusTimer: ReturnType<typeof setTimeout> | null = null
+
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['visible'] && this.visible) {
-      setTimeout(() => this.overlayEl?.nativeElement?.focus())
+      this._focusTimer = setTimeout(() => {
+        this._focusTimer = null
+        this.overlayEl?.nativeElement?.focus()
+      })
+    }
+  }
+
+  ngOnDestroy(): void {
+    if (this._focusTimer) {
+      clearTimeout(this._focusTimer)
+      this._focusTimer = null
     }
   }
 
@@ -198,6 +259,33 @@ export class SftpConflictDialogComponent implements OnChanges {
   }
 
   /** ★ 2026-08-17：格式化后相同但字节数不同时，括号内显示精确值 */
+  /** ★ 2026-09-07 issue #15：摘要较长，截断显示（完整值保留在 title 悬浮提示中） */
+  shortDigest(d?: string | null): string {
+    if (!d) return ''
+    return d.length > 14 ? d.slice(0, 12) + '…' : d
+  }
+
+  /** 任一侧仍在扫描目录大小时，不标差异，避免「计算中」对数字误闪 ≠ */
+  get sizeDiffers(): boolean {
+    const d = this.data
+    if (!d || d.localSizePending || d.remoteSizePending) return false
+    return d.localSize !== d.remoteSize
+  }
+
+  get localSizeLabel(): string {
+    const d = this.data
+    if (!d) return ''
+    if (d.localSizePending) return this.i18n.t('file.sizeCalculating')
+    return this.formatSizeWithPrecision(d.localSize, d.remoteSizePending ? d.localSize : d.remoteSize)
+  }
+
+  get remoteSizeLabel(): string {
+    const d = this.data
+    if (!d) return ''
+    if (d.remoteSizePending) return this.i18n.t('file.sizeCalculating')
+    return this.formatSizeWithPrecision(d.remoteSize, d.localSizePending ? d.remoteSize : d.localSize)
+  }
+
   formatSizeWithPrecision(bytes: number, otherBytes: number): string {
     const formatted = formatSize(bytes)
     if (bytes !== otherBytes && formatted === formatSize(otherBytes)) {

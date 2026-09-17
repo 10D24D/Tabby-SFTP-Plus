@@ -2,11 +2,12 @@
  * SFTP+ 文本文件编辑对话框（本地 / 远程）
  * 创建人：DD1024z + Hy3
  * 创建时间：2026-08-05
- * 修改人：DD1024z + Hy3
- * 修改时间：2026-08-05 — 新增「复制」按钮（复制当前编辑框内容）
+ * 修改人：DD1024z + Composer
+ * 修改时间：2026-09-17 — 脱离 ngModel 回写：保留原生撤销/重做、减轻粘贴卡顿；未保存 * 紧挨文件名
  *              2026-08-10 — 新增「复制选中」按钮（有选中内容时显示，复制当前选中文本）
  *              2026-08-10 — 复制选中按钮消失修复(click/blur事件)
  *              2026-08-26 — 右键菜单卡顿：OnPush + zone 外原生 contextmenu + 选区检测禁 slice
+ *              2026-08-05 — 新增「复制」按钮（复制当前编辑框内容）
  */
 import {
   AfterViewChecked,
@@ -56,8 +57,12 @@ function textareaSelectedText(ta?: ElementRef<HTMLTextAreaElement>): string {
       <div class="dialog file-dialog-shell" [class.is-maximized]="maximized">
         <div class="dialog-title">
           <div class="file-dialog-title-wrap">
-            <span class="file-dialog-title">{{ i18n.t('file.edit') }} — {{ fileName }}</span>
-            <span class="editor-dirty" *ngIf="dirty">*</span>
+            <span class="file-dialog-title">
+              {{ i18n.t('file.edit') }} — {{ fileName }}<span
+                class="editor-dirty"
+                *ngIf="dirty"
+                [attr.title]="i18n.t('editor.unsaved')"> *</span>
+            </span>
           </div>
           <div class="file-dialog-window-btns">
             <button type="button" class="file-dialog-win-btn"
@@ -88,11 +93,10 @@ function textareaSelectedText(ta?: ElementRef<HTMLTextAreaElement>): string {
           <textarea #editorTextarea class="file-dialog-textarea"
             *ngIf="!loading && !error"
             (wheel)="onScrollableWheel($event)"
+            (input)="onTextareaInput($event)"
             (mouseup)="updateHasSelection()" (keyup)="updateHasSelection()"
             (select)="updateHasSelection()" (click)="updateHasSelection()"
             (blur)="onTextareaBlur()"
-            [ngModel]="content"
-            (ngModelChange)="onContentChange($event)"
             [readonly]="saving"
             spellcheck="false"></textarea>
         </div>
@@ -177,6 +181,11 @@ export class SftpEditorDialogComponent implements OnChanges, OnDestroy, AfterVie
   onOverlayWheel = onFileDialogOverlayWheel
   onScrollableWheel = onFileDialogScrollableWheel
 
+  /** 本地正在编辑时禁止用父级 content 回写 textarea（否则会清空浏览器原生撤销栈并导致粘贴卡顿） */
+  private _localEditing = false
+  /** textarea 因 *ngIf 刚创建，需在 AfterViewChecked 同步一次 content */
+  private _pendingSync = false
+
   private _ctxTarget: HTMLElement | null = null
   private readonly _onNativeContextMenu = (ev: MouseEvent): void => {
     ev.preventDefault()
@@ -199,10 +208,26 @@ export class SftpEditorDialogComponent implements OnChanges, OnDestroy, AfterVie
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['visible']?.currentValue === true) {
       this.maximized = SftpEditorDialogComponent.loadMaximized()
+      this._localEditing = false
+      this._pendingSync = true
     }
     if (changes['visible']?.currentValue === false) {
       this.textMenuVisible = false
+      this._localEditing = false
+      this._pendingSync = false
       this._unbindCtxTarget()
+    }
+    if (changes['loading']) {
+      if (this.loading) {
+        this._localEditing = false
+      } else if (!this.error) {
+        this._localEditing = false
+        this._pendingSync = true
+      }
+    }
+    // 仅外部内容变更（打开文件 / 外部编辑器回写等）才同步到 DOM
+    if (changes['content'] && !this._localEditing) {
+      this._syncTextareaFromContent()
     }
     this.cdr.markForCheck()
   }
@@ -210,6 +235,10 @@ export class SftpEditorDialogComponent implements OnChanges, OnDestroy, AfterVie
   ngAfterViewChecked(): void {
     const target = (!this.loading && !this.error && this.editorTextarea?.nativeElement) || null
     this._bindCtxTarget(target)
+    if (this._pendingSync && target) {
+      this._pendingSync = false
+      this._syncTextareaFromContent()
+    }
   }
 
   ngOnDestroy(): void {
@@ -234,13 +263,40 @@ export class SftpEditorDialogComponent implements OnChanges, OnDestroy, AfterVie
     this._ctxTarget = null
   }
 
-  onContentChange(value: string): void {
+  private _syncTextareaFromContent(): void {
+    const el = this.editorTextarea?.nativeElement
+    if (!el) {
+      this._pendingSync = true
+      return
+    }
+    const next = this.content ?? ''
+    if (el.value !== next) el.value = next
+  }
+
+  private _applyLocalValue(newVal: string, cursor?: number): void {
+    this._localEditing = true
+    const ta = this.editorTextarea?.nativeElement
+    if (ta && ta.value !== newVal) ta.value = newVal
+    this.hasSelectionText = false
+    this.contentChange.emit(newVal)
+    if (cursor != null) {
+      Promise.resolve().then(() => {
+        const el = this.editorTextarea?.nativeElement
+        if (el) { el.setSelectionRange(cursor, cursor); el.focus() }
+      })
+    }
+  }
+
+  onTextareaInput(ev: Event): void {
+    this._localEditing = true
+    const value = (ev.target as HTMLTextAreaElement).value
     this.hasSelectionText = false
     this.contentChange.emit(value)
   }
 
   copy(): void {
-    const ok = copyTextToClipboard(this.content || '')
+    const text = this.editorTextarea?.nativeElement.value ?? this.content ?? ''
+    const ok = copyTextToClipboard(text)
     if (ok) this.showCopiedFeedback()
   }
 
@@ -309,12 +365,7 @@ export class SftpEditorDialogComponent implements OnChanges, OnDestroy, AfterVie
     if (s === e) return
     const sel = ta.value.slice(s, e)
     if (copyTextToClipboard(sel)) {
-      const newVal = ta.value.slice(0, s) + ta.value.slice(e)
-      this.contentChange.emit(newVal)
-      Promise.resolve().then(() => {
-        const el = this.editorTextarea?.nativeElement
-        if (el) { el.setSelectionRange(s, s); el.focus() }
-      })
+      this._applyLocalValue(ta.value.slice(0, s) + ta.value.slice(e), s)
     }
   }
 
@@ -326,17 +377,11 @@ export class SftpEditorDialogComponent implements OnChanges, OnDestroy, AfterVie
     if (!text) return
     const s = ta.selectionStart ?? ta.value.length
     const e = ta.selectionEnd ?? ta.value.length
-    const newVal = ta.value.slice(0, s) + text + ta.value.slice(e)
-    this.contentChange.emit(newVal)
-    const pos = s + text.length
-    Promise.resolve().then(() => {
-      const el = this.editorTextarea?.nativeElement
-      if (el) { el.setSelectionRange(pos, pos); el.focus() }
-    })
+    this._applyLocalValue(ta.value.slice(0, s) + text + ta.value.slice(e), s + text.length)
   }
 
   get canCopy(): boolean {
-    return !!this.content
+    return !!(this.editorTextarea?.nativeElement.value || this.content)
   }
 
   get copyLabel(): string {

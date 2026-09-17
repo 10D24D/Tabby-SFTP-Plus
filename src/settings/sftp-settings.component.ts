@@ -4,8 +4,11 @@
  *   支持双存储模式：Tabby 配置（config.yaml）或 浏览器缓存（localStorage）
  * 创建人：DD1024z + Hy3 preview
  * 创建时间：2026-06-21
- * 修改人：DD1024z + Hy3
- * 修改时间：2026-08-22 — 新增「查看器不支持时系统打开」开关（openUnsupportedInSystem，含 title 说明）；统一「热键」子分类；新增「传输设置」子分类（上传/下载并发数 + 快速传输模式）；定制右键菜单行间距收窄；i18n 新增 openUnsupportedInSystemDesc / transferSection，fastMode 中文标签改为「快速传输模式」
+ * 修改人：DD1024z + Composer
+ * 修改时间：2026-09-17 — 删除自定义图标规则前增加确认提示
+ *              2026-09-17 — 图标单元格：禁用/恢复与编辑按钮对调，操作顺序统一
+ *              2026-09-17 — 编辑默认文件夹时显示只读规则名（与默认 file 一致）
+ *              2026-09-17 — 合并为「允许查看与编辑所有文件类型」单开关；去掉「以文本方式查看」
  */
 import { Component, Injectable, Optional, OnDestroy, Inject } from '@angular/core'
 import { SettingsTabProvider } from 'tabby-settings'
@@ -33,11 +36,12 @@ import {
 import {
   defaultPanelHotkeys,
   PANEL_HOTKEY_ACTIONS,
+  type FileTypeIconRule,
   type PanelHotkeyAction,
 } from '../tabby/config-provider'
 import { detectSystemLocale, isColorDark, parseColorLuminance } from '@common/utils'
-import { DEFAULT_DATE_FORMAT, normalizeEditableExtensions, setDateFormatPattern } from '../sftp/core/file-utils'
-import { DEFAULT_ICON_MAP, BUILTIN_ICON_FILES, BUILTIN_ICON_EXTS, FOLDER_ICON_SVG } from '../sftp/core/icon-defaults'
+import { DEFAULT_DATE_FORMAT, formatTextExtensionsForInput, normalizeEditableExtensions, setDateFormatPattern } from '../sftp/core/file-utils'
+import { DEFAULT_ICON_MAP, BUILTIN_ICON_FILES, BUILTIN_ICON_EXTS, FOLDER_ICON_SVG, resolveSftpPlusBundledIconDir } from '../sftp/core/icon-defaults'
 import { ContextMenuAction, FILE_MENU_REGISTRY, DEFAULT_FILE_MENU_ORDER } from '../sftp/components/sftp-context-menu.component'
 
 import * as fs from 'fs'
@@ -67,6 +71,23 @@ function load<T>(key: string, fallback: T): T {
     if (typeof fallback === 'number' && typeof parsed !== 'number') return fallback
     return parsed
   } catch { return fallback }
+}
+
+/** 合并旧开关：allowViewEditAllFiles / allowEditAllFiles / allowViewAllAsText / allowViewAllFiles */
+function resolveAllowViewEditAllFiles(cfg: Record<string, unknown> | null | undefined): boolean {
+  if (!cfg || typeof cfg !== 'object') return false
+  return cfg['allowViewEditAllFiles'] === true
+    || cfg['allowEditAllFiles'] === true
+    || cfg['allowViewAllAsText'] === true
+    || cfg['allowViewAllFiles'] === true
+}
+
+function loadAllowViewEditAllFiles(): boolean {
+  if (load('allowViewEditAllFiles', false)) return true
+  if (load('allowEditAllFiles', false)) return true
+  if (load('allowViewAllAsText', false)) return true
+  if (load('allowViewAllFiles', false)) return true
+  return false
 }
 
 
@@ -215,6 +236,25 @@ function loadTableSetting(key: string, fallback: boolean): boolean {
           </div>
         </div>
 
+        <!-- ★ 2026-09-17：字体小分栏（置于定制工具栏上方） -->
+        <div class="ss-sub-head" style="margin-top:16px;">
+          <div class="ss-sub-label" style="margin:0;">{{ i18n.t('settings.font') }}</div>
+          <button class="ss-reset-icon-btn" (click)="resetFontSize()" [title]="i18n.t('settings.resetFont')">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M13 8a5 5 0 1 1-1.8-3.85"/>
+              <path d="M13 3.5v2.9h-2.9"/>
+            </svg>
+          </button>
+        </div>
+        <div class="ss-font-row ss-toggle-sub">
+          <span class="ss-toggle-label">{{ i18n.t('settings.fontSize') }}</span>
+          <div class="ss-font-control">
+            <input type="range" min="11" max="18" step="1" class="ss-range"
+              [value]="fontSize" (input)="onFontSizeChange(+$any($event.target).value)" />
+            <span class="ss-font-val">{{ fontSize }}px</span>
+          </div>
+        </div>
+
         <div class="ss-sub-head" style="margin-top:16px;">
           <div class="ss-sub-label" style="margin:0;">{{ i18n.t('settings.customToolbar') }}</div>
           <button class="ss-reset-icon-btn" (click)="resetPaneLayout()" [title]="i18n.t('settings.resetLayout')">
@@ -286,6 +326,12 @@ function loadTableSetting(key: string, fallback: boolean): boolean {
       <div style="margin-top:18px;">
         <div class="ss-sub-head">
           <div class="ss-sub-label" style="margin:0;">{{ i18n.t('settings.iconSettings') }}</div>
+          <button class="ss-reset-icon-btn" (click)="resetIconSettings()" [title]="i18n.t('settings.resetIcons')">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M13 8a5 5 0 1 1-1.8-3.85"/>
+              <path d="M13 3.5v2.9h-2.9"/>
+            </svg>
+          </button>
         </div>
         <!-- 图标目录：标签与输入框同行。默认直接显示内置图标目录实际路径（非占位符） -->
         <div class="ss-toggle-row ss-path-row">
@@ -302,17 +348,17 @@ function loadTableSetting(key: string, fallback: boolean): boolean {
               [class.ss-icon-cell--editing]="_editingFolderIcon"
               [class.ss-icon-cell--disabled]="!folderIconSvg">
               <img class="ss-icon-cell-img" [src]="'file://' + bundledIconPreviewPath(folderIconSvg || 'folder.svg')" alt="folder" draggable="false" />
-              <span class="ss-icon-cell-name">{{ folderIconSvg || '📁 (emoji)' }}</span>
+              <span class="ss-icon-cell-name">folder</span>
               <span class="ss-icon-cell-exts">{{ i18n.t('settings.iconFolderHint') }}</span>
-              <!-- hover 操作浮层：文件夹为系统默认规则，可编辑但不可删除/回退 emoji -->
+              <!-- hover 操作浮层：文件夹为系统默认规则，可编辑但不可删除/回退 emoji；禁用/恢复在左、编辑在右 -->
               <div class="ss-icon-cell-actions">
-                <button type="button" class="ss-icon-cell-btn ss-icon-cell-btn--edit"
-                  (click)="startEditFolderIcon()">{{ i18n.t('settings.iconEdit') }}</button>
                 <button type="button" class="ss-icon-cell-btn ss-icon-cell-btn--del"
                   *ngIf="!folderIconSvg"
                   (click)="restoreFolderIcon()">
                   {{ i18n.t('settings.iconEnable') }}
                 </button>
+                <button type="button" class="ss-icon-cell-btn ss-icon-cell-btn--edit"
+                  (click)="startEditFolderIcon()">{{ i18n.t('settings.iconEdit') }}</button>
               </div>
             </div>
 
@@ -320,20 +366,20 @@ function loadTableSetting(key: string, fallback: boolean): boolean {
             <div class="ss-icon-cell"
               *ngFor="let item of iconGridItems; trackBy: trackByIcon"
               [class.ss-icon-cell--disabled]="isIconDisabled(item.svg)"
-              [class.ss-icon-cell--editing]="_editingIconSvg === item.svg">
-              <img class="ss-icon-cell-img" [src]="'file://' + bundledIconPreviewPath(item.svg)" [alt]="item.svg" draggable="false"
+              [class.ss-icon-cell--editing]="_editingRuleKey === item.key">
+              <img class="ss-icon-cell-img" [src]="'file://' + bundledIconPreviewPath(item.svg)" [alt]="item.name" draggable="false"
                 [class.ss-icon-cell-img--dim]="isIconDisabled(item.svg)" />
-              <span class="ss-icon-cell-name">{{ item.svg }}</span>
+              <span class="ss-icon-cell-name">{{ item.name }}</span>
               <span class="ss-icon-cell-exts">{{ item.svg === 'default.svg' ? i18n.t('settings.iconFileHint') : item.exts.join(' ') }}</span>
-              <!-- hover 操作浮层：default.svg 为系统兜底图标（未匹配文件统一回退），可编辑但不可删除/禁用 -->
+              <!-- hover 操作浮层：default.svg 为系统兜底图标（未匹配文件统一回退），可编辑但不可删除/禁用；禁用/删除在左、编辑在右 -->
               <div class="ss-icon-cell-actions">
-                <button type="button" class="ss-icon-cell-btn ss-icon-cell-btn--edit"
-                  (click)="startEditIcon(item.svg)">{{ i18n.t('settings.iconEdit') }}</button>
                 <button type="button" class="ss-icon-cell-btn ss-icon-cell-btn--del"
                   *ngIf="!isLockedIcon(item.svg)"
                   (click)="deleteIcon(item)">
                   {{ item.isBuiltin ? (isIconDisabled(item.svg) ? i18n.t('settings.iconEnable') : i18n.t('settings.iconDisable')) : i18n.t('settings.iconDelete') }}
                 </button>
+                <button type="button" class="ss-icon-cell-btn ss-icon-cell-btn--edit"
+                  (click)="startEditIcon(item)">{{ i18n.t('settings.iconEdit') }}</button>
               </div>
             </div>
 
@@ -351,15 +397,24 @@ function loadTableSetting(key: string, fallback: boolean): boolean {
           </div>
 
           <!-- ④ 编辑图标行：卡片式多行布局 -->
-          <div *ngIf="_editingIconSvg !== null" class="ss-icon-form-card">
-            <div class="ss-icon-form-header">{{ i18n.t('settings.iconEdit') }}: <b>{{ _editingIconSvg }}</b></div>
+          <div *ngIf="_editingRuleKey !== null" class="ss-icon-form-card">
+            <div class="ss-icon-form-header">{{ i18n.t('settings.iconEdit') }}: <b>{{ _editingRuleKey }}</b></div>
+            <div class="ss-icon-form-field">
+              <span class="ss-icon-form-flabel">{{ i18n.t('settings.iconRuleName') }}</span>
+              <input class="ss-icon-form-input" type="text" [(ngModel)]="_editingRuleName"
+                spellcheck="false" [placeholder]="i18n.t('settings.iconRuleNamePh')"
+                [readonly]="isSystemRuleName(_editingRuleKey)"
+                [attr.aria-readonly]="isSystemRuleName(_editingRuleKey) ? 'true' : null"
+                [class.ss-icon-form-input--locked]="isSystemRuleName(_editingRuleKey)"
+                (keydown.enter)="confirmEditIcon()" (keydown.escape)="cancelEditIcon()" />
+            </div>
             <div class="ss-icon-form-field">
               <span class="ss-icon-form-flabel">{{ i18n.t('settings.iconSvgNameHint') || '文件名' }}</span>
               <!-- 内置/自定义图标的文件名均可编辑（默认文件允许改图标文件名） -->
               <input class="ss-icon-form-input" type="text" [(ngModel)]="_editingIconSvgName"
                 spellcheck="false" placeholder="name.svg" (keydown.enter)="confirmEditIcon()" (keydown.escape)="cancelEditIcon()" />
             </div>
-            <div *ngIf="_editingIconSvg !== 'default.svg'" class="ss-icon-form-field">
+            <div *ngIf="_editingIconSvgName !== 'default.svg'" class="ss-icon-form-field">
               <span class="ss-icon-form-flabel">{{ i18n.t('settings.iconExtLabel') || '扩展名' }}</span>
               <input class="ss-icon-form-input ss-icon-form-input--wide" type="text" [(ngModel)]="_editingIconExts"
                 spellcheck="false" (keydown.enter)="confirmEditIcon()" (keydown.escape)="cancelEditIcon()" />
@@ -371,9 +426,14 @@ function loadTableSetting(key: string, fallback: boolean): boolean {
             </div>
           </div>
 
-          <!-- ⑤ 编辑文件夹图标行：卡片式多行布局 -->
+          <!-- ⑤ 编辑文件夹图标行：卡片式多行布局（规则名只读，与默认 file 一致） -->
           <div *ngIf="_editingFolderIcon" class="ss-icon-form-card">
-            <div class="ss-icon-form-header">{{ i18n.t('settings.iconEdit') }}: <b>{{ i18n.t('settings.iconFolderHint') }}</b></div>
+            <div class="ss-icon-form-header">{{ i18n.t('settings.iconEdit') }}: <b>folder</b></div>
+            <div class="ss-icon-form-field">
+              <span class="ss-icon-form-flabel">{{ i18n.t('settings.iconRuleName') }}</span>
+              <input class="ss-icon-form-input ss-icon-form-input--locked" type="text" value="folder"
+                readonly aria-readonly="true" spellcheck="false" tabindex="-1" />
+            </div>
             <div class="ss-icon-form-field">
               <span class="ss-icon-form-flabel">{{ i18n.t('settings.iconSvgNameHint') || '文件名' }}</span>
               <input class="ss-icon-form-input" type="text" [(ngModel)]="_folderIconDraft"
@@ -389,6 +449,12 @@ function loadTableSetting(key: string, fallback: boolean): boolean {
           <!-- ⑥ 新增自定义规则表单：卡片式多行布局 -->
           <div *ngIf="_addingCustomRule" class="ss-icon-form-card">
             <div class="ss-icon-form-header">{{ i18n.t('settings.iconAddRule') }}</div>
+            <div class="ss-icon-form-field">
+              <span class="ss-icon-form-flabel">{{ i18n.t('settings.iconRuleName') }}</span>
+              <input class="ss-icon-form-input" type="text" [(ngModel)]="_newRuleName" spellcheck="false"
+                [placeholder]="i18n.t('settings.iconRuleNamePh')"
+                (keydown.enter)="confirmAddCustomRule()" (keydown.escape)="cancelAddCustomRule()" />
+            </div>
             <div class="ss-icon-form-field">
               <span class="ss-icon-form-flabel">{{ i18n.t('settings.iconSvgNameHint') || '文件名' }}</span>
               <input class="ss-icon-form-input" type="text" [(ngModel)]="_newRuleSvg" spellcheck="false"
@@ -458,18 +524,18 @@ function loadTableSetting(key: string, fallback: boolean): boolean {
               <span class="ss-toggle-thumb"></span>
             </span>
           </label>
-          <div class="ss-toggle-row ss-path-row" title="{{ i18n.t('settings.editableExtensionsHint') }}">
-            <span class="ss-toggle-label">{{ i18n.t('settings.editableExtensions') }}</span>
-            <input class="ss-path-input" type="text" [(ngModel)]="editableFileExtensionsText"
-              (change)="saveEditorOptions()" spellcheck="false"
-              placeholder="conf, service, tf" />
-          </div>
-          <label class="ss-toggle-row" title="{{ i18n.t('settings.allowEditAllFilesHint') }}">
-            <span class="ss-toggle-label">{{ i18n.t('settings.allowEditAllFiles') }}</span>
-            <span class="ss-toggle-track" [class.active]="allowEditAllFiles" (click)="toggleAllowEditAllFiles()">
+          <label class="ss-toggle-row" title="{{ i18n.t('settings.allowViewEditAllFilesHint') }}">
+            <span class="ss-toggle-label">{{ i18n.t('settings.allowViewEditAllFiles') }}</span>
+            <span class="ss-toggle-track" [class.active]="allowViewEditAllFiles" (click)="toggleAllowViewEditAllFiles()">
               <span class="ss-toggle-thumb"></span>
             </span>
           </label>
+          <div class="ss-toggle-row ss-path-row ss-toggle-sub" *ngIf="!allowViewEditAllFiles"
+            title="{{ i18n.t('settings.editableExtensionsHint') }}">
+            <span class="ss-toggle-label">{{ i18n.t('settings.editableExtensions') }}</span>
+            <input class="ss-path-input" type="text" [(ngModel)]="editableFileExtensionsText"
+              (change)="saveEditorOptions()" spellcheck="false" />
+          </div>
           <!-- ★ 2026-08-22：文件/文件夹打开方式（单击/双击），置于默认路径模式上方 -->
           <div class="ss-toggle-row ss-pathmode-row">
             <span class="ss-toggle-label">{{ i18n.t('settings.openOnClick') }}</span>
@@ -543,6 +609,25 @@ function loadTableSetting(key: string, fallback: boolean): boolean {
                 <span class="ss-toggle-thumb"></span>
               </span>
             </label>
+            <!-- ★ 2026-09-07 issue #15：冲突时计算内容摘要，识别「mtime 变了但内容没变」 -->
+            <label class="ss-toggle-row" title="{{ i18n.t('settings.conflictDigestDesc') }}">
+              <span class="ss-toggle-label">{{ i18n.t('settings.conflictDigest') }}</span>
+              <span class="ss-toggle-track" [class.active]="conflictDigestEnabled" (click)="toggleConflictDigest()">
+                <span class="ss-toggle-thumb"></span>
+              </span>
+            </label>
+            <label class="ss-toggle-row" *ngIf="conflictDigestEnabled" title="{{ i18n.t('settings.conflictAutoSkipDesc') }}">
+              <span class="ss-toggle-label">{{ i18n.t('settings.conflictAutoSkip') }}</span>
+              <span class="ss-toggle-track" [class.active]="conflictAutoSkipSameContent" (click)="toggleConflictAutoSkip()">
+                <span class="ss-toggle-thumb"></span>
+              </span>
+            </label>
+            <div class="ss-toggle-row ss-concurrency-row" *ngIf="conflictDigestEnabled"
+              title="{{ i18n.t('settings.conflictDigestMaxSizeDesc') }}">
+              <span class="ss-toggle-label">{{ i18n.t('settings.conflictDigestMaxSize') }}</span>
+              <input class="ss-concurrency-input" type="number" min="1" max="4096" step="1"
+                [(ngModel)]="conflictDigestMaxSizeMB" (change)="saveConflictDigestMaxSize()" />
+            </div>
             <!-- 默认上传/下载路径 -->
             <div class="ss-toggle-row ss-path-row">
               <span class="ss-toggle-label">{{ i18n.t('settings.defaultUploadPath') }}</span>
@@ -846,6 +931,18 @@ function loadTableSetting(key: string, fallback: boolean): boolean {
 
     /* 设置面板提示文字 */
     .ss-hint { font-size:11px; opacity:.5; margin-top:6px; }
+    .ss-font-row {
+      display:flex; align-items:center; justify-content:space-between; gap:12px;
+      margin-top:4px; flex-wrap:wrap;
+    }
+    .ss-font-control { display:flex; align-items:center; gap:10px; flex:1; min-width:180px; }
+    .ss-range {
+      flex:1; min-width:120px; max-width:280px; height:4px; cursor:pointer;
+      accent-color: var(--primary-color, #3b82f6);
+    }
+    .ss-font-val {
+      font-size:13px; min-width:36px; opacity:.65; font-variant-numeric:tabular-nums;
+    }
     .ss-datefmt-row { gap: 12px; cursor: default; }
     .ss-datefmt-field {
       position: relative; display: inline-flex; align-items: center;
@@ -888,6 +985,7 @@ function loadTableSetting(key: string, fallback: boolean): boolean {
       background: rgba(128,128,128,0.06);
       color: inherit; font-size: 13px; outline: none;
       box-sizing: border-box;
+      user-select: text; -webkit-user-select: text; cursor: text;
     }
     .ss-path-input:focus { border-color: var(--primary-color, #3b82f6); }
     .ss-icon-rules { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
@@ -1005,7 +1103,8 @@ function loadTableSetting(key: string, fallback: boolean): boolean {
       box-sizing:border-box; min-width:0;
     }
     .ss-icon-form-input:focus { border-color:var(--primary-color,#3b82f6); }
-    .ss-icon-form-input[readonly] { opacity:.55; cursor:not-allowed; background:rgba(128,128,128,.04); }
+    .ss-icon-form-input[readonly],
+    .ss-icon-form-input--locked { opacity:.55; cursor:not-allowed; background:rgba(128,128,128,.04); pointer-events:none; }
     .ss-icon-form-input--wide { min-height:32px; }
     .ss-icon-form-actions {
       display:flex; justify-content:flex-end; gap:8px; margin-top:4px;
@@ -1510,6 +1609,8 @@ export class SftpSettingsTabComponent implements OnDestroy {
 
   /** 面板布局 */
   layoutMode: string = 'auto'
+  /** 面板界面字号（px），默认 13，范围 11–18 */
+  fontSize = 13
 
   /** 表格样式设置 */
   showColBorders = loadTableSetting('colBorders', false)
@@ -1567,26 +1668,32 @@ export class SftpSettingsTabComponent implements OnDestroy {
   transferFastMode = false
   /** ★ 2026-08-28：启用 tar 打包通道加速文件夹传输 */
   transferTarAcceleration = true
+  /** ★ 2026-09-07 issue #15：冲突内容摘要相关设置 */
+  conflictDigestEnabled = true
+  conflictAutoSkipSameContent = true
+  conflictDigestMaxSizeMB = 256
   /** 默认上传路径（远程目标目录）；空串 = 使用当前远程目录 */
   defaultUploadPath = ''
   /** 默认下载路径（本地目标目录）；空串 = 使用当前本地目录 */
   defaultDownloadPath = ''
   /** 自定义图标：全局 SVG 资源目录（本地绝对路径） */
   iconResourceDir = ''
-  /** 自定义图标规则：扩展名 → svg 文件名 */
-  fileTypeIcons: { ext: string; svg: string }[] = []
+  /** 自定义图标规则：扩展名 → svg 文件名（可选 name 为规则名） */
+  fileTypeIcons: FileTypeIconRule[] = []
   /** 被禁用的内置图标 svg 文件名 */
   disabledIconSvgs: string[] = []
   /** 文件夹图标 svg 文件名（空串 = 走 emoji 📁，默认 'folder.svg'） */
   folderIconSvg = 'folder.svg'
   /** 图标网格交互状态 */
-  _editingIconSvg: string | null = null       // 正在编辑的图标 svg 文件名
+  _editingRuleKey: string | null = null      // 正在编辑的规则 key（规则名）
+  _editingRuleName: string = ''               // 编辑中的规则名
   _editingIconExts: string = ''               // 编辑中的扩展名字符串
   _editingIconSvgName: string = ''            // 编辑中的 svg 文件名（可修改）
   _editingFolderIcon = false                  // 是否在编辑文件夹图标
   _folderIconDraft = ''                       // 文件夹图标编辑草稿
   _folderIconError = ''                       // 文件夹图标编辑错误
   _addingCustomRule = false                   // 是否显示新增自定义规则表单
+  _newRuleName = ''                           // 新增规则的规则名
   _newRuleExt = ''                            // 新增规则的扩展名
   _newRuleSvg = ''                            // 新增规则的 svg 文件名
   _iconRuleError = ''                         // 新增/编辑规则时的校验错误提示（空=无错误）
@@ -1603,10 +1710,10 @@ export class SftpSettingsTabComponent implements OnDestroy {
   openOnClick: 'double' | 'single' = load('openOnClick', 'double')
   /** ★ 2026-08-22：查看器不支持的文件改用系统默认程序打开 */
   openUnsupportedInSystem = load('openUnsupportedInSystem', true)
-  /** 额外允许内置编辑器打开的扩展名；界面接受 .conf / *.conf / conf。 */
-  editableFileExtensionsText = normalizeEditableExtensions(load<unknown>('editableFileExtensions', [])).join(', ')
-  /** 忽略扩展名白名单，但仍拒绝在文本编辑器中打开二进制内容。 */
-  allowEditAllFiles = load('allowEditAllFiles', false)
+  /** 可查看/编辑文本扩展名；界面展示预置列表，接受 .conf / *.conf / conf，空格分隔。 */
+  editableFileExtensionsText = formatTextExtensionsForInput(load<unknown>('editableFileExtensions', []))
+  /** 忽略扩展名白名单，允许查看与编辑所有非目录文件（编辑仍受二进制保护）。 */
+  allowViewEditAllFiles = loadAllowViewEditAllFiles()
   /** ★ 2026-08-22：右键菜单项顺序（数据驱动渲染） */
   contextMenuOrder: ContextMenuAction[] = [...DEFAULT_FILE_MENU_ORDER]
   /** 右键菜单排序拖拽中的项 */
@@ -1662,6 +1769,7 @@ export class SftpSettingsTabComponent implements OnDestroy {
         // 从 config store 读取面板端切换的布局
         const cfg = this.configService?.store?.['tabby-sftp-plus']
         if (cfg?.layoutMode) this.layoutMode = cfg.layoutMode as string
+        if (typeof cfg?.fontSize === 'number') this.fontSize = this._clampFontSize(cfg.fontSize)
       }
       window.addEventListener('sftp-plus-settings-changed', this._settingsChangedHandler)
     }
@@ -2128,6 +2236,9 @@ export class SftpSettingsTabComponent implements OnDestroy {
       if (!cfg) return
       if (cfg.lang !== undefined) this.lang = cfg.lang as '' | Locale
       if (cfg.layoutMode !== undefined) this.layoutMode = cfg.layoutMode as string
+      if (typeof cfg.fontSize === 'number' && Number.isFinite(cfg.fontSize)) {
+        this.fontSize = this._clampFontSize(cfg.fontSize)
+      }
       if (cfg.theme !== undefined) this.theme = cfg.theme as string
       if (cfg.colorPrimary !== undefined) this.themePrimary = cfg.colorPrimary as string
       if (cfg.colorBg !== undefined) this.themeBg = cfg.colorBg as string
@@ -2149,10 +2260,25 @@ export class SftpSettingsTabComponent implements OnDestroy {
       if (typeof cfg.transferDownloadConcurrency === 'number') this.downloadConcurrency = this._clampConcurrency(cfg.transferDownloadConcurrency)
       if (cfg.transferFastMode !== undefined) this.transferFastMode = cfg.transferFastMode === true
       if (cfg.transferTarAcceleration !== undefined) this.transferTarAcceleration = cfg.transferTarAcceleration !== false
+      // ★ 2026-09-07 issue #15：冲突内容摘要
+      if (cfg.conflictDigestEnabled !== undefined) this.conflictDigestEnabled = cfg.conflictDigestEnabled !== false
+      if (cfg.conflictAutoSkipSameContent !== undefined) this.conflictAutoSkipSameContent = cfg.conflictAutoSkipSameContent !== false
+      if (cfg.conflictDigestMaxSizeMB !== undefined) {
+        const mb = Number(cfg.conflictDigestMaxSizeMB)
+        this.conflictDigestMaxSizeMB = Number.isFinite(mb) && mb > 0 ? mb : 256
+      }
       if (typeof cfg.defaultUploadPath === 'string') this.defaultUploadPath = cfg.defaultUploadPath
       if (typeof cfg.defaultDownloadPath === 'string') this.defaultDownloadPath = cfg.defaultDownloadPath
       if (typeof cfg.iconResourceDir === 'string') this.iconResourceDir = cfg.iconResourceDir
-      if (Array.isArray(cfg.fileTypeIcons)) this.fileTypeIcons = cfg.fileTypeIcons.filter((r: any) => r && typeof r.ext === 'string' && typeof r.svg === 'string')
+      if (Array.isArray(cfg.fileTypeIcons)) {
+        this.fileTypeIcons = cfg.fileTypeIcons
+          .filter((r: any) => r && typeof r.ext === 'string' && typeof r.svg === 'string')
+          .map((r: any) => {
+            const rule: FileTypeIconRule = { ext: r.ext, svg: r.svg }
+            if (typeof r.name === 'string' && r.name.trim()) rule.name = r.name.trim()
+            return rule
+          })
+      }
       if (Array.isArray(cfg.disabledIconSvgs)) this.disabledIconSvgs = cfg.disabledIconSvgs.filter((s: any) => typeof s === 'string')
       if (typeof cfg.folderIconSvg === 'string') this.folderIconSvg = cfg.folderIconSvg || 'folder.svg'
       // 自动清理指向不存在 svg 的旧规则（仅当图标目录可读时执行，避免误删自定义目录临时不可用的合法规则）
@@ -2183,9 +2309,9 @@ export class SftpSettingsTabComponent implements OnDestroy {
       if (cfg.openOnClick === 'single' || cfg.openOnClick === 'double') this.openOnClick = cfg.openOnClick
       if (cfg.openUnsupportedInSystem !== undefined) this.openUnsupportedInSystem = cfg.openUnsupportedInSystem === true
       if (cfg.editableFileExtensions !== undefined) {
-        this.editableFileExtensionsText = normalizeEditableExtensions(cfg.editableFileExtensions).join(', ')
+        this.editableFileExtensionsText = formatTextExtensionsForInput(cfg.editableFileExtensions)
       }
-      if (cfg.allowEditAllFiles !== undefined) this.allowEditAllFiles = cfg.allowEditAllFiles === true
+      this.allowViewEditAllFiles = resolveAllowViewEditAllFiles(cfg as Record<string, unknown>)
       if (Array.isArray(cfg.contextMenuOrder) && cfg.contextMenuOrder.length) {
         const valid = (cfg.contextMenuOrder as string[]).filter(a => (a in FILE_MENU_REGISTRY)) as ContextMenuAction[]
         // 补齐可能缺失的已知项（保证顺序数组始终含全部菜单项，缺失项追加末尾）
@@ -2225,6 +2351,7 @@ export class SftpSettingsTabComponent implements OnDestroy {
       if (!target) return  // 配置段未就绪，静默跳过
       target.lang = this.lang
       target.layoutMode = this.layoutMode
+      target.fontSize = this.fontSize
       // 同步写入面板读取的嵌套路径（与浮动面板 cycleLayoutMode 一致），修复设置页切换布局后面板不生效
       this.sftpConfig?.set('paneState/layout/mode', this.layoutMode)
       target.theme = this.theme
@@ -2245,6 +2372,10 @@ export class SftpSettingsTabComponent implements OnDestroy {
       target.transferDownloadConcurrency = this.downloadConcurrency
       target.transferFastMode = this.transferFastMode
       target.transferTarAcceleration = this.transferTarAcceleration
+      // ★ 2026-09-07 issue #15：三者均为标量叶子，可直接赋值（符合 ConfigProxy「只有叶子标量可写」的要求）
+      target.conflictDigestEnabled = this.conflictDigestEnabled
+      target.conflictAutoSkipSameContent = this.conflictAutoSkipSameContent
+      target.conflictDigestMaxSizeMB = this.conflictDigestMaxSizeMB
       target.defaultUploadPath = this.defaultUploadPath
       target.defaultDownloadPath = this.defaultDownloadPath
       target.iconResourceDir = this.iconResourceDir
@@ -2257,7 +2388,10 @@ export class SftpSettingsTabComponent implements OnDestroy {
       target.openOnClick = this.openOnClick
       target.openUnsupportedInSystem = this.openUnsupportedInSystem
       target.editableFileExtensions = normalizeEditableExtensions(this.editableFileExtensionsText)
-      target.allowEditAllFiles = this.allowEditAllFiles
+      target.allowViewEditAllFiles = this.allowViewEditAllFiles
+      // 兼容旧字段：同步写入，避免回退旧版插件时丢失开关状态
+      target.allowEditAllFiles = this.allowViewEditAllFiles
+      target.allowViewAllAsText = this.allowViewEditAllFiles
       target.contextMenuOrder = this.contextMenuOrder
       // ★ 2026-08-24 修复：panelHotkeys 是 ConfigProxy 的「结构成员」（对象），只有 getter 没有 setter。
       //    直接 `target.panelHotkeys = x` 不生效（严格模式抛 TypeError 被 catch 吞掉 / 非严格静默忽略），
@@ -2431,15 +2565,15 @@ export class SftpSettingsTabComponent implements OnDestroy {
     this.notifyPanels()
   }
 
-  /** 规范化扩展名后保存；例如 `.conf` 与 `*.conf` 都存为 `conf`。 */
+  /** 规范化扩展名后保存；例如 `.conf` 与 `*.conf` 都存为 `conf`，展示用空格分隔。 */
   saveEditorOptions(): void {
-    this.editableFileExtensionsText = normalizeEditableExtensions(this.editableFileExtensionsText).join(', ')
+    this.editableFileExtensionsText = formatTextExtensionsForInput(this.editableFileExtensionsText)
     this._saveToConfig()
     this.notifyPanels()
   }
 
-  toggleAllowEditAllFiles(): void {
-    this.allowEditAllFiles = !this.allowEditAllFiles
+  toggleAllowViewEditAllFiles(): void {
+    this.allowViewEditAllFiles = !this.allowViewEditAllFiles
     this._saveToConfig()
     this.notifyPanels()
   }
@@ -2462,46 +2596,79 @@ export class SftpSettingsTabComponent implements OnDestroy {
 
   /* ───────────────────────── 图标网格交互方法 ───────────────────────── */
 
-  /** 网格展示项：内置图标 + 用户自定义规则中的图标（去重） */
-  /** trackBy：用 svg 文件名作为稳定 key，避免 getter 每次返回新对象导致 *ngFor 频繁重建 DOM（会打断 hover/click 事件） */
-  trackByIcon(index: number, item: { svg: string; isBuiltin: boolean; exts: string[] }): string {
-    return item.svg
+  /** 内置/旧配置无规则名时的默认展示名 */
+  private defaultIconRuleName(svg: string): string {
+    const s = (svg || '').trim()
+    // 系统默认两项：文件夹 → folder，兜底文件 → file
+    if (s === FOLDER_ICON_SVG || s === 'folder.svg') return 'folder'
+    if (s === 'default.svg') return 'file'
+    return s.replace(/\.svg$/i, '') || s
   }
 
-  get iconGridItems(): { svg: string; isBuiltin: boolean; exts: string[] }[] {
-    const builtinSet = new Set(BUILTIN_ICON_FILES.filter(f => f !== FOLDER_ICON_SVG))
-    const items: { svg: string; isBuiltin: boolean; exts: string[] }[] = []
-    // 内置图标（文件夹图标单独处理，不参与扩展名映射）：扩展名优先取 fileTypeIcons 中对该 svg 的覆盖规则，否则用内置默认映射
-    const builtinExtMap = new Map<string, string[]>()
+  /** 规则条目的有效规则名（分组 key） */
+  private _ruleNameOf(r: FileTypeIconRule): string {
+    const n = (r.name || '').trim()
+    // 兼容旧配置：default.svg 曾默认名为 default，统一归并为 file
+    if (r.svg === 'default.svg' && (!n || n === 'default')) return 'file'
+    if ((r.svg === FOLDER_ICON_SVG || r.svg === 'folder.svg') && (!n || n === 'folder.svg')) return 'folder'
+    return n || this.defaultIconRuleName(r.svg)
+  }
+
+  /** trackBy：用规则名 key，避免 getter 每次返回新对象导致 *ngFor 频繁重建 DOM */
+  trackByIcon(_index: number, item: { key: string }): string {
+    return item.key
+  }
+
+  get iconGridItems(): { key: string; name: string; svg: string; isBuiltin: boolean; exts: string[] }[] {
+    const items: { key: string; name: string; svg: string; isBuiltin: boolean; exts: string[] }[] = []
+
+    // 按规则名聚合所有自定义条目
+    const byName = new Map<string, { svg: string; exts: string[] }>()
     for (const r of this.fileTypeIcons) {
-      if (!r.svg || !builtinSet.has(r.svg)) continue
-      if (!builtinExtMap.has(r.svg)) builtinExtMap.set(r.svg, [])
+      if (!r.svg || r.svg === FOLDER_ICON_SVG) continue
+      const name = this._ruleNameOf(r)
+      if (!byName.has(name)) byName.set(name, { svg: r.svg, exts: [] })
+      const g = byName.get(name)!
+      g.svg = r.svg || g.svg
       const e = (r.ext || '').trim().toLowerCase()
-      if (e) builtinExtMap.get(r.svg)!.push(e)
+      if (e) g.exts.push(e)
     }
-    // 排序：default.svg 最前（紧跟文件夹图标），其余按原顺序
+
+    // ① 内置图标单元格：始终展示；扩展名优先取「规则名 = 默认名」的覆盖
     const ordered = [...BUILTIN_ICON_FILES].filter(f => f !== FOLDER_ICON_SVG)
     const defaultIdx = ordered.indexOf('default.svg')
     if (defaultIdx > 0) {
       ordered.splice(defaultIdx, 1)
       ordered.unshift('default.svg')
     }
+    const consumed = new Set<string>()
     for (const f of ordered) {
-      const exts = builtinExtMap.has(f)
-        ? [...new Set(builtinExtMap.get(f)!)]
+      const key = this.defaultIconRuleName(f)
+      const group = byName.get(key)
+      const exts = group
+        ? [...new Set(group.exts)]
         : [...(BUILTIN_ICON_EXTS[f] || [])]
-      items.push({ svg: f, isBuiltin: true, exts })
+      items.push({
+        key,
+        name: key,
+        svg: group?.svg || f,
+        isBuiltin: true,
+        exts,
+      })
+      consumed.add(key)
     }
-    // 自定义规则：svg 不在内置列表中的，逐 svg 聚合扩展名后单独展示
-    const customMap = new Map<string, string[]>()
-    for (const r of this.fileTypeIcons) {
-      if (!r.svg || builtinSet.has(r.svg) || r.svg === FOLDER_ICON_SVG) continue
-      if (!customMap.has(r.svg)) customMap.set(r.svg, [])
-      const e = (r.ext || '').trim().toLowerCase()
-      if (e) customMap.get(r.svg)!.push(e)
-    }
-    for (const [svg, exts] of customMap) {
-      items.push({ svg, isBuiltin: false, exts: [...new Set(exts)] })
+
+    // ② 其余自定义规则：按规则名展示（可与内置共用同一 svg，但独立分类）
+    for (const [name, g] of byName) {
+      if (consumed.has(name)) continue
+      if (!g.svg) continue
+      items.push({
+        key: name,
+        name,
+        svg: g.svg,
+        isBuiltin: false,
+        exts: [...new Set(g.exts)],
+      })
     }
     return items
   }
@@ -2532,6 +2699,11 @@ export class SftpSettingsTabComponent implements OnDestroy {
     return svg === 'default.svg'
   }
 
+  /** 系统保留规则名：file / folder 不可改名 */
+  isSystemRuleName(key: string | null | undefined): boolean {
+    return key === 'file' || key === 'folder'
+  }
+
   /** svg 文件是否真实存在于有效图标目录 */
   private svgExists(svgName: string): boolean {
     const dir = this.effectiveIconBaseDir
@@ -2539,79 +2711,155 @@ export class SftpSettingsTabComponent implements OnDestroy {
     try { return fs.existsSync(path.join(dir, svgName)) } catch { return false }
   }
 
-  /** 进入编辑模式：修改某个图标的 svg 名称和关联扩展名 */
-  /** 取某 svg 当前生效的扩展名列表（与网格展示一致）：优先 fileTypeIcons 中该 svg 的规则，否则回退内置默认 */
-  private _extsForSvg(svg: string): string[] {
+  /** 取某规则名当前生效的扩展名列表 */
+  private _extsForRuleName(ruleName: string, fallbackSvg?: string): string[] {
+    const key = (ruleName || '').trim()
     const fromRules = this.fileTypeIcons
-      .filter(r => r.svg === svg)
+      .filter(r => this._ruleNameOf(r) === key)
       .map(r => (r.ext || '').trim().toLowerCase())
       .filter(Boolean)
     if (fromRules.length) return [...new Set(fromRules)]
-    return [...(BUILTIN_ICON_EXTS[svg] || [])]
+    const svg = fallbackSvg || ''
+    if (svg && this.defaultIconRuleName(svg) === key) {
+      return [...(BUILTIN_ICON_EXTS[svg] || [])]
+    }
+    return []
   }
 
-  startEditIcon(svg: string): void {
+  /** 取某规则当前绑定的 svg（无则回退 fallback） */
+  private _svgForRuleName(ruleName: string, fallbackSvg = ''): string {
+    const key = (ruleName || '').trim()
+    const hit = this.fileTypeIcons.find(r => this._ruleNameOf(r) === key && r.svg)
+    return hit?.svg || fallbackSvg
+  }
+
+  startEditIcon(item: { key: string; name: string; svg: string }): void {
     this._addingCustomRule = false
     this._editingFolderIcon = false
     this._iconRuleError = ''
-    this._editingIconSvg = svg
-    this._editingIconSvgName = svg
-    this._editingIconExts = this._extsForSvg(svg).join(' ')
+    this._editingRuleKey = item.key
+    this._editingRuleName = item.name
+    this._editingIconSvgName = item.svg
+    this._editingIconExts = this._extsForRuleName(item.key, item.svg).join(' ')
   }
 
   /** 取消编辑 */
   cancelEditIcon(): void {
-    this._editingIconSvg = null
+    this._editingRuleKey = null
+    this._editingRuleName = ''
     this._editingIconExts = ''
     this._editingIconSvgName = ''
     this._iconRuleError = ''
   }
 
+  /**
+   * 解析并规范化图标扩展名输入。
+   * 支持空格/逗号/分号分隔；允许省略前导点（test → .test）；全角标点先归一化。
+   * 合法形如 `.ext`：以字母或数字开头，后续仅字母/数字/._+-
+   */
+  private _parseIconExtensions(raw: string): { valid: string[]; invalid: string[] } {
+    const normalized = String(raw || '')
+      .replace(/[。．]/g, '.')
+      .replace(/[，、]/g, ',')
+      .replace(/[；;]/g, ';')
+      .trim()
+    const tokens = normalized.split(/[\s,;|]+/).map(t => t.trim()).filter(Boolean)
+    const valid: string[] = []
+    const invalid: string[] = []
+    const seen = new Set<string>()
+    for (const token of tokens) {
+      const withDot = token.startsWith('.') ? token : `.${token}`
+      const ext = withDot.toLowerCase()
+      // 拒绝单独的 "."、含空格、以及非扩展名字符
+      if (!/^\.[a-z0-9][a-z0-9._+-]*$/i.test(ext) || ext.length > 32) {
+        invalid.push(token)
+        continue
+      }
+      if (!seen.has(ext)) {
+        seen.add(ext)
+        valid.push(ext)
+      }
+    }
+    return { valid, invalid }
+  }
+
   /** 检测扩展名冲突：返回第一个冲突的 {ext, ownerSvg}，无冲突返回 null */
-  private checkExtConflict(extList: string[], excludeSvg?: string): { ext: string; ownerSvg: string } | null {
-    // 构建当前所有扩展名→svg 映含（内置默认 + 自定义规则）
+  private checkExtConflict(extList: string[], excludeRuleName?: string): { ext: string; ownerSvg: string } | null {
     const extMap = new Map<string, string>()
     // 内置默认映射
     for (const [ext, svg] of Object.entries(DEFAULT_ICON_MAP)) {
-      if (!extMap.has(ext)) extMap.set(ext, svg)
+      const key = ext.toLowerCase()
+      if (!extMap.has(key)) extMap.set(key, svg)
     }
-    // 自定义规则（排除正在编辑的那个 svg）
+    // 自定义规则（排除正在编辑/追加的那条规则名）
     for (const r of this.fileTypeIcons) {
+      if (excludeRuleName && this._ruleNameOf(r) === excludeRuleName) continue
       const e = (r.ext || '').trim().toLowerCase()
-      if (!e || r.svg === excludeSvg) continue
+      if (!e) continue
       extMap.set(e, r.svg)
     }
-    // 检查输入的每个扩展名
+    // 若排除的是内置默认规则名，同时剔除该内置 svg 在 DEFAULT_ICON_MAP 中的占用
+    if (excludeRuleName) {
+      for (const [ext, svg] of Object.entries(DEFAULT_ICON_MAP)) {
+        if (this.defaultIconRuleName(svg) === excludeRuleName) {
+          const key = ext.toLowerCase()
+          if (extMap.get(key) === svg) extMap.delete(key)
+        }
+      }
+    }
     for (const ext of extList) {
-      const owner = extMap.get(ext)
-      if (owner && owner !== excludeSvg) return { ext, ownerSvg: owner }
+      const key = (ext || '').trim().toLowerCase()
+      const owner = extMap.get(key)
+      if (owner) return { ext: key, ownerSvg: owner }
     }
     return null
   }
 
-  /** 确认编辑：将扩展名变更存入 fileTypeIcons 覆盖默认映射 */
+  /** 确认编辑：按规则名更新 name/svg/扩展名 */
   confirmEditIcon(): void {
-    if (!this._editingIconSvg) return
-    const isBuiltin = this.isBuiltinSvg(this._editingIconSvg)
-    // 内置/自定义图标改名均需校验目标 svg 文件真实存在（避免指向缺失文件导致图标失效）
+    if (!this._editingRuleKey) return
+    const oldKey = this._editingRuleKey
+    // 系统规则名锁定：file / folder 不允许改名
+    const newName = this.isSystemRuleName(oldKey)
+      ? oldKey
+      : (this._editingRuleName || '').trim()
     const newSvg = this._editingIconSvgName.trim()
+    if (!newName) {
+      this._iconRuleError = this.i18n.t('settings.iconErrorEmptyName')
+      return
+    }
     if (!this.svgExists(newSvg)) {
       this._iconRuleError = this.i18n.t('settings.iconErrorMissingSvg')
       return
     }
-    const extList = this._editingIconExts.split(/[\s,]+/).map(e => e.trim().toLowerCase()).filter(Boolean)
-    // 扩展名冲突检测：不允许一个扩展名被多个图标占用
-    const conflict = this.checkExtConflict(extList, newSvg)
+    // 规则名冲突：不允许与其它规则重名
+    if (newName !== oldKey && this.iconGridItems.some(i => i.key === newName)) {
+      this._iconRuleError = this.i18n.t('settings.iconErrorNameConflict')
+        .replace('{name}', newName)
+      return
+    }
+    const { valid: extList, invalid } = this._parseIconExtensions(this._editingIconExts)
+    if (invalid.length) {
+      this._iconRuleError = this.i18n.t('settings.iconErrorInvalidExt')
+        .replace('{ext}', invalid.join(', '))
+      return
+    }
+    // default.svg 允许空扩展名（兜底图标）；其它图标至少保留一个扩展名
+    if (!extList.length && newSvg !== 'default.svg') {
+      this._iconRuleError = this.i18n.t('settings.iconErrorEmpty')
+      return
+    }
+    const conflict = this.checkExtConflict(extList, oldKey)
     if (conflict) {
       this._iconRuleError = this.i18n.t('settings.iconErrorExtConflict')
         .replace('{ext}', conflict.ext).replace('{svg}', conflict.ownerSvg)
       return
     }
-    // 先清除该 svg 在自定义规则里的旧条目，再逐扩展名重建
-    const others = this.fileTypeIcons.filter(r => r.svg !== this._editingIconSvg && r.svg !== newSvg)
-    const newRules = extList.map(ext => ({ ext, svg: newSvg }))
+    const others = this.fileTypeIcons.filter(r => this._ruleNameOf(r) !== oldKey)
+    const newRules: FileTypeIconRule[] = extList.map(ext => ({ ext, svg: newSvg, name: newName }))
     this.fileTypeIcons = [...others, ...newRules]
-    this._editingIconSvg = null
+    this._editingRuleKey = null
+    this._editingRuleName = ''
     this._editingIconExts = ''
     this._editingIconSvgName = ''
     this._iconRuleError = ''
@@ -2623,10 +2871,11 @@ export class SftpSettingsTabComponent implements OnDestroy {
     if (this._addingCustomRule) {
       this.cancelAddCustomRule()
     } else {
-      this._editingIconSvg = null
+      this._editingRuleKey = null
       this._editingFolderIcon = false
       this._iconRuleError = ''
       this._addingCustomRule = true
+      this._newRuleName = ''
       this._newRuleExt = ''
       this._newRuleSvg = ''
     }
@@ -2635,6 +2884,7 @@ export class SftpSettingsTabComponent implements OnDestroy {
   showAddCustomRule(): void {
     this._iconRuleError = ''
     this._addingCustomRule = true
+    this._newRuleName = ''
     this._newRuleExt = ''
     this._newRuleSvg = ''
   }
@@ -2642,16 +2892,17 @@ export class SftpSettingsTabComponent implements OnDestroy {
   /** 取消新增 */
   cancelAddCustomRule(): void {
     this._addingCustomRule = false
+    this._newRuleName = ''
     this._newRuleExt = ''
     this._newRuleSvg = ''
     this._iconRuleError = ''
   }
 
-  /** 确认新增自定义规则（带校验 + 错误提示） */
+  /** 确认新增自定义规则：以规则名为 key；同名则追加合并，不同名则新建分类 */
   confirmAddCustomRule(): void {
-    const rawExt = (this._newRuleExt || '').trim().toLowerCase()
+    const name = (this._newRuleName || '').trim()
     const svg = (this._newRuleSvg || '').trim()
-    if (!rawExt || !svg) {
+    if (!name || !svg || !(this._newRuleExt || '').trim()) {
       this._iconRuleError = this.i18n.t('settings.iconErrorEmpty')
       return
     }
@@ -2659,36 +2910,67 @@ export class SftpSettingsTabComponent implements OnDestroy {
       this._iconRuleError = this.i18n.t('settings.iconErrorMissingSvg')
       return
     }
-    // 支持空格/逗号分隔的多扩展名输入
-    const extList = rawExt.split(/[\s,]+/).filter(Boolean)
-    // 扩展名冲突检测
-    const conflict = this.checkExtConflict(extList)
+    const { valid: extList, invalid } = this._parseIconExtensions(this._newRuleExt)
+    if (invalid.length) {
+      this._iconRuleError = this.i18n.t('settings.iconErrorInvalidExt')
+        .replace('{ext}', invalid.join(', '))
+      return
+    }
+    if (!extList.length) {
+      this._iconRuleError = this.i18n.t('settings.iconErrorEmpty')
+      return
+    }
+    const conflict = this.checkExtConflict(extList, name)
     if (conflict) {
       this._iconRuleError = this.i18n.t('settings.iconErrorExtConflict')
         .replace('{ext}', conflict.ext).replace('{svg}', conflict.ownerSvg)
       return
     }
-    const newRules = extList.map(ext => ({ ext, svg }))
-    this.fileTypeIcons = [...this.fileTypeIcons, ...newRules]
+
+    const existingSvg = this._svgForRuleName(name, svg)
+    // 同名规则若已绑定其它 svg，禁止悄悄改图标，避免分类混乱
+    if (existingSvg && existingSvg !== svg && this.fileTypeIcons.some(r => this._ruleNameOf(r) === name)) {
+      this._iconRuleError = this.i18n.t('settings.iconErrorNameSvgMismatch')
+        .replace('{name}', name).replace('{svg}', existingSvg)
+      return
+    }
+
+    const isBuiltinDefault = this.isBuiltinSvg(svg) && this.defaultIconRuleName(svg) === name
+    const builtin = isBuiltinDefault ? [...(BUILTIN_ICON_EXTS[svg] || [])] : []
+    const existing = this._extsForRuleName(name, svg)
+    const merged = [...new Set([
+      ...builtin.map(e => e.toLowerCase()),
+      ...existing.map(e => e.toLowerCase()),
+      ...extList,
+    ])]
+    const others = this.fileTypeIcons.filter(r => this._ruleNameOf(r) !== name)
+    this.fileTypeIcons = [
+      ...others,
+      ...merged.map(ext => ({ ext, svg, name } as FileTypeIconRule)),
+    ]
     this._addingCustomRule = false
+    this._newRuleName = ''
     this._newRuleExt = ''
     this._newRuleSvg = ''
     this._iconRuleError = ''
     this._saveToConfig()
   }
 
-  /** 删除单元格：内置图标=禁用/恢复；自定义规则=移除该 svg 的全部规则 */
-  deleteIcon(item: { svg: string; isBuiltin: boolean }): void {
+  /** 删除单元格：内置图标=禁用/恢复；自定义规则=按规则名移除全部条目（需确认） */
+  deleteIcon(item: { key: string; svg: string; isBuiltin: boolean }): void {
     if (this.isLockedIcon(item.svg)) return  // default.svg 锁死，不可删/禁用
     if (item.isBuiltin) {
       this.toggleIconDisable(item.svg)
     } else {
-      this.fileTypeIcons = this.fileTypeIcons.filter(r => r.svg !== item.svg)
+      const ok = confirm(this.i18n.t('settings.iconDeleteConfirm', { name: item.key }))
+      if (!ok) return
+      this.fileTypeIcons = this.fileTypeIcons.filter(r => this._ruleNameOf(r) !== item.key)
       this._saveToConfig()
     }
     // 修复：若正在编辑的正是被删除/禁用的图标，关闭编辑表单，避免删完还残留编辑态
-    if (this._editingIconSvg === item.svg) {
-      this._editingIconSvg = null
+    if (this._editingRuleKey === item.key) {
+      this._editingRuleKey = null
+      this._editingRuleName = ''
       this._editingIconSvgName = ''
       this._editingIconExts = ''
       this._iconRuleError = ''
@@ -2698,7 +2980,7 @@ export class SftpSettingsTabComponent implements OnDestroy {
   /** 进入文件夹图标编辑态 */
   startEditFolderIcon(): void {
     this._addingCustomRule = false
-    this._editingIconSvg = null
+    this._editingRuleKey = null
     this._folderIconError = ''
     this._editingFolderIcon = true
     this._folderIconDraft = this.folderIconSvg || ''
@@ -2734,6 +3016,28 @@ export class SftpSettingsTabComponent implements OnDestroy {
     this._saveToConfig()
   }
 
+  /** ★ 2026-09-17：一键恢复对象图标默认配置（目录/规则/禁用/文件夹图标） */
+  resetIconSettings(): void {
+    this.iconResourceDir = ''
+    this.fileTypeIcons = []
+    this.disabledIconSvgs = []
+    this.folderIconSvg = FOLDER_ICON_SVG
+    this._editingRuleKey = null
+    this._editingRuleName = ''
+    this._editingIconExts = ''
+    this._editingIconSvgName = ''
+    this._editingFolderIcon = false
+    this._folderIconDraft = ''
+    this._folderIconError = ''
+    this._addingCustomRule = false
+    this._newRuleName = ''
+    this._newRuleExt = ''
+    this._newRuleSvg = ''
+    this._iconRuleError = ''
+    this._saveToConfig()
+    this.notifyPanels()
+  }
+
   /** 启动时自动清理：仅当图标目录可读且包含 svg 时执行（避免临时不可用的自定义目录导致误删） */
   private _autoCleanInvalidRules(): void {
     const dir = this.effectiveIconBaseDir
@@ -2755,27 +3059,9 @@ export class SftpSettingsTabComponent implements OnDestroy {
     this._saveToConfig()
   }
   /** 拼出规则内 svg 的完整 file:// 路径（供预览显示） */
-  /**
-   * 插件内置图标目录，兼容开发链接的 <plugin>/dist/assets/icons 和
-   * 手动复制 dist 内容后的 <plugin>/assets/icons 两种布局。
-   */
+  /** 插件内置图标目录：开发链接 / 手动安装 / 源码三种布局由 resolveSftpPlusBundledIconDir 统一解析 */
   private get _bundledIconDir(): string {
-    try {
-      const info = (this.bootstrapData as any)?.installedPlugins?.find(
-        (p: any) => p.packageName === 'tabby-sftp-plus',
-      )
-      if (info?.path) {
-        const base = info.path.replace(/\\/g, '/').replace(/\/+$/, '')
-        const candidates = [
-          `${base}/dist/assets/icons`,
-          `${base}/assets/icons`,
-          `${base}/src/assets/icons`,
-        ]
-        const found = candidates.find(dir => fs.existsSync(dir))
-        if (found) return found
-      }
-    } catch { /* 取不到则回退空 */ }
-    return ''
+    return resolveSftpPlusBundledIconDir(this.bootstrapData)
   }
 
   /** 有效图标目录：用户指定优先；留空则回退插件内置目录 */
@@ -2865,6 +3151,28 @@ export class SftpSettingsTabComponent implements OnDestroy {
   /** ★ 2026-08-28：切换 tar 打包加速 */
   toggleTarAcceleration(): void {
     this.transferTarAcceleration = !this.transferTarAcceleration
+    this._saveToConfig()
+    this.notifyPanels()
+  }
+
+  /** ★ 2026-09-07 issue #15：切换冲突内容摘要（关闭后退化为仅按 size+mtime 判定，行为同旧版） */
+  toggleConflictDigest(): void {
+    this.conflictDigestEnabled = !this.conflictDigestEnabled
+    this._saveToConfig()
+    this.notifyPanels()
+  }
+
+  /** 切换「内容确认相同时自动跳过」（关闭则仅展示摘要，仍会弹框） */
+  toggleConflictAutoSkip(): void {
+    this.conflictAutoSkipSameContent = !this.conflictAutoSkipSameContent
+    this._saveToConfig()
+    this.notifyPanels()
+  }
+
+  /** 保存摘要计算的文件大小上限（MB） */
+  saveConflictDigestMaxSize(): void {
+    const mb = Number(this.conflictDigestMaxSizeMB)
+    this.conflictDigestMaxSizeMB = Number.isFinite(mb) && mb > 0 ? Math.floor(mb) : 256
     this._saveToConfig()
     this.notifyPanels()
   }
@@ -2968,6 +3276,21 @@ export class SftpSettingsTabComponent implements OnDestroy {
     try { localStorage.setItem('sftp-plus-layout-mode', this.layoutMode) } catch {}
     this._saveToConfig()
     this.notifyPanels()
+  }
+
+  private _clampFontSize(val: number): number {
+    const n = Math.round(Number(val) || 13)
+    return Math.max(11, Math.min(18, n))
+  }
+
+  onFontSizeChange(val: number): void {
+    this.fontSize = this._clampFontSize(val)
+    void this._saveToConfig().then(() => this.notifyPanels())
+  }
+
+  resetFontSize(): void {
+    this.fontSize = 13
+    void this._saveToConfig().then(() => this.notifyPanels())
   }
 
   paneCustomItemLabel(item: 'label' | 'path' | 'back' | 'forward' | 'up' | 'refresh' | 'home' | 'filter' | 'bookmark' | 'hidden'): string {
@@ -3108,6 +3431,7 @@ export class SftpSettingsTabComponent implements OnDestroy {
         if (cfg) {
           data.lang = cfg.lang ?? ''
           data.layoutMode = cfg.layoutMode ?? 'auto'
+          data.fontSize = cfg.fontSize ?? 13
           data.theme = cfg.theme ?? ''
           data.colorPrimary = cfg.colorPrimary ?? ''
           data.colorBg = cfg.colorBg ?? ''
@@ -3126,6 +3450,10 @@ export class SftpSettingsTabComponent implements OnDestroy {
           data.transferDownloadConcurrency = cfg.transferDownloadConcurrency ?? 3
           data.transferFastMode = cfg.transferFastMode ?? false
           data.transferTarAcceleration = cfg.transferTarAcceleration ?? true
+          data.conflictDigestEnabled = cfg.conflictDigestEnabled ?? true
+          data.conflictAutoSkipSameContent = cfg.conflictAutoSkipSameContent ?? true
+          data.conflictDigestMaxSizeMB = cfg.conflictDigestMaxSizeMB ?? 256
+          data.conflictDigestAlgo = cfg.conflictDigestAlgo === 'sha256' ? 'sha256' : 'sha1'
           data.defaultUploadPath = cfg.defaultUploadPath ?? ''
           data.defaultDownloadPath = cfg.defaultDownloadPath ?? ''
           data.iconResourceDir = cfg.iconResourceDir ?? ''
@@ -3135,7 +3463,9 @@ export class SftpSettingsTabComponent implements OnDestroy {
           data.openOnClick = cfg.openOnClick ?? 'double'
           data.openUnsupportedInSystem = cfg.openUnsupportedInSystem ?? true
           data.editableFileExtensions = cfg.editableFileExtensions ?? []
-          data.allowEditAllFiles = cfg.allowEditAllFiles ?? false
+          data.allowViewEditAllFiles = resolveAllowViewEditAllFiles(cfg as Record<string, unknown>)
+          data.allowEditAllFiles = data.allowViewEditAllFiles
+          data.allowViewAllAsText = data.allowViewEditAllFiles
           data.contextMenuOrder = cfg.contextMenuOrder ?? [...DEFAULT_FILE_MENU_ORDER]
           data.panelHotkeys = cfg.panelHotkeys ?? defaultPanelHotkeys()
           data.hideAuthorInfo = cfg.hideAuthorInfo ?? false
@@ -3157,6 +3487,7 @@ export class SftpSettingsTabComponent implements OnDestroy {
     // 回退：从 localStorage 读取
     data.lang = load('lang', '')
     data.layoutMode = load('layoutMode', 'auto')
+    data.fontSize = 13
     data.theme = load('theme', '')
     data.colorPrimary = load('primaryColor', '')
     data.colorBg = load('bgColor', '')
@@ -3178,7 +3509,13 @@ export class SftpSettingsTabComponent implements OnDestroy {
     data.openOnClick = load('openOnClick', 'double')
     data.openUnsupportedInSystem = load('openUnsupportedInSystem', true)
     data.editableFileExtensions = normalizeEditableExtensions(load<unknown>('editableFileExtensions', []))
-    data.allowEditAllFiles = load('allowEditAllFiles', false)
+    data.allowViewEditAllFiles = loadAllowViewEditAllFiles()
+    data.allowEditAllFiles = data.allowViewEditAllFiles
+    data.allowViewAllAsText = data.allowViewEditAllFiles
+    data.conflictDigestEnabled = load('conflictDigestEnabled', true)
+    data.conflictAutoSkipSameContent = load('conflictAutoSkipSameContent', true)
+    data.conflictDigestMaxSizeMB = load('conflictDigestMaxSizeMB', 256)
+    data.conflictDigestAlgo = load<'sha1' | 'sha256'>('conflictDigestAlgo', 'sha1')
     try { data.contextMenuOrder = JSON.parse(localStorage.getItem('sftp-plus-context-menu-order') || '[]') } catch { data.contextMenuOrder = [] }
     data.panelHotkeys = defaultPanelHotkeys()
     try { data.paneCustomOrder = JSON.parse(localStorage.getItem('sftp-plus-pane-custom-order') || '["label","back","forward","up","refresh","home","path","hidden","filter","bookmark"]') } catch { data.paneCustomOrder = ['label', 'back', 'forward', 'up', 'refresh', 'home', 'path', 'hidden', 'filter', 'bookmark'] }
@@ -3255,6 +3592,7 @@ export class SftpSettingsTabComponent implements OnDestroy {
           const target = this.configService.store['tabby-sftp-plus']
           if (data.lang !== undefined) target.lang = data.lang
           if (data.layoutMode !== undefined) target.layoutMode = data.layoutMode
+          if (data.fontSize !== undefined) target.fontSize = this._clampFontSize(Number(data.fontSize))
           if (data.theme !== undefined) target.theme = data.theme
           if (data.colorPrimary !== undefined) target.colorPrimary = data.colorPrimary
           if (data.colorBg !== undefined) target.colorBg = data.colorBg
@@ -3273,6 +3611,13 @@ export class SftpSettingsTabComponent implements OnDestroy {
           if (data.transferDownloadConcurrency !== undefined) target.transferDownloadConcurrency = data.transferDownloadConcurrency
           if (data.transferFastMode !== undefined) target.transferFastMode = data.transferFastMode
           if (data.transferTarAcceleration !== undefined) target.transferTarAcceleration = data.transferTarAcceleration
+          if (data.conflictDigestEnabled !== undefined) target.conflictDigestEnabled = data.conflictDigestEnabled !== false
+          if (data.conflictAutoSkipSameContent !== undefined) target.conflictAutoSkipSameContent = data.conflictAutoSkipSameContent !== false
+          if (data.conflictDigestMaxSizeMB !== undefined) {
+            const mb = Number(data.conflictDigestMaxSizeMB)
+            target.conflictDigestMaxSizeMB = Number.isFinite(mb) && mb > 0 ? Math.floor(mb) : 256
+          }
+          if (data.conflictDigestAlgo !== undefined) target.conflictDigestAlgo = data.conflictDigestAlgo === 'sha256' ? 'sha256' : 'sha1'
           if (data.defaultUploadPath !== undefined) target.defaultUploadPath = data.defaultUploadPath
           if (data.defaultDownloadPath !== undefined) target.defaultDownloadPath = data.defaultDownloadPath
           if (data.iconResourceDir !== undefined) target.iconResourceDir = data.iconResourceDir
@@ -3283,7 +3628,12 @@ export class SftpSettingsTabComponent implements OnDestroy {
           if (data.openOnClick !== undefined) target.openOnClick = data.openOnClick
           if (data.openUnsupportedInSystem !== undefined) target.openUnsupportedInSystem = data.openUnsupportedInSystem
           if (data.editableFileExtensions !== undefined) target.editableFileExtensions = normalizeEditableExtensions(data.editableFileExtensions)
-          if (data.allowEditAllFiles !== undefined) target.allowEditAllFiles = data.allowEditAllFiles === true
+          if (data.allowViewEditAllFiles !== undefined || data.allowEditAllFiles !== undefined || data.allowViewAllAsText !== undefined) {
+            const on = data.allowViewEditAllFiles === true || data.allowEditAllFiles === true || data.allowViewAllAsText === true
+            target.allowViewEditAllFiles = on
+            target.allowEditAllFiles = on
+            target.allowViewAllAsText = on
+          }
           if (data.contextMenuOrder !== undefined) target.contextMenuOrder = data.contextMenuOrder
           // ★ 2026-08-24 修复：与 _saveToConfig 同理，panelHotkeys 为结构成员须逐叶子赋值
           if (data.panelHotkeys !== undefined) {

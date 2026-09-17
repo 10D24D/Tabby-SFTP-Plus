@@ -2,6 +2,8 @@
 
 > 创建人：DD1024z + Deepseek-V4-Flash
 > 创建时间：2026-06-25
+> 修改人：DD1024z + Grok 4.6
+> 修改时间：2026-09-17 — 适配器路径与 24 语言 Locale；新增 digest 模块说明
 
 ---
 
@@ -250,11 +252,11 @@ i18n.t('file.kb', { size: '128' });           // "128 KB"
 
 | 参数 | 说明 |
 |------|------|
-| `locale` | `'zh-CN'` 或 `'en-US'` |
+| `locale` | 见 `src/services/sftp-i18n.service.ts` 的 `Locale`（24 种，如 `'zh-CN'` / `'en-US'`） |
 
 ---
 
-## 本地传输适配器 (`local-transfers.ts`)
+## 本地传输适配器 (`src/sftp/core/transfer-adapters.ts`)
 
 ### `LocalPathFileUpload`
 
@@ -285,6 +287,19 @@ i18n.t('file.kb', { size: '128' });           // "128 KB"
 | `localPath` | 本地目标文件的绝对路径 |
 
 **实现接口：** `FileTransfer`（同上）
+
+---
+
+## 内容摘要 (`src/sftp/core/digest.ts`)
+
+冲突检测在 size 相同、mtime 超出容差时计算两端摘要（issue #15）。任一端拿不到摘要必须当「无法确认」，不得判相同。
+
+| 方法 | 说明 |
+|------|------|
+| `localDigest(localPath, size?, mtime?)` | 本地文件 sha1/sha256；超大小或读失败返回 `null` |
+| `remoteDigest(remotePath, size?, mtime?)` | 远端 `sha1sum`/`sha256sum`；无 exec 或超时返回 `null` |
+
+开关与上限：`conflictDigestEnabled`、`conflictAutoSkipSameContent`、`conflictDigestMaxSizeMB`、`conflictDigestAlgo`。
 
 ---
 

@@ -61,6 +61,13 @@ msgstr "修改时间"
 msgid "conflict.path"
 msgstr "路径"
 
+# ★ 2026-09-07 issue #15：内容摘要（用于识别「mtime 变了但内容没变」）
+msgid "conflict.digest"
+msgstr "内容摘要"
+
+msgid "conflict.contentIdentical"
+msgstr "内容实际相同，可安全跳过"
+
 msgid "conflict.cancel"
 msgstr "取消"
 
@@ -392,6 +399,12 @@ msgstr "已启用目录上报，正在同步…"
 msgid "path.cwdSetupFailed"
 msgstr "启用失败，请检查远程权限或 shell 类型"
 
+msgid "file.symlink"
+msgstr "符号链接"
+
+msgid "file.shortcut"
+msgstr "快捷方式"
+
 msgid "file.name"
 msgstr "名称"
 
@@ -596,6 +609,9 @@ msgstr "取消当前文件"
 msgid "transfer.paused"
 msgstr "已暂停"
 
+msgid "transfer.skippedAsDuplicate"
+msgstr "已跳过 · 内容相同"
+
 msgid "transfer.inProgress"
 msgstr "传输中"
 
@@ -773,6 +789,18 @@ msgstr "边框"
 msgid "settings.layout"
 msgstr "布局"
 
+msgid "settings.font"
+msgstr "字体"
+
+msgid "settings.fontSize"
+msgstr "字号大小"
+
+msgid "settings.resetFont"
+msgstr "恢复默认字号"
+
+msgid "settings.fontHint"
+msgstr "调整 SFTP+ 面板内文字大小（11–18px）"
+
 msgid "settings.layoutAdaptive"
 msgstr "自适应"
 
@@ -915,17 +943,14 @@ msgid "settings.openUnsupportedInSystemDesc"
 msgstr "查看器不支持的文件（如 .pdf/.docx 等）将使用系统默认程序打开，而非弹出不支持提示。"
 
 msgid "settings.editableExtensions"
-msgstr "额外可编辑扩展名"
+msgstr "可查看与编辑的扩展名"
 
 msgid "settings.editableExtensionsHint"
-msgstr "以逗号、空格或分号分隔；支持 .conf、*.conf 或 conf。"
-
-msgid "settings.allowEditAllFiles"
-msgstr "允许编辑所有文件类型"
-
-msgid "settings.allowEditAllFilesHint"
-msgstr "忽略扩展名限制；二进制内容仍会被保护，避免以文本方式损坏文件。"
-
+msgstr "空格分隔；支持 .conf、*.conf 或 conf。未开启「查看与编辑全部」时作为白名单。"
+msgid "settings.allowViewEditAllFiles"
+msgstr "允许查看与编辑所有文件类型"
+msgid "settings.allowViewEditAllFilesHint"
+msgstr "忽略扩展名限制；查看任意文件，编辑时二进制内容仍会被保护。"
 msgid "settings.transferSection"
 msgstr "传输设置"
 
@@ -943,7 +968,6 @@ msgid "settings.iconResourceDir"
 msgstr "图标目录"
 msgid "settings.iconResourceDirPh"
 msgstr "存放 svg 图标的本地目录，如 C:\\icons"
-msgstr "扩展名"
 msgid "settings.iconSvgFile"
 msgstr "SVG 文件"
 msgid "settings.iconPreview"
@@ -952,6 +976,8 @@ msgid "settings.iconAdd"
 msgstr "新增规则"
 msgid "settings.iconDelete"
 msgstr "删除"
+msgid "settings.iconDeleteConfirm"
+msgstr "确定删除规则「{name}」吗？此操作不可撤销。"
 
 msgid "settings.iconLocked"
 msgstr "已锁定（系统默认规则，不可删除）"
@@ -979,14 +1005,29 @@ msgid "settings.iconExtLockedHint"
 msgstr "默认文件不可修改扩展名"
 msgid "settings.iconSvgNameHint"
 msgstr "文件名"
+msgid "settings.iconRuleName"
+msgstr "规则名"
+msgid "settings.iconRuleNamePh"
+msgstr "例如：脚本、文档"
 msgid "settings.iconExtLabel"
 msgstr "扩展名"
 msgid "settings.iconErrorExtConflict"
 msgstr "扩展名「{ext}」已被图标 {svg} 占用"
 msgid "settings.iconErrorEmpty"
-msgstr "扩展名与 svg 文件名均不能为空"
+msgstr "规则名、扩展名与 svg 文件名均不能为空"
+msgid "settings.iconErrorEmptyName"
+msgstr "规则名不能为空"
+msgid "settings.iconErrorNameConflict"
+msgstr "规则名「{name}」已存在"
+msgid "settings.iconErrorNameSvgMismatch"
+msgstr "规则「{name}」已绑定图标 {svg}，请使用相同文件名或换一个规则名"
 msgid "settings.iconErrorMissingSvg"
 msgstr "图标目录中找不到该 svg 文件"
+msgid "settings.iconErrorInvalidExt"
+msgstr "扩展名格式不正确：「{ext}」。请使用如 .txt 或 txt，多个用空格/逗号分隔"
+
+msgid "settings.resetIcons"
+msgstr "恢复默认图标配置"
 
 msgid "settings.hotkeys"
 msgstr "快捷键"
@@ -1150,6 +1191,9 @@ msgstr "权限修改失败: {reason}"
 msgid "op.failed"
 msgstr "操作失败: {reason}"
 
+msgid "op.cannotCopyIntoSelf"
+msgstr "无法将文件夹复制到自身或其子目录内: {name}"
+
 msgid "notify.deleteFailed"
 msgstr "{n} 项删除失败（可能正被占用或无权限）"
 
@@ -1298,6 +1342,25 @@ msgstr "TAR 打包传输加速"
 
 msgid "settings.tarAccelerationDesc"
 msgstr "全新传输文件夹时自动使用 tar 压缩包打包传输并在远端/本地解压，显著提升海量小文件传输速度；失败时自动平滑回退到普通传输"
+
+# ★ 2026-09-07 issue #15：冲突内容摘要设置
+msgid "settings.conflictDigest"
+msgstr "冲突时比对内容摘要"
+
+msgid "settings.conflictDigestDesc"
+msgstr "当文件大小相同但修改时间不同时，计算内容摘要判断文件是否真的被修改（如 Git 切换分支后）。需要远端具备 shell 执行权限；不可用时自动回退为按大小与修改时间判定"
+
+msgid "settings.conflictAutoSkip"
+msgstr "内容相同则自动跳过"
+
+msgid "settings.conflictAutoSkipDesc"
+msgstr "两端摘要均可获取且完全一致时，视为无冲突并静默跳过，不再弹出冲突框"
+
+msgid "settings.conflictDigestMaxSize"
+msgstr "摘要计算上限（MB）"
+
+msgid "settings.conflictDigestMaxSizeDesc"
+msgstr "超过此大小的文件不计算摘要，一律按冲突处理，以免拖慢冲突检测"
 
 msgid "file.sizeCalculate"
 msgstr "计算"

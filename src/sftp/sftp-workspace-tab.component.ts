@@ -1,6 +1,7 @@
 import { AfterViewInit, Component, ComponentFactoryResolver, ComponentRef, Injector, ViewChild, ViewContainerRef } from '@angular/core'
 import { AppService, BaseTabComponent } from 'tabby-core'
 import { SftpFloatingPanel } from './sftp-floating-panel.component'
+import { log } from '../services/sftp-logger'
 
 @Component({
   selector: 'sftp-plus-workspace-tab',
@@ -54,8 +55,20 @@ export class SftpWorkspaceTabComponent extends BaseTabComponent implements After
   }
 
   ngAfterViewInit(): void {
-    const factory = this.resolver.resolveComponentFactory(SftpFloatingPanel)
-    const ref = this.panelHost.createComponent(factory) as ComponentRef<SftpFloatingPanel>
+    let factory: ReturnType<ComponentFactoryResolver['resolveComponentFactory']> | null = null
+    try {
+      factory = this.resolver.resolveComponentFactory(SftpFloatingPanel)
+    } catch (e) {
+      log.error('Failed to resolve SftpFloatingPanel component factory:', e)
+      return
+    }
+    let ref: ComponentRef<SftpFloatingPanel> | null = null
+    try {
+      ref = this.panelHost.createComponent(factory) as ComponentRef<SftpFloatingPanel>
+    } catch (e) {
+      log.error('Failed to create SftpFloatingPanel component:', e)
+      return
+    }
     const panel = ref.instance
     this.panelRef = ref
 

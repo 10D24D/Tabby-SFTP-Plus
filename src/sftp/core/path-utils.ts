@@ -134,8 +134,18 @@ export function resolveGroupDisplay(
 }
 
 /** 通过 Tabby SSH 会话执行单次命令并收集 stdout；timeoutMs 缺省 12s，
- *  长耗时命令（如 rm -rf 巨型目录）可调大 */
-export async function execSshCommand(sshSession: unknown, command: string, timeoutMs = 12000): Promise<string> {
+ *  长耗时命令（如 rm -rf 巨型目录）可调大。
+ *  ★ 2026-09-14 F2 审计修复：空输出整体重试一次（为修 tar 标记漏检）只对
+ *    「幂等/只读」命令安全——cp -a / mv 等非幂等命令若首次已成功而标记输出
+ *    丢失（通道竞争），重放会把源再复制/移动进已存在的目标 → 嵌套副本。
+ *    故新增 retryOnEmpty 选项：默认 true（探测类命令保持旧行为），
+ *    非幂等命令的调用方必须显式传 false——宁误报失败回退，不毁数据。 */
+export async function execSshCommand(
+  sshSession: unknown,
+  command: string,
+  timeoutMs = 12000,
+  opts?: { retryOnEmpty?: boolean },
+): Promise<string> {
   const ssh = (sshSession as { ssh?: {
     openSessionChannel?: () => Promise<unknown>
     activateChannel?: (ch: unknown) => Promise<{
@@ -201,7 +211,11 @@ export async function execSshCommand(sshSession: unknown, command: string, timeo
 
   const first = await execOnce()
   if (first !== '') return first
-  // 空输出重试：稍候重开通道再执行一次（幂等探测类命令可安全重放）
+  // 空输出重试：稍候重开通道再执行一次（仅幂等/只读命令可安全重放）
+  if (opts?.retryOnEmpty === false) {
+    log.warn(`execSshCommand empty output (retry disabled for non-idempotent command): ${command.slice(0, 80)}`)
+    return first
+  }
   await new Promise(r => setTimeout(r, 300))
   const second = await execOnce()
   if (second === '') log.warn(`execSshCommand empty output (retried): ${command.slice(0, 80)}`)

@@ -2,6 +2,8 @@
  * 功能描述：SFTP+ file-utils 逻辑聚合模块（由旧 core 多文件合并）
  * 创建人：DD1024z + Hy3
  * 创建时间：2026-07-16
+ * 修改人：DD1024z + Composer
+ * 修改时间：2026-09-17 — 可查看/编辑扩展名统一白名单；allowViewAllAsText；空格分隔与 .ext/ext 兼容
  * 合并来源：file-type-utils, panel-list-utils, panel-format
  */
 
@@ -34,6 +36,11 @@ const TEXT_EXTENSIONS = new Set([
   'gitignore', 'dockerignore', 'editorconfig', 'prettierrc', 'eslintrc',
   'npmrc', 'nvmrc', 'htaccess', 'reg', 'inf',
 ])
+
+/** 内置可查看/编辑文本扩展名（排序后供设置页展示与默认回退） */
+export const DEFAULT_TEXT_EXTENSIONS: readonly string[] = Object.freeze(
+  [...TEXT_EXTENSIONS].sort((a, b) => a.localeCompare(b)),
+)
 
 const TEXT_BASENAMES = new Set([
   'dockerfile', 'makefile', 'gemfile', 'rakefile', 'procfile', 'vagrantfile',
@@ -76,41 +83,9 @@ export function isImageFile(fileName: string): boolean {
   return IMAGE_EXTENSIONS.has(getFileExtension(fileName))
 }
 
-export function isTextFile(fileName: string): boolean {
-  const base = (fileName.split(/[/\\]/).pop() ?? fileName).toLowerCase()
-  if (TEXT_BASENAMES.has(base)) return true
-  return TEXT_EXTENSIONS.has(getFileExtension(fileName))
-}
-
-export function isViewableRemoteFile(fileName: string, size?: number): boolean {
-  if (!isViewableRemoteFileType(fileName)) return false
-  if (size == null) return true
-  return size <= getViewMaxBytes(fileName)
-}
-
-/** 仅按扩展名判断是否可查看（不含大小限制） */
-export function isViewableRemoteFileType(fileName: string): boolean {
-  return isImageFile(fileName) || isTextFile(fileName)
-}
-
-export function getViewMaxBytes(fileName: string): number {
-  return isImageFile(fileName) ? VIEW_IMAGE_MAX_BYTES : VIEW_TEXT_MAX_BYTES
-}
-
-export function isRemoteFileTooLargeForView(fileName: string, size: number): boolean {
-  if (!isViewableRemoteFileType(fileName)) return false
-  return size > getViewMaxBytes(fileName)
-}
-
-export function isEditableRemoteFile(fileName: string, size?: number): boolean {
-  if (!isEditableRemoteFileType(fileName)) return false
-  if (size == null) return true
-  return size <= EDIT_TEXT_MAX_BYTES
-}
-
 /**
  * 将设置页输入的扩展名规范化为小写、无点的形式。
- * 接受 `.conf`、`*.conf`、`conf`，并兼容旧版/手工配置中的字符串数组。
+ * 接受 `.conf`、`*.conf`、`conf`；分隔符支持空格 / 逗号 / 分号（展示默认空格）。
  */
 export function normalizeEditableExtensions(value: unknown): string[] {
   const raw = Array.isArray(value)
@@ -122,23 +97,101 @@ export function normalizeEditableExtensions(value: unknown): string[] {
   return [...new Set(normalized)]
 }
 
+/**
+ * 有效文本扩展名白名单。
+ * - 配置为空：回退内置 DEFAULT_TEXT_EXTENSIONS
+ * - 旧版「仅额外扩展名」（每一项都不在内置列表）：与内置合并
+ * - 否则：以配置为完整白名单（设置页展示并允许删改预置项）
+ */
+export function getEffectiveTextExtensions(custom: unknown): string[] {
+  const normalized = normalizeEditableExtensions(custom)
+  if (!normalized.length) return [...DEFAULT_TEXT_EXTENSIONS]
+  const looksLikeExtrasOnly = normalized.every(e => !TEXT_EXTENSIONS.has(e))
+  if (looksLikeExtrasOnly) {
+    return [...new Set([...DEFAULT_TEXT_EXTENSIONS, ...normalized])].sort((a, b) => a.localeCompare(b))
+  }
+  return normalized
+}
+
+/** 设置页展示用：空格分隔的有效扩展名字符串 */
+export function formatTextExtensionsForInput(custom: unknown): string {
+  return getEffectiveTextExtensions(custom).join(' ')
+}
+
+export function isTextFile(fileName: string, customExtensions: unknown = []): boolean {
+  const base = (fileName.split(/[/\\]/).pop() ?? fileName).toLowerCase()
+  if (TEXT_BASENAMES.has(base)) return true
+  const effective = getEffectiveTextExtensions(customExtensions)
+  return effective.includes(getFileExtension(fileName))
+}
+
+export function isViewableRemoteFile(
+  fileName: string,
+  size?: number,
+  customExtensions: unknown = [],
+  allowViewAllAsText = false,
+): boolean {
+  if (!isViewableRemoteFileType(fileName, customExtensions, allowViewAllAsText)) return false
+  if (size == null) return true
+  return size <= getViewMaxBytes(fileName)
+}
+
+/** 仅按扩展名判断是否可查看（不含大小限制） */
+export function isViewableRemoteFileType(
+  fileName: string,
+  customExtensions: unknown = [],
+  allowViewAllAsText = false,
+): boolean {
+  if (allowViewAllAsText) return true
+  return isImageFile(fileName) || isTextFile(fileName, customExtensions)
+}
+
+export function getViewMaxBytes(fileName: string): number {
+  return isImageFile(fileName) ? VIEW_IMAGE_MAX_BYTES : VIEW_TEXT_MAX_BYTES
+}
+
+export function isRemoteFileTooLargeForView(
+  fileName: string,
+  size: number,
+  customExtensions: unknown = [],
+  allowViewAllAsText = false,
+): boolean {
+  if (!isViewableRemoteFileType(fileName, customExtensions, allowViewAllAsText)) return false
+  return size > getViewMaxBytes(fileName)
+}
+
+export function isEditableRemoteFile(
+  fileName: string,
+  size?: number,
+  customExtensions: readonly string[] | unknown = [],
+  allowAllFiles = false,
+): boolean {
+  if (!isEditableRemoteFileType(fileName, customExtensions, allowAllFiles)) return false
+  if (size == null) return true
+  return size <= EDIT_TEXT_MAX_BYTES
+}
+
 /** 仅按扩展名判断是否可编辑（不含大小限制） */
 export function isEditableRemoteFileType(
   fileName: string,
-  customExtensions: readonly string[] = [],
+  customExtensions: readonly string[] | unknown = [],
   allowAllFiles = false,
 ): boolean {
   if (allowAllFiles) return true
   const ext = getFileExtension(fileName)
-  if (normalizeEditableExtensions(customExtensions).includes(ext)) return true
+  // svg 属于图片扩展，但仍允许文本编辑（与历史行为一致）
   if (ext === 'svg') return true
-  if (!isTextFile(fileName)) return false
   if (isImageFile(fileName)) return false
-  return true
+  return isTextFile(fileName, customExtensions)
 }
 
-export function isRemoteFileTooLargeForEdit(fileName: string, size: number): boolean {
-  if (!isEditableRemoteFileType(fileName)) return false
+export function isRemoteFileTooLargeForEdit(
+  fileName: string,
+  size: number,
+  customExtensions: readonly string[] | unknown = [],
+  allowAllFiles = false,
+): boolean {
+  if (!isEditableRemoteFileType(fileName, customExtensions, allowAllFiles)) return false
   return size > EDIT_TEXT_MAX_BYTES
 }
 
