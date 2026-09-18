@@ -1,0 +1,7 @@
+# 创建人: DD1024z + Composer; 创建时间: 2026-09-18
+# 修改人: DD1024z + Composer; 修改时间: 2026-09-18
+blank_issues_enabled: false
+contact_links:
+  - name: 使用说明 / README
+    url: https://github.com/10D24D/Tabby-SFTP-Plus/blob/main/README.md
+    about: 提问或提 Issue 前，可先阅读安装与使用说明

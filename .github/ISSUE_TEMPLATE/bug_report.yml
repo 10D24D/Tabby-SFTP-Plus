@@ -1,0 +1,75 @@
+# 创建人: DD1024z + Composer; 创建时间: 2026-09-18
+# 修改人: DD1024z + Composer; 修改时间: 2026-09-18
+name: 缺陷报告
+description: 报告 Bug（请尽量填全环境与复现步骤）
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈！请尽量提供完整信息，方便快速定位问题。
+
+  - type: input
+    id: os_version
+    attributes:
+      label: 系统版本信息
+      description: 例如 Windows 11 24H2 / macOS 15.1 / Ubuntu 24.04
+      placeholder: Windows 11 24H2
+    validations:
+      required: true
+
+  - type: input
+    id: tabby_version
+    attributes:
+      label: Tabby 版本信息
+      description: 可在 Tabby → About / 关于 中查看
+      placeholder: 1.0.2xx
+    validations:
+      required: true
+
+  - type: input
+    id: sftp_plus_version
+    attributes:
+      label: SFTP+ 插件版本信息
+      description: 可在插件列表或 package.json / 发布页查看已安装版本
+      placeholder: 0.x.x
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      description: 你做了哪些操作后出现问题？
+      placeholder: |
+        1. 打开……
+        2. 点击……
+        3. 输入……
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际现象
+      description: 现在发生了什么？（可贴报错文案、截图说明）
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望结果
+      description: 按理说应该怎样才对？
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: 相关日志（可选）
+      description: 粘贴日志即可，会自动按代码块展示
+      render: shell
+    validations:
+      required: false
