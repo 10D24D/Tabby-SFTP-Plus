@@ -2,9 +2,10 @@
  * SFTP+ 书签悬浮菜单（从主面板抽离）
  * 创建人：DD1024z + Hy3
  * 创建时间：2026-08-18
- * 修改人：DD1024z + Hy3
- * 修改时间：2026-08-18
- *   当前面板路径与书签路径匹配时，对应书签项高亮（[currentPath] / isCurrent / .bookmark-item.current）
+ * 修改人：DD1024z + Composer
+ * 修改时间：2026-09-18
+ *   支持设置项：是否按连接/全局分组；分组顺序可定制；
+ *   关闭分组后可跨范围自由拖拽，全局书签名称右侧显示「全局」标签
  */
 import { Component, EventEmitter, Input, Output } from '@angular/core'
 
@@ -47,54 +48,64 @@ import type { BookmarkScope } from '../core/panel-types'
         </div>
       </div>
       <div class="bookmark-list">
-        <div class="bookmark-scope-label" *ngIf="connectionBookmarks.length">
-          {{ i18n.t('bookmark.forConnection') }}
-        </div>
-        <div class="bookmark-item" *ngFor="let b of connectionBookmarks; let i = index"
-          [class.current]="isCurrent(b)"
-          (click)="gotoBookmark.emit(b)"
-          (contextmenu)="contextMenu.emit({ bookmark: b, event: $event })"
-          draggable="true"
-          (dragstart)="dragStart.emit({ event: $event, index: i, scope: 'connection' })"
-          (dragover)="dragOver.emit({ event: $event, index: i, scope: 'connection' })"
-          (dragend)="dragEnd.emit()"
-          (drop)="drop.emit({ event: $event, index: i, scope: 'connection' })"
-          [class.drag-over-top]="dragOverIdx === i && dragOverScope === 'connection' && !dragOverBottom"
-          [class.drag-over-bottom]="dragOverIdx === i && dragOverScope === 'connection' && dragOverBottom"
-          [class.dragging]="dragSourceIdx === i && dragSourceScope === 'connection'"
-          [title]="b.path">
-          <span class="bm-drag-handle">⠿</span>
-          <div class="bm-info">
-            <span class="bm-name">{{ b.name }}</span>
-            <span class="bm-path">{{ b.path }}</span>
+        <!-- 分组模式：按 groupOrder 渲染「当前连接 / 全局」块 -->
+        <ng-container *ngIf="groupByScope">
+          <ng-container *ngFor="let scope of groupOrder">
+            <div class="bookmark-scope-label" *ngIf="bookmarksOf(scope).length">
+              {{ scopeLabel(scope) }}
+            </div>
+            <div class="bookmark-item" *ngFor="let b of bookmarksOf(scope); let i = index"
+              [class.current]="isCurrent(b)"
+              (click)="gotoBookmark.emit(b)"
+              (contextmenu)="contextMenu.emit({ bookmark: b, event: $event })"
+              draggable="true"
+              (dragstart)="dragStart.emit({ event: $event, index: i, scope: scope })"
+              (dragover)="dragOver.emit({ event: $event, index: i, scope: scope })"
+              (dragend)="dragEnd.emit()"
+              (drop)="drop.emit({ event: $event, index: i, scope: scope })"
+              [class.drag-over-top]="dragOverIdx === i && dragOverScope === scope && !dragOverBottom"
+              [class.drag-over-bottom]="dragOverIdx === i && dragOverScope === scope && dragOverBottom"
+              [class.dragging]="dragSourceIdx === i && dragSourceScope === scope"
+              [title]="b.path">
+              <span class="bm-drag-handle">⠿</span>
+              <div class="bm-info">
+                <span class="bm-name">{{ b.name }}</span>
+                <span class="bm-path">{{ b.path }}</span>
+              </div>
+              <button class="bm-remove" (mousedown)="$event.stopPropagation()" (click)="removeBookmark.emit(b.id)"
+                title="{{ i18n.t('bookmark.remove') }}">✕</button>
+            </div>
+          </ng-container>
+        </ng-container>
+
+        <!-- 扁平模式：本地/全局混排，可跨范围拖拽；全局项左侧显示标签 -->
+        <ng-container *ngIf="!groupByScope">
+          <div class="bookmark-item" *ngFor="let b of allBookmarks; let i = index"
+            [class.current]="isCurrent(b)"
+            (click)="gotoBookmark.emit(b)"
+            (contextmenu)="contextMenu.emit({ bookmark: b, event: $event })"
+            draggable="true"
+            (dragstart)="dragStart.emit({ event: $event, index: i, scope: 'all' })"
+            (dragover)="dragOver.emit({ event: $event, index: i, scope: 'all' })"
+            (dragend)="dragEnd.emit()"
+            (drop)="drop.emit({ event: $event, index: i, scope: 'all' })"
+            [class.drag-over-top]="dragOverIdx === i && dragOverScope === 'all' && !dragOverBottom"
+            [class.drag-over-bottom]="dragOverIdx === i && dragOverScope === 'all' && dragOverBottom"
+            [class.dragging]="dragSourceIdx === i && dragSourceScope === 'all'"
+            [title]="b.path">
+            <span class="bm-drag-handle">⠿</span>
+            <div class="bm-info">
+              <span class="bm-name-row">
+                <span class="bm-name">{{ b.name }}</span>
+                <span class="bm-global-badge" *ngIf="!b.connectionKey"
+                  [title]="i18n.t('bookmark.global')">{{ i18n.t('bookmark.globalBadge') }}</span>
+              </span>
+              <span class="bm-path">{{ b.path }}</span>
+            </div>
+            <button class="bm-remove" (mousedown)="$event.stopPropagation()" (click)="removeBookmark.emit(b.id)"
+              title="{{ i18n.t('bookmark.remove') }}">✕</button>
           </div>
-          <button class="bm-remove" (mousedown)="$event.stopPropagation()" (click)="removeBookmark.emit(b.id)"
-            title="{{ i18n.t('bookmark.remove') }}">✕</button>
-        </div>
-        <div class="bookmark-scope-label" *ngIf="globalBookmarks.length">
-          {{ i18n.t('bookmark.global') }}
-        </div>
-        <div class="bookmark-item" *ngFor="let b of globalBookmarks; let i = index"
-          [class.current]="isCurrent(b)"
-          (click)="gotoBookmark.emit(b)"
-          (contextmenu)="contextMenu.emit({ bookmark: b, event: $event })"
-          draggable="true"
-          (dragstart)="dragStart.emit({ event: $event, index: i, scope: 'global' })"
-          (dragover)="dragOver.emit({ event: $event, index: i, scope: 'global' })"
-          (dragend)="dragEnd.emit()"
-          (drop)="drop.emit({ event: $event, index: i, scope: 'global' })"
-          [class.drag-over-top]="dragOverIdx === i && dragOverScope === 'global' && !dragOverBottom"
-          [class.drag-over-bottom]="dragOverIdx === i && dragOverScope === 'global' && dragOverBottom"
-          [class.dragging]="dragSourceIdx === i && dragSourceScope === 'global'"
-          [title]="b.path">
-          <span class="bm-drag-handle">⠿</span>
-          <div class="bm-info">
-            <span class="bm-name">{{ b.name }}</span>
-            <span class="bm-path">{{ b.path }}</span>
-          </div>
-          <button class="bm-remove" (mousedown)="$event.stopPropagation()" (click)="removeBookmark.emit(b.id)"
-            title="{{ i18n.t('bookmark.remove') }}">✕</button>
-        </div>
+        </ng-container>
       </div>
       <div class="popup-footer">
         <button (click)="close.emit()">{{ i18n.t('app.close') }}</button>
@@ -272,9 +283,28 @@ import type { BookmarkScope } from '../core/panel-types'
       flex: 1; min-width: 0;
       display: flex; flex-direction: column; gap: 1px;
     }
+    .bm-name-row {
+      display: flex; align-items: center; gap: 6px;
+      min-width: 0;
+    }
     .bm-name {
       font-size: 13px; font-weight: 500; color: var(--_text);
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      min-width: 0;
+    }
+    .bm-global-badge {
+      flex-shrink: 0;
+      font-size: 10px;
+      font-weight: 600;
+      line-height: 1;
+      padding: 2px 5px;
+      border-radius: 4px;
+      border: 1px solid color-mix(in srgb, var(--_primary) 45%, var(--_border));
+      color: var(--_primary);
+      background: color-mix(in srgb, var(--_primary) 12%, transparent);
+      white-space: nowrap;
+      opacity: 0.9;
+      user-select: none;
     }
     .bm-path {
       font-size: 10px; color: var(--_text); opacity: 0.45;
@@ -302,6 +332,12 @@ export class SftpBookmarkPopupComponent {
   @Input() editingId: string | null = null
   @Input() connectionBookmarks: Bookmark[] = []
   @Input() globalBookmarks: Bookmark[] = []
+  /** 扁平模式用的混排列表（保持书签数组中的相对顺序） */
+  @Input() allBookmarks: Bookmark[] = []
+  /** 是否按连接/全局分组（来自设置） */
+  @Input() groupByScope = true
+  /** 分组块顺序 */
+  @Input() groupOrder: Array<'connection' | 'global'> = ['connection', 'global']
   @Input() dragSourceIdx = -1
   @Input() dragSourceScope: BookmarkScope | null = null
   @Input() dragOverIdx = -1
@@ -325,6 +361,16 @@ export class SftpBookmarkPopupComponent {
   @Output() close = new EventEmitter<void>()
 
   @Input() i18n!: SftpI18nService
+
+  bookmarksOf(scope: 'connection' | 'global'): Bookmark[] {
+    return scope === 'connection' ? this.connectionBookmarks : this.globalBookmarks
+  }
+
+  scopeLabel(scope: 'connection' | 'global'): string {
+    return scope === 'connection'
+      ? this.i18n.t('bookmark.forConnection')
+      : this.i18n.t('bookmark.global')
+  }
 
   /** 路径归一化：统一分隔符、去尾部斜杠；本地路径按 Windows 大小写不敏感处理 */
   private _normPath(p: string): string {

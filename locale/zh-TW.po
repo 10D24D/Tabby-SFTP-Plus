@@ -680,8 +680,7 @@ msgid "bookmark.global"
 msgstr "全域性書籤"
 
 msgid "bookmark.forConnection"
-msgstr "當前連線"
-
+msgstr "目前書籤"
 msgid "permission.title"
 msgstr "修改許可權"
 
@@ -1451,3 +1450,21 @@ msgstr "摘要計算上限（MB）"
 
 msgid "settings.conflictDigestMaxSizeDesc"
 msgstr "超過此大小的檔案不計算摘要，一律按衝突處理，以免拖慢衝突偵測"
+
+msgid "settings.customBookmarkPanel"
+msgstr "自訂書籤面板"
+
+msgid "settings.resetBookmarkPanel"
+msgstr "還原預設書籤面板"
+
+msgid "settings.bookmarkGroupByScope"
+msgstr "書籤分組"
+msgid "settings.bookmarkGroupByScopeHint"
+msgstr "開啟後書籤依「目前書籤 / 全域書籤」分塊顯示；關閉後混排並可跨範圍拖曳排序"
+msgid "settings.bookmarkGroupOrderHint"
+msgstr "拖曳調整「目前連線」與「全域」分組塊的先後順序"
+
+msgid "settings.bookmarkFlatHint"
+msgstr "關閉分組後，全域書籤名稱右側會顯示「全域」標籤，並可與目前書籤自由拖曳混排"
+msgid "bookmark.globalBadge"
+msgstr "全域"

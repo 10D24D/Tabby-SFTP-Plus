@@ -633,8 +633,7 @@ msgid "bookmark.global"
 msgstr "Signets Globaux"
 
 msgid "bookmark.forConnection"
-msgstr "Cette Connexion"
-
+msgstr "Favoris actuels"
 msgid "permission.title"
 msgstr "Éditer les Permissions"
 
@@ -1469,3 +1468,21 @@ msgstr "Limite de taille d’empreinte (Mo)"
 
 msgid "settings.conflictDigestMaxSizeDesc"
 msgstr "Les fichiers plus grands ne sont pas empreintés et sont toujours traités comme conflits, pour ne pas ralentir la détection"
+
+msgid "settings.customBookmarkPanel"
+msgstr "Personnaliser le panneau de favoris"
+
+msgid "settings.resetBookmarkPanel"
+msgstr "Réinitialiser le panneau de favoris"
+
+msgid "settings.bookmarkGroupByScope"
+msgstr "Groupement des favoris"
+msgid "settings.bookmarkGroupByScopeHint"
+msgstr "Activé : sections Actuels / Global. Désactivé : liste mixte, réordonnable entre portées."
+msgid "settings.bookmarkGroupOrderHint"
+msgstr "Faites glisser pour définir l’ordre des groupes connexion / global"
+
+msgid "settings.bookmarkFlatHint"
+msgstr "Sans regroupement, les favoris globaux affichent un badge Global à droite du nom et se mélangent librement avec les favoris actuels."
+msgid "bookmark.globalBadge"
+msgstr "Global"

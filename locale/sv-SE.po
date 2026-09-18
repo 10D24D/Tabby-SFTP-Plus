@@ -511,7 +511,7 @@ msgstr "Spara Bookmark"
 msgid "bookmark.global"
 msgstr "Globala bokmärken"
 msgid "bookmark.forConnection"
-msgstr "Denna anslutning"
+msgstr "Aktuella bokmärken"
 msgid "permission.title"
 msgstr "Redigera Permissions"
 
@@ -1266,3 +1266,21 @@ msgstr "Storleksgräns för sammandrag (MB)"
 
 msgid "settings.conflictDigestMaxSizeDesc"
 msgstr "Större filer summeras inte och behandlas alltid som konflikt för att inte sakta ner detekteringen"
+
+msgid "settings.customBookmarkPanel"
+msgstr "Anpassa bokmärkespanelen"
+
+msgid "settings.resetBookmarkPanel"
+msgstr "Återställ bokmärkespanelen"
+
+msgid "settings.bookmarkGroupByScope"
+msgstr "Bokmärkesgruppering"
+msgid "settings.bookmarkGroupByScopeHint"
+msgstr "På: sektioner Aktuella / Globala. Av: blandad lista, omordningsbar över omfattningar."
+msgid "settings.bookmarkGroupOrderHint"
+msgstr "Dra för att ställa in ordningen för grupperna anslutning / globala"
+
+msgid "settings.bookmarkFlatHint"
+msgstr "Utan gruppering visar globala bokmärken en Global-bricka till höger om namnet och kan blandas fritt med aktuella bokmärken."
+msgid "bookmark.globalBadge"
+msgstr "Global"

@@ -111,6 +111,12 @@ export class PanelConflictResolver {
       isDirectory: isDir,
       localSizePending: isDir && !knownLocalContent,
       remoteSizePending: isDir,
+      // ★ 2026-09-18 issue #15 修复：携带内容摘要供对话框展示
+      localDigest: item.localDigest ?? null,
+      remoteDigest: item.remoteDigest ?? null,
+      // ★ 2026-09-18 issue #15+：计算内容是否相同/不同
+      contentIdentical: !!item.localDigest && !!item.remoteDigest && item.localDigest === item.remoteDigest,
+      contentDiffers: !!item.localDigest && !!item.remoteDigest && item.localDigest !== item.remoteDigest,
     }
     // 异步取远程文件的真值；目录 mtime 优先保留 listing 入队值（stat 常返回 epoch）
     const remoteFilePath = item.remotePath || path.posix.join(item.remoteDir, item.fileName)

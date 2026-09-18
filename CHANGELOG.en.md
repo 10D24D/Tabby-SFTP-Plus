@@ -4,6 +4,24 @@ All notable changes to **tabby-sftp-plus** will be documented in this file.
 
 | [中文](https://github.com/10D24D/Tabby-SFTP-Plus/blob/main/CHANGELOG.md) | [English](https://github.com/10D24D/Tabby-SFTP-Plus/blob/main/CHANGELOG.en.md) |
 
+## [2.3.1] — 2026-09-18
+
+### 🎨 Improved
+
+- **Customizable bookmark panel** — Toggle grouping by current connection vs global; when on, group blocks can be reordered by drag; when off, bookmarks flatten and can be mixed across scopes.
+
+### 🐛 Fixed
+
+- **Conflict dialog did not show content digests** (issue #15) — Queue items now carry both digests so the dialog can display the full hash. Digests are also attempted when sizes differ (display only; auto-skip still requires matching size + digest). Differing hashes are marked ≠. Failures are logged.
+
+### 🌐 i18n
+
+- Added bookmark-panel grouping strings and “content actually differs” copy (24 locales; zh/en complete, others fall back to English).
+
+### 🔧 Build
+
+- Version bumped to **2.3.1**.
+
 ## [2.3.0] — 2026-09-17
 
 ### ✨ Added

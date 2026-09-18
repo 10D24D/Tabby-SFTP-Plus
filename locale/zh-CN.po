@@ -68,6 +68,10 @@ msgstr "内容摘要"
 msgid "conflict.contentIdentical"
 msgstr "内容实际相同，可安全跳过"
 
+# ★ 2026-09-18 issue #15+：内容不同提示
+msgid "conflict.contentDiffers"
+msgstr "内容实际不同，建议覆盖"
+
 msgid "conflict.cancel"
 msgstr "取消"
 
@@ -706,8 +710,7 @@ msgid "bookmark.global"
 msgstr "全局书签"
 
 msgid "bookmark.forConnection"
-msgstr "当前连接"
-
+msgstr "当前书签"
 msgid "permission.title"
 msgstr "修改权限"
 
@@ -1455,3 +1458,21 @@ msgstr "打包加速"
 
 msgid "log.fileCount"
 msgstr "{n} 个文件"
+
+msgid "settings.customBookmarkPanel"
+msgstr "定制书签面板"
+
+msgid "settings.resetBookmarkPanel"
+msgstr "恢复默认书签面板"
+
+msgid "settings.bookmarkGroupByScope"
+msgstr "书签分组"
+msgid "settings.bookmarkGroupByScopeHint"
+msgstr "开启后书签按「当前书签 / 全局书签」分块显示；关闭后混排并可跨范围拖拽排序"
+msgid "settings.bookmarkGroupOrderHint"
+msgstr "拖拽调整「当前连接」与「全局」分组块的先后顺序"
+
+msgid "settings.bookmarkFlatHint"
+msgstr "关闭分组后，全局书签名称右侧会显示「全局」标签，并可与当前书签自由拖拽混排"
+msgid "bookmark.globalBadge"
+msgstr "全局"

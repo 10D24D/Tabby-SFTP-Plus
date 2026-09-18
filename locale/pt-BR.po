@@ -638,8 +638,7 @@ msgid "bookmark.global"
 msgstr "Favoritos Globais"
 
 msgid "bookmark.forConnection"
-msgstr "Esta Conexão"
-
+msgstr "Favoritos atuais"
 msgid "permission.title"
 msgstr "Editar Permissões"
 
@@ -1474,3 +1473,21 @@ msgstr "Limite de tamanho do resumo (MB)"
 
 msgid "settings.conflictDigestMaxSizeDesc"
 msgstr "Arquivos maiores não recebem resumo e são sempre tratados como conflito, para não atrasar a detecção"
+
+msgid "settings.customBookmarkPanel"
+msgstr "Personalizar painel de favoritos"
+
+msgid "settings.resetBookmarkPanel"
+msgstr "Redefinir painel de favoritos"
+
+msgid "settings.bookmarkGroupByScope"
+msgstr "Agrupamento de favoritos"
+msgid "settings.bookmarkGroupByScopeHint"
+msgstr "Ativado: seções Atuais / Global. Desativado: lista mista, reordenável entre escopos."
+msgid "settings.bookmarkGroupOrderHint"
+msgstr "Arraste para definir a ordem dos grupos conexão / global"
+
+msgid "settings.bookmarkFlatHint"
+msgstr "Sem agrupamento, favoritos globais mostram o selo Global à direita do nome e podem ser misturados livremente com os atuais."
+msgid "bookmark.globalBadge"
+msgstr "Global"

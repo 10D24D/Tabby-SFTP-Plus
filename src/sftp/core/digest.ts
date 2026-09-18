@@ -20,6 +20,7 @@ import { createHash } from 'crypto'
 import { createReadStream, promises as fsp } from 'fs'
 import { execSshCommand } from './path-utils'
 import { shellQuotePosix } from './fs-ops'
+import { log } from '../../services/sftp-logger'
 
 export type DigestAlgo = 'sha1' | 'sha256'
 
@@ -86,15 +87,18 @@ export class ContentDigestService implements ContentDigestPort {
           s = st.size
           m = st.mtimeMs
         }
-        if (!this._withinLimit(s)) return null
+        if (!this._withinLimit(s)) {
+          log.warn('[digest] local file exceeds max size limit:', localPath, 'size:', s)
+          return null
+        }
         const key = `${s}:${m}`
         const hit = this.cache.get('L|' + localPath)
         if (hit && hit.key === key) return hit.digest
         const digest = await this._hashLocalFile(localPath)
         this._put('L|' + localPath, key, digest)
         return digest
-      } catch {
-        // 读不到就当作无法确认，绝不猜
+      } catch (e) {
+        log.warn('[digest] local digest failed:', localPath, e)
         return null
       }
     })
@@ -104,10 +108,19 @@ export class ContentDigestService implements ContentDigestPort {
     return this._withDedupe('R|' + remotePath, async () => {
       try {
         const ssh = this.getSshSession()
-        if (!ssh) return null
-        if (size != null && !this._withinLimit(size)) return null
+        if (!ssh) {
+          log.warn('[digest] remote digest skipped: no SSH session for', remotePath)
+          return null
+        }
+        if (size != null && !this._withinLimit(size)) {
+          log.warn('[digest] remote file exceeds max size limit:', remotePath, 'size:', size)
+          return null
+        }
         await this._ensureRemoteBin(ssh)
-        if (!this.remoteBin) return null
+        if (!this.remoteBin) {
+          log.warn('[digest] remote digest skipped: no sha1sum/sha256sum/openssl available on remote server for', remotePath)
+          return null
+        }
         const key = `${size ?? '?'}:${mtime ?? '?'}`
         const hit = this.cache.get('R|' + remotePath)
         if (hit && hit.key === key) return hit.digest
@@ -117,11 +130,15 @@ export class ContentDigestService implements ContentDigestPort {
           : `${this.remoteBin} ${shellQuotePosix(remotePath)}`
         const out = await execSshCommand(ssh, cmd, this.timeoutMs)
         const m = HEX_RE.exec(out || '')
-        if (!m) return null
+        if (!m) {
+          log.warn('[digest] remote digest output parse failed for', remotePath, 'output:', out?.slice(0, 200))
+          return null
+        }
         const digest = m[1].toLowerCase()
         this._put('R|' + remotePath, key, digest)
         return digest
-      } catch {
+      } catch (e) {
+        log.warn('[digest] remote digest failed:', remotePath, e)
         return null
       }
     })
@@ -153,6 +170,7 @@ export class ContentDigestService implements ContentDigestPort {
         try {
           const out = await execSshCommand(ssh, `command -v ${bin} 2>/dev/null`, Math.min(this.timeoutMs, 8000))
           if (out && out.trim()) {
+            log.info('[digest] remote bin detected:', bin)
             this.remoteBin = bin
             return
           }
@@ -160,6 +178,7 @@ export class ContentDigestService implements ContentDigestPort {
           // 继续尝试下一个
         }
       }
+      log.warn('[digest] no remote digest command found (tried:', candidates.join(', '), ')')
       this.remoteBin = null
     })()
     try {

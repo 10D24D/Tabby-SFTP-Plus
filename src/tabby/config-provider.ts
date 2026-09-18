@@ -5,7 +5,7 @@
  * 创建人：DD1024z + Deepseek-V4-Flash
  * 创建时间：2026-06-29
  * 修改人：DD1024z + Composer
- * 修改时间：2026-09-17 — 合并为 allowViewEditAllFiles（允许查看与编辑所有类型）
+ * 修改时间：2026-09-18 — 书签面板定制：分组开关 + 分组顺序
  */
 import { ConfigProvider } from 'tabby-core'
 import type { Locale } from '../services/sftp-i18n.service'
@@ -95,6 +95,10 @@ export interface SftpPlusPluginConfig {
   singleWorkspaceInstance: boolean
   /** 兼容选项：选中书签后自动关闭整个浮动面板 */
   closeBookmarkPanelOnSelect: boolean
+  /** 书签面板是否按「当前连接 / 全局」分组显示（关闭后可跨分组自由拖拽排序） */
+  bookmarkPanelGroupByScope: boolean
+  /** 分组开启时，分组块的显示顺序（仅含 connection / global） */
+  bookmarkPanelGroupOrder: Array<'connection' | 'global'>
   /** 兼容选项：自定义时间格式（空串 = 默认 YYYY-MM-DD HH:mm:ss） */
   dateFormat: string
   /** 同时进行的上传数上限（1-10，默认 3）：顶层条目之间与目录内文件级均受此限制 */
@@ -165,6 +169,8 @@ export function defaultSftpPlusConfig(): SftpPlusPluginConfig {
     contextMenuOrder: ['upload', 'download', 'openLocal', 'viewFile', 'editFile', 'revealInExplorer', 'copy', 'cut', 'paste', 'rename', 'delete', 'chmod', 'details', 'newFolder', 'newFile', 'refresh', 'selectAll', 'selectInvert', 'copyPath'],
     singleWorkspaceInstance: true,
     closeBookmarkPanelOnSelect: false,
+    bookmarkPanelGroupByScope: true,
+    bookmarkPanelGroupOrder: ['connection', 'global'],
     dateFormat: '',
     transferUploadConcurrency: 3,
     transferDownloadConcurrency: 3,

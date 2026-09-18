@@ -642,8 +642,7 @@ msgid "bookmark.global"
 msgstr "전역 북마크"
 
 msgid "bookmark.forConnection"
-msgstr "이 연결"
-
+msgstr "현재 책갈피"
 msgid "permission.title"
 msgstr "권한 편집"
 
@@ -1482,3 +1481,21 @@ msgstr "다이제스트 계산 상한(MB)"
 
 msgid "settings.conflictDigestMaxSizeDesc"
 msgstr "이 크기보다 큰 파일은 다이제스트하지 않고 항상 충돌로 처리하여 충돌 감지 지연을 막습니다"
+
+msgid "settings.customBookmarkPanel"
+msgstr "책갈피 패널 사용자 지정"
+
+msgid "settings.resetBookmarkPanel"
+msgstr "책갈피 패널 초기화"
+
+msgid "settings.bookmarkGroupByScope"
+msgstr "책갈피 그룹화"
+msgid "settings.bookmarkGroupByScopeHint"
+msgstr "켜면 「현재 / 전역」 구역으로 표시합니다. 끄면 섞여 표시되며 범위를 넘어 순서를 바꿀 수 있습니다."
+msgid "settings.bookmarkGroupOrderHint"
+msgstr "연결 / 전역 그룹 표시 순서를 끌어 변경"
+
+msgid "settings.bookmarkFlatHint"
+msgstr "그룹화를 끄면 전역 책갈피 이름 오른쪽에 「전역」 배지가 표시되며 현재 책갈피와 자유롭게 섞어 정렬할 수 있습니다."
+msgid "bookmark.globalBadge"
+msgstr "전역"

@@ -68,6 +68,10 @@ msgstr "Digest"
 msgid "conflict.contentIdentical"
 msgstr "Content is identical — safe to skip"
 
+# ★ 2026-09-18 issue #15+：Content differs hint
+msgid "conflict.contentDiffers"
+msgstr "Content is different — consider overwriting"
+
 msgid "conflict.cancel"
 msgstr "Cancel"
 
@@ -706,8 +710,7 @@ msgid "bookmark.global"
 msgstr "Global Bookmarks"
 
 msgid "bookmark.forConnection"
-msgstr "This Connection"
-
+msgstr "Current Bookmarks"
 msgid "permission.title"
 msgstr "Edit Permissions"
 
@@ -1451,3 +1454,21 @@ msgstr "Tar packing"
 
 msgid "log.fileCount"
 msgstr "{n} files"
+
+msgid "settings.customBookmarkPanel"
+msgstr "Customize bookmark panel"
+
+msgid "settings.resetBookmarkPanel"
+msgstr "Reset bookmark panel"
+
+msgid "settings.bookmarkGroupByScope"
+msgstr "Bookmark grouping"
+msgid "settings.bookmarkGroupByScopeHint"
+msgstr "When on, bookmarks are shown in Current / Global sections. When off, they mix freely and can be reordered across scopes."
+msgid "settings.bookmarkGroupOrderHint"
+msgstr "Drag to set which group appears first: connection or global"
+
+msgid "settings.bookmarkFlatHint"
+msgstr "With grouping off, global bookmarks show a Global badge next to the name and can be freely mixed with current bookmarks."
+msgid "bookmark.globalBadge"
+msgstr "Global"

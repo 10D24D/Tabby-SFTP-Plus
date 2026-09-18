@@ -146,7 +146,7 @@ export async function execSshCommand(
   timeoutMs = 12000,
   opts?: { retryOnEmpty?: boolean },
 ): Promise<string> {
-  const ssh = (sshSession as { ssh?: {
+  const typed = sshSession as { ssh?: {
     openSessionChannel?: () => Promise<unknown>
     activateChannel?: (ch: unknown) => Promise<{
       requestExec: (cmd: string) => Promise<void>
@@ -154,8 +154,16 @@ export async function execSshCommand(
       closed$: { subscribe: (fn: () => void) => { unsubscribe: () => void } }
       close: () => Promise<void>
     }>
-  } })?.ssh
-  if (!ssh?.openSessionChannel || !ssh.activateChannel) return ''
+  } }
+  const ssh = typed?.ssh
+  if (!ssh?.openSessionChannel || !ssh.activateChannel) {
+    // ★ 2026-09-18 issue #15 诊断修复：记录 SSH session 结构，帮助排查 exec 通道不可用问题
+    const hasSsh = !!typed?.ssh
+    const hasOpen = !!typed?.ssh?.openSessionChannel
+    const hasActivate = !!typed?.ssh?.activateChannel
+    log.warn('[execSshCommand] SSH exec unavailable: hasSsh=', hasSsh, 'hasOpen=', hasOpen, 'hasActivate=', hasActivate)
+    return ''
+  }
 
   // ★ 2026-08-11 修复：exec 通道在 SFTP 大流量传输刚结束后偶尔拿不到任何输出
   //   （通道开关太快/通道复用竞争），导致 tar 通道 OK 标记漏检——实际解包成功却误报失败。

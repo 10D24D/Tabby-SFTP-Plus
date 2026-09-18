@@ -637,8 +637,7 @@ msgid "bookmark.global"
 msgstr "Globale Lesezeichen"
 
 msgid "bookmark.forConnection"
-msgstr "Diese Verbindung"
-
+msgstr "Aktuelle Lesezeichen"
 msgid "permission.title"
 msgstr "Berechtigungen Bearbeiten"
 
@@ -1474,3 +1473,21 @@ msgstr "Prüfsummen-Größenlimit (MB)"
 
 msgid "settings.conflictDigestMaxSizeDesc"
 msgstr "Größere Dateien werden nicht geprüft und immer als Konflikt behandelt, um die Erkennung nicht zu verlangsamen"
+
+msgid "settings.customBookmarkPanel"
+msgstr "Lesezeichenfenster anpassen"
+
+msgid "settings.resetBookmarkPanel"
+msgstr "Lesezeichenfenster zurücksetzen"
+
+msgid "settings.bookmarkGroupByScope"
+msgstr "Lesezeichen gruppieren"
+msgid "settings.bookmarkGroupByScopeHint"
+msgstr "Ein: Anzeige in Aktuell-/Globalblöcken. Aus: gemischt und über Bereiche hinweg sortierbar."
+msgid "settings.bookmarkGroupOrderHint"
+msgstr "Ziehen, um die Reihenfolge der Gruppen Verbindung / Global festzulegen"
+
+msgid "settings.bookmarkFlatHint"
+msgstr "Ohne Gruppierung zeigen globale Lesezeichen ein Global-Abzeichen rechts neben dem Namen und lassen sich frei mit aktuellen Lesezeichen mischen."
+msgid "bookmark.globalBadge"
+msgstr "Global"

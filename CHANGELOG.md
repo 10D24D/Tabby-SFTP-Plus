@@ -4,6 +4,24 @@ All notable changes to **tabby-sftp-plus** will be documented in this file.
 
 | [中文](https://github.com/10D24D/Tabby-SFTP-Plus/blob/main/CHANGELOG.md) | [English](https://github.com/10D24D/Tabby-SFTP-Plus/blob/main/CHANGELOG.en.md) |
 
+## [2.3.1] — 2026-09-18
+
+### 🎨 改进
+
+- **定制书签面板** — 可开关「按当前连接 / 全局分组」；开启时可拖拽分组块顺序；关闭后扁平混排，并可跨范围拖拽排序。
+
+### 🐛 修复
+
+- **冲突对话框看不到内容摘要**（issue #15）— 检测结果入队时带上两端摘要，对话框能显示完整 hash；大小不同也会尝试计算（仅展示，不自动跳过）；两端不同时标 ≠；摘要失败写入日志便于排查。
+
+### 🌐 多语言
+
+- 补充书签面板分组与「内容实际不同」等文案（24 种语言；中英完整，其余回退英文）。
+
+### 🔧 技术 / 构建
+
+- 版本号 bump 至 **2.3.1**。
+
 ## [2.3.0] — 2026-09-17
 
 ### ✨ 新增

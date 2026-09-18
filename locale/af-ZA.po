@@ -511,7 +511,7 @@ msgstr "Stoor Bookmark"
 msgid "bookmark.global"
 msgstr "Globale Boekmerke"
 msgid "bookmark.forConnection"
-msgstr "Hierdie Verbinding"
+msgstr "Huidige boekmerke"
 msgid "permission.title"
 msgstr "Redigeer Permissions"
 
@@ -1267,3 +1267,21 @@ msgstr "Grootteperk vir samevatting (MB)"
 
 msgid "settings.conflictDigestMaxSizeDesc"
 msgstr "Groter lêers word nie opgesom nie en altyd as konflik behandel om opsporing nie te vertraag nie"
+
+msgid "settings.customBookmarkPanel"
+msgstr "Pas boekmerkpaneel aan"
+
+msgid "settings.resetBookmarkPanel"
+msgstr "Stel boekmerkpaneel terug"
+
+msgid "settings.bookmarkGroupByScope"
+msgstr "Boekmerkgroepering"
+msgid "settings.bookmarkGroupByScopeHint"
+msgstr "Aan: afdelings Huidig / Globaal. Af: gemengde lys, kan oor omvang hersorteer word."
+msgid "settings.bookmarkGroupOrderHint"
+msgstr "Sleep om die volgorde van groepe verbinding / globaal te stel"
+
+msgid "settings.bookmarkFlatHint"
+msgstr "Sonder groepering toon globale boekmerke ’n Globaal-kenteken regs van die naam en kan vrylik met huidige boekmerke gemeng word."
+msgid "bookmark.globalBadge"
+msgstr "Globaal"

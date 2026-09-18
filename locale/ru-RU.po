@@ -642,8 +642,7 @@ msgid "bookmark.global"
 msgstr "Глобальные Закладки"
 
 msgid "bookmark.forConnection"
-msgstr "Это Подключение"
-
+msgstr "Текущие закладки"
 msgid "permission.title"
 msgstr "Редактировать Разрешения"
 
@@ -1482,3 +1481,21 @@ msgstr "Лимит размера дайджеста (МБ)"
 
 msgid "settings.conflictDigestMaxSizeDesc"
 msgstr "Файлы больше этого размера не хешируются и всегда считаются конфликтом, чтобы не замедлять проверку"
+
+msgid "settings.customBookmarkPanel"
+msgstr "Настройка панели закладок"
+
+msgid "settings.resetBookmarkPanel"
+msgstr "Сбросить панель закладок"
+
+msgid "settings.bookmarkGroupByScope"
+msgstr "Группировка закладок"
+msgid "settings.bookmarkGroupByScopeHint"
+msgstr "Вкл.: блоки текущих / глобальных. Выкл.: смешанный список с перетаскиванием между областями."
+msgid "settings.bookmarkGroupOrderHint"
+msgstr "Перетащите, чтобы задать порядок блоков подключения / глобальных"
+
+msgid "settings.bookmarkFlatHint"
+msgstr "Без группировки у глобальных закладок метка «Глобал» справа от имени; их можно свободно смешивать с текущими закладками."
+msgid "bookmark.globalBadge"
+msgstr "Глобал"

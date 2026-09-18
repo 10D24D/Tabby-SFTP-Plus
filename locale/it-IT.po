@@ -638,8 +638,7 @@ msgid "bookmark.global"
 msgstr "Segnalibri Globali"
 
 msgid "bookmark.forConnection"
-msgstr "Questa Connessione"
-
+msgstr "Segnalibri attuali"
 msgid "permission.title"
 msgstr "Modifica Permessi"
 
@@ -1475,3 +1474,21 @@ msgstr "Limite dimensione digest (MB)"
 
 msgid "settings.conflictDigestMaxSizeDesc"
 msgstr "I file più grandi non vengono elaborati e sono sempre trattati come conflitti, per non rallentare il rilevamento"
+
+msgid "settings.customBookmarkPanel"
+msgstr "Personalizza pannello segnalibri"
+
+msgid "settings.resetBookmarkPanel"
+msgstr "Reimposta pannello segnalibri"
+
+msgid "settings.bookmarkGroupByScope"
+msgstr "Raggruppamento segnalibri"
+msgid "settings.bookmarkGroupByScopeHint"
+msgstr "Attivo: sezioni Attuali / Globale. Disattivo: elenco misto, riordinabile tra ambiti."
+msgid "settings.bookmarkGroupOrderHint"
+msgstr "Trascina per impostare l’ordine dei gruppi connessione / globale"
+
+msgid "settings.bookmarkFlatHint"
+msgstr "Senza raggruppamento, i segnalibri globali mostrano un badge Globale a destra del nome e si mescolano liberamente con quelli attuali."
+msgid "bookmark.globalBadge"
+msgstr "Globale"

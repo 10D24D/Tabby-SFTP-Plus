@@ -645,8 +645,7 @@ msgid "bookmark.global"
 msgstr "Globální Záložky"
 
 msgid "bookmark.forConnection"
-msgstr "Toto Připojení"
-
+msgstr "Aktuální záložky"
 msgid "permission.title"
 msgstr "Upravit Oprávnění"
 
@@ -1471,3 +1470,21 @@ msgstr "Limit velikosti digestu (MB)"
 
 msgid "settings.conflictDigestMaxSizeDesc"
 msgstr "Větší soubory se nepočítají a vždy se berou jako konflikt, aby se nezpomalila detekce"
+
+msgid "settings.customBookmarkPanel"
+msgstr "Přizpůsobit panel záložek"
+
+msgid "settings.resetBookmarkPanel"
+msgstr "Obnovit panel záložek"
+
+msgid "settings.bookmarkGroupByScope"
+msgstr "Seskupení záložek"
+msgid "settings.bookmarkGroupByScopeHint"
+msgstr "Zapnuto: bloky aktuální / globální. Vypnuto: smíšený seznam s řazením napříč."
+msgid "settings.bookmarkGroupOrderHint"
+msgstr "Přetažením nastavte pořadí skupin připojení / globální"
+
+msgid "settings.bookmarkFlatHint"
+msgstr "Bez seskupení mají globální záložky štítek Globální vpravo od názvu a lze je volně míchat s aktuálními záložkami."
+msgid "bookmark.globalBadge"
+msgstr "Globální"

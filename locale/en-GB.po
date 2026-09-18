@@ -653,8 +653,7 @@ msgid "bookmark.global"
 msgstr "Global Bookmarks"
 
 msgid "bookmark.forConnection"
-msgstr "This Connection"
-
+msgstr "Current Bookmarks"
 msgid "permission.title"
 msgstr "Edit Permissions"
 
@@ -1626,3 +1625,21 @@ msgstr "Digest Size Limit (MB)"
 
 msgid "settings.conflictDigestMaxSizeDesc"
 msgstr "Files larger than this are not digested and are always treated as conflicts, to avoid slowing down conflict detection"
+
+msgid "settings.customBookmarkPanel"
+msgstr "Customise bookmark panel"
+
+msgid "settings.resetBookmarkPanel"
+msgstr "Reset bookmark panel"
+
+msgid "settings.bookmarkGroupByScope"
+msgstr "Bookmark grouping"
+msgid "settings.bookmarkGroupByScopeHint"
+msgstr "When on, bookmarks are shown in Current / Global sections. When off, they mix freely and can be reordered across scopes."
+msgid "settings.bookmarkGroupOrderHint"
+msgstr "Drag to set which group appears first: connection or global"
+
+msgid "settings.bookmarkFlatHint"
+msgstr "With grouping off, global bookmarks show a Global badge next to the name and can be freely mixed with current bookmarks."
+msgid "bookmark.globalBadge"
+msgstr "Global"

@@ -648,8 +648,7 @@ msgid "bookmark.global"
 msgstr "Genel Yer İmleri"
 
 msgid "bookmark.forConnection"
-msgstr "Bu Bağlantı"
-
+msgstr "Geçerli yer imleri"
 msgid "permission.title"
 msgstr "İzinleri Düzenle"
 
@@ -1478,3 +1477,21 @@ msgstr "Özet boyut sınırı (MB)"
 
 msgid "settings.conflictDigestMaxSizeDesc"
 msgstr "Bundan büyük dosyalar özetlenmez ve her zaman çakışma sayılır; algılamayı yavaşlatmamak için"
+
+msgid "settings.customBookmarkPanel"
+msgstr "Yer imi panelini özelleştir"
+
+msgid "settings.resetBookmarkPanel"
+msgstr "Yer imi panelini sıfırla"
+
+msgid "settings.bookmarkGroupByScope"
+msgstr "Yer imi gruplama"
+msgid "settings.bookmarkGroupByScopeHint"
+msgstr "Açık: Geçerli / Genel bölümleri. Kapalı: karışık liste, kapsamlar arası sürükle-bırak."
+msgid "settings.bookmarkGroupOrderHint"
+msgstr "Bağlantı / genel grup sırasını sürükleyerek ayarlayın"
+
+msgid "settings.bookmarkFlatHint"
+msgstr "Gruplama kapalıyken genel yer imlerinde adın sağında Genel rozeti görünür ve geçerli yer imleriyle serbestçe karıştırılabilir."
+msgid "bookmark.globalBadge"
+msgstr "Genel"

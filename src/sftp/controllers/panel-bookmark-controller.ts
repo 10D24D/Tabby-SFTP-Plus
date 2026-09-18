@@ -3,8 +3,8 @@
  * 功能描述：承载书签弹窗、增删改、按连接/全局筛选、书签拖拽排序等逻辑与状态，供浮动面板组件继承
  * 创建人：DD1024z + Hy3
  * 创建时间：2026-07-11
- * 修改人：DD1024z + Hy3
- * 修改时间：2026-07-21
+ * 修改人：DD1024z + Composer
+ * 修改时间：2026-09-18 — 书签面板分组开关 / 分组顺序 / 扁平混排拖拽
  */
 import * as path from 'path'
 import { Bookmark, SftpBookmarksService, normalizeBookmarkPath } from '../../services/sftp-bookmarks.service'
@@ -45,6 +45,10 @@ export abstract class SftpPanelBookmarkController extends SftpPanelViewerControl
   dragOverBottom = false
   /** 兼容选项：选中书签后自动关闭书签面板（由设置驱动） */
   closeBookmarkPanelOnSelect = false
+  /** 是否按连接/全局分组显示书签（默认开启） */
+  bookmarkPanelGroupByScope = true
+  /** 分组块显示顺序 */
+  bookmarkPanelGroupOrder: Array<'connection' | 'global'> = ['connection', 'global']
   protected _editingBookmarkId: string | null = null
 
   // ========== 书签方法（从组件抽取） ==========

@@ -636,8 +636,7 @@ msgid "bookmark.global"
 msgstr "Marcadores Globales"
 
 msgid "bookmark.forConnection"
-msgstr "Esta Conexión"
-
+msgstr "Marcadores actuales"
 msgid "permission.title"
 msgstr "Editar Permisos"
 
@@ -1474,3 +1473,21 @@ msgstr "Límite de tamaño del resumen (MB)"
 
 msgid "settings.conflictDigestMaxSizeDesc"
 msgstr "Los archivos mayores no se resumen y se tratan siempre como conflicto, para no ralentizar la detección"
+
+msgid "settings.customBookmarkPanel"
+msgstr "Personalizar panel de marcadores"
+
+msgid "settings.resetBookmarkPanel"
+msgstr "Restablecer panel de marcadores"
+
+msgid "settings.bookmarkGroupByScope"
+msgstr "Agrupación de marcadores"
+msgid "settings.bookmarkGroupByScopeHint"
+msgstr "Activado: secciones Actuales / Global. Desactivado: lista mixta y reordenable entre ámbitos."
+msgid "settings.bookmarkGroupOrderHint"
+msgstr "Arrastre para definir el orden de los grupos conexión / global"
+
+msgid "settings.bookmarkFlatHint"
+msgstr "Sin agrupación, los marcadores globales muestran una etiqueta Global a la derecha del nombre y se mezclan libremente con los actuales."
+msgid "bookmark.globalBadge"
+msgstr "Global"

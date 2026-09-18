@@ -652,8 +652,7 @@ msgid "bookmark.global"
 msgstr "グローバルブックマーク"
 
 msgid "bookmark.forConnection"
-msgstr "この接続"
-
+msgstr "現在のブックマーク"
 msgid "permission.title"
 msgstr "権限を編集"
 
@@ -1483,3 +1482,21 @@ msgstr "ダイジェスト計算上限（MB）"
 
 msgid "settings.conflictDigestMaxSizeDesc"
 msgstr "このサイズを超えるファイルはダイジェストせず常に競合扱いし、検出の遅延を防ぎます"
+
+msgid "settings.customBookmarkPanel"
+msgstr "ブックマークパネルのカスタマイズ"
+
+msgid "settings.resetBookmarkPanel"
+msgstr "ブックマークパネルをリセット"
+
+msgid "settings.bookmarkGroupByScope"
+msgstr "ブックマークのグループ化"
+msgid "settings.bookmarkGroupByScopeHint"
+msgstr "オン時は「現在 / グローバル」のブロック表示。オフ時は混在し、範囲をまたいで並べ替えできます。"
+msgid "settings.bookmarkGroupOrderHint"
+msgstr "接続 / グローバルの表示順をドラッグで変更"
+
+msgid "settings.bookmarkFlatHint"
+msgstr "グループ化オフ時、グローバルブックマーク名の右に「グローバル」バッジが付き、現在のブックマークと自由に並べ替えできます。"
+msgid "bookmark.globalBadge"
+msgstr "グローバル"

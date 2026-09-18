@@ -166,6 +166,9 @@ export function buildUploadConflictInfo(
   digest?: ConflictDigestInfo,
 ): ConflictFileInfo {
   const parentDir = path.posix.dirname(remotePath)
+  const localDigest = digest?.localDigest ?? null
+  const remoteDigest = digest?.remoteDigest ?? null
+  const bothAvailable = !!localDigest && !!remoteDigest
   return {
     localPath,
     remotePath,
@@ -177,9 +180,11 @@ export function buildUploadConflictInfo(
     remoteDir: parentDir,
     direction: 'upload',
     isSamePane: false,
-    localDigest: digest?.localDigest ?? null,
-    remoteDigest: digest?.remoteDigest ?? null,
+    localDigest,
+    remoteDigest,
     contentIdentical: isContentIdentical(digest),
+    // ★ 2026-09-18 issue #15+：两端摘要均可得但不相等 → 内容实际不同
+    contentDiffers: bothAvailable && localDigest !== remoteDigest,
   }
 }
 
@@ -194,6 +199,9 @@ export function buildDownloadConflictInfo(
   /** ★ 2026-09-07 issue #15：可选的内容摘要 */
   digest?: ConflictDigestInfo,
 ): ConflictFileInfo {
+  const localDigest = digest?.localDigest ?? null
+  const remoteDigest = digest?.remoteDigest ?? null
+  const bothAvailable = !!localDigest && !!remoteDigest
   return {
     localPath,
     remotePath,
@@ -205,9 +213,11 @@ export function buildDownloadConflictInfo(
     remoteDir: path.posix.dirname(remotePath),
     direction: 'download',
     isSamePane: false,
-    localDigest: digest?.localDigest ?? null,
-    remoteDigest: digest?.remoteDigest ?? null,
+    localDigest,
+    remoteDigest,
     contentIdentical: isContentIdentical(digest),
+    // ★ 2026-09-18 issue #15+：两端摘要均可得但不相等 → 内容实际不同
+    contentDiffers: bothAvailable && localDigest !== remoteDigest,
   }
 }
 

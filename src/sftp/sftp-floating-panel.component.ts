@@ -2189,6 +2189,17 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       if (cfg?.closeBookmarkPanelOnSelect !== undefined) {
         this.closeBookmarkPanelOnSelect = !!cfg.closeBookmarkPanelOnSelect
       }
+      if (cfg?.bookmarkPanelGroupByScope !== undefined) {
+        this.bookmarkPanelGroupByScope = cfg.bookmarkPanelGroupByScope !== false
+      }
+      if (Array.isArray(cfg?.bookmarkPanelGroupOrder) && cfg.bookmarkPanelGroupOrder.length) {
+        const valid = (cfg.bookmarkPanelGroupOrder as string[]).filter(
+          (x): x is 'connection' | 'global' => x === 'connection' || x === 'global',
+        )
+        if (valid.includes('connection') && valid.includes('global')) {
+          this.bookmarkPanelGroupOrder = [valid[0], valid.find(x => x !== valid[0])!]
+        }
+      }
       // 自定义时间格式：pattern 变化后 formatDate 输出改变，必须失效 _cells 预计算缓存
       const fmt = typeof cfg?.dateFormat === 'string' ? cfg.dateFormat.trim() : ''
       if (fmt !== getDateFormatPattern()) {

@@ -4,8 +4,8 @@
  *   支持双存储模式：Tabby 配置（config.yaml）或 浏览器缓存（localStorage）
  * 创建人：DD1024z + Hy3 preview
  * 创建时间：2026-06-21
- * 修改人：DD1024z + Grok 4.6
- * 修改时间：2026-09-17 — 已占用快捷键补充面板键入定位
+ * 修改人：DD1024z + Composer
+ * 修改时间：2026-09-18 — 定制书签面板开关变更后 notifyPanels，面板即时生效
  */
 import { Component, Injectable, Optional, OnDestroy, Inject } from '@angular/core'
 import { SettingsTabProvider } from 'tabby-settings'
@@ -276,6 +276,37 @@ function loadTableSetting(key: string, fallback: boolean): boolean {
               (change)="togglePaneItemHidden(item)" />
             <span class="ss-layout-chip-handle">⋮⋮</span>
             <span>{{ paneCustomItemLabel(item) }}</span>
+          </div>
+        </div>
+        <!-- 定制书签面板 -->
+        <div class="ss-sub-head" style="margin-top:16px;">
+          <div class="ss-sub-label" style="margin:0;">{{ i18n.t('settings.customBookmarkPanel') }}</div>
+          <button class="ss-reset-icon-btn" (click)="resetBookmarkPanel()" [title]="i18n.t('settings.resetBookmarkPanel')">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M13 8a5 5 0 1 1-1.8-3.85"/>
+              <path d="M13 3.5v2.9h-2.9"/>
+            </svg>
+          </button>
+        </div>
+        <div class="ss-toggle-wrap">
+          <label class="ss-toggle-row" title="{{ i18n.t('settings.bookmarkGroupByScopeHint') }}">
+            <span class="ss-toggle-label">{{ i18n.t('settings.bookmarkGroupByScope') }}</span>
+            <span class="ss-toggle-track" [class.active]="bookmarkPanelGroupByScope" (click)="toggleBookmarkPanelGroupByScope()">
+              <span class="ss-toggle-thumb"></span>
+            </span>
+          </label>
+        </div>
+        <div class="ss-layout-preview" *ngIf="bookmarkPanelGroupByScope" style="margin-top:8px;">
+          <div class="ss-layout-chip"
+            *ngFor="let g of bookmarkPanelGroupOrder"
+            draggable="true"
+            [class.dragging]="draggingBookmarkGroup === g"
+            (dragstart)="onBookmarkGroupDragStart(g, $event)"
+            (dragover)="onBookmarkGroupDragOver(g, $event)"
+            (drop)="onBookmarkGroupDrop(g, $event)"
+            (dragend)="onBookmarkGroupDragEnd()">
+            <span class="ss-layout-chip-handle">⋮⋮</span>
+            <span>{{ bookmarkGroupLabel(g) }}</span>
           </div>
         </div>
         <!-- 定制右键菜单（2026-08-22 挪到定制工具栏下方，改为每行一项） -->
@@ -1654,6 +1685,22 @@ export class SftpSettingsTabComponent implements OnDestroy {
   singleWorkspaceInstance = load('singleWorkspaceInstance', true)
   /** 兼容选项：选中书签后关闭面板 */
   closeBookmarkPanelOnSelect = load('closeBookmarkPanelOnSelect', false)
+  /** 书签面板是否按连接/全局分组（默认开启） */
+  bookmarkPanelGroupByScope = load('bookmarkPanelGroupByScope', true)
+  /** 分组块显示顺序 */
+  bookmarkPanelGroupOrder: Array<'connection' | 'global'> = (() => {
+    try {
+      const raw = load<unknown>('bookmarkPanelGroupOrder', ['connection', 'global'])
+      if (Array.isArray(raw) && raw.length) {
+        const valid = raw.filter((x): x is 'connection' | 'global' => x === 'connection' || x === 'global')
+        if (valid.includes('connection') && valid.includes('global')) {
+          return [valid[0], valid.find(x => x !== valid[0])!]
+        }
+      }
+    } catch {}
+    return ['connection', 'global']
+  })()
+  draggingBookmarkGroup: 'connection' | 'global' | null = null
   /** 兼容选项：自定义时间格式（输入框始终显示具体格式，默认为 DEFAULT_DATE_FORMAT） */
   dateFormat = load('dateFormat', '') || DEFAULT_DATE_FORMAT
   /** 默认时间格式 */
@@ -2250,6 +2297,15 @@ export class SftpSettingsTabComponent implements OnDestroy {
       if (cfg.openInNewTabByDefault !== undefined) this.openInNewTabByDefault = cfg.openInNewTabByDefault as boolean
       if (cfg.singleWorkspaceInstance !== undefined) this.singleWorkspaceInstance = cfg.singleWorkspaceInstance as boolean
       if (cfg.closeBookmarkPanelOnSelect !== undefined) this.closeBookmarkPanelOnSelect = cfg.closeBookmarkPanelOnSelect as boolean
+      if (cfg.bookmarkPanelGroupByScope !== undefined) this.bookmarkPanelGroupByScope = cfg.bookmarkPanelGroupByScope !== false
+      if (Array.isArray(cfg.bookmarkPanelGroupOrder) && cfg.bookmarkPanelGroupOrder.length) {
+        const valid = (cfg.bookmarkPanelGroupOrder as string[]).filter(
+          (x): x is 'connection' | 'global' => x === 'connection' || x === 'global',
+        )
+        if (valid.includes('connection') && valid.includes('global')) {
+          this.bookmarkPanelGroupOrder = [valid[0], valid.find(x => x !== valid[0])!]
+        }
+      }
       if (cfg.dateFormat !== undefined) {
         this.dateFormat = (cfg.dateFormat as string) || DEFAULT_DATE_FORMAT
         setDateFormatPattern(this.dateFormat)
@@ -2365,6 +2421,8 @@ export class SftpSettingsTabComponent implements OnDestroy {
       target.openInNewTabByDefault = this.openInNewTabByDefault
       target.singleWorkspaceInstance = this.singleWorkspaceInstance
       target.closeBookmarkPanelOnSelect = this.closeBookmarkPanelOnSelect
+      target.bookmarkPanelGroupByScope = this.bookmarkPanelGroupByScope
+      target.bookmarkPanelGroupOrder = this.bookmarkPanelGroupOrder
       target.dateFormat = this.dateFormat
       target.transferUploadConcurrency = this.uploadConcurrency
       target.transferDownloadConcurrency = this.downloadConcurrency
@@ -3114,6 +3172,59 @@ export class SftpSettingsTabComponent implements OnDestroy {
   toggleCloseBookmarkPanelOnSelect(): void {
     this.closeBookmarkPanelOnSelect = !this.closeBookmarkPanelOnSelect
     this._saveToConfig()
+    this.notifyPanels()
+  }
+
+  toggleBookmarkPanelGroupByScope(): void {
+    this.bookmarkPanelGroupByScope = !this.bookmarkPanelGroupByScope
+    this._saveToConfig()
+    this.notifyPanels()
+  }
+
+  bookmarkGroupLabel(g: 'connection' | 'global'): string {
+    return g === 'connection'
+      ? this.i18n.t('bookmark.forConnection')
+      : this.i18n.t('bookmark.global')
+  }
+
+  onBookmarkGroupDragStart(g: 'connection' | 'global', event: DragEvent): void {
+    this.draggingBookmarkGroup = g
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'move'
+      event.dataTransfer.setData('text/plain', g)
+    }
+  }
+
+  onBookmarkGroupDragOver(_g: 'connection' | 'global', event: DragEvent): void {
+    event.preventDefault()
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'
+  }
+
+  onBookmarkGroupDrop(target: 'connection' | 'global', event: DragEvent): void {
+    event.preventDefault()
+    const source = this.draggingBookmarkGroup
+    this.draggingBookmarkGroup = null
+    if (!source || source === target) return
+    const next = this.bookmarkPanelGroupOrder.filter(x => x !== source)
+    const ti = next.indexOf(target)
+    if (ti < 0) next.push(source)
+    else next.splice(ti, 0, source)
+    if (!next.includes('connection')) next.push('connection')
+    if (!next.includes('global')) next.push('global')
+    this.bookmarkPanelGroupOrder = next.slice(0, 2) as Array<'connection' | 'global'>
+    this._saveToConfig()
+    this.notifyPanels()
+  }
+
+  onBookmarkGroupDragEnd(): void {
+    this.draggingBookmarkGroup = null
+  }
+
+  resetBookmarkPanel(): void {
+    this.bookmarkPanelGroupByScope = true
+    this.bookmarkPanelGroupOrder = ['connection', 'global']
+    this._saveToConfig()
+    this.notifyPanels()
   }
 
   /** 保存自定义时间格式（input change/blur 触发，避免逐键通知面板）；清空时自动回落默认格式 */
@@ -3443,6 +3554,8 @@ export class SftpSettingsTabComponent implements OnDestroy {
           data.openInNewTabByDefault = cfg.openInNewTabByDefault ?? false
           data.singleWorkspaceInstance = cfg.singleWorkspaceInstance ?? true
           data.closeBookmarkPanelOnSelect = cfg.closeBookmarkPanelOnSelect ?? false
+          data.bookmarkPanelGroupByScope = cfg.bookmarkPanelGroupByScope !== false
+          data.bookmarkPanelGroupOrder = cfg.bookmarkPanelGroupOrder ?? ['connection', 'global']
           data.dateFormat = cfg.dateFormat ?? ''
           data.transferUploadConcurrency = cfg.transferUploadConcurrency ?? 3
           data.transferDownloadConcurrency = cfg.transferDownloadConcurrency ?? 3
@@ -3499,6 +3612,8 @@ export class SftpSettingsTabComponent implements OnDestroy {
     data.openInNewTabByDefault = load('openInNewTabByDefault', false)
     data.singleWorkspaceInstance = load('singleWorkspaceInstance', true)
     data.closeBookmarkPanelOnSelect = load('closeBookmarkPanelOnSelect', false)
+    data.bookmarkPanelGroupByScope = load('bookmarkPanelGroupByScope', true)
+    data.bookmarkPanelGroupOrder = load('bookmarkPanelGroupOrder', ['connection', 'global'])
     data.dateFormat = load('dateFormat', '')
     data.transferUploadConcurrency = 3
     data.transferDownloadConcurrency = 3
@@ -3604,6 +3719,15 @@ export class SftpSettingsTabComponent implements OnDestroy {
           if (data.openInNewTabByDefault !== undefined) target.openInNewTabByDefault = data.openInNewTabByDefault
           if (data.singleWorkspaceInstance !== undefined) target.singleWorkspaceInstance = data.singleWorkspaceInstance
           if (data.closeBookmarkPanelOnSelect !== undefined) target.closeBookmarkPanelOnSelect = data.closeBookmarkPanelOnSelect
+          if (data.bookmarkPanelGroupByScope !== undefined) target.bookmarkPanelGroupByScope = data.bookmarkPanelGroupByScope !== false
+          if (Array.isArray(data.bookmarkPanelGroupOrder) && data.bookmarkPanelGroupOrder.length) {
+            const valid = (data.bookmarkPanelGroupOrder as string[]).filter(
+              (x): x is 'connection' | 'global' => x === 'connection' || x === 'global',
+            )
+            if (valid.includes('connection') && valid.includes('global')) {
+              target.bookmarkPanelGroupOrder = [valid[0], valid.find(x => x !== valid[0])!]
+            }
+          }
           if (data.dateFormat !== undefined) target.dateFormat = data.dateFormat
           if (data.transferUploadConcurrency !== undefined) target.transferUploadConcurrency = data.transferUploadConcurrency
           if (data.transferDownloadConcurrency !== undefined) target.transferDownloadConcurrency = data.transferDownloadConcurrency

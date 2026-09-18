@@ -53,6 +53,8 @@ export type ConflictFileInfo = {
   remoteDigest?: string | null
   /** 两端摘要均可得且相等 → 内容实际相同。仅作提示用，不替代冲突决策。 */
   contentIdentical?: boolean
+  /** ★ 2026-09-18 issue #15+：两端摘要均可得但不相等 → 内容实际不同（黄色提示）。 */
+  contentDiffers?: boolean
 }
 
 export type ConflictQueueItem = {
@@ -74,6 +76,9 @@ export type ConflictQueueItem = {
   /** ★ 2026-08-11：来源传输的上下文（目录传输冲突入队时携带）——冲突解决前条目
    *  已被 finish(false) 记失败，覆盖/重命名成功后用它把传输记录翻正 */
   transferCtx?: FolderTransferCtx
+  /** ★ 2026-09-18 issue #15 修复：冲突检测计算出的内容摘要，供对话框展示 */
+  localDigest?: string | null
+  remoteDigest?: string | null
 }
 
 export type FolderTransferCtx = {

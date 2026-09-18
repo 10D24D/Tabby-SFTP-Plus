@@ -511,7 +511,7 @@ msgstr "Spremi Bookmark"
 msgid "bookmark.global"
 msgstr "Globalne zabilješke"
 msgid "bookmark.forConnection"
-msgstr "Ova veza"
+msgstr "Trenutne oznake"
 msgid "permission.title"
 msgstr "Uredi Permissions"
 
@@ -1267,3 +1267,21 @@ msgstr "Ograničenje veličine sažetka (MB)"
 
 msgid "settings.conflictDigestMaxSizeDesc"
 msgstr "Veće datoteke se ne sažimaju i uvijek se tretiraju kao sukob kako se ne bi usporilo otkrivanje"
+
+msgid "settings.customBookmarkPanel"
+msgstr "Prilagodi ploču oznaka"
+
+msgid "settings.resetBookmarkPanel"
+msgstr "Vrati ploču oznaka"
+
+msgid "settings.bookmarkGroupByScope"
+msgstr "Grupiranje oznaka"
+msgid "settings.bookmarkGroupByScopeHint"
+msgstr "Uključeno: odjeljci Trenutne / Globalno. Isključeno: miješani popis, razvrstavanje između opsega."
+msgid "settings.bookmarkGroupOrderHint"
+msgstr "Povucite za redoslijed grupa veza / globalno"
+
+msgid "settings.bookmarkFlatHint"
+msgstr "Bez grupiranja globalne oznake imaju oznaku Globalno desno od naziva i mogu se slobodno miješati s trenutnim oznakama."
+msgid "bookmark.globalBadge"
+msgstr "Globalno"

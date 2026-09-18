@@ -511,7 +511,7 @@ msgstr "Запази Bookmark"
 msgid "bookmark.global"
 msgstr "Глобални отметки"
 msgid "bookmark.forConnection"
-msgstr "Тази връзка"
+msgstr "Текущи отметки"
 msgid "permission.title"
 msgstr "Редактирай Permissions"
 
@@ -1267,3 +1267,21 @@ msgstr "Лимит на размера на дайджеста (MB)"
 
 msgid "settings.conflictDigestMaxSizeDesc"
 msgstr "По-големите файлове не се дайджестват и винаги се третират като конфликт, за да не се забави откриването"
+
+msgid "settings.customBookmarkPanel"
+msgstr "Персонализиране на панела с отметки"
+
+msgid "settings.resetBookmarkPanel"
+msgstr "Нулирай панела с отметки"
+
+msgid "settings.bookmarkGroupByScope"
+msgstr "Групиране на отметки"
+msgid "settings.bookmarkGroupByScopeHint"
+msgstr "Вкл.: блокове текущи / глобални. Изкл.: смесен списък с пренареждане между обхвати."
+msgid "settings.bookmarkGroupOrderHint"
+msgstr "Плъзнете, за да зададете реда на групите връзка / глобални"
+
+msgid "settings.bookmarkFlatHint"
+msgstr "Без групиране глобалните отметки показват етикет „Глобални“ вдясно от името и могат свободно да се смесват с текущите."
+msgid "bookmark.globalBadge"
+msgstr "Глобални"

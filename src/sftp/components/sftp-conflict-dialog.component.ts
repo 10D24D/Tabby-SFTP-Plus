@@ -54,9 +54,11 @@ import { formatDate, formatSize } from '../core/file-utils'
                 <span class="conflict-val" [title]="data.remotePath">{{ data.remotePath }}</span>
               </div>
               <!-- ★ 2026-09-07 issue #15：内容摘要，用于识别「mtime 变了但内容没变」 -->
-              <div class="conflict-info-row conflict-digest" *ngIf="data.remoteDigest">
+              <div class="conflict-info-row conflict-digest" [class.conflict-diff]="digestDiffers">
                 <span class="conflict-label">{{ i18n.t('conflict.digest') }}</span>
-                <span class="conflict-val conflict-digest-val" [title]="data.remoteDigest">{{ shortDigest(data.remoteDigest) }}</span>
+                <span class="conflict-val conflict-digest-val" *ngIf="data.remoteDigest" [title]="data.remoteDigest">{{ shortDigest(data.remoteDigest) }}</span>
+                <span class="conflict-val conflict-digest-val conflict-digest-unavailable" *ngIf="!data.remoteDigest" title="摘要不可用（文件大小不同或远程服务器不支持）">—</span>
+                <span class="conflict-diff-dot" *ngIf="digestDiffers">≠</span>
               </div>
             </div>
           </div>
@@ -83,9 +85,11 @@ import { formatDate, formatSize } from '../core/file-utils'
                 <span class="conflict-val" [title]="data.localPath">{{ data.localPath }}</span>
               </div>
               <!-- ★ 2026-09-07 issue #15：内容摘要 -->
-              <div class="conflict-info-row conflict-digest" *ngIf="data.localDigest">
+              <div class="conflict-info-row conflict-digest" [class.conflict-diff]="digestDiffers">
                 <span class="conflict-label">{{ i18n.t('conflict.digest') }}</span>
-                <span class="conflict-val conflict-digest-val" [title]="data.localDigest">{{ shortDigest(data.localDigest) }}</span>
+                <span class="conflict-val conflict-digest-val" *ngIf="data.localDigest" [title]="data.localDigest">{{ shortDigest(data.localDigest) }}</span>
+                <span class="conflict-val conflict-digest-val conflict-digest-unavailable" *ngIf="!data.localDigest" title="摘要不可用（文件大小不同或本地读取失败）">—</span>
+                <span class="conflict-diff-dot" *ngIf="digestDiffers">≠</span>
               </div>
             </div>
           </div>
@@ -162,6 +166,12 @@ import { formatDate, formatSize } from '../core/file-utils'
       opacity: 0.75;
       letter-spacing: 0.2px;
     }
+    /* 摘要不可用时显示的占位符 */
+    .conflict-digest-unavailable {
+      opacity: 0.35 !important;
+      font-style: italic;
+      cursor: help;
+    }
     /* 内容实际相同提示（深/浅色主题均可见） */
     .conflict-identical-hint {
       display: flex;
@@ -232,6 +242,14 @@ export class SftpConflictDialogComponent implements OnChanges, OnDestroy {
     return d.localMtime !== d.remoteMtime
   }
 
+  /** 两端都有摘要且不相等时标 ≠（摘要行高亮） */
+  get digestDiffers(): boolean {
+    const d = this.data
+    if (!d) return false
+    if (!d.localDigest || !d.remoteDigest) return false
+    return d.localDigest !== d.remoteDigest
+  }
+
   private _focusTimer: ReturnType<typeof setTimeout> | null = null
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -259,10 +277,11 @@ export class SftpConflictDialogComponent implements OnChanges, OnDestroy {
   }
 
   /** ★ 2026-08-17：格式化后相同但字节数不同时，括号内显示精确值 */
-  /** ★ 2026-09-07 issue #15：摘要较长，截断显示（完整值保留在 title 悬浮提示中） */
+  /** ★ 2026-09-07 issue #15：显示完整摘要（sha1=40hex，sha256=64hex，对话框宽度足够） */
   shortDigest(d?: string | null): string {
     if (!d) return ''
-    return d.length > 14 ? d.slice(0, 12) + '…' : d
+    // sha1=40 hex，sha256=64 hex；对话框宽度足够显示完整值，不再截断
+    return d
   }
 
   /** 任一侧仍在扫描目录大小时，不标差异，避免「计算中」对数字误闪 ≠ */

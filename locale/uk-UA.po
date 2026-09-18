@@ -511,7 +511,7 @@ msgstr "Зберегти Bookmark"
 msgid "bookmark.global"
 msgstr "Глобальні закладки"
 msgid "bookmark.forConnection"
-msgstr "Це з'єднання"
+msgstr "Поточні закладки"
 msgid "permission.title"
 msgstr "Редагувати Permissions"
 
@@ -1267,3 +1267,21 @@ msgstr "Ліміт розміру дайджеста (МБ)"
 
 msgid "settings.conflictDigestMaxSizeDesc"
 msgstr "Файли більші за цей розмір не хешуються і завжди вважаються конфліктом, щоб не сповільнювати перевірку"
+
+msgid "settings.customBookmarkPanel"
+msgstr "Налаштування панелі закладок"
+
+msgid "settings.resetBookmarkPanel"
+msgstr "Скинути панель закладок"
+
+msgid "settings.bookmarkGroupByScope"
+msgstr "Групування закладок"
+msgid "settings.bookmarkGroupByScopeHint"
+msgstr "Увімк.: блоки поточних / глобальних. Вимк.: змішаний список із перетягуванням між областями."
+msgid "settings.bookmarkGroupOrderHint"
+msgstr "Перетягніть, щоб задати порядок блоків з’єднання / глобальних"
+
+msgid "settings.bookmarkFlatHint"
+msgstr "Без групування глобальні закладки мають мітку «Глобал» праворуч від назви й вільно змішуються з поточними закладками."
+msgid "bookmark.globalBadge"
+msgstr "Глобал"

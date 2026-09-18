@@ -643,8 +643,7 @@ msgid "bookmark.global"
 msgstr "Bookmark Global"
 
 msgid "bookmark.forConnection"
-msgstr "Koneksi Ini"
-
+msgstr "Penanda saat ini"
 msgid "permission.title"
 msgstr "Edit Izin"
 
@@ -1467,3 +1466,21 @@ msgstr "Batas ukuran digest (MB)"
 
 msgid "settings.conflictDigestMaxSizeDesc"
 msgstr "File lebih besar tidak di-digest dan selalu dianggap konflik agar deteksi tidak melambat"
+
+msgid "settings.customBookmarkPanel"
+msgstr "Sesuaikan panel penanda"
+
+msgid "settings.resetBookmarkPanel"
+msgstr "Reset panel penanda"
+
+msgid "settings.bookmarkGroupByScope"
+msgstr "Pengelompokan penanda"
+msgid "settings.bookmarkGroupByScopeHint"
+msgstr "Aktif: bagian Saat ini / Global. Nonaktif: daftar campuran, bisa diurut ulang lintas cakupan."
+msgid "settings.bookmarkGroupOrderHint"
+msgstr "Seret untuk mengatur urutan grup koneksi / global"
+
+msgid "settings.bookmarkFlatHint"
+msgstr "Tanpa pengelompokan, penanda global menampilkan lencana Global di kanan nama dan dapat dicampur bebas dengan penanda saat ini."
+msgid "bookmark.globalBadge"
+msgstr "Global"

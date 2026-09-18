@@ -647,8 +647,7 @@ msgid "bookmark.global"
 msgstr "Globalne Zakładki"
 
 msgid "bookmark.forConnection"
-msgstr "To Połączenie"
-
+msgstr "Bieżące zakładki"
 msgid "permission.title"
 msgstr "Edytuj Uprawnienia"
 
@@ -1474,3 +1473,21 @@ msgstr "Limit rozmiaru skrótu (MB)"
 
 msgid "settings.conflictDigestMaxSizeDesc"
 msgstr "Większe pliki nie są skracane i zawsze traktowane jako konflikt, by nie spowalniać wykrywania"
+
+msgid "settings.customBookmarkPanel"
+msgstr "Dostosuj panel zakładek"
+
+msgid "settings.resetBookmarkPanel"
+msgstr "Przywróć panel zakładek"
+
+msgid "settings.bookmarkGroupByScope"
+msgstr "Grupowanie zakładek"
+msgid "settings.bookmarkGroupByScopeHint"
+msgstr "Wł.: sekcje bieżące / globalne. Wył.: lista mieszana, sortowanie między zakresami."
+msgid "settings.bookmarkGroupOrderHint"
+msgstr "Przeciągnij, aby ustawić kolejność grup połączenie / globalne"
+
+msgid "settings.bookmarkFlatHint"
+msgstr "Bez grupowania globalne zakładki mają znacznik Global obok nazwy i można je mieszać z bieżącymi zakładkami."
+msgid "bookmark.globalBadge"
+msgstr "Globalne"

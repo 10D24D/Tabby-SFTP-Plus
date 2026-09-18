@@ -230,6 +230,9 @@ export class DownloadDirUseCase {
               remoteFileMtime: remoteMtime,
               // ★ 2026-08-11：携带来源传输 ctx，覆盖/重命名成功后翻正被误记失败的记录
               transferCtx: ctx,
+              // ★ 2026-09-18 issue #15 修复：携带内容摘要供对话框展示
+              localDigest: conflictInfo.localDigest,
+              remoteDigest: conflictInfo.remoteDigest,
             })
             if (ctx) this.ports.folder.markHadConflict(ctx)
             this.ports.conflictQueue.showDialog()
@@ -370,6 +373,9 @@ export class DownloadOneUseCase {
         direction: 'download',
         remoteFileSize: file.size ?? 0,
         remoteFileMtime: remoteMtime,
+        // ★ 2026-09-18 issue #15 修复：携带内容摘要供对话框展示
+        localDigest: conflictInfo.localDigest,
+        remoteDigest: conflictInfo.remoteDigest,
       })
       return
     }
@@ -588,6 +594,9 @@ export class UploadPathUseCase {
           remoteFileMtime,
           // ★ 2026-08-11：携带来源传输 ctx，覆盖/重命名成功后翻正被误记失败的记录
           transferCtx: ctx,
+          // ★ 2026-09-18 issue #15 修复：携带内容摘要供对话框展示
+          localDigest: null,
+          remoteDigest: null,
         })
         this.ports.folder.markHadConflict(ctx)
         this.ports.conflictQueue.showDialog()
@@ -672,6 +681,9 @@ export class UploadPathUseCase {
         remoteFileMtime: conflictInfo.remoteMtime,
         // ★ 2026-08-11：携带来源传输 ctx（目录内子文件冲突时存在），解决成功后翻正记录
         transferCtx: topCtx,
+        // ★ 2026-09-18 issue #15 修复：携带内容摘要供对话框展示
+        localDigest: conflictInfo.localDigest,
+        remoteDigest: conflictInfo.remoteDigest,
       })
       if (topCtx) this.ports.folder.markHadConflict(topCtx)
       this.ports.conflictQueue.showDialog()

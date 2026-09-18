@@ -20,10 +20,10 @@ SFTP+ is a plugin for [Tabby Terminal](https://tabby.sh/) that adds a **dual-pan
 | **🔄 Drag & Drop** | Drag across panes to upload/download; recursive folder transfer; drag from OS Explorer/Desktop into either pane |
 | **⬆️ Context Transfer** | Right-click upload on local pane, download on remote pane (multi-select batch) |
 | **⚡ High-Speed Transfer** | Intra-directory file-level parallelism (1-10 concurrent, adjustable); tar channel for massive small-file directories (pack → single-file transfer → unpack), which can be disabled in settings; batch delete via SSH `rm -rf` / `fs.rm(recursive)` |
-| **🔖 Bookmark System** | Global bookmarks (visible across all connections) + connection bookmarks (per SSH session); drag-to-reorder |
+| **🔖 Bookmark System** | Global bookmarks (visible across all connections) + connection bookmarks (per SSH session); group by scope or flatten and mix, with draggable group order |
 | **📋 Transfer Log** | Full operation history including **Edit Load** / **Edit Save** types; filtering, stats, JSON export |
 | **⚡ Transfer Control** | Progress bars (with percentage), pause/resume/cancel, resume support, real-time speed; the tar channel falls back to the regular file-by-file transfer on failure; the transfer log tags folder transfers (⚡ fast mode / 📦 tar packing / file count) |
-| **⚠️ File Conflict** | Visual diff on conflict (shows upload⬆/download⬇ direction), with overwrite/skip/rename options and batch processing; merge-overwrite has its own progress panel; when size matches but mtime changed, optional content digest can auto-skip identical files |
+| **⚠️ File Conflict** | Visual diff on conflict (shows upload⬆/download⬇ direction), with overwrite/skip/rename options and batch processing; merge-overwrite has its own progress panel; content digests can be shown in the dialog, identical files can auto-skip, and differing digests are marked ≠ |
 | **🔐 Permission Editor** | Remote chmod via 3×3 checkbox matrix with octal preview |
 | **📌 Context Menus** | Upload/download, view/edit, new/rename/delete, copy/cut/paste, refresh, select all/invert; text viewer/editor context menus; <br />Header: column visibility, fit widths, borders & zebra stripes |
 | **🔍 Filter & Sort** | Keyword filter, multi-column sorting (click headers), configurable visible columns; with focus on a file list, type a name prefix to jump to the match (Explorer-style; IME such as Chinese is supported) |
@@ -49,7 +49,7 @@ SFTP+ is a plugin for [Tabby Terminal](https://tabby.sh/) that adds a **dual-pan
 | **File List** | Displays files and directories; multi-column sort, draggable column widths, reorderable columns |
 | **Bottom Action Bar** | Shows selection count & total size |
 | **Transfer Queue** | Real-time upload/download progress, speed, ETA; supports pause/resume/cancel |
-| **Bookmark Popup** | Grouped by "connection bookmarks" and "global bookmarks"; drag-to-reorder and quick jump |
+| **Bookmark Popup** | Optionally grouped by connection vs global, or flattened and mixed; drag-to-reorder and quick jump |
 | **Context Menu** | Right-click on files or table headers for full file operations and column configuration |
 | **Transfer Log** | History popup with type filtering, success/failure filter, JSON export |
 
@@ -122,7 +122,7 @@ Path: Settings → Data Backup → Export / Import
 
 ## 📜 Changelog
 
-Current development version: **v2.3.0** (2026-09-17) — [Full changelog](CHANGELOG.en.md)
+Current development version: **v2.3.1** (2026-09-18) — [Full changelog](CHANGELOG.en.md)
 
 ---
 

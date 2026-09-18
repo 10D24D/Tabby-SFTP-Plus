@@ -747,9 +747,9 @@ export class SftpConflictDetector implements ConflictDetectionPort {
   }
 
   /**
-   * 计算两端内容摘要，仅在「size 相同」时才有意义（size 不同则内容必然不同）。
-   * 返回 undefined 表示无法确认（无摘要服务 / size 不同 / 任一端计算失败），
-   * 调用方必须按「可能不同」保守处理——宁可多弹一次冲突框，也绝不能漏传文件。
+   * 计算两端内容摘要。
+   * ★ 2026-09-18 issue #15+：即使大小不同也计算摘要，让用户看到具体差异。
+   *    但自动跳过只在 size 相同且摘要匹配时触发（size 不同则内容必然不同）。
    */
   private async _resolveDigest(
     localPath: string,
@@ -759,17 +759,23 @@ export class SftpConflictDetector implements ConflictDetectionPort {
     remoteSize: number | undefined,
     remoteMtime: number | undefined,
   ): Promise<ConflictDigestInfo | undefined> {
-    if (!this.digest) return undefined
-    // size 不同 → 内容必然不同，无需计算（省掉一次 exec 与一次本地读盘）
-    if (remoteSize == null || localSize !== remoteSize) return undefined
+    if (!this.digest) {
+      log.info('[resolveDigest] skipped: digest service not enabled')
+      return undefined
+    }
     try {
       const [localDigest, remoteDigest] = await Promise.all([
         this.digest.localDigest(localPath, localSize, localMtime),
-        this.digest.remoteDigest(remotePath, remoteSize, remoteMtime),
+        remoteSize != null ? this.digest.remoteDigest(remotePath, remoteSize, remoteMtime) : Promise.resolve(null),
       ])
-      if (!localDigest || !remoteDigest) return undefined
+      if (!localDigest || !remoteDigest) {
+        log.info('[resolveDigest] incomplete: local:', localDigest ? 'ok' : 'failed', 'remote:', remoteDigest ? 'ok' : 'failed')
+        return undefined
+      }
+      log.info('[resolveDigest] computed for', localPath, 'local:', localDigest.slice(0, 8), '... remote:', remoteDigest.slice(0, 8), '...')
       return { localDigest, remoteDigest }
-    } catch {
+    } catch (e) {
+      log.warn('[resolveDigest] failed:', e)
       return undefined
     }
   }

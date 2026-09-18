@@ -636,8 +636,7 @@ msgid "bookmark.global"
 msgstr "Globale Bogmærker"
 
 msgid "bookmark.forConnection"
-msgstr "Denne Forbindelse"
-
+msgstr "Aktuelle bogmærker"
 msgid "permission.title"
 msgstr "Redigér Tilladelser"
 
@@ -1457,3 +1456,21 @@ msgstr "Størrelsesgrænse for digest (MB)"
 
 msgid "settings.conflictDigestMaxSizeDesc"
 msgstr "Større filer digestes ikke og behandles altid som konflikt for ikke at forsinke registreringen"
+
+msgid "settings.customBookmarkPanel"
+msgstr "Tilpas bogmærkepanelet"
+
+msgid "settings.resetBookmarkPanel"
+msgstr "Nulstil bogmærkepanelet"
+
+msgid "settings.bookmarkGroupByScope"
+msgstr "Bogmærkegruppering"
+msgid "settings.bookmarkGroupByScopeHint"
+msgstr "Til: sektioner Aktuelle / Globale. Fra: blandet liste, kan omordnes på tværs."
+msgid "settings.bookmarkGroupOrderHint"
+msgstr "Træk for at indstille rækkefølgen for grupperne forbindelse / globale"
+
+msgid "settings.bookmarkFlatHint"
+msgstr "Uden gruppering viser globale bogmærker et Global-mærke til højre for navnet og kan frit blandes med aktuelle bogmærker."
+msgid "bookmark.globalBadge"
+msgstr "Global"
