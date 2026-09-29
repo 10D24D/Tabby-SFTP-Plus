@@ -4,8 +4,11 @@
  *   包含界面设置、书签、路径记忆数据
  * 创建人：DD1024z + Deepseek-V4-Flash
  * 创建时间：2026-06-29
- * 修改人：DD1024z + Composer
- * 修改时间：2026-09-18 — 书签面板定制：分组开关 + 分组顺序
+ * 修改人：DD1024z + Deepseek-V4.1-Flash
+ * 修改时间：2026-09-29 — textCaretWidth（宽度 1–4px）→ textCaretShape（block/beam/underline 三档，
+ *              与 Tabby 终端 cursor 取值逐字一致）；新增 CaretShape 类型与 normalizeCaretShape()
+ *              2026-09-28 — transferTarAcceleration 替换为 transferChannelMode（smart/sftpOnly/tarOnly/preferSftp/preferTar）
+ *              2026-09-20 — 面板热键新增打开/查看/编辑（默认未绑定）
  */
 import { ConfigProvider } from 'tabby-core'
 import type { Locale } from '../services/sftp-i18n.service'
@@ -14,11 +17,22 @@ import { MOUSE_BACK_SPEC, MOUSE_FORWARD_SPEC } from './hotkey-util'
 /** 自定义文件图标规则：扩展名 → svg；name 为设置页分组/展示用规则名（可选，兼容旧配置） */
 export type FileTypeIconRule = { ext: string; svg: string; name?: string }
 
+/** 查看器自绘插入光标形状三档 —— 取值与 Tabby 终端配置 `store.terminal.cursor` **逐字一致**
+ *  （block 方块 / beam 竖线 / underline 下划线），设置页字形也照宿主外观页的 █ | ▁ 来写。
+ *  ★ 2026-09-29：由「宽度 1–4px」改为「形状三档」——宽度语义与宿主的分档无法对应。 */
+export type CaretShape = 'block' | 'beam' | 'underline'
+
+/** 归一化光标形状：只认三档合法值，其余（含旧配置、手工改坏的字符串）一律回落 beam（细竖线） */
+export function normalizeCaretShape(value: unknown): CaretShape {
+  return value === 'block' || value === 'underline' ? value : 'beam'
+}
+
 /** 面板内置快捷键动作名；数组顺序即设置页展示顺序 */
 export const PANEL_HOTKEY_ACTIONS = [
   'delete', 'rename', 'refresh', 'up', 'back', 'forward',
-  // ★ 2026-08-31：右键菜单常用动作，默认留空（未绑定即不响应，行为与旧版一致）
-  'upload', 'download', 'newFolder', 'newFile', 'details', 'copyPath',
+  // ★ 2026-08-31 / 2026-09-20：右键菜单常用动作，默认留空（未绑定即不响应）
+  'upload', 'download', 'openLocal', 'viewFile', 'editFile',
+  'newFolder', 'newFile', 'details', 'copyPath',
 ] as const
 
 /** 面板内置快捷键动作类型 */
@@ -26,7 +40,8 @@ export type PanelHotkeyAction = typeof PANEL_HOTKEY_ACTIONS[number]
 
 /** 需经右键菜单分发（onContextMenuAction）执行的动作；其余由面板专用方法直接处理 */
 export const CONTEXT_ACTION_HOTKEYS: PanelHotkeyAction[] = [
-  'upload', 'download', 'newFolder', 'newFile', 'details', 'copyPath',
+  'upload', 'download', 'openLocal', 'viewFile', 'editFile',
+  'newFolder', 'newFile', 'details', 'copyPath',
 ]
 
 /** 面板快捷键默认值（面板端与设置端共用，避免两处漂移）；每次调用返回新对象，防止共享引用被改脏 */
@@ -41,6 +56,9 @@ export function defaultPanelHotkeys(): Record<PanelHotkeyAction, { keys: string[
     // 右键菜单动作默认留空：keys 空数组 + enabled=false（双保险，防止 config 清洗空数组后 defaults 回退）
     upload: { keys: [], enabled: false },
     download: { keys: [], enabled: false },
+    openLocal: { keys: [], enabled: false },
+    viewFile: { keys: [], enabled: false },
+    editFile: { keys: [], enabled: false },
     newFolder: { keys: [], enabled: false },
     newFile: { keys: [], enabled: false },
     details: { keys: [], enabled: false },
@@ -80,6 +98,10 @@ export interface SftpPlusPluginConfig {
   allowViewAllAsText?: boolean
   /** @deprecated 已并入 allowViewEditAllFiles，保留以兼容旧配置读取 */
   allowEditAllFiles?: boolean
+  /** 查看/编辑器是否显示行号（默认 true） */
+  showTextLineNumbers: boolean
+  /** 查看器自绘插入光标形状（默认 beam）；编辑器为系统原生光标，不受此项影响 */
+  textCaretShape: CaretShape
   /** 面板内置操作快捷键：一动作可绑多个键（keys 为空数组 = 未绑定即禁用；enabled=false 为清除双保险标志）。
    *  鼠标侧键以 Mouse3（后退）/Mouse4（前进）混存于 keys 中，与键盘键同等参与匹配。 */
   panelHotkeys: {
@@ -92,6 +114,8 @@ export interface SftpPlusPluginConfig {
   }
   /** 右键文件菜单项的显示顺序（数据驱动渲染，按此数组顺序过滤可见项） */
   contextMenuOrder: string[]
+  /** ★ 2026-09-28：被停用的右键菜单项集合（含文件动作 + 分组依据 groupBy；groupToggleAll 已并入分组依据子菜单，不再是独立项） */
+  contextMenuDisabled: string[]
   singleWorkspaceInstance: boolean
   /** 兼容选项：选中书签后自动关闭整个浮动面板 */
   closeBookmarkPanelOnSelect: boolean
@@ -105,10 +129,8 @@ export interface SftpPlusPluginConfig {
   transferUploadConcurrency: number
   /** 同时进行的下载数上限（1-10，默认 3）：顶层条目之间与目录内文件级均受此限制 */
   transferDownloadConcurrency: number
-  /** ★ 2026-08-11：快速模式：目录传输跳过预扫描直接开传（无百分比进度） */
-  transferFastMode: boolean
-  /** ★ 2026-08-28：启用 tar 打包通道加速文件夹传输（全新传输且服务端支持时自动生效） */
-  transferTarAcceleration: boolean
+  /** ★ 2026-09-28：传输通道模式（smart 智能 / sftpOnly 仅SFTP / tarOnly 仅TAR / preferSftp 优先SFTP / preferTar 优先TAR） */
+  transferChannelMode: string
   /** 默认上传路径（远程目标目录）；空串 = 使用当前远程目录 */
   defaultUploadPath: string
   /** 默认下载路径（本地目标目录）；空串 = 使用当前本地目录 */
@@ -165,8 +187,11 @@ export function defaultSftpPlusConfig(): SftpPlusPluginConfig {
     openUnsupportedInSystem: true,
     editableFileExtensions: [],
     allowViewEditAllFiles: false,
+    showTextLineNumbers: true,
+    textCaretShape: 'beam',
     panelHotkeys: defaultPanelHotkeys(),
     contextMenuOrder: ['upload', 'download', 'openLocal', 'viewFile', 'editFile', 'revealInExplorer', 'copy', 'cut', 'paste', 'rename', 'delete', 'chmod', 'details', 'newFolder', 'newFile', 'refresh', 'selectAll', 'selectInvert', 'copyPath'],
+    contextMenuDisabled: [],
     singleWorkspaceInstance: true,
     closeBookmarkPanelOnSelect: false,
     bookmarkPanelGroupByScope: true,
@@ -174,8 +199,7 @@ export function defaultSftpPlusConfig(): SftpPlusPluginConfig {
     dateFormat: '',
     transferUploadConcurrency: 3,
     transferDownloadConcurrency: 3,
-    transferFastMode: false,
-    transferTarAcceleration: true,
+    transferChannelMode: 'smart',
     defaultUploadPath: '',
     defaultDownloadPath: '',
     iconResourceDir: '',
@@ -191,7 +215,8 @@ export function defaultSftpPlusConfig(): SftpPlusPluginConfig {
     paneHiddenItems: [],
     bookmarks: [],
     // ★ 2026-09-14 F1 审计修复：pathMemory 仅作老备份导出/导入兼容字段保留（业务无写入方，勿删）
-    pathMemory: {},
+    // ★ 2026-09-20 N4 审计修复：与 paneState 同款 __nonStructural 标记，避免嵌套写入静默不落盘的同类陷阱
+    pathMemory: { __nonStructural: true } as Record<string, any>,
     transferLogs: [],
     // ★ 2026-09-14 F1 审计修复：__nonStructural 标记让 ConfigProxy 把空对象按「非结构成员」处理——
     //   首次读取（real 无值）时执行 real[key]=clone 并剥离标记（Tabby 官方自举模式），

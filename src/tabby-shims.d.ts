@@ -3,8 +3,9 @@
  * 功能描述：为 tabby-core、tabby-terminal、tabby-settings 提供最小类型声明
  * 创建人：DD1024z + Claude
  * 创建时间：2026-06-21
- * 修改人：DD1024z + Claude
- * 修改时间：2026-06-22
+ * 修改人：DD1024z + Hy3
+ * 修改时间：2026-09-24 — PlatformService 补充 getAppVersion/getOSRelease/openExternal 声明；
+ *              新增 HostAppService（反馈预填环境信息需要宿主平台名）
  */
 
 // tabby-core 导出声明
@@ -114,6 +115,13 @@ declare module 'tabby-core' {
   }
   export class PlatformService {
     // 平台相关方法
+    getAppVersion(): string
+    getOSRelease(): string
+    openExternal(url: string): void
+  }
+  /** 宿主平台信息（platform: 'Windows' | 'macOS' | 'Linux' | 'Web'） */
+  export class HostAppService {
+    get platform(): string
   }
   export class ProfilesService {
     // 配置文件相关方法

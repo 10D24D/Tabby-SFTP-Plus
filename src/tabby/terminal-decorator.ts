@@ -4,8 +4,13 @@
  *   完全参照 tabby-sftp-ui-next 的已验证实现模式
  * 创建人：DD1024z + Claude
  * 创建时间：2026-06-21
- * 修改人：DD1024z + Hy3
- * 修改时间：2026-07-25
+ * 修改人：DD1024z + Deepseek-V4.1-Flash
+ * 修改时间：2026-09-25 — 第七轮审计修复：① 隐藏原生 SFTP 按钮改为只扫描已知工具栏容器
+ *              （不再全 document 扫描，防误隐藏其它插件/设置页里含 <span>SFTP</span> 的按钮）；
+ *              ② 多段补扫定时器改数组统一清理（原单槽重入会丢后续段落、dispose 只清一段）；
+ *              ③ _mapCfgToNewPath 原先指向并不存在的 ui/* 子树（死映射），改回真实根级键
+ *              2026-09-25 — 工具栏按钮「打开」态高亮由蓝色底改为与「最小化」同款浅灰蓝配色（浅底 + 1px 边框），
+ *              仅以边框实线(solid)/虚线(dashed)区分；三态：打开=灰蓝实线 / 最小化=灰蓝虚线 / 关闭=默认
  */
 import { Injectable, Injector, ComponentFactoryResolver, ApplicationRef, NgZone, Optional } from '@angular/core'
 import { TerminalDecorator } from 'tabby-terminal'
@@ -20,6 +25,50 @@ import { log } from '../services/sftp-logger'
 /** SVG 文件夹图标 */
 const FOLDER_SVG = '<svg viewBox="0 0 1024 1024" width="14" height="14" fill="currentColor" style="vertical-align:middle"><path d="M120 344h291.6l112-112H736v224h56V176H500.4l-112 112H64v560l56-130.6z"/><path d="M792 456H232L120 717.4 64 848h728l168-392z"/></svg>'
 
+/**
+ * 工具栏按钮状态样式（一次性注入）
+ * 三态：打开 = 浅灰蓝底 + 实线边框 ；最小化 = 同款浅灰蓝底 + 虚线边框 ；关闭 = 默认无高亮
+ */
+let _toolbarBtnStateStyleInjected = false
+function ensureToolbarBtnStateStyle(): void {
+  if (_toolbarBtnStateStyleInjected) return
+  _toolbarBtnStateStyleInjected = true
+  try {
+    if (document.querySelector('style[data-sftp-plus="toolbar-btn-state"]')) return
+    const style = document.createElement('style')
+    style.setAttribute('data-sftp-plus', 'toolbar-btn-state')
+    style.textContent = `
+      /* 打开态：与最小化同款浅灰蓝配色，仅边框为实线（最小化是虚线）——降低面板打开时的高亮强度 */
+      button[data-tabby-sftp-plus-button="1"].sftp-plus-btn-open {
+        color: #64748b !important;
+        background: rgba(100, 116, 139, 0.10) !important;
+        border: 1px solid rgba(100, 116, 139, 0.55) !important;
+        border-radius: 4px;
+        opacity: 0.92;
+      }
+      button[data-tabby-sftp-plus-button="1"].sftp-plus-btn-open:hover {
+        color: #475569 !important;
+        background: rgba(100, 116, 139, 0.18) !important;
+        border-color: rgba(71, 85, 105, 0.7) !important;
+        opacity: 1;
+      }
+      button[data-tabby-sftp-plus-button="1"].sftp-plus-btn-minimized {
+        color: #64748b !important;
+        background: rgba(100, 116, 139, 0.10) !important;
+        border: 1px dashed rgba(100, 116, 139, 0.55) !important;
+        border-radius: 4px;
+        opacity: 0.92;
+      }
+      button[data-tabby-sftp-plus-button="1"].sftp-plus-btn-minimized:hover {
+        color: #475569 !important;
+        background: rgba(100, 116, 139, 0.18) !important;
+        border-color: rgba(71, 85, 105, 0.7) !important;
+        opacity: 1;
+      }
+    `
+    document.head.appendChild(style)
+  } catch { /* ignore */ }
+}
 /**
  * 跨插件共享的浮动层置顶计数器。
  * SFTP+ 与 QuickCmd+ 共用 window.__tabbyFloatZ，保证"最后打开 / 获得焦点的面板"始终在最上层，
@@ -42,7 +91,15 @@ function bringFloatToFront(el: HTMLElement): void {
 export class SftpTerminalDecorator extends TerminalDecorator {
   private _hideStyleEl: HTMLStyleElement | null = null
   private _hideObserver: MutationObserver | null = null
-  private _hideNativeTimer: any = null
+  /** ★ 2026-09-25 P2-3 修复：多段补扫的全部待触发定时器（原为单槽 —— 重入时只 clear 当前段，
+   *   后续段落被丢弃；dispose 也只清得掉一段）。改为数组，重排/销毁时统一清空。
+   * @修改人：DD1024z + Deepseek-V4.1-Flash @修改时间：2026-09-25 */
+  private _hideNativeTimers: ReturnType<typeof setTimeout>[] = []
+  /** ★ 2026-09-25 P2-2 修复：已注入 SFTP+ 按钮的工具栏容器集合。
+   *   隐藏原生 SFTP 按钮只在这些容器内扫描（不再全 document 扫描），
+   *   避免误隐藏其它插件/设置页里恰好含 `<span>SFTP</span>` 的按钮。
+   * @修改人：DD1024z + Deepseek-V4.1-Flash @修改时间：2026-09-25 */
+  private _toolbars = new Set<ParentNode>()
   private static _hotkeySubscribed = false
   private static _hotkeySub: { unsubscribe(): void } | null = null
   private sftpConfig: SftpConfigService | null = null
@@ -199,12 +256,19 @@ export class SftpTerminalDecorator extends TerminalDecorator {
       onClose()
       return
     }
+    // ★ 2026-09-21 P2 修复：destroy 兜底路径此前漏了 stopRectSync / resizeCleanup——
+    //   rAF 同步循环与 window resize 监听（含 suppress-transition 类）会随面板关闭泄漏
+    try { (hostEl as any).__sftpPlusStopRectSync?.() } catch { /* ignore */ }
+    try { delete (hostEl as any).__sftpPlusStopRectSync } catch { /* ignore */ }
+    try { (hostEl as any).__sftpPlusResizeCleanup?.() } catch { /* ignore */ }
+    try { delete (hostEl as any).__sftpPlusResizeCleanup } catch { /* ignore */ }
     try { cmpRef?.destroy() } catch { /* ignore */ }
     try { (hostEl as any).__sftpPlusOverlay?.remove() } catch { /* ignore */ }
     try { delete (hostEl as any).__sftpPlusOpen } catch { /* ignore */ }
     try { delete (hostEl as any).__sftpPlusMinimized } catch { /* ignore */ }
     try { delete (hostEl as any).__sftpPlusOverlay } catch { /* ignore */ }
     try { delete (hostEl as any).__sftpPlusCmpRef } catch { /* ignore */ }
+    this._syncToolbarBtnState(hostEl)
   }
 
   override attach(terminal: any): void {
@@ -234,9 +298,19 @@ export class SftpTerminalDecorator extends TerminalDecorator {
 
         const container = findToolbar()
         if (!container) return false
+        // ★ 2026-09-25 P2-2：登记该终端工具栏——隐藏原生按钮只在这些容器内扫描
+        this._toolbars.add(container)
 
         // Already injected?
-        if (container.querySelector('[data-tabby-sftp-plus-button="1"]')) {
+        const existingBtn = container.querySelector('[data-tabby-sftp-plus-button="1"]') as HTMLButtonElement | null
+        if (existingBtn) {
+          try {
+            const he = this._resolveHostEl(terminal)
+            if (he) {
+              ;(he as any).__sftpPlusBtn = existingBtn
+              this._syncToolbarBtnState(he)
+            }
+          } catch { /* ignore */ }
           return true
         }
 
@@ -250,6 +324,16 @@ export class SftpTerminalDecorator extends TerminalDecorator {
         btn.style.pointerEvents = 'auto'
         btn.style.zIndex = '10'
         btn.style.position = 'relative'
+        ensureToolbarBtnStateStyle()
+
+        // 记住按钮，便于开/关/最小化时同步高亮状态
+        try {
+          const he = this._resolveHostEl(terminal)
+          if (he) {
+            ;(he as any).__sftpPlusBtn = btn
+            this._syncToolbarBtnState(he)
+          }
+        } catch { /* ignore */ }
 
         btn.addEventListener('mousedown', (ev: MouseEvent) => {
           ev.stopPropagation()
@@ -299,9 +383,8 @@ export class SftpTerminalDecorator extends TerminalDecorator {
         // 工具栏重建后补一次隐藏（不依赖全局 Observer）
         if (this._shouldHideNativeBtn()) {
           this._hideNativeBtnsOnce(container)
-          // 延迟二次隐藏：原生 SFTP 按钮可能在 SFTP+ 注入之后才被其插件创建，
-          // 一次扫描会漏掉 → 稍后补扫一次（防偶发漏隐藏）
-          this._scheduleHideNativeBtns(container)
+          // session.open 后 *ngIf 才挂载原生按钮；多段补扫避免漏隐藏
+          this._scheduleHideNativeBtns(container, [0, 300, 1000, 2500])
         }
 
         // 监听 SSH 会话断开事件：断开后禁用 SFTP+ 入口按钮
@@ -356,10 +439,10 @@ export class SftpTerminalDecorator extends TerminalDecorator {
               log.info('Button removed from toolbar, re-injecting...')
               tryInsert()
             }
-            // 工具栏 DOM 变化（如 reconnect / 焦点切换重建）可能重新创建原生 SFTP 按钮
-            // → 防抖后补扫一次隐藏（仅观察单个工具栏，不挂 document.body，避免卡死）
+            // 工具栏 DOM 变化（如 reconnect / session.open）可能重新创建原生 SFTP 按钮
             if (this._shouldHideNativeBtn()) {
-              this._scheduleHideNativeBtns(container)
+              this._hideNativeBtnsOnce(container)
+              this._scheduleHideNativeBtns(container, [300, 1000])
             }
           })
           obs.observe(container, { childList: true, subtree: true })
@@ -402,6 +485,7 @@ export class SftpTerminalDecorator extends TerminalDecorator {
           try { delete (hostEl as any).__sftpPlusMinimized } catch { /* ignore */ }
           try { delete (hostEl as any).__sftpPlusOverlay } catch { /* ignore */ }
           try { delete (hostEl as any).__sftpPlusCmpRef } catch { /* ignore */ }
+          this._syncToolbarBtnState(hostEl)
         })
         log.info('Panel destroyed on terminal detach')
       }
@@ -447,39 +531,34 @@ export class SftpTerminalDecorator extends TerminalDecorator {
     return value
   }
 
-  /** 映射 config 旧 key → SftpConfigService 新路径 */
+  /** 映射 config key → SftpConfigService 读取路径（相对 store['tabby-sftp-plus'] 根）
+   *  ★ 2026-09-25 P3-2 修复：原先映射到并不存在的 `ui/*` 子树（defaults 无 ui 节点），
+   *  该路径恒读不到值 → 死映射，只能靠 _readBoolConfig 的根级 fallback 兜。改为直接映射
+   *  真实根级键（设置页写入的也是这些键），让统一配置服务读到实时值。
+   * @修改人：DD1024z + Deepseek-V4.1-Flash @修改时间：2026-09-25 */
   private _mapCfgToNewPath(cfgKey: string): string | null {
     const map: Record<string, string> = {
-      openInNewTabByDefault: 'ui/openInNewTabByDefault',
-      singleWorkspaceInstance: 'ui/singleWorkspaceInstance',
-      hideNativeSFTPButton: 'ui/hideNativeSFTPButton',
+      openInNewTabByDefault: 'openInNewTabByDefault',
+      singleWorkspaceInstance: 'singleWorkspaceInstance',
+      hideNativeSFTPButton: 'hideNativeSFTPButton',
     }
     return map[cfgKey] || null
   }
 
   /**
    * 读取配置，注入/移除隐藏原生 SFTP 按钮的 CSS 规则
-   * 读取配置，注入/移除隐藏原生 SFTP 按钮的 CSS 规则
    *
    * 注意：不要对 document.body 挂 MutationObserver 全页扫 button。
    * Hotkeys 等设置页 DOM 极重，会触发连环回调导致页面卡死（issue #3）。
    * 主要靠 CSS；仅在应用规则 / 工具栏注入时做一次轻量兜底。
+   *
+   * Tabby 原生按钮（tabby-ssh/sshTab.component.pug）形态为：
+   *   button.btn.btn-link > i.fa-folder-open + span "SFTP"
+   * 无 title、无 data-tabby-sftp-ui-button —— 旧 CSS 只靠这两项会完全失效；
+   * JS 若用整段 textContent === 'sftp'，又会被图标字体 glyph 污染而匹配失败。
    */
   private _applyNativeBtnHideRule(): void {
-    let hide = false
-    let fromConfig = false
-    if (this.config?.store) {
-      try {
-        const cfgVal = this.config.store['tabby-sftp-plus']?.hideNativeSFTPButton
-        if (cfgVal !== undefined) { hide = cfgVal; fromConfig = true }
-      } catch {}
-    }
-    if (!fromConfig) {
-      try {
-        const raw = localStorage.getItem('sftp-plus-settings.hideNativeBtn')
-        if (raw) hide = JSON.parse(raw)
-      } catch {}
-    }
+    const hide = this._shouldHideNativeBtn()
 
     // 确保旧版 body Observer 被拆除（修复升级后仍卡死）
     if (this._hideObserver) {
@@ -492,14 +571,20 @@ export class SftpTerminalDecorator extends TerminalDecorator {
         this._hideStyleEl = document.createElement('style')
         this._hideStyleEl.setAttribute('data-sftp-plus-hide-native', '1')
         this._hideStyleEl.textContent = `
+          /* 第三方插件标记 / 我们打上的隐藏标记（!important 防止 Angular 清掉 inline style） */
           button[data-tabby-sftp-ui-button],
-          button[title="SFTP" i] {
+          button[data-sftp-plus-hidden-native="1"],
+          button[title="SFTP"],
+          button[title="sftp"] {
             display: none !important;
           }
         `
         document.head.appendChild(this._hideStyleEl)
       }
+      // ★ 2026-09-25 P2-2 修复：只扫描已知工具栏容器（不再全 document 扫描）
       this._hideNativeBtnsOnce()
+      // session.open 后 *ngIf 才挂载原生按钮：对全部已知工具栏多段补扫，避免只扫到空工具栏
+      this._scheduleHideNativeBtns(null, [0, 300, 1000, 2500])
     } else {
       if (this._hideStyleEl && document.head.contains(this._hideStyleEl)) {
         this._hideStyleEl.remove()
@@ -514,63 +599,108 @@ export class SftpTerminalDecorator extends TerminalDecorator {
     }
   }
 
-  /** 一次性隐藏当前已存在的原生 SFTP 按钮（不挂全局 Observer） */
-  private _hideNativeBtnsOnce(root: ParentNode = document): void {
+  /**
+   * 判断是否为应隐藏的「原生 / 第三方」SFTP 工具栏按钮（排除 SFTP+ 自身）
+   * Tabby 官方：span 文案恰为 SFTP，常伴 fa-folder-open；无 title / data-*。
+   */
+  private _isNativeSftpToolbarButton(el: HTMLElement): boolean {
+    if (el.getAttribute('data-tabby-sftp-plus-button') === '1') return false
+    if (el.hasAttribute('data-tabby-sftp-ui-button')) return true
+
+    const title = (el.getAttribute('title') || el.getAttribute('aria-label') || '').trim().toLowerCase()
+    if (title === 'sftp') return true
+
+    // 优先读可见 span 文案（官方 sshTab：<span>SFTP</span>），避开图标字体污染整段 textContent
+    const spanLabels = Array.from(el.querySelectorAll('span'))
+      .map(s => (s.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase())
+      .filter(Boolean)
+    if (spanLabels.some(t => t === 'sftp')) return true
+
+    const text = (el.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase()
+    if (text === 'sftp') return true
+    // 图标 glyph + "SFTP"：要求含 folder 图标且文案里有独立 sftp 单词、且不是 SFTP+
+    if (
+      !text.includes('sftp+') &&
+      /(^|[^a-z0-9+])sftp([^a-z0-9+]|$)/i.test(text) &&
+      !!el.querySelector('.fa-folder-open, .fa-folder')
+    ) {
+      return true
+    }
+    return false
+  }
+
+  /** 已知工具栏容器，顺带剔除已脱离文档的（关闭 tab 后避免残留引用） */
+  private _liveToolbars(): ParentNode[] {
+    const out: ParentNode[] = []
+    for (const tb of this._toolbars) {
+      if ((tb as unknown as { isConnected?: boolean }).isConnected === false) {
+        this._toolbars.delete(tb)
+        continue
+      }
+      out.push(tb)
+    }
+    return out
+  }
+
+  /** 一次性隐藏原生 SFTP 按钮（不挂全局 Observer）。
+   *  ★ 2026-09-25 P2-2 修复：缺省只在已知工具栏容器内扫描——不再全 document 扫描，
+   *  避免误隐藏其它插件/设置页里恰好含 `<span>SFTP</span>` 的按钮。 */
+  private _hideNativeBtnsOnce(root?: ParentNode): void {
     try {
-      root.querySelectorAll<HTMLElement>('button').forEach(el => {
-        if (el.getAttribute('data-tabby-sftp-plus-button') === '1') return
-        if (el.getAttribute('data-sftp-plus-hidden-native') === '1') return
-        const title = (el.title || '').toLowerCase()
-        const text = (el.textContent || '').trim().toLowerCase()
-        // 属性存在即隐藏（对齐 CSS 的 button[data-tabby-sftp-ui-button] 属性选择器，
-        // 覆盖任意取值，避免原生 SFTP 按钮用非 1/true 的值时漏隐藏）
-        const hasNativeAttr = el.hasAttribute('data-tabby-sftp-ui-button')
-        if (hasNativeAttr || title === 'sftp' || text === 'sftp') {
+      const roots: ParentNode[] = root ? [root] : this._liveToolbars()
+      for (const r of roots) {
+        r.querySelectorAll<HTMLElement>('button').forEach(el => {
+          if (el.getAttribute('data-sftp-plus-hidden-native') === '1') return
+          if (!this._isNativeSftpToolbarButton(el)) return
           el.style.display = 'none'
           el.setAttribute('data-sftp-plus-hidden-native', '1')
-        }
-      })
+        })
+      }
     } catch { /* ignore */ }
   }
 
   private _shouldHideNativeBtn(): boolean {
-    if (this.config?.store) {
-      try {
-        const cfgVal = this.config.store['tabby-sftp-plus']?.hideNativeSFTPButton
-        if (cfgVal !== undefined) return !!cfgVal
-      } catch {}
-    }
-    try {
-      const raw = localStorage.getItem('sftp-plus-settings.hideNativeBtn')
-      if (raw) return !!JSON.parse(raw)
-    } catch {}
-    return false
+    return this._readBoolConfig('hideNativeSFTPButton', 'sftp-plus-settings.hideNativeBtn', false)
   }
 
   /**
-   * 防抖补扫：工具栏 DOM 变化（reconnect / 焦点切换重建）可能晚于 SFTP+ 注入
-   * 才创建原生 SFTP 按钮，一次性扫描会漏 → 延迟一小段时间再补扫一次隐藏。
-   * 仅观察单个工具栏容器（由调用方传入），不挂 document.body，避免之前的全页 MutationObserver 卡死问题。
+   * 防抖/多段补扫：工具栏 DOM 变化（reconnect / session.open 后 *ngIf 挂载）可能晚于 SFTP+ 注入
+   * 才创建原生 SFTP 按钮，一次性扫描会漏。
+   * 仅观察调用方传入的容器（或 document），不挂 document.body 的持续 MutationObserver。
    */
-  private _scheduleHideNativeBtns(container: ParentNode | null): void {
-    if (!container) return
-    if (this._hideNativeTimer) {
-      clearTimeout(this._hideNativeTimer)
+  /** 清空全部在途补扫定时器（重排 / 销毁时调用） */
+  private _clearHideNativeTimers(): void {
+    for (const t of this._hideNativeTimers) {
+      try { clearTimeout(t) } catch { /* ignore */ }
     }
-    this._hideNativeTimer = setTimeout(() => {
-      this._hideNativeTimer = null
-      try {
-        this._hideNativeBtnsOnce(container)
-      } catch { /* ignore */ }
-    }, 300)
+    this._hideNativeTimers = []
+  }
+
+  /**
+   * 防抖/多段补扫：延迟后对目标补扫一次隐藏。
+   * container 缺省（null）＝对全部已知工具栏补扫（设置变更时用）。
+   * ★ 2026-09-25 P2-3 修复：定时器改数组统一管理——原单槽实现里，新一次调度只 clear
+   *   当前那一段，`runAt(index+1)` 的后续段落就被永久丢弃，且 dispose 只清得掉一段。
+   */
+  private _scheduleHideNativeBtns(container: ParentNode | null = null, delays: number[] = [300]): void {
+    this._clearHideNativeTimers()
+    const runAt = (index: number): void => {
+      if (index >= delays.length) return
+      const wait = Math.max(0, delays[index])
+      const t = setTimeout(() => {
+        try {
+          if (this._shouldHideNativeBtn()) this._hideNativeBtnsOnce(container ?? undefined)
+        } catch { /* ignore */ }
+        runAt(index + 1)
+      }, wait)
+      this._hideNativeTimers.push(t)
+    }
+    runAt(0)
   }
 
   /** 服务销毁时清理定时器 */
   ngOnDestroy(): void {
-    if (this._hideNativeTimer) {
-      clearTimeout(this._hideNativeTimer)
-      this._hideNativeTimer = null
-    }
+    this._clearHideNativeTimers()
   }
 
   /**
@@ -761,6 +891,7 @@ export class SftpTerminalDecorator extends TerminalDecorator {
             try { delete (hostEl as any).__sftpPlusMinimized } catch { /* ignore */ }
             try { delete (hostEl as any).__sftpPlusOverlay } catch { /* ignore */ }
             try { delete (hostEl as any).__sftpPlusCmpRef } catch { /* ignore */ }
+            this._syncToolbarBtnState(hostEl)
           })
         }
 
@@ -769,11 +900,13 @@ export class SftpTerminalDecorator extends TerminalDecorator {
             overlay.style.display = 'none'
             ;(hostEl as any).__sftpPlusMinimized = true
             cmp.minimized = true
+            this._syncToolbarBtnState(hostEl)
           })
         }
 
         this.appRef.attachView(cmpRef.hostView)
         cmpRef.changeDetectorRef.detectChanges()
+        this._syncToolbarBtnState(hostEl)
 
         // 非模态：遮罩 pointer-events:none，点面板外部事件直接穿透到下方终端，
         // 终端自然获得光标焦点、可操作连接配置。
@@ -811,8 +944,44 @@ export class SftpTerminalDecorator extends TerminalDecorator {
       if (cmpRef?.instance) {
         cmpRef.instance.minimized = false
       }
+      this._syncToolbarBtnState(hostEl)
       log.info('Panel restored from minimized state')
     }
+  }
+
+  /**
+   * 同步工具栏 SFTP+ 按钮视觉状态
+   * - 关闭：默认（无高亮）
+   * - 打开：灰蓝 + 实线边框（与最小化同款配色，仅以实线区分；刻意压低高亮强度，避免抢眼）
+   * - 最小化：灰蓝 + 虚线边框（表示面板仍在、但已收起，一点击可恢复）
+   */
+  private _syncToolbarBtnState(hostEl: HTMLElement): void {
+    try {
+      ensureToolbarBtnStateStyle()
+      let btn = (hostEl as any).__sftpPlusBtn as HTMLButtonElement | null
+      if (!btn || !btn.isConnected) {
+        btn = hostEl.querySelector?.('[data-tabby-sftp-plus-button="1"]') as HTMLButtonElement | null
+        if (btn) (hostEl as any).__sftpPlusBtn = btn
+      }
+      if (!btn) return
+
+      btn.classList.remove('sftp-plus-btn-open', 'sftp-plus-btn-minimized')
+      if (btn.disabled) return
+
+      const open = !!(hostEl as any).__sftpPlusOpen
+      const minimized = !!(hostEl as any).__sftpPlusMinimized
+      if (!open) {
+        btn.title = 'SFTP+'
+        return
+      }
+      if (minimized) {
+        btn.classList.add('sftp-plus-btn-minimized')
+        btn.title = 'SFTP+（已最小化，点击恢复）'
+      } else {
+        btn.classList.add('sftp-plus-btn-open')
+        btn.title = 'SFTP+（已打开，点击关闭）'
+      }
+    } catch { /* ignore */ }
   }
 
   private openWorkspaceTab(terminal: any): void {

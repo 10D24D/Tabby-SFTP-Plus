@@ -2,18 +2,154 @@
  * SFTP+ 设置面板
  * 功能描述：在 Tabby 设置左侧栏注册 SFTP+ 配置入口（语言、主题、布局、其它、数据、关于）
  *   支持双存储模式：Tabby 配置（config.yaml）或 浏览器缓存（localStorage）
- * 创建人：DD1024z + Hy3 preview
- * 创建时间：2026-06-21
- * 修改人：DD1024z + Composer
- * 修改时间：2026-09-18 — 定制书签面板开关变更后 notifyPanels，面板即时生效
+ * @创建人：DD1024z + Hy3 preview
+ * @创建时间：2026-06-21
+ * @修改人：DD1024z + Deepseek-V4.1-Flash
+ * @修改时间：2026-09-29 — 导出数据改为「按配置类别可勾选」：点「导出数据」先弹出勾选弹窗
+ *              （界面与外观 / 面板与行为 / 传输与冲突 / 书签与记录 / 图标与文件类型，默认全选、
+ *              可一键全选·全不选、一类未勾时禁用导出按钮），未勾选的类别**完全不写入** JSON。
+ *              安全性来自导入侧的「字段不存在 = 不覆盖」语义 —— 所以「只导外观」的备份导入时
+ *              不会清空书签、路径记忆与传输日志。类别→字段映射见 EXPORT_CATEGORY_FIELDS：
+ *              ⚠ 新增配置项必须同步登记，否则该字段永远不会被导出（探针会逐键核对）。
+ *              ★ 同日二次调整（用户：主要是传输记录要拆出来，其余按设置界面的分类来）：
+ *              类别由 5 项改为 9 项，**逐项对齐设置页自己的分区标题与顺序** ——
+ *              语言 / 主题 / 布局 / 对象图标 / 其它 / 传输设置 / 快捷键 / 数据 / 传输记录；
+ *              「传输记录」(transferLogs) 从原「书签与记录」拆出**独立成项**（它是历史日志、
+ *              体积通常最大，备份诉求与其他配置不同）；「数据」项只留书签/路径记忆/面板状态。
+ *              类别名直接复用设置页分区标题的 key（settings.language/theme/layout/iconSettings/
+ *              other/transferSection/hotkeys/data + transfer.log）⇒ 本次**不新增任何 i18n key**，
+ *              并清掉了上一轮为旧分类新增的 5 个 exportCat* key（24 份 .po 同步移除）。
+ *              类别增至 9 项 → 新增 .ss-export-list 列表内滚（max-height min(58vh,520px)，常规窗口下 9 行完整可见），
+ *              底部按钮不被顶出屏幕。
+ *              ★ 同日三次调整（用户：数据改叫「书签数据」、快捷键不要子标题、滚动条对齐 SFTP+ 面板）：
+ *              ① 第 8 项类别名由设置页的「数据」(settings.data) 换为新 key settings.exportCatBookmarkData
+ *                 （书签数据）—— settings.data 仍被设置页分区标题引用，不能改译文，故另起 key（新增 24 语言 × 1）；
+ *                 该项子标题「书签」随之删除（名称已含「书签」）。
+ *              ② 「快捷键」项子标题（settings.hotkey）删除 —— 该类只含一项内容，子描述纯冗余。
+ *              ③ .ss-export-list 滚动条对齐面板 .sftp-root .pane-list 规格（8px / 圆角 4px /
+ *                 三档灰度 0.06·0.28·0.45、按住主色 + Firefox scrollbar-width/color）。
+ *                 ⚠ 数值取面板 `:host` 变量定义的**实际生效值**，不是面板 CSS 里
+ *                 `var(--_scroll-thumb, rgba(...,0.35))` 那组兜底值（变量始终有定义，兜底轮不到）；
+ *                 面板 --_scroll-* 为 :host 私有变量，设置页取不到 ⇒ 写字面值，主色取 --primary-color。
+ *              ④ 底部按钮顺序**维持原样**（主操作在左、取消在右）：用户先问「取消不是在左边吗」，随后自行确认
+ *                 「取消好像就是在右边」，故不做变更；该顺序也与面板内各对话框、设置页其余三个确认弹窗一致。
+ *              ★ 同日四次修复（用户：为什么已经清空数据了，结果似乎还有残留的数据？）：
+ *              doClearData 原实现是单层裸循环 `target[k] = defaults[k]`，在第 23 个键 panelHotkeys
+ *              （ConfigProxy 的**结构成员** —— 非空对象 ⇒ 只有 getter 没有 setter）处抛 TypeError
+ *              → 整个循环中断，其后的 contextMenuOrder / 传输设置 / 图标 / 冲突摘要 / 书签 / 路径记忆 /
+ *              面板状态 / 传输日志 / 面板几何**全部没被清掉**；异常还被最外层 catch 吞掉，连带跳过
+ *              localStorage 清理、界面刷新与提示 —— 用户看到的「点了清空但还有残留」即此。
+ *              现：① localStorage 先清；② config 逐键独立 try/catch（单键失败不牵连其余）+ 新增
+ *              `_resetConfigKey()` 对结构成员递归到叶子赋值；③ 补清 Tabby 级 store.hotkeys 里的
+ *              「面板开关快捷键」（不在插件子树内，旧实现完全漏掉）；④ 无论 config 侧是否出错都刷新
+ *              界面并通知面板，失败时把未清干净的键名附在提示里（正常路径不会走到）。
+ *              配套读侧修复：清空后磁盘上 panelHotkeys 会留 `{delete:{}}` 空壳（结构成员的叶子值等于
+ *              默认值时会 ConfigProxy 清洗掉）→ _readFromConfig 原先会把空壳读成「未绑定」，现改为
+ *              「keys/key 与 enabled 双双缺省 ⇒ 保留默认绑定」，避免清空后 Delete/F2/F5 显示成未绑定。
+ *              探针 .workbuddy/verify/clear-data-residual-probe.cjs（37 项；含用宿主机真实 ConfigProxy
+ *              复现「旧写法残留 28 键 vs 新写法残留 0 键」的对照实验）。
+ *              ★ 同日五次调整（用户：定制右键菜单的边框像定制工具栏那样，使用虚线边框）：
+ *              .ss-menu-row 边框由 1px solid rgba(128,128,128,0.25) 改为
+ *              1px dashed rgba(128,128,128,0.35) —— 与「定制工具栏」的 .ss-layout-chip 同规格
+ *              （同虚线、同灰度），行背景/圆角/内距与拖拽手柄保持不变。
+ *              探针 .workbuddy/verify/settings-menu-row-border-probe.cjs（同时锁死与 .ss-layout-chip 的
+ *              虚线规格一致性，避免日后单边改动导致两块视觉分叉）。
+ *              ★ 同日六次调整（用户：定制工具栏的行高可以对齐定制右键菜单的）：
+ *              .ss-layout-chip 垂直内距 7px → 4px（与 .ss-menu-row 的 4px 一致）⇒ 两块行框**精确等高**。
+ *              依据：无头浏览器量测 .workbuddy/verify/settings-row-height-bench.html ——
+ *              line-height:2 环境下菜单行 34.0px、chip 改前 40.0px、改后 34.0px（34px 与用户截图实测吻合）；
+ *              normal 环境下 26.0 / 32.0 / 26.0 ⇒ 差值恒为 6px，**与宿主 line-height 无关**。
+ *              本质条件：两块内容盒同高（同字号 + 同 14px 复选框）⇒ 只要垂直内距相同就必然等高
+ *              （所以不硬写 height，避免字体/缩放变化后失配）。
+ *              ⚠ 量测坑：flex 容器默认 align-items:stretch 会把矮 chip 拉伸到同行最高者，
+ *              第一次量测因此得到「padding 4px 也是 40px」的假结果 —— 必须 flex-start 再量。
+ *              ★ 同日七次调整（用户：字号大小对齐 Tabby「窗口」菜单里的滑块、也是靠右显示的；
+ *              查看编辑器的光标对齐 Tabby 外观的光标形状）：
+ *              ① 「字号大小」滑块**整块靠右**：.ss-font-control 加 justify-content:flex-end，
+ *                 滑块宽度保持不变（仍 flex:1 + max-width:280px），「13px」落到行尾最右。
+ *                 另补两处让右边缘与其它行的控件**落在同一条竖线**上（无头量测 settings-right-align-bench.html）：
+ *                 .ss-font-row 补 padding-right:10px（与 .ss-toggle-row 的水平内距一致）；
+ *                 .ss-font-val 补 text-align:right（盒宽 36px > 文字 30px，左对齐会内缩 6px）。
+ *                 量测：改前「数值文字右边缘 594 vs 开关控件右边缘 590」（右探 4px）⇒ 改后两者均为 590，差 0。
+ *                 依据：Tabby 用 .form-line .header{margin-right:auto} 把控件
+ *                 顶到行尾（图1 实测「间隔」滑块右边缘 x=1065px 与「窗口框架样式」按钮组右边缘
+ *                 x=1064px 重合 = 内容列右边界），故本插件同款处理。
+ *                 注：轨道 #111 / 4px、圆点 #aaa / 12px 由宿主全局 input[type=range] 样式提供，
+ *                 实测与 Tabby 的滑块逐字相同（截图取样 track 均为 rgb(17,17,17)、thumb 均 rgb(170,170,170)），
+ *                 故本次**不动滑块自身样式**，只改位置。
+ *              ② 「查看编辑器光标」由 range 滑块改为**图标按钮组**（形制对齐 Tabby 外观页的
+ *                 「光标形状」：btn-group + 方块字形按钮 █ │ ▁）；行仍是 .ss-toggle-row ⇒
+ *                 按钮组天然靠右。原「2px」数值不再单独渲染，改为各按钮 title。
+ *                 ⚠ 该按钮组的**档位语义**在同日九次调整里由「宽度 1–4px」改成「形状三档」，见下。
+ *              探针 .workbuddy/verify/settings-right-align-probe.cjs（靠右与形制）
+ *              ★ 同日八次调整（用户：快捷键的录制似乎无法录制滚轮的点击和上下滚动）：
+ *              面板快捷键录制新增「鼠标中键」与「滚轮上滚/下滚」两类**指针绑定**
+ *              （Mouse1 / WheelUp / WheelDown，可带修饰键如 Alt+WheelUp），且可绑到全部 15 个动作
+ *              （原鼠标侧键只在 back/forward 两个动作上生效）。两处关键实现：
+ *              ① 录制期对 wheel 必须用 `{ capture: true, passive: false }` —— window/document 上的
+ *                 wheel 监听默认 passive:true，此时 preventDefault() 是空操作（浏览器只打警告），
+ *                 设置页会跟着一起滚，录制框滑出视野；
+ *              ② 录制与匹配共用 hotkey-util 的 pointerSpecFromEvent()，同一构造口径 ⇒ 录得出来必然匹配得上。
+ *              裸滚轮（无修饰键）绑定会顶掉面板列表的滚动（要触发动作就必须吞掉默认滚动），
+ *              保存后明确提示，chip 悬停也有说明（新增 settings.hotkeyWheelHint /
+ *              settings.panelHotkeyWheelBareWarning 两个 key，24 语言）。
+ *              探针 .workbuddy/verify/panel-pointer-hotkey-probe.cjs
+ *              ★ 同日九次调整（用户：查看编辑器光标宽度「也许要改为查看编辑器光标形状了」，
+ *              像 Tabby 的光标形状一样三个选项三种形状；另把「定制书签面板」挪到「表格样式」上方、
+ *              「字体」挪到「表格样式」下方）：
+ *              ① 「查看编辑器光标」由**宽度 1–4px 四档**改为**形状三档**，与宿主逐字同源：
+ *                 取值 block / beam / underline（= Tabby 终端 store.terminal.cursor 的三档取值，
+ *                 见宿主 tabby-terminal 的 appearanceSettingsTab：id cursorBlock/cursorBeam/cursorUnderline），
+ *                 字形 █ │ ▁（照宿主外观页「光标形状」），仍靠右显示；行标签改为 settings.textCaretShape。
+ *                 存储：textCaretWidth(number) → textCaretShape('block'|'beam'|'underline')，默认 beam
+ *                 （与原 2px 竖线视觉一致；老配置里的宽度值不再读取）。
+ *                 配置链路共六处入口必须同步改名 —— 默认值/类型、设置页读写、导出快照、导入回写、
+ *                 EXPORT_CATEGORY_FIELDS 登记（漏登记 = 该项永远导不出去，探针 A 段锁键集严格相等）。
+ *                 旧 key settings.textCaretWidth / textCaretWidthHint 已从 24 语言 po 中删除
+ *                 （迁移脚本 scripts/add-caret-shape-i18n.mjs：删 2 个死 key、加 5 个形状文案 × 24 语言）。
+ *              ② 「布局」分区小节重排：定制工具栏 → 定制右键菜单 → 定制书签面板 → 表格样式 → 字体
+ *                 （改前：字体 → 定制工具栏 → 定制书签面板 → 定制右键菜单 → 表格样式）。
+ *                 前三块都是「面板内容定制」故集中相邻；表格样式与字体收尾。
+ *                 ⚠ 搬块时注意：小节由「标题容器 + 正文容器」两部分组成，按 8 空格缩进的 </div>
+ *                 切块会只切到标题容器 —— 必须确认正文（字号滑块行 / 书签分组开关 + 顺序 chips）一并搬走。
+ *              探针 .workbuddy/verify/caret-shape-probe.cjs（形状与配置链路）、
+ *              settings-layout-sections-probe.cjs（小节顺序与块完整性）
+ *              传输通道模式选项重排：「优先 TAR / 优先 SFTP」提到「仅 TAR / 仅 SFTP」之前
+ *              （用户：把优先的选项提一提、仅 XX 放后），顺序 = 智能 → 优先 TAR → 优先 SFTP → 仅 TAR → 仅 SFTP
+ *              同日：传输通道模式行布局与提示调整：
+ *              ① 该行原先漏了 ss-toggle-row 类 → 不是两端对齐布局、下拉框未靠右；补上后与并发数/开关行一致右对齐；
+ *              ② 新增 .ss-channel-select 固定宽 220px（默认 .ss-select 为 100%/max 280px，在两端对齐行里被撑满、与其它控件不协调）；
+ *              ③ 模式说明不再常驻显示在行下方（移除 <p class="ss-channel-desc"> 与 channelModeDesc()），
+ *                 改为各 <option> 的 title（悬停选项即显示该模式说明，i18n key 复用 settings.channelMode.*Desc）
+ *              2026-09-28 — 传输设置：原「TAR 打包加速」开关升级为「传输通道模式」五选一下拉
+ *              （smart/sftpOnly/tarOnly/preferSftp/preferTar）；transferChannelMode 字段替代 transferTarAcceleration，
+ *              加载/保存/导出/导入均迁移旧值（false→sftpOnly）；新增 saveChannelMode() 与 channelModeDesc()
+ *              2026-09-28 — 定制右键菜单改为复选框启用/停用 + 新增分组依据项；
+ *              同日修订：「展开/收起所有分组」已并入「分组依据」子菜单，从定制列表移除
+ *              （ContextMenuCustomId 不再含 groupToggleAll，历史配置残留值读取时丢弃）
+ *              2026-09-24 — 意见反馈拆分为「报告问题 / 提出需求」两个入口；两类模板均按界面语言路由中/英表单（新增 feature_request.yml / feature_request_en.yml，字段 id 与中文版一致）
+ *              2026-09-24 — 意见反馈模板按界面语言路由：中文用 bug_report.yml、其余语言用 bug_report_en.yml（新增英文版表单）
+ *              2026-09-24 — 修复反馈环境信息的 Windows 版本取不准：getOSRelease 给的是 NT 内核号（10.0.26200），
+ *              Win11 沿用该内核号故被误读成 Win10；改为按 build 反查市场版本名（Windows 11 25H2 (build 26200, x64)）
+ *              2026-09-24 — 意见反馈预填环境信息（issues/new?body=）：模板 + Version/Tabby/Platform/Frontend/Plugins，不含隐私字段
+ *              2026-09-21 — P2 修复：摘要大小上限统一经 _clampDigestMaxMB 约束到 [1,4096]MB ——
+ *              原先只判 >0，输入框的 max="4096" 只是 UI 提示，手动输入与配置导入都能写进极大值
+ *              2026-09-21 — 备份导入统一清洗书签、路径记忆与传输日志；
+ *              隐藏原生 SFTP 开关同步写入 localStorage，与装饰器双读一致
+ *              2026-09-20 — 面板热键支持打开/查看/编辑（默认未绑定）
+ *              2026-09-20 — A4 审计修复：ngOnDestroy 补 _teardownPanelHotkeyRecording（面板快捷键录制中关闭设置页会残留 window 捕获监听器且全局热键未恢复）
+ *              2026-09-20 — 面板热键绑定检测 Tabby 全局冲突（如 Alt+Enter=全屏）；属性等快捷键同步到右键菜单
+ *              2026-09-18 — 定制书签面板开关变更后 notifyPanels，面板即时生效
  */
 import { Component, Injectable, Optional, OnDestroy, Inject } from '@angular/core'
 import { SettingsTabProvider } from 'tabby-settings'
-import { ConfigService, HotkeysService } from 'tabby-core'
-import { defaultSftpPlusConfig } from '../tabby/config-provider'
+import { ConfigService, HotkeysService, PlatformService, HostAppService } from 'tabby-core'
+import { defaultSftpPlusConfig, normalizeCaretShape, type CaretShape } from '../tabby/config-provider'
 import { SftpI18nService } from '../services/sftp-i18n.service'
 import type { Locale } from '../services/sftp-i18n.service'
 import { SftpConfigService } from '../services/sftp-config.service'
+import { SftpTransferLogService } from '../services/sftp-transfer-log.service'
+import { normalizeBookmarkPath } from '../services/sftp-bookmarks.service'
 import { SFTP_PLUS_TOGGLE_HOTKEY } from '../tabby/hotkey-provider'
 import {
   findHotkeyConflicts,
@@ -23,11 +159,18 @@ import {
   readToggleHotkeyBindings,
   setHotkeyRecordingActive,
   eventToPanelHotkeySpec,
-  mouseSpecFromButton,
   isMouseHotkeySpec,
+  isWheelHotkeySpec,
+  isPointerHotkeySpec,
+  isBareWheelSpec,
+  pointerSpecFromEvent,
   normalizePanelHotkeyKeys,
+  panelHotkeySpecToTabbyBinding,
   MOUSE_BACK_SPEC,
   MOUSE_FORWARD_SPEC,
+  MOUSE_MIDDLE_SPEC,
+  WHEEL_UP_SPEC,
+  WHEEL_DOWN_SPEC,
   type HotkeyBinding,
 } from '../tabby/hotkey-util'
 import {
@@ -39,7 +182,11 @@ import {
 import { detectSystemLocale, isColorDark, parseColorLuminance } from '@common/utils'
 import { DEFAULT_DATE_FORMAT, formatTextExtensionsForInput, normalizeEditableExtensions, setDateFormatPattern } from '../sftp/core/file-utils'
 import { DEFAULT_ICON_MAP, BUILTIN_ICON_FILES, BUILTIN_ICON_EXTS, FOLDER_ICON_SVG, resolveSftpPlusBundledIconDir } from '../sftp/core/icon-defaults'
-import { ContextMenuAction, FILE_MENU_REGISTRY, DEFAULT_FILE_MENU_ORDER } from '../sftp/components/sftp-context-menu.component'
+import { ContextMenuAction, FILE_MENU_REGISTRY, DEFAULT_FILE_MENU_ORDER, GROUP_BY_MODES } from '../sftp/components/sftp-context-menu.component'
+
+/** ★ 2026-09-28（同日修订）：右键菜单定制项 id（文件动作 + 分组依据）。
+ *  「展开/收起所有分组」已并入「分组依据」子菜单，不再作为独立定制项（用户定稿）。 */
+export type ContextMenuCustomId = ContextMenuAction | 'groupBy'
 
 import * as fs from 'fs'
 import * as path from 'path'
@@ -97,7 +244,71 @@ function loadTableSetting(key: string, fallback: boolean): boolean {
   } catch { return fallback }
 }
 
+/**
+ * Windows build 号 → 市场版本代号，按 build 升序（取 ≤ build 的最大条目）
+ * 背景：Windows 自 Vista 起内核版本号固定 10.0.<build>，Win10/Win11 共用同一主版本，
+ *       只有 build 号能区分（≥22000 = Windows 11），故必须靠此表还原出「25H2」这类用户可辨识的版本名
+ */
+/**
+ * ★ 2026-09-29：导出类别 → 字段名清单（对应设置页「导出数据」弹窗里的勾选项）。
+ * ⚠ 铁律：collectAllData() 产出的**每一个**键都必须登记在这里 —— 未登记的键永远不会被导出。
+ *   新增配置项时要同步补进本表；探针 .workbuddy/verify/sftp-export-picker-probe.cjs 会拿
+ *   collectAllData 的真实产出逐键核对，漏登记会被当场抓出来。
+ * ★ 2026-09-29（二次调整，用户要求）：分类口径**逐项对齐设置页自己的分区标题**，
+ *   顺序即设置页从下往上的分区顺序 —— 语言 / 主题 / 布局 / 对象图标 / 其它 /
+ *   传输设置 / 快捷键 / 数据；并把「传输记录」从原「书签与记录」里**拆出来单独成项**
+ *   （它是历史日志、体积通常最大，且备份诉求与其他配置完全不同）。
+ *   弹窗里的类别名直接复用设置页分区标题的 key（settings.language/theme/layout/iconSettings/
+ *   other/transferSection/hotkeys/data + transfer.log），所以本次**不新增任何 i18n key**。
+ */
+const EXPORT_CATEGORY_FIELDS: Record<string, string[]> = {
+  // 语言（设置页「语言」分区）
+  lang: ['lang'],
+  // 主题（设置页「主题」分区：配色方案 + 四个自定义色）
+  theme: ['theme', 'colorPrimary', 'colorBg', 'colorText', 'colorBorder'],
+  // 布局（设置页「布局」分区：面板布局与字体、定制工具栏、定制书签面板、定制右键菜单、表格样式）
+  layout: [
+    'layoutMode', 'fontSize', 'tableColBorders', 'tableZebra',
+    'paneCustomOrder', 'paneHiddenItems',
+    'bookmarkPanelGroupByScope', 'bookmarkPanelGroupOrder',
+    'contextMenuOrder', 'contextMenuDisabled',
+  ],
+  // 对象图标（设置页「对象图标」分区）
+  icons: ['iconResourceDir', 'fileTypeIcons', 'disabledIconSvgs', 'folderIconSvg'],
+  // 其它（设置页「其它」分区：交互、日期格式、查看/编辑、文本编辑器）
+  other: [
+    'hideAuthorInfo', 'hideNativeSFTPButton', 'defaultPathMode', 'defaultShowHidden',
+    'openInNewTabByDefault', 'singleWorkspaceInstance', 'closeBookmarkPanelOnSelect',
+    'openOnClick', 'dateFormat', 'openUnsupportedInSystem',
+    'allowViewEditAllFiles', 'allowEditAllFiles', 'allowViewAllAsText', 'editableFileExtensions',
+    'showTextLineNumbers', 'textCaretShape',
+  ],
+  // 传输设置（设置页「传输设置」分区：并发、通道模式、冲突摘要、默认路径）
+  transfer: [
+    'transferUploadConcurrency', 'transferDownloadConcurrency', 'transferChannelMode',
+    'conflictDigestEnabled', 'conflictAutoSkipSameContent',
+    'conflictDigestMaxSizeMB', 'conflictDigestAlgo',
+    'defaultUploadPath', 'defaultDownloadPath',
+  ],
+  // 快捷键（设置页「快捷键」分区：面板项快捷键）
+  hotkeys: ['panelHotkeys'],
+  // 数据（书签 / 路径记忆 / 面板状态）
+  data: ['bookmarks', 'pathMemory', 'paneState'],
+  // 传输记录（★ 2026-09-29 拆出独立成项）
+  logs: ['transferLogs'],
+}
 
+const WINDOWS_BUILD_RELEASES: Array<[number, string]> = [
+  [10240, '1507'], [10586, '1511'], [14393, '1607'], [15063, '1703'], [16299, '1709'],
+  [17134, '1803'], [17763, '1809'], [18362, '1903'], [18363, '1909'], [19041, '2004'],
+  [19042, '20H2'], [19043, '21H1'], [19044, '21H2'], [19045, '22H2'],
+  [22000, '21H2'], [22621, '22H2'], [22631, '23H2'], [26100, '24H2'], [26200, '25H2'],
+]
+
+/** Darwin 内核主版本 → macOS 市场版本（19=10.15 Catalina … 24=15 Sequoia、25=26 Tahoe） */
+const MACOS_BY_DARWIN: Record<number, string> = {
+  19: '10.15', 20: '11', 21: '12', 22: '13', 23: '14', 24: '15', 25: '26',
+}
 
 @Component({
   template: `
@@ -233,24 +444,6 @@ function loadTableSetting(key: string, fallback: boolean): boolean {
           </div>
         </div>
 
-        <!-- ★ 2026-09-17：字体小分栏（置于定制工具栏上方） -->
-        <div class="ss-sub-head" style="margin-top:16px;">
-          <div class="ss-sub-label" style="margin:0;">{{ i18n.t('settings.font') }}</div>
-          <button class="ss-reset-icon-btn" (click)="resetFontSize()" [title]="i18n.t('settings.resetFont')">
-            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M13 8a5 5 0 1 1-1.8-3.85"/>
-              <path d="M13 3.5v2.9h-2.9"/>
-            </svg>
-          </button>
-        </div>
-        <div class="ss-font-row ss-toggle-sub">
-          <span class="ss-toggle-label">{{ i18n.t('settings.fontSize') }}</span>
-          <div class="ss-font-control">
-            <input type="range" min="11" max="18" step="1" class="ss-range"
-              [value]="fontSize" (input)="onFontSizeChange(+$any($event.target).value)" />
-            <span class="ss-font-val">{{ fontSize }}px</span>
-          </div>
-        </div>
 
         <div class="ss-sub-head" style="margin-top:16px;">
           <div class="ss-sub-label" style="margin:0;">{{ i18n.t('settings.customToolbar') }}</div>
@@ -278,7 +471,35 @@ function loadTableSetting(key: string, fallback: boolean): boolean {
             <span>{{ paneCustomItemLabel(item) }}</span>
           </div>
         </div>
-        <!-- 定制书签面板 -->
+        <!-- 定制右键菜单（2026-08-22 挪到定制工具栏下方，改为每行一项） -->
+        <div class="ss-sub-head" style="margin-top:16px;">
+          <div class="ss-sub-label" style="margin:0;">{{ i18n.t('settings.customContextMenu') }}</div>
+          <button class="ss-reset-icon-btn" (click)="resetMenuOrder()" [title]="i18n.t('settings.resetMenu')">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M13 8a5 5 0 1 1-1.8-3.85"/>
+              <path d="M13 3.5v2.9h-2.9"/>
+            </svg>
+          </button>
+        </div>
+        <div class="ss-menu-preview">
+          <div class="ss-menu-row"
+            *ngFor="let a of contextMenuOrder"
+            draggable="true"
+            [class.dragging]="draggingMenuItem === a"
+            (dragstart)="onMenuDragStart(a, $event)"
+            (dragover)="onMenuDragOver(a, $event)"
+            (drop)="onMenuDrop(a, $event)"
+            (dragend)="onMenuDragEnd()">
+            <span class="ss-menu-handle">⋮⋮</span>
+            <input class="ss-menu-check" type="checkbox"
+              [checked]="isMenuEnabled(a)"
+              (change)="toggleMenuEnabled(a)"
+              (mousedown)="$event.stopPropagation()"
+              [title]="i18n.t('settings.enableItem')" />
+            <span class="ss-menu-label" [class.disabled]="!isMenuEnabled(a)">{{ contextMenuItemLabel(a) }}</span>
+          </div>
+        </div>
+        <!-- 定制书签面板（2026-09-29 移到「表格样式」之前，与工具栏/右键菜单同为面板内容定制） -->
         <div class="ss-sub-head" style="margin-top:16px;">
           <div class="ss-sub-label" style="margin:0;">{{ i18n.t('settings.customBookmarkPanel') }}</div>
           <button class="ss-reset-icon-btn" (click)="resetBookmarkPanel()" [title]="i18n.t('settings.resetBookmarkPanel')">
@@ -309,29 +530,6 @@ function loadTableSetting(key: string, fallback: boolean): boolean {
             <span>{{ bookmarkGroupLabel(g) }}</span>
           </div>
         </div>
-        <!-- 定制右键菜单（2026-08-22 挪到定制工具栏下方，改为每行一项） -->
-        <div class="ss-sub-head" style="margin-top:16px;">
-          <div class="ss-sub-label" style="margin:0;">{{ i18n.t('settings.customContextMenu') }}</div>
-          <button class="ss-reset-icon-btn" (click)="resetMenuOrder()" [title]="i18n.t('settings.resetMenu')">
-            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M13 8a5 5 0 1 1-1.8-3.85"/>
-              <path d="M13 3.5v2.9h-2.9"/>
-            </svg>
-          </button>
-        </div>
-        <div class="ss-menu-preview">
-          <div class="ss-menu-row"
-            *ngFor="let a of contextMenuOrder"
-            draggable="true"
-            [class.dragging]="draggingMenuItem === a"
-            (dragstart)="onMenuDragStart(a, $event)"
-            (dragover)="onMenuDragOver(a, $event)"
-            (drop)="onMenuDrop(a, $event)"
-            (dragend)="onMenuDragEnd()">
-            <span class="ss-menu-handle">⋮⋮</span>
-            <span class="ss-menu-label">{{ contextMenuItemLabel(a) }}</span>
-          </div>
-        </div>
         <!-- 表格样式（属于布局的子选项） -->
         <div class="ss-sub-label" style="margin-top:16px;">{{ i18n.t('settings.tableStyle') }}</div>
         <div class="ss-toggle-wrap">
@@ -349,11 +547,31 @@ function loadTableSetting(key: string, fallback: boolean): boolean {
           </label>
         </div>
         <div class="ss-hint">{{ i18n.t('settings.tableStyleHint') }}</div>
+        <!-- ★ 2026-09-17：字体小分栏（2026-09-29 由「定制工具栏」上方移到「表格样式」之下，保持整节收尾） -->
+        <div class="ss-sub-head" style="margin-top:16px;">
+          <div class="ss-sub-label" style="margin:0;">{{ i18n.t('settings.font') }}</div>
+          <button class="ss-reset-icon-btn" (click)="resetFontSize()" [title]="i18n.t('settings.resetFont')">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M13 8a5 5 0 1 1-1.8-3.85"/>
+              <path d="M13 3.5v2.9h-2.9"/>
+            </svg>
+          </button>
+        </div>
+        <!-- ★ 2026-09-29：滑块与数值整块靠右 —— 对齐 Tabby「窗口」页滑块的靠右显示（见 .ss-font-control） -->
+        <div class="ss-font-row ss-toggle-sub">
+          <span class="ss-toggle-label">{{ i18n.t('settings.fontSize') }}</span>
+          <div class="ss-font-control">
+            <input type="range" min="11" max="18" step="1" class="ss-range"
+              [value]="fontSize" (input)="onFontSizeChange(+$any($event.target).value)" />
+            <span class="ss-font-val">{{ fontSize }}px</span>
+          </div>
+        </div>
+      </div>
 
-      <!-- ★ 2026-08-24：对象图标设置（图标目录 + 内置/自定义图标网格） -->
-      <div style="margin-top:18px;">
+      <!-- ★ 2026-09-20：对象图标升为独立大节（原挂在「布局」下，语义不符） -->
+      <div class="ss-section">
         <div class="ss-sub-head">
-          <div class="ss-sub-label" style="margin:0;">{{ i18n.t('settings.iconSettings') }}</div>
+          <label class="ss-label" style="margin:0;">{{ i18n.t('settings.iconSettings') }}</label>
           <button class="ss-reset-icon-btn" (click)="resetIconSettings()" [title]="i18n.t('settings.resetIcons')">
             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
               <path d="M13 8a5 5 0 1 1-1.8-3.85"/>
@@ -502,13 +720,11 @@ function loadTableSetting(key: string, fallback: boolean): boolean {
         </div>
       </div>
 
-      </div>
 
-      <!-- 其它 -->
+      <!-- ★ 2026-09-20：功能性瘦身——交互 / 查看与编辑；传输与快捷键升为独立大节 -->
       <div class="ss-section">
         <label class="ss-label">{{ i18n.t('settings.other') }}</label>
         <div class="ss-toggle-wrap">
-          <!-- ★ 2026-08-11：隐藏作者信息开关（开启需点 Star 确认）——与隐藏原生按钮同归功能性分组 -->
           <label class="ss-toggle-row">
             <span class="ss-toggle-label">{{ i18n.t('settings.hideAuthorInfo') }}</span>
             <span class="ss-toggle-track" [class.active]="hideAuthorInfo" (click)="toggleHideAuthorInfo()">
@@ -521,6 +737,8 @@ function loadTableSetting(key: string, fallback: boolean): boolean {
               <span class="ss-toggle-thumb"></span>
             </span>
           </label>
+
+          <div class="ss-sub-label" style="margin-top:16px;">{{ i18n.t('settings.interaction') }}</div>
           <label class="ss-toggle-row">
             <span class="ss-toggle-label">{{ i18n.t('settings.closeBookmarkPanel') }}</span>
             <span class="ss-toggle-track" [class.active]="closeBookmarkPanelOnSelect" (click)="toggleCloseBookmarkPanelOnSelect()">
@@ -545,26 +763,6 @@ function loadTableSetting(key: string, fallback: boolean): boolean {
               <span class="ss-toggle-thumb"></span>
             </span>
           </label>
-          <!-- ★ 2026-08-22：查看器不支持的文件改用系统默认程序打开（置于文件/文件夹打开方式上方） -->
-          <label class="ss-toggle-row" title="{{ i18n.t('settings.openUnsupportedInSystemDesc') }}">
-            <span class="ss-toggle-label">{{ i18n.t('settings.openUnsupportedInSystem') }}</span>
-            <span class="ss-toggle-track" [class.active]="openUnsupportedInSystem" (click)="toggleOpenUnsupportedInSystem()">
-              <span class="ss-toggle-thumb"></span>
-            </span>
-          </label>
-          <label class="ss-toggle-row" title="{{ i18n.t('settings.allowViewEditAllFilesHint') }}">
-            <span class="ss-toggle-label">{{ i18n.t('settings.allowViewEditAllFiles') }}</span>
-            <span class="ss-toggle-track" [class.active]="allowViewEditAllFiles" (click)="toggleAllowViewEditAllFiles()">
-              <span class="ss-toggle-thumb"></span>
-            </span>
-          </label>
-          <div class="ss-toggle-row ss-path-row ss-toggle-sub" *ngIf="!allowViewEditAllFiles"
-            title="{{ i18n.t('settings.editableExtensionsHint') }}">
-            <span class="ss-toggle-label">{{ i18n.t('settings.editableExtensions') }}</span>
-            <input class="ss-path-input" type="text" [(ngModel)]="editableFileExtensionsText"
-              (change)="saveEditorOptions()" spellcheck="false" />
-          </div>
-          <!-- ★ 2026-08-22：文件/文件夹打开方式（单击/双击），置于默认路径模式上方 -->
           <div class="ss-toggle-row ss-pathmode-row">
             <span class="ss-toggle-label">{{ i18n.t('settings.openOnClick') }}</span>
             <div class="ss-segmented">
@@ -610,74 +808,116 @@ function loadTableSetting(key: string, fallback: boolean): boolean {
                 [title]="i18n.t('settings.dateFormatReset')">&times;</button>
             </div>
           </div>
-          <!-- ★ 2026-08-22：传输相关设置归入独立子分类（上传/下载并发数 + 快速传输模式） -->
-          <div style="margin-top:18px;">
-            <div class="ss-sub-head">
-              <div class="ss-sub-label" style="margin:0;">{{ i18n.t('settings.transferSection') }}</div>
-            </div>
-            <div class="ss-toggle-row ss-concurrency-row">
-              <span class="ss-toggle-label">{{ i18n.t('settings.uploadConcurrency') }}</span>
-              <input class="ss-concurrency-input" type="number" min="1" max="10" step="1"
-                [(ngModel)]="uploadConcurrency" (change)="saveConcurrency()" />
-            </div>
-            <div class="ss-toggle-row ss-concurrency-row">
-              <span class="ss-toggle-label">{{ i18n.t('settings.downloadConcurrency') }}</span>
-              <input class="ss-concurrency-input" type="number" min="1" max="10" step="1"
-                [(ngModel)]="downloadConcurrency" (change)="saveConcurrency()" />
-            </div>
-            <label class="ss-toggle-row" title="{{ i18n.t('settings.fastModeDesc') }}">
-              <span class="ss-toggle-label">{{ i18n.t('settings.fastMode') }}</span>
-              <span class="ss-toggle-track" [class.active]="transferFastMode" (click)="toggleFastMode()">
-                <span class="ss-toggle-thumb"></span>
-              </span>
-            </label>
-            <label class="ss-toggle-row" title="{{ i18n.t('settings.tarAccelerationDesc') }}">
-              <span class="ss-toggle-label">{{ i18n.t('settings.tarAcceleration') }}</span>
-              <span class="ss-toggle-track" [class.active]="transferTarAcceleration" (click)="toggleTarAcceleration()">
-                <span class="ss-toggle-thumb"></span>
-              </span>
-            </label>
-            <!-- ★ 2026-09-07 issue #15：冲突时计算内容摘要，识别「mtime 变了但内容没变」 -->
-            <label class="ss-toggle-row" title="{{ i18n.t('settings.conflictDigestDesc') }}">
-              <span class="ss-toggle-label">{{ i18n.t('settings.conflictDigest') }}</span>
-              <span class="ss-toggle-track" [class.active]="conflictDigestEnabled" (click)="toggleConflictDigest()">
-                <span class="ss-toggle-thumb"></span>
-              </span>
-            </label>
-            <label class="ss-toggle-row" *ngIf="conflictDigestEnabled" title="{{ i18n.t('settings.conflictAutoSkipDesc') }}">
-              <span class="ss-toggle-label">{{ i18n.t('settings.conflictAutoSkip') }}</span>
-              <span class="ss-toggle-track" [class.active]="conflictAutoSkipSameContent" (click)="toggleConflictAutoSkip()">
-                <span class="ss-toggle-thumb"></span>
-              </span>
-            </label>
-            <div class="ss-toggle-row ss-concurrency-row" *ngIf="conflictDigestEnabled"
-              title="{{ i18n.t('settings.conflictDigestMaxSizeDesc') }}">
-              <span class="ss-toggle-label">{{ i18n.t('settings.conflictDigestMaxSize') }}</span>
-              <input class="ss-concurrency-input" type="number" min="1" max="4096" step="1"
-                [(ngModel)]="conflictDigestMaxSizeMB" (change)="saveConflictDigestMaxSize()" />
-            </div>
-            <!-- 默认上传/下载路径 -->
-            <div class="ss-toggle-row ss-path-row">
-              <span class="ss-toggle-label">{{ i18n.t('settings.defaultUploadPath') }}</span>
-              <input class="ss-path-input" type="text" [(ngModel)]="defaultUploadPath"
-                (change)="_saveToConfig()" [placeholder]="i18n.t('settings.defaultUploadPathPh')" spellcheck="false" />
-            </div>
-            <div class="ss-toggle-row ss-path-row">
-              <span class="ss-toggle-label">{{ i18n.t('settings.defaultDownloadPath') }}</span>
-              <input class="ss-path-input" type="text" [(ngModel)]="defaultDownloadPath"
-                (change)="_saveToConfig()" [placeholder]="i18n.t('settings.defaultDownloadPathPh')" spellcheck="false" />
+
+          <div class="ss-sub-label" style="margin-top:16px;">{{ i18n.t('settings.viewerEditor') }}</div>
+          <label class="ss-toggle-row" title="{{ i18n.t('settings.openUnsupportedInSystemDesc') }}">
+            <span class="ss-toggle-label">{{ i18n.t('settings.openUnsupportedInSystem') }}</span>
+            <span class="ss-toggle-track" [class.active]="openUnsupportedInSystem" (click)="toggleOpenUnsupportedInSystem()">
+              <span class="ss-toggle-thumb"></span>
+            </span>
+          </label>
+          <label class="ss-toggle-row" title="{{ i18n.t('settings.allowViewEditAllFilesHint') }}">
+            <span class="ss-toggle-label">{{ i18n.t('settings.allowViewEditAllFiles') }}</span>
+            <span class="ss-toggle-track" [class.active]="allowViewEditAllFiles" (click)="toggleAllowViewEditAllFiles()">
+              <span class="ss-toggle-thumb"></span>
+            </span>
+          </label>
+          <div class="ss-toggle-row ss-path-row ss-toggle-sub" *ngIf="!allowViewEditAllFiles"
+            title="{{ i18n.t('settings.editableExtensionsHint') }}">
+            <span class="ss-toggle-label">{{ i18n.t('settings.editableExtensions') }}</span>
+            <input class="ss-path-input" type="text" [(ngModel)]="editableFileExtensionsText"
+              (change)="saveEditorOptions()" spellcheck="false" />
+          </div>
+          <label class="ss-toggle-row" title="{{ i18n.t('settings.showTextLineNumbersHint') }}">
+            <span class="ss-toggle-label">{{ i18n.t('settings.showTextLineNumbers') }}</span>
+            <span class="ss-toggle-track" [class.active]="showTextLineNumbers" (click)="toggleShowTextLineNumbers()">
+              <span class="ss-toggle-thumb"></span>
+            </span>
+          </label>
+          <!-- ★ 2026-09-29：光标由「宽度 1–4px」滑块改为「形状三档」按钮组 ——
+               与 Tabby 外观页「光标形状」同源（同三档取值 block/beam/underline、同 █ | ▁ 字形、靠右显示） -->
+          <div class="ss-toggle-row" title="{{ i18n.t('settings.textCaretShapeHint') }}">
+            <span class="ss-toggle-label">{{ i18n.t('settings.textCaretShape') }}</span>
+            <div class="ss-segmented ss-caret-seg">
+              <button type="button" class="ss-segment"
+                *ngFor="let opt of caretShapeOptions"
+                [class.active]="textCaretShape === opt.shape"
+                [title]="i18n.t(opt.labelKey)"
+                (click)="onTextCaretShapeChange(opt.shape)">{{ opt.glyph }}</button>
             </div>
           </div>
-          <!-- ★ 2026-08-22：统一热键区（面板 toggle 快捷键 + 面板操作热键）；有按键=启用，清空=禁用；作为「其它/功能性」下的子分类，不使用分隔线条 -->
-          <div style="margin-top:18px;">
-            <div class="ss-sub-head">
-              <div class="ss-sub-label" style="margin:0;">{{ i18n.t('settings.hotkeys') }}</div>
-              <button class="ss-reset-icon-btn" (click)="resetPanelHotkeys()" [title]="i18n.t('settings.resetPanelHotkeys')">
-                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M13 8a5 5 0 1 1-1.8-3.85"/><path d="M13 3.5v2.9h-2.9"/>
-                </svg>
-              </button>
-            </div>
+        </div>
+      </div>
+
+      <!-- ★ 2026-09-20：传输设置独立大节 -->
+      <div class="ss-section">
+        <label class="ss-label">{{ i18n.t('settings.transferSection') }}</label>
+        <div class="ss-toggle-wrap">
+            <div class="ss-toggle-row ss-concurrency-row">
+          <span class="ss-toggle-label">{{ i18n.t('settings.uploadConcurrency') }}</span>
+          <input class="ss-concurrency-input" type="number" min="1" max="10" step="1"
+          [(ngModel)]="uploadConcurrency" (change)="saveConcurrency()" />
+          </div>
+          <div class="ss-toggle-row ss-concurrency-row">
+          <span class="ss-toggle-label">{{ i18n.t('settings.downloadConcurrency') }}</span>
+          <input class="ss-concurrency-input" type="number" min="1" max="10" step="1"
+          [(ngModel)]="downloadConcurrency" (change)="saveConcurrency()" />
+          </div>
+          <!-- ★ 2026-09-28：传输通道模式（原「TAR 打包加速」开关升级为五选一下拉）
+               ★ 2026-09-29：补 ss-toggle-row → 与其它行同为 flex 两端对齐，下拉框靠右；说明文案下移到各 option 的 title -->
+          <div class="ss-toggle-row ss-concurrency-row" title="{{ i18n.t('settings.channelModeDesc') }}">
+          <span class="ss-toggle-label">{{ i18n.t('settings.channelMode') }}</span>
+          <select class="ss-select ss-channel-select" [(ngModel)]="transferChannelMode" (change)="saveChannelMode()">
+          <option value="smart" title="{{ i18n.t('settings.channelMode.smartDesc') }}">{{ i18n.t('settings.channelMode.smart') }}</option>
+          <option value="preferTar" title="{{ i18n.t('settings.channelMode.preferTarDesc') }}">{{ i18n.t('settings.channelMode.preferTar') }}</option>
+          <option value="preferSftp" title="{{ i18n.t('settings.channelMode.preferSftpDesc') }}">{{ i18n.t('settings.channelMode.preferSftp') }}</option>
+          <option value="tarOnly" title="{{ i18n.t('settings.channelMode.tarOnlyDesc') }}">{{ i18n.t('settings.channelMode.tarOnly') }}</option>
+          <option value="sftpOnly" title="{{ i18n.t('settings.channelMode.sftpOnlyDesc') }}">{{ i18n.t('settings.channelMode.sftpOnly') }}</option>
+          </select>
+          </div>
+          <!-- ★ 2026-09-07 issue #15：冲突时计算内容摘要，识别「mtime 变了但内容没变」 -->
+          <label class="ss-toggle-row" title="{{ i18n.t('settings.conflictDigestDesc') }}">
+          <span class="ss-toggle-label">{{ i18n.t('settings.conflictDigest') }}</span>
+          <span class="ss-toggle-track" [class.active]="conflictDigestEnabled" (click)="toggleConflictDigest()">
+          <span class="ss-toggle-thumb"></span>
+          </span>
+          </label>
+          <label class="ss-toggle-row" *ngIf="conflictDigestEnabled" title="{{ i18n.t('settings.conflictAutoSkipDesc') }}">
+          <span class="ss-toggle-label">{{ i18n.t('settings.conflictAutoSkip') }}</span>
+          <span class="ss-toggle-track" [class.active]="conflictAutoSkipSameContent" (click)="toggleConflictAutoSkip()">
+          <span class="ss-toggle-thumb"></span>
+          </span>
+          </label>
+          <div class="ss-toggle-row ss-concurrency-row" *ngIf="conflictDigestEnabled"
+          title="{{ i18n.t('settings.conflictDigestMaxSizeDesc') }}">
+          <span class="ss-toggle-label">{{ i18n.t('settings.conflictDigestMaxSize') }}</span>
+          <input class="ss-concurrency-input" type="number" min="1" max="4096" step="1"
+          [(ngModel)]="conflictDigestMaxSizeMB" (change)="saveConflictDigestMaxSize()" />
+          </div>
+          <!-- 默认上传/下载路径 -->
+          <div class="ss-toggle-row ss-path-row">
+          <span class="ss-toggle-label">{{ i18n.t('settings.defaultUploadPath') }}</span>
+          <input class="ss-path-input" type="text" [(ngModel)]="defaultUploadPath"
+          (change)="_saveToConfig()" [placeholder]="i18n.t('settings.defaultUploadPathPh')" spellcheck="false" />
+          </div>
+          <div class="ss-toggle-row ss-path-row">
+          <span class="ss-toggle-label">{{ i18n.t('settings.defaultDownloadPath') }}</span>
+          <input class="ss-path-input" type="text" [(ngModel)]="defaultDownloadPath"
+          (change)="_saveToConfig()" [placeholder]="i18n.t('settings.defaultDownloadPathPh')" spellcheck="false" />
+          </div>
+        </div>
+      </div>
+
+      <!-- ★ 2026-09-20：快捷键独立大节 -->
+      <div class="ss-section">
+        <div class="ss-sub-head">
+          <label class="ss-label" style="margin:0;">{{ i18n.t('settings.hotkeys') }}</label>
+          <button class="ss-reset-icon-btn" (click)="resetPanelHotkeys()" [title]="i18n.t('settings.resetPanelHotkeys')">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M13 8a5 5 0 1 1-1.8-3.85"/><path d="M13 3.5v2.9h-2.9"/>
+            </svg>
+          </button>
+        </div>
             <!-- 面板 Toggle 快捷键（Tabby 全局）—— 置于第一位 -->
             <div class="ss-phk-row">
               <span class="ss-phk-label">{{ i18n.t('settings.hotkey') }}</span>
@@ -717,8 +957,8 @@ function loadTableSetting(key: string, fallback: boolean): boolean {
                 </ng-container>
                 <ng-template #phkChips>
                   <span class="ss-hotkey-chip" *ngFor="let k of panelHotkeyKeys(a); let i = index"
-                    [class.is-mouse]="isPanelMouseHotkey(k)"
-                    [title]="isPanelMouseHotkey(k) ? i18n.t('settings.hotkeyMouseHint') : i18n.t('settings.hotkeyClickToSet')"
+                    [class.is-mouse]="isPanelPointerHotkey(k)"
+                    [title]="hotkeyChipHint(k)"
                     (click)="startPanelHotkeyRecording(a)">
                     {{ panelHotkeyLabel(k) }}
                     <button type="button" class="ss-chip-remove"
@@ -749,21 +989,18 @@ function loadTableSetting(key: string, fallback: boolean): boolean {
                 </div>
               </div>
             </div>
-          </div>
-        </div>
         <div class="ss-hint ss-hotkey-conflict" *ngIf="hotkeyConflictNames">
           {{ i18n.t('settings.hotkeyConflict', { names: hotkeyConflictNames }) }}
         </div>
         <div class="ss-hint ss-hotkey-ok" *ngIf="hotkeySaveMessage">{{ hotkeySaveMessage }}</div>
       </div>
-
       <!-- 数据 -->
       <div class="ss-section">
         <label class="ss-label">{{ i18n.t('settings.data') }}</label>
 
         <!-- 数据导入导出 -->
         <div class="ss-backup-row">
-          <button class="ss-btn" (click)="exportData()">[&darr;] {{ i18n.t('settings.export') }}</button>
+          <button class="ss-btn" (click)="openExportDialog()">[&darr;] {{ i18n.t('settings.export') }}</button>
           <label class="ss-btn ss-btn-import">[&uarr;] {{ i18n.t('settings.import') }}
             <input type="file" accept=".json" (change)="importData($event)" style="display:none" />
           </label>
@@ -795,8 +1032,11 @@ function loadTableSetting(key: string, fallback: boolean): boolean {
           <span class="ss-about-link" (click)="openGithub()">
             ⭐ <span class="ss-about-label">{{ i18n.t('settings.giveStar') }}</span>
           </span>
-          <span class="ss-about-link" (click)="openFeedback()">
-            💬 <span class="ss-about-label">{{ i18n.t('settings.feedback') }}</span>
+          <span class="ss-about-link" (click)="openBugReport()">
+            🐞 <span class="ss-about-label">{{ i18n.t('settings.reportBug') }}</span>
+          </span>
+          <span class="ss-about-link" (click)="openFeatureRequest()">
+            💡 <span class="ss-about-label">{{ i18n.t('settings.featureRequest') }}</span>
           </span>
         </div>
       </div>
@@ -812,6 +1052,107 @@ function loadTableSetting(key: string, fallback: boolean): boolean {
           <div class="ss-edit-footer">
             <button class="ss-btn ss-btn-danger" (click)="confirmThemeColorOverwrite()">{{ i18n.t('settings.overwrite') }}</button>
             <button class="ss-btn" (click)="cancelThemeColorOverwrite()">{{ i18n.t('app.cancel') }}</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ★ 2026-09-29：导出内容勾选弹窗（按配置类别选择要写入备份文件的内容）。
+           未勾选的类别完全不写入 JSON —— 导入侧是「字段不存在 = 不覆盖」语义，
+           故「只导外观」的备份导入时不会动到书签、路径记忆等数据。 -->
+      <div class="ss-overlay" *ngIf="showExportDialog" (click)="closeExportDialog()"
+        [style.background]="isDarkMode ? 'rgba(0,0,0,0.5)' : 'rgba(128,128,128,0.2)'">
+        <div class="ss-edit-modal ss-export-modal" [class.ss-dark]="isDarkMode" [class.ss-light]="!isDarkMode"
+          (click)="$event.stopPropagation()">
+          <div class="ss-edit-title">{{ i18n.t('settings.export') }}</div>
+          <div class="ss-edit-field">
+            <p class="ss-export-hint">{{ i18n.t('settings.exportPickHint') }}</p>
+
+            <!-- ★ 2026-09-29：九类逐项对齐设置页分区标题；.ss-export-list 内滚，避免弹窗超高 -->
+            <div class="ss-export-list">
+              <label class="ss-export-item">
+                <input type="checkbox" [(ngModel)]="exportPickLang" class="ss-export-check" />
+                <span class="ss-export-text">
+                  <span class="ss-export-name">{{ i18n.t('settings.language') }}</span>
+                  <span class="ss-export-sub">{{ i18n.t('settings.followTabby') }}</span>
+                </span>
+              </label>
+
+              <label class="ss-export-item">
+                <input type="checkbox" [(ngModel)]="exportPickTheme" class="ss-export-check" />
+                <span class="ss-export-text">
+                  <span class="ss-export-name">{{ i18n.t('settings.theme') }}</span>
+                  <span class="ss-export-sub">{{ i18n.t('settings.primary') }} · {{ i18n.t('settings.bg') }} · {{ i18n.t('settings.text') }} · {{ i18n.t('settings.border') }}</span>
+                </span>
+              </label>
+
+              <label class="ss-export-item">
+                <input type="checkbox" [(ngModel)]="exportPickLayout" class="ss-export-check" />
+                <span class="ss-export-text">
+                  <span class="ss-export-name">{{ i18n.t('settings.layout') }}</span>
+                  <span class="ss-export-sub">{{ i18n.t('settings.font') }} · {{ i18n.t('settings.customToolbar') }} · {{ i18n.t('settings.customContextMenu') }} · {{ i18n.t('settings.customBookmarkPanel') }}</span>
+                </span>
+              </label>
+
+              <label class="ss-export-item">
+                <input type="checkbox" [(ngModel)]="exportPickIcons" class="ss-export-check" />
+                <span class="ss-export-text">
+                  <span class="ss-export-name">{{ i18n.t('settings.iconSettings') }}</span>
+                  <span class="ss-export-sub">{{ i18n.t('settings.iconResourceDir') }}</span>
+                </span>
+              </label>
+
+              <label class="ss-export-item">
+                <input type="checkbox" [(ngModel)]="exportPickOther" class="ss-export-check" />
+                <span class="ss-export-text">
+                  <span class="ss-export-name">{{ i18n.t('settings.other') }}</span>
+                  <span class="ss-export-sub">{{ i18n.t('settings.interaction') }} · {{ i18n.t('settings.dateFormat') }}</span>
+                </span>
+              </label>
+
+              <label class="ss-export-item">
+                <input type="checkbox" [(ngModel)]="exportPickTransfer" class="ss-export-check" />
+                <span class="ss-export-text">
+                  <span class="ss-export-name">{{ i18n.t('settings.transferSection') }}</span>
+                  <span class="ss-export-sub">{{ i18n.t('settings.uploadConcurrency') }} · {{ i18n.t('settings.channelMode') }} · {{ i18n.t('settings.conflictDigest') }}</span>
+                </span>
+              </label>
+
+              <!-- 快捷键 / 书签数据：只有一项内容，子描述纯属冗余（用户 2026-09-29 提出删掉） -->
+              <label class="ss-export-item">
+                <input type="checkbox" [(ngModel)]="exportPickHotkeys" class="ss-export-check" />
+                <span class="ss-export-text">
+                  <span class="ss-export-name">{{ i18n.t('settings.hotkeys') }}</span>
+                </span>
+              </label>
+
+              <label class="ss-export-item">
+                <input type="checkbox" [(ngModel)]="exportPickData" class="ss-export-check" />
+                <span class="ss-export-text">
+                  <span class="ss-export-name">{{ i18n.t('settings.exportCatBookmarkData') }}</span>
+                </span>
+              </label>
+
+              <label class="ss-export-item">
+                <input type="checkbox" [(ngModel)]="exportPickLogs" class="ss-export-check" />
+                <span class="ss-export-text">
+                  <!-- 传输记录无更贴切的现成子描述 key（settings.clearCompleted 并不存在），故只留标题 -->
+                  <span class="ss-export-name">{{ i18n.t('transfer.log') }}</span>
+                </span>
+              </label>
+            </div>
+
+            <div class="ss-export-foot">
+              <button type="button" class="ss-btn-xs" (click)="toggleExportAll()">
+                {{ exportAllPicked ? i18n.t('settings.exportDeselectAll') : i18n.t('settings.exportSelectAll') }}
+              </button>
+            </div>
+          </div>
+          <!-- 底部顺序：主操作在左、取消在右（★ 2026-09-29：用户一度要求换序，随后自行确认「取消就是在右边」，
+               故维持原序，与面板内对话框及设置页其余三个确认弹窗一致） -->
+          <div class="ss-edit-footer">
+            <button class="ss-btn ss-btn-primary" (click)="exportData()"
+              [disabled]="!exportPickCount">{{ i18n.t('settings.export') }}</button>
+            <button class="ss-btn" (click)="closeExportDialog()">{{ i18n.t('app.cancel') }}</button>
           </div>
         </div>
       </div>
@@ -889,6 +1230,10 @@ function loadTableSetting(key: string, fallback: boolean): boolean {
     .ss-segment:hover { background:rgba(128,128,128,0.12); }
     .ss-segment.active { background:rgba(128,128,128,0.35); }
     .ss-select:focus { border-color: var(--primary-color, #3b82f6); }
+    /* ★ 2026-09-29：传输通道模式下拉——靠右并与数字输入框/开关的右边缘对齐。
+       默认 .ss-select 是 width:100%/max-width:280px，在两端对齐行里会被撑满、观感与其它控件不一致，故收敛为固定宽；
+       flex:0 0 auto 防止被 flex 压缩（语言切换后选项文案变长时仍完整显示）。 */
+    .ss-channel-select { width: 220px; max-width: 220px; flex: 0 0 auto; }
     .ss-auto-badge { opacity:.85; color: var(--primary-color, #3b82f6); font-size:11px; }
 
     .ss-color-row { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:6px; }
@@ -962,14 +1307,32 @@ function loadTableSetting(key: string, fallback: boolean): boolean {
     .ss-font-row {
       display:flex; align-items:center; justify-content:space-between; gap:12px;
       margin-top:4px; flex-wrap:wrap;
+      /* ★ 2026-09-29：右侧留 10px —— 与 .ss-toggle-row 的水平内距一致。
+         否则控件贴到行尾(0)，而开关/下拉行是行尾-10px ⇒ 数值文字会比其它行的控件右探 4px
+         （实测：无内距时文字右边缘 594、按钮组右边缘 590）。 */
+      padding-right:10px;
     }
-    .ss-font-control { display:flex; align-items:center; gap:10px; flex:1; min-width:180px; }
+    /* ★ 2026-09-29：控件块整体靠右（justify-content:flex-end）—— 对齐 Tabby「窗口」页滑块的
+       靠右显示（Tabby 用 .form-line .header{margin-right:auto} 把控件顶到行尾）。
+       滑块宽度保持不动；靠右后「13px」落在行尾最右，与其它行的开关/下拉右边缘对齐。
+       注：轨道 #111 / 圆点 #aaa 由宿主全局 input[type=range] 样式提供，与 Tabby 滑块逐字相同。 */
+    .ss-font-control { display:flex; align-items:center; justify-content:flex-end; gap:10px; flex:1; min-width:180px; }
     .ss-range {
       flex:1; min-width:120px; max-width:280px; height:4px; cursor:pointer;
       accent-color: var(--primary-color, #3b82f6);
     }
     .ss-font-val {
       font-size:13px; min-width:36px; opacity:.65; font-variant-numeric:tabular-nums;
+      /* ★ 2026-09-29：盒内文字右对齐 —— 盒宽 36px 比文字「13px」(30px) 宽，
+         左对齐会让文字右边缘比盒右边缘内缩 6px、与其它行控件错开；右对齐后两条右边缘重合。
+         （该 span 是 flex 项 ⇒ 会被块级化，text-align 生效。） */
+      text-align:right;
+    }
+    /* ★ 2026-09-29：查看编辑器光标宽度按钮组 —— 形制对齐 Tabby 外观页「光标形状」
+       （等宽方块字形按钮：▏▎▍▌ 表示 1–4px；行本身是 .ss-toggle-row，故按钮组天然靠右） */
+    .ss-caret-seg .ss-segment {
+      width:34px; padding:5px 0; text-align:center;
+      font-family:monospace; font-size:13px;
     }
     .ss-datefmt-row { gap: 12px; cursor: default; }
     .ss-datefmt-field {
@@ -1294,6 +1657,55 @@ function loadTableSetting(key: string, fallback: boolean): boolean {
     .ss-btn-import { cursor:pointer; }
     .ss-btn-danger { color: #e24b4a; border-color: rgba(226,75,74,0.3); }
     .ss-btn-danger:hover { background: rgba(226,75,74,0.12); }
+    /* ★ 2026-09-29 导出勾选弹窗：主按钮 + 小号按钮 + 类别行。
+       顺序/特异性要点：.ss-btn-primary 与 .ss-btn 同为 (0,1,0) → 必须排在其后；
+       .ss-btn 的 :hover 是 (0,1,1) 会盖掉主色 → 需自带 :hover 版本；
+       类别行必须带 .ss-edit-modal 前缀（(0,2,0)），否则会被 .ss-edit-modal label 的
+       display/opacity/margin 压掉（(0,1,1)），只写 .ss-export-item 会失效。 */
+    .ss-btn-primary { background: rgba(59,130,246,0.16); border-color: rgba(59,130,246,0.45); color: var(--primary-color,#3b82f6); }
+    .ss-btn-primary:hover { background: rgba(59,130,246,0.26); }
+    .ss-btn-xs {
+      padding:2px 10px; border-radius:5px; border:1px solid rgba(128,128,128,0.2);
+      background: rgba(128,128,128,0.06); font-size:11px; line-height:1.5; cursor:pointer; color:inherit;
+    }
+    .ss-btn-xs:hover { background: rgba(128,128,128,0.15); }
+    .ss-export-modal { max-width: 480px; }
+    /* ★ 2026-09-29：类别增至 9 项 → 列表内滚，弹窗高度封顶，不把底部按钮顶出屏幕。
+       阈值取 58vh / 520px：常规窗口下 9 行（约 460px）能完整显示不滚动，
+       只有小窗口才回退成滚动，避免最后一项「传输记录」被默认藏起来。 */
+    .ss-export-list { max-height: min(58vh, 520px); overflow-y: auto; overscroll-behavior: contain; padding-right: 2px; }
+    /* ★ 2026-09-29：滚动条对齐 SFTP+ 面板（.sftp-root .pane-list）的视觉规格 —— 8px 宽、4px 圆角、
+       轨道/滑块/悬停三档灰度。⚠ 数值取面板变量链的**实际生效值**
+       （styles.ts 的 :host 里 --_scroll-track / --_scroll-thumb / --_scroll-thumb-hover = 0.06 / 0.28 / 0.45），
+       不是面板 CSS 里那个「var(--_scroll-thumb, rgba(...,0.35))」式兜底值 —— 变量在面板里始终有定义，兜底永远轮不到。
+       面板用的是 --_scroll-* 私有变量（面板 :host 作用域），设置页取不到 ⇒ 直接写字面值；
+       主色沿用设置页的 --primary-color（面板 --_primary 的链尾也是它，等价）。
+       Firefox/新版 Chromium 走 scrollbar-width/color 那一对，写法与面板逐字一致；
+       旧 Chromium 才吃下面这组 ::-webkit-* 规则 —— 两种路径都与面板同款。 */
+    .ss-export-list { scrollbar-width: thin; scrollbar-color: rgba(128,128,128,0.28) rgba(128,128,128,0.06); }
+    .ss-export-list::-webkit-scrollbar { width: 8px; height: 8px; }
+    .ss-export-list::-webkit-scrollbar-track { background: rgba(128,128,128,0.06); border-radius: 4px; }
+    .ss-export-list::-webkit-scrollbar-thumb {
+      background: rgba(128,128,128,0.28); border-radius: 4px;
+      min-height: 30px; min-width: 30px; transition: background 0.2s;
+    }
+    .ss-export-list::-webkit-scrollbar-thumb:hover { background: rgba(128,128,128,0.45); }
+    .ss-export-list::-webkit-scrollbar-thumb:active { background: var(--primary-color,#3b82f6); }
+    .ss-export-list::-webkit-scrollbar-corner { background: rgba(128,128,128,0.06); }
+    .ss-edit-modal .ss-export-hint { font-size:12px; opacity:.75; line-height:1.6; margin:0 0 12px 0; }
+    .ss-edit-modal .ss-export-item {
+      display:flex; align-items:center; gap:10px;
+      padding:8px 10px; margin-bottom:6px;
+      border:1px solid rgba(128,128,128,0.22); border-radius:8px;
+      cursor:pointer; opacity:1; font-size:13px;
+    }
+    .ss-edit-modal .ss-export-item:hover { background: rgba(128,128,128,0.08); }
+    .ss-export-check { width:15px; height:15px; flex-shrink:0; margin:0; cursor:pointer; accent-color: var(--primary-color,#3b82f6); }
+    .ss-export-text { display:flex; flex-direction:column; gap:2px; flex:1; min-width:0; }
+    .ss-export-name { font-size:13px; font-weight:500; }
+    .ss-export-sub { font-size:11px; opacity:.6; line-height:1.4; }
+    .ss-export-foot { display:flex; justify-content:flex-end; margin-top:8px; }
+    .ss-btn:disabled { opacity:.45; cursor:not-allowed; }
 
     /* 关于 */
     .ss-about-row { display:flex; gap:16px; flex-wrap:wrap; align-items:center; font-size:13px; }
@@ -1402,7 +1814,10 @@ function loadTableSetting(key: string, fallback: boolean): boolean {
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      padding: 7px 10px;
+      /* 垂直内距与「定制右键菜单」.ss-menu-row 同步（同为 4px）⇒ 两块行高精确相等；
+         两侧内容盒同高（同字号、同 14px 复选框），故只要垂直内距相同就必然等高，
+         与宿主 line-height 取值无关（改前 7px 使 chip 高出菜单行 6px）。 */
+      padding: 4px 10px;
       border-radius: 8px;
       border: 1px dashed rgba(128,128,128,0.35);
       background: rgba(128,128,128,0.06);
@@ -1428,15 +1843,17 @@ function loadTableSetting(key: string, fallback: boolean): boolean {
       gap: 8px;
       padding: 4px 10px;
       border-radius: 6px;
-      border: 1px solid rgba(128,128,128,0.25);
+      border: 1px dashed rgba(128,128,128,0.35);
       background: rgba(128,128,128,0.05);
       font-size: 12px;
       cursor: grab;
       user-select: none;
     }
     .ss-menu-row.dragging { opacity: 0.5; }
-    .ss-menu-handle { opacity: .5; letter-spacing: -1px; }
+    .ss-menu-handle { opacity: .5; letter-spacing: -1px; cursor: grab; }
+    .ss-menu-check { width: 14px; height: 14px; margin: 0; cursor: pointer; flex: none; }
     .ss-menu-label { flex: 1; }
+    .ss-menu-label.disabled { opacity: 0.4; text-decoration: line-through; }
 
   `],
 })
@@ -1708,10 +2125,8 @@ export class SftpSettingsTabComponent implements OnDestroy {
   /** 同时进行的上传/下载数上限（1-10，默认 3） */
   uploadConcurrency = 3
   downloadConcurrency = 3
-  /** ★ 2026-08-11：快速模式：目录传输跳过预扫描直接开传（无百分比进度） */
-  transferFastMode = false
-  /** ★ 2026-08-28：启用 tar 打包通道加速文件夹传输 */
-  transferTarAcceleration = true
+  /** ★ 2026-09-28：传输通道模式（smart/sftpOnly/tarOnly/preferSftp/preferTar） */
+  transferChannelMode = 'smart'
   /** ★ 2026-09-07 issue #15：冲突内容摘要相关设置 */
   conflictDigestEnabled = true
   conflictAutoSkipSameContent = true
@@ -1758,10 +2173,23 @@ export class SftpSettingsTabComponent implements OnDestroy {
   editableFileExtensionsText = formatTextExtensionsForInput(load<unknown>('editableFileExtensions', []))
   /** 忽略扩展名白名单，允许查看与编辑所有非目录文件（编辑仍受二进制保护）。 */
   allowViewEditAllFiles = loadAllowViewEditAllFiles()
-  /** ★ 2026-08-22：右键菜单项顺序（数据驱动渲染） */
-  contextMenuOrder: ContextMenuAction[] = [...DEFAULT_FILE_MENU_ORDER]
+  /** ★ 2026-09-20：查看/编辑器显示行号；查看器插入光标形状（2026-09-29 由宽度改为形状三档） */
+  showTextLineNumbers = load('showTextLineNumbers', true)
+  textCaretShape: CaretShape = normalizeCaretShape(load<unknown>('textCaretShape', 'beam'))
+  /** ★ 2026-09-29：光标形状按钮组选项（三档取值与 Tabby 终端 cursor 逐字一致，字形照宿主外观页的 █ | ▁）
+   *  形制对齐 Tabby 外观页「光标形状」的方块字形按钮组；文案 key 同时作为按钮 title。 */
+  caretShapeOptions: { shape: CaretShape; glyph: string; labelKey: string }[] = [
+    { shape: 'block', glyph: '█', labelKey: 'settings.caretShapeBlock' },
+    { shape: 'beam', glyph: '|', labelKey: 'settings.caretShapeBeam' },
+    { shape: 'underline', glyph: '▁', labelKey: 'settings.caretShapeUnderline' },
+  ]
+  /** ★ 2026-08-22（2026-09-28 扩展）：右键菜单定制项（数据驱动渲染）。
+   *  顺序数组 + 停用集合共同决定：顺序用于拖拽排序，disabling 用于复选框启用/停用。 */
+  contextMenuOrder: ContextMenuCustomId[] = [...DEFAULT_FILE_MENU_ORDER, 'groupBy']
+  /** ★ 2026-09-28：被停用的右键菜单项（复选框取消勾选）；空 = 全部启用 */
+  contextMenuDisabled: ContextMenuCustomId[] = []
   /** 右键菜单排序拖拽中的项 */
-  draggingMenuItem: ContextMenuAction | null = null
+  draggingMenuItem: ContextMenuCustomId | null = null
 
   /** ★ 2026-08-31：面板内置操作快捷键，一动作可绑多个键
    *  （keys 空数组 = 未绑定即禁用；enabled=false 为双保险标记，防 Tabby config 清洗空数组后 defaults 回退） */
@@ -1772,8 +2200,12 @@ export class SftpSettingsTabComponent implements OnDestroy {
   panelHotkeyRecordingPreview = ''
   /** 面板快捷键录制对应的键盘监听句柄，便于卸载 */
   private _panelHotkeyDomHandler: ((ev: KeyboardEvent) => void) | null = null
-  /** 面板快捷键录制对应的鼠标监听句柄（用于录制鼠标侧键） */
+  /** 面板快捷键录制对应的鼠标监听句柄（用于录制鼠标侧键/中键） */
   private _panelHotkeyMouseHandler: ((ev: MouseEvent) => void) | null = null
+  /** 面板快捷键录制对应的滚轮监听句柄（用于录制滚轮上/下滚） */
+  private _panelHotkeyWheelHandler: ((ev: WheelEvent) => void) | null = null
+  /** 本次待提交的 spec，用于识别「同一 spec 的连续事件」（滚轮一次操作会连发多个 wheel） */
+  private _panelHotkeyPendingSpec = ''
   private _panelHotkeyTimer: any = null
   private _panelHotkeySafeTimer: any = null
   /** 面板快捷键动作枚举（设置页列表顺序） */
@@ -1789,15 +2221,20 @@ export class SftpSettingsTabComponent implements OnDestroy {
 
   /** 存储模式：仅使用 Tabby 配置存储 */
   storageMode = 'config'
+  private readonly transferLogImport: SftpTransferLogService
 
   constructor(
     @Optional() public configService?: ConfigService,
     @Optional() private hotkeys?: HotkeysService,
     @Optional() private sftpConfig?: SftpConfigService,
     @Optional() @Inject('BOOTSTRAP_DATA') private bootstrapData?: any,
+    // ★ 2026-09-24：意见反馈预填环境信息（对齐 Tabby 原生「报告问题」）
+    @Optional() private platformService?: PlatformService,
+    @Optional() private hostApp?: HostAppService,
   ) {
     // ConfigService 是可选的，如果注入失败（开发环境/Tabby 版本不支持），回退到 localStorage
     this.i18n = new SftpI18nService(configService)
+    this.transferLogImport = new SftpTransferLogService(configService)
   }
 
   /** 缓存事件监听引用，便于 ngOnDestroy 清理（P1-7） */
@@ -1821,6 +2258,10 @@ export class SftpSettingsTabComponent implements OnDestroy {
 
   ngOnDestroy(): void {
     this.cancelHotkeyRecording()
+    // ★ 2026-09-20 A4 审计修复：此前漏掉「面板操作快捷键」录制链的清理——
+    //   录制中关闭/切换设置页会残留两个 window 捕获监听器（最多 12s 到安全定时器才自愈），
+    //   期间 Esc 与鼠标侧键被吞、且 hotkeys.disable() 状态未立即恢复（全局热键失效）。
+    if (this.panelHotkeyRecording) this._teardownPanelHotkeyRecording()
     if (this._settingsChangedHandler) {
       window.removeEventListener('sftp-plus-settings-changed', this._settingsChangedHandler)
       this._settingsChangedHandler = null
@@ -2024,7 +2465,11 @@ export class SftpSettingsTabComponent implements OnDestroy {
     const commit = (spec: string | null) => {
       if (!spec) return
       this.panelHotkeyRecordingPreview = this.panelHotkeyLabel(spec)
+      // ★ 2026-09-29：滚轮一次物理操作会连发多个 wheel 事件，同一 spec 只保留首次的提交计时，
+      //   否则事件流持续期间计时器被反复重置，松手后仍要再等一个延迟才提交。
+      if (spec === this._panelHotkeyPendingSpec && this._panelHotkeyTimer) return
       if (this._panelHotkeyTimer) clearTimeout(this._panelHotkeyTimer)
+      this._panelHotkeyPendingSpec = spec
       this._panelHotkeyTimer = setTimeout(() => {
         this._panelHotkeyTimer = null
         this._commitPanelHotkey(action, spec)
@@ -2039,17 +2484,30 @@ export class SftpSettingsTabComponent implements OnDestroy {
       if (ev.repeat) return
       commit(eventToPanelHotkeySpec(ev))
     }
-    // ★ 2026-08-31：鼠标侧键录制（button 3 = 后退 / 4 = 前进）
+    // ★ 2026-08-31：鼠标键录制（button 1 = 中键 / 3 = 后退 / 4 = 前进）；
+    //   左键(0)与右键(2)返回 null ⇒ 不参与绑定也不吞事件
     this._panelHotkeyMouseHandler = (ev: MouseEvent) => {
       if (!this.panelHotkeyRecording) return
-      const spec = mouseSpecFromButton(ev.button)
+      const spec = pointerSpecFromEvent(ev)
       if (!spec) return
       ev.preventDefault()
       ev.stopPropagation()
       commit(spec)
     }
+    // ★ 2026-09-29：滚轮录制。两个要点缺一不可：
+    //   ① 只在录制期监听，且捕获阶段就 preventDefault —— 否则设置页自己会跟着滚，
+    //      滚到别的行上用户就看不到录制框了；
+    //   ② 必须显式 passive:false —— window/document 上的 wheel 监听默认 passive:true，
+    //      此时 preventDefault() 是空操作（浏览器只打一条警告），页面照样滚。
+    this._panelHotkeyWheelHandler = (ev: WheelEvent) => {
+      if (!this.panelHotkeyRecording) return
+      ev.preventDefault()
+      ev.stopPropagation()
+      commit(pointerSpecFromEvent(ev))
+    }
     window.addEventListener('keydown', this._panelHotkeyDomHandler, true)
     window.addEventListener('mousedown', this._panelHotkeyMouseHandler, true)
+    window.addEventListener('wheel', this._panelHotkeyWheelHandler, { capture: true, passive: false })
 
     if (this._panelHotkeySafeTimer) clearTimeout(this._panelHotkeySafeTimer)
     this._panelHotkeySafeTimer = setTimeout(() => {
@@ -2071,13 +2529,19 @@ export class SftpSettingsTabComponent implements OnDestroy {
       window.removeEventListener('mousedown', this._panelHotkeyMouseHandler, true)
       this._panelHotkeyMouseHandler = null
     }
+    if (this._panelHotkeyWheelHandler) {
+      // 移除只需 capture 标志一致；passive 不参与匹配
+      window.removeEventListener('wheel', this._panelHotkeyWheelHandler, { capture: true })
+      this._panelHotkeyWheelHandler = null
+    }
+    this._panelHotkeyPendingSpec = ''
     try { this.hotkeys?.enable?.() } catch { /* ignore */ }
     setHotkeyRecordingActive(false)
     this.panelHotkeyRecording = null
     this.panelHotkeyRecordingPreview = ''
   }
 
-  private _commitPanelHotkey(action: PanelHotkeyAction, spec: string): void {
+  private async _commitPanelHotkey(action: PanelHotkeyAction, spec: string): Promise<void> {
     this._teardownPanelHotkeyRecording()
     // 不与其它动作的绑定重复
     for (const a of this.panelHotkeyActions) {
@@ -2091,11 +2555,33 @@ export class SftpSettingsTabComponent implements OnDestroy {
       this._flashHotkeyMessage(this.i18n.t('settings.hotkeyDuplicate'))
       return
     }
+    // ★ 2026-09-20：对照 Tabby 全局热键（如默认 Alt-Enter = 切换全屏），避免绑上却被 Tabby 抢走且无提示
+    const tabbyStroke = panelHotkeySpecToTabbyBinding(spec)
+    if (tabbyStroke && this.configService?.store?.hotkeys) {
+      const conflicts = findHotkeyConflicts(tabbyStroke, this.configService.store.hotkeys, '')
+      if (conflicts.length) {
+        const names = await this._resolveHotkeyNames(conflicts)
+        this.hotkeyConflictNames = names.join(', ')
+        const ok = confirm(this.i18n.t('settings.hotkeyConflictConfirm', {
+          keys: this.panelHotkeyLabel(spec),
+          names: this.hotkeyConflictNames,
+        }))
+        if (!ok) {
+          this.hotkeyConflictNames = ''
+          return
+        }
+        this.hotkeyConflictNames = ''
+      }
+    }
     list.keys = [...list.keys, spec]
     list.enabled = true
     this._saveToConfig()
     this.notifyPanels()
-    this._flashHotkeyMessage(this.i18n.t('settings.hotkeySaved', { keys: this.panelHotkeyLabel(spec) }))
+    // ★ 2026-09-29：裸滚轮（无修饰键）绑定会把面板列表的滚动顶掉——绑上必须明说，
+    //   否则用户只会觉得「列表突然滚不动了」（吞事件才能触发动作，二者不可兼得）
+    this._flashHotkeyMessage(isBareWheelSpec(spec)
+      ? this.i18n.t('settings.panelHotkeyWheelBareWarning', { keys: this.panelHotkeyLabel(spec) })
+      : this.i18n.t('settings.hotkeySaved', { keys: this.panelHotkeyLabel(spec) }))
   }
 
   /** 移除某个动作的单个快捷键绑定 */
@@ -2130,16 +2616,34 @@ export class SftpSettingsTabComponent implements OnDestroy {
     return normalizePanelHotkeyKeys(h.keys, PANEL_HOTKEY_CLEARED)
   }
 
-  /** 单个绑定的显示文案：鼠标侧键显示中文名，键盘键原样显示 */
+  /** 单个绑定的显示文案：指针类用固定符号（鼠标键 MouseN / 滚轮 Wheel↑↓），空格键显示 Space */
   panelHotkeyLabel(spec: string): string {
-    if (spec === MOUSE_BACK_SPEC) return this.i18n.t('settings.mouseBack')
-    if (spec === MOUSE_FORWARD_SPEC) return this.i18n.t('settings.mouseForward')
-    return spec
+    if (!spec) return ''
+    if (spec === ' ') return 'Space'
+    // 带修饰键时只替换主键部分（'Alt+WheelUp' → 'Alt+Wheel↑'）
+    const cut = spec.lastIndexOf('+')
+    const mods = cut >= 0 ? spec.slice(0, cut + 1) : ''
+    const main = cut >= 0 ? spec.slice(cut + 1) : spec
+    const special: Record<string, string> = {
+      [MOUSE_MIDDLE_SPEC]: 'Mouse1',
+      [MOUSE_BACK_SPEC]: 'Mouse3',
+      [MOUSE_FORWARD_SPEC]: 'Mouse4',
+      [WHEEL_UP_SPEC]: 'Wheel↑',
+      [WHEEL_DOWN_SPEC]: 'Wheel↓',
+    }
+    return mods + (special[main] ?? main)
   }
 
-  /** 是否为鼠标侧键绑定（模板据此用不同配色区分） */
-  isPanelMouseHotkey(spec: string): boolean {
-    return isMouseHotkeySpec(spec)
+  /** 是否为指针类绑定（鼠标键/滚轮；模板据此用不同配色区分） */
+  isPanelPointerHotkey(spec: string): boolean {
+    return isPointerHotkeySpec(spec)
+  }
+
+  /** 绑定 chip 的悬停提示：滚轮 → 滚动被顶掉的提醒；鼠标键 → 侧键/中键说明；其余 → 点击重新录制 */
+  hotkeyChipHint(spec: string): string {
+    if (isWheelHotkeySpec(spec)) return this.i18n.t('settings.hotkeyWheelHint')
+    if (isMouseHotkeySpec(spec)) return this.i18n.t('settings.hotkeyMouseHint')
+    return this.i18n.t('settings.hotkeyClickToSet')
   }
 
   /** 重置面板快捷键为默认值 */
@@ -2159,6 +2663,9 @@ export class SftpSettingsTabComponent implements OnDestroy {
     forward: 'settings.phk.forward',
     upload: 'app.upload',
     download: 'app.download',
+    openLocal: 'file.open',
+    viewFile: 'file.view',
+    editFile: 'file.edit',
     newFolder: 'file.newFolder',
     newFile: 'file.newFile',
     details: 'file.properties',
@@ -2312,14 +2819,19 @@ export class SftpSettingsTabComponent implements OnDestroy {
       }
       if (typeof cfg.transferUploadConcurrency === 'number') this.uploadConcurrency = this._clampConcurrency(cfg.transferUploadConcurrency)
       if (typeof cfg.transferDownloadConcurrency === 'number') this.downloadConcurrency = this._clampConcurrency(cfg.transferDownloadConcurrency)
-      if (cfg.transferFastMode !== undefined) this.transferFastMode = cfg.transferFastMode === true
-      if (cfg.transferTarAcceleration !== undefined) this.transferTarAcceleration = cfg.transferTarAcceleration !== false
+      // ★ 2026-09-28：传输通道模式（含旧 transferTarAcceleration 开关迁移）
+      if ((cfg as any).transferChannelMode && ['smart', 'sftpOnly', 'tarOnly', 'preferSftp', 'preferTar'].includes((cfg as any).transferChannelMode)) {
+        this.transferChannelMode = (cfg as any).transferChannelMode
+      } else if ((cfg as any).transferTarAcceleration === false) {
+        this.transferChannelMode = 'sftpOnly'
+      } else {
+        this.transferChannelMode = 'smart'
+      }
       // ★ 2026-09-07 issue #15：冲突内容摘要
       if (cfg.conflictDigestEnabled !== undefined) this.conflictDigestEnabled = cfg.conflictDigestEnabled !== false
       if (cfg.conflictAutoSkipSameContent !== undefined) this.conflictAutoSkipSameContent = cfg.conflictAutoSkipSameContent !== false
       if (cfg.conflictDigestMaxSizeMB !== undefined) {
-        const mb = Number(cfg.conflictDigestMaxSizeMB)
-        this.conflictDigestMaxSizeMB = Number.isFinite(mb) && mb > 0 ? mb : 256
+        this.conflictDigestMaxSizeMB = this._clampDigestMaxMB(cfg.conflictDigestMaxSizeMB)
       }
       if (typeof cfg.defaultUploadPath === 'string') this.defaultUploadPath = cfg.defaultUploadPath
       if (typeof cfg.defaultDownloadPath === 'string') this.defaultDownloadPath = cfg.defaultDownloadPath
@@ -2366,11 +2878,18 @@ export class SftpSettingsTabComponent implements OnDestroy {
         this.editableFileExtensionsText = formatTextExtensionsForInput(cfg.editableFileExtensions)
       }
       this.allowViewEditAllFiles = resolveAllowViewEditAllFiles(cfg as Record<string, unknown>)
+      if (cfg.showTextLineNumbers !== undefined) this.showTextLineNumbers = cfg.showTextLineNumbers !== false
+      if (cfg.textCaretShape !== undefined) this.textCaretShape = normalizeCaretShape(cfg.textCaretShape)
       if (Array.isArray(cfg.contextMenuOrder) && cfg.contextMenuOrder.length) {
         const valid = (cfg.contextMenuOrder as string[]).filter(a => (a in FILE_MENU_REGISTRY)) as ContextMenuAction[]
-        // 补齐可能缺失的已知项（保证顺序数组始终含全部菜单项，缺失项追加末尾）
+        // 补齐可能缺失的已知项（保证顺序数组始终含全部文件动作，缺失项追加末尾）
         for (const a of DEFAULT_FILE_MENU_ORDER) if (!valid.includes(a)) valid.push(a)
-        this.contextMenuOrder = valid
+        this.contextMenuOrder = [...valid, 'groupBy'] as ContextMenuCustomId[]
+      }
+      if (Array.isArray(cfg.contextMenuDisabled)) {
+        // groupToggleAll 已并入分组依据子菜单，不再是独立定制项——历史配置里的该值直接丢弃
+        this.contextMenuDisabled = (cfg.contextMenuDisabled as string[])
+          .filter(a => (a in FILE_MENU_REGISTRY) || a === 'groupBy') as ContextMenuCustomId[]
       }
       // ★ 2026-08-31：面板内置操作快捷键（多绑定）。与默认值合并保证动作齐全。
       // ★ 2026-08-24 修复：空串/NUL/空数组会被 Tabby config 清洗删除（{} → defaults 回退 F2/F5）。
@@ -2383,6 +2902,13 @@ export class SftpSettingsTabComponent implements OnDestroy {
             const isDisabled = ph[a].enabled === false
             // 兼容旧格式 { key: 'Delete' } 与新格式 { keys: ['Delete'] }
             const raw = (ph[a] as any).keys ?? (ph[a] as any).key
+            // ★ 2026-09-29：「keys/key 与 enabled 双双缺省」= 清空数据后留下的空壳
+            //   （ConfigProxy 对结构成员的叶子，一旦值等于默认值就会被 delete，故「已恢复默认」
+            //   在磁盘上表现为 `{}` 而不是 `{keys:['Delete'],enabled:true}`）。
+            //   此时必须**保留默认绑定** —— 否则「清空数据」会把 Delete / F2 / F5 等默认快捷键
+            //   显示成「未绑定」（看着像删过头，其实是读法把空壳误判成显式解绑）。
+            //   注意：显式解绑一定是 `keys: []`（有定义）或 `enabled: false`，不会落到这里。
+            if (raw === undefined && !isDisabled) continue
             const keys = isDisabled ? [] : normalizePanelHotkeyKeys(raw, PANEL_HOTKEY_CLEARED)
             def[a] = { keys, enabled: !isDisabled }
           }
@@ -2399,6 +2925,7 @@ export class SftpSettingsTabComponent implements OnDestroy {
     try { localStorage.setItem('sftp-plus-pane-custom-order', JSON.stringify(this.paneCustomOrder)) } catch {}
     try { localStorage.setItem('sftp-plus-pane-hidden-items', JSON.stringify(this.paneHiddenItems)) } catch {}
     try { localStorage.setItem('sftp-plus-context-menu-order', JSON.stringify(this.contextMenuOrder)) } catch {}
+    try { localStorage.setItem('sftp-plus-context-menu-disabled', JSON.stringify(this.contextMenuDisabled)) } catch {}
     if (!this.configService) return
     try {
       const target = this.configService.store['tabby-sftp-plus']
@@ -2426,8 +2953,7 @@ export class SftpSettingsTabComponent implements OnDestroy {
       target.dateFormat = this.dateFormat
       target.transferUploadConcurrency = this.uploadConcurrency
       target.transferDownloadConcurrency = this.downloadConcurrency
-      target.transferFastMode = this.transferFastMode
-      target.transferTarAcceleration = this.transferTarAcceleration
+      target.transferChannelMode = this.transferChannelMode
       // ★ 2026-09-07 issue #15：三者均为标量叶子，可直接赋值（符合 ConfigProxy「只有叶子标量可写」的要求）
       target.conflictDigestEnabled = this.conflictDigestEnabled
       target.conflictAutoSkipSameContent = this.conflictAutoSkipSameContent
@@ -2445,10 +2971,13 @@ export class SftpSettingsTabComponent implements OnDestroy {
       target.openUnsupportedInSystem = this.openUnsupportedInSystem
       target.editableFileExtensions = normalizeEditableExtensions(this.editableFileExtensionsText)
       target.allowViewEditAllFiles = this.allowViewEditAllFiles
+      target.showTextLineNumbers = this.showTextLineNumbers
+      target.textCaretShape = this.textCaretShape
       // 兼容旧字段：同步写入，避免回退旧版插件时丢失开关状态
       target.allowEditAllFiles = this.allowViewEditAllFiles
       target.allowViewAllAsText = this.allowViewEditAllFiles
       target.contextMenuOrder = this.contextMenuOrder
+      target.contextMenuDisabled = this.contextMenuDisabled
       // ★ 2026-08-24 修复：panelHotkeys 是 ConfigProxy 的「结构成员」（对象），只有 getter 没有 setter。
       //    直接 `target.panelHotkeys = x` 不生效（严格模式抛 TypeError 被 catch 吞掉 / 非严格静默忽略），
       //    导致绑定从未落盘 → config.yaml 写成 {} → 重启后 defaults 回退 F2/F5。
@@ -2596,6 +3125,7 @@ export class SftpSettingsTabComponent implements OnDestroy {
   /** 切换隐藏原生 SFTP 按钮 */
   toggleHideNativeBtn(): void {
     this.hideNativeBtn = !this.hideNativeBtn
+    try { localStorage.setItem('sftp-plus-settings.hideNativeBtn', JSON.stringify(this.hideNativeBtn)) } catch {}
     this._saveToConfig()
     this.notifyPanels()
   }
@@ -2630,6 +3160,18 @@ export class SftpSettingsTabComponent implements OnDestroy {
 
   toggleAllowViewEditAllFiles(): void {
     this.allowViewEditAllFiles = !this.allowViewEditAllFiles
+    this._saveToConfig()
+    this.notifyPanels()
+  }
+
+  toggleShowTextLineNumbers(): void {
+    this.showTextLineNumbers = !this.showTextLineNumbers
+    this._saveToConfig()
+    this.notifyPanels()
+  }
+
+  onTextCaretShapeChange(shape: CaretShape): void {
+    this.textCaretShape = normalizeCaretShape(shape)
     this._saveToConfig()
     this.notifyPanels()
   }
@@ -3250,16 +3792,11 @@ export class SftpSettingsTabComponent implements OnDestroy {
     this.notifyPanels()
   }
 
-  /** ★ 2026-08-11：切换快速模式（目录传输跳过预扫描）；实时通知面板，新发起的传输立即生效 */
-  toggleFastMode(): void {
-    this.transferFastMode = !this.transferFastMode
-    this._saveToConfig()
-    this.notifyPanels()
-  }
-
-  /** ★ 2026-08-28：切换 tar 打包加速 */
-  toggleTarAcceleration(): void {
-    this.transferTarAcceleration = !this.transferTarAcceleration
+  /** ★ 2026-09-28：保存传输通道模式（下拉选择即生效） */
+  saveChannelMode(): void {
+    if (!['smart', 'sftpOnly', 'tarOnly', 'preferSftp', 'preferTar'].includes(this.transferChannelMode)) {
+      this.transferChannelMode = 'smart'
+    }
     this._saveToConfig()
     this.notifyPanels()
   }
@@ -3278,10 +3815,20 @@ export class SftpSettingsTabComponent implements OnDestroy {
     this.notifyPanels()
   }
 
+  /**
+   * 摘要大小上限取值约束：[1, 4096] MB，非法值回落 256。
+   * ★ 2026-09-21 P2 修复：原先只判 > 0，没有上界——输入框的 max="4096" 只是 UI 提示，
+   * 手动输入/粘贴/导入配置都能写进极大值，随后每次冲突检测都会对巨型文件求 hash。
+   */
+  private _clampDigestMaxMB(v: unknown): number {
+    const mb = Number(v)
+    if (!Number.isFinite(mb) || mb <= 0) return 256
+    return Math.min(4096, Math.max(1, Math.floor(mb)))
+  }
+
   /** 保存摘要计算的文件大小上限（MB） */
   saveConflictDigestMaxSize(): void {
-    const mb = Number(this.conflictDigestMaxSizeMB)
-    this.conflictDigestMaxSizeMB = Number.isFinite(mb) && mb > 0 ? Math.floor(mb) : 256
+    this.conflictDigestMaxSizeMB = this._clampDigestMaxMB(this.conflictDigestMaxSizeMB)
     this._saveToConfig()
     this.notifyPanels()
   }
@@ -3473,13 +4020,29 @@ export class SftpSettingsTabComponent implements OnDestroy {
     this.notifyPanels()
   }
 
-  /** 右键菜单项 action → 显示标签（复用菜单注册表的 i18n key） */
-  contextMenuItemLabel(a: ContextMenuAction): string {
+  /** ★ 2026-09-28：右键菜单项 id → 显示标签（文件动作复用注册表 i18n key；分组依据用专有 key） */
+  contextMenuItemLabel(a: ContextMenuCustomId): string {
+    if (a === 'groupBy') return this.i18n.t('pane.groupBy')
     const def = FILE_MENU_REGISTRY[a]
     return def ? this.i18n.t(def.labelKey) : (a as string)
   }
 
-  onMenuDragStart(a: ContextMenuAction, event: DragEvent): void {
+  /** ★ 2026-09-28：右键菜单项是否启用（复选框） */
+  isMenuEnabled(a: ContextMenuCustomId): boolean {
+    return !this.contextMenuDisabled.includes(a)
+  }
+
+  /** ★ 2026-09-28：切换右键菜单项启用/停用（复选框） */
+  toggleMenuEnabled(a: ContextMenuCustomId): void {
+    if (this.contextMenuDisabled.includes(a)) {
+      this.contextMenuDisabled = this.contextMenuDisabled.filter(x => x !== a)
+    } else {
+      this.contextMenuDisabled = [...this.contextMenuDisabled, a]
+    }
+    void this.saveInteraction()
+  }
+
+  onMenuDragStart(a: ContextMenuCustomId, event: DragEvent): void {
     this.draggingMenuItem = a
     if (event.dataTransfer) {
       event.dataTransfer.effectAllowed = 'move'
@@ -3487,14 +4050,14 @@ export class SftpSettingsTabComponent implements OnDestroy {
     }
   }
 
-  onMenuDragOver(_target: ContextMenuAction, event: DragEvent): void {
+  onMenuDragOver(_target: ContextMenuCustomId, event: DragEvent): void {
     event.preventDefault()
     if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'
   }
 
-  onMenuDrop(target: ContextMenuAction, event: DragEvent): void {
+  onMenuDrop(target: ContextMenuCustomId, event: DragEvent): void {
     event.preventDefault()
-    const source = this.draggingMenuItem || (event.dataTransfer?.getData('text/plain') as ContextMenuAction)
+    const source = this.draggingMenuItem || (event.dataTransfer?.getData('text/plain') as ContextMenuCustomId)
     if (!source || source === target) return
     const next = this.contextMenuOrder.filter(i => i !== source)
     const targetIndex = next.indexOf(target)
@@ -3514,7 +4077,8 @@ export class SftpSettingsTabComponent implements OnDestroy {
   onMenuDragEnd(): void { this.draggingMenuItem = null }
 
   resetMenuOrder(): void {
-    this.contextMenuOrder = [...DEFAULT_FILE_MENU_ORDER]
+    this.contextMenuOrder = [...DEFAULT_FILE_MENU_ORDER, 'groupBy']
+    this.contextMenuDisabled = []
     void this.saveInteraction()
   }
 
@@ -3527,6 +4091,17 @@ export class SftpSettingsTabComponent implements OnDestroy {
   }
 
   // ========== 数据导出导入 ==========
+
+  private _cloneBackupValue(value: unknown, depth = 0): unknown {
+    if (depth > 20 || value == null || typeof value !== 'object') return value
+    if (Array.isArray(value)) return value.map(item => this._cloneBackupValue(item, depth + 1))
+    const out: Record<string, unknown> = Object.create(null)
+    for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
+      if (key === '__proto__' || key === 'constructor' || key === 'prototype' || key === '__nonStructural') continue
+      out[key] = this._cloneBackupValue(item, depth + 1)
+    }
+    return out
+  }
 
   /** 收集所有 SFTP+ 相关的 localStorage 数据（尝试解析 JSON，避免导出双重编码） */
   /** 收集所有 SFTP+ 设置数据（优先从 config.store） */
@@ -3559,8 +4134,7 @@ export class SftpSettingsTabComponent implements OnDestroy {
           data.dateFormat = cfg.dateFormat ?? ''
           data.transferUploadConcurrency = cfg.transferUploadConcurrency ?? 3
           data.transferDownloadConcurrency = cfg.transferDownloadConcurrency ?? 3
-          data.transferFastMode = cfg.transferFastMode ?? false
-          data.transferTarAcceleration = cfg.transferTarAcceleration ?? true
+          data.transferChannelMode = (cfg as any).transferChannelMode ?? 'smart'
           data.conflictDigestEnabled = cfg.conflictDigestEnabled ?? true
           data.conflictAutoSkipSameContent = cfg.conflictAutoSkipSameContent ?? true
           data.conflictDigestMaxSizeMB = cfg.conflictDigestMaxSizeMB ?? 256
@@ -3577,7 +4151,9 @@ export class SftpSettingsTabComponent implements OnDestroy {
           data.allowViewEditAllFiles = resolveAllowViewEditAllFiles(cfg as Record<string, unknown>)
           data.allowEditAllFiles = data.allowViewEditAllFiles
           data.allowViewAllAsText = data.allowViewEditAllFiles
-          data.contextMenuOrder = cfg.contextMenuOrder ?? [...DEFAULT_FILE_MENU_ORDER]
+          data.showTextLineNumbers = cfg.showTextLineNumbers !== false
+          data.textCaretShape = normalizeCaretShape(cfg.textCaretShape)
+          data.contextMenuOrder = cfg.contextMenuOrder ?? [...DEFAULT_FILE_MENU_ORDER, 'groupBy']
           data.panelHotkeys = cfg.panelHotkeys ?? defaultPanelHotkeys()
           data.hideAuthorInfo = cfg.hideAuthorInfo ?? false
           data.paneCustomOrder = cfg.paneCustomOrder ?? ['label', 'back', 'forward', 'up', 'refresh', 'home', 'path', 'hidden', 'filter', 'bookmark']
@@ -3585,6 +4161,9 @@ export class SftpSettingsTabComponent implements OnDestroy {
           // 导出书签、路径记忆（传输日志以 localStorage 为准，见下方）
           if (cfg.bookmarks?.length) data.bookmarks = cfg.bookmarks
           if (cfg.pathMemory && Object.keys(cfg.pathMemory).length) data.pathMemory = cfg.pathMemory
+          if (cfg.paneState && typeof cfg.paneState === 'object') {
+            data.paneState = this._cloneBackupValue(cfg.paneState)
+          }
           // 传输日志权威存储在 localStorage，始终合并
           try {
             const logs = localStorage.getItem('sftp-plus-transfer-logs')
@@ -3617,7 +4196,6 @@ export class SftpSettingsTabComponent implements OnDestroy {
     data.dateFormat = load('dateFormat', '')
     data.transferUploadConcurrency = 3
     data.transferDownloadConcurrency = 3
-    data.transferFastMode = false
     data.hideAuthorInfo = false
     data.openOnClick = load('openOnClick', 'double')
     data.openUnsupportedInSystem = load('openUnsupportedInSystem', true)
@@ -3625,11 +4203,14 @@ export class SftpSettingsTabComponent implements OnDestroy {
     data.allowViewEditAllFiles = loadAllowViewEditAllFiles()
     data.allowEditAllFiles = data.allowViewEditAllFiles
     data.allowViewAllAsText = data.allowViewEditAllFiles
+    data.showTextLineNumbers = load('showTextLineNumbers', true)
+    data.textCaretShape = normalizeCaretShape(load<unknown>('textCaretShape', 'beam'))
     data.conflictDigestEnabled = load('conflictDigestEnabled', true)
     data.conflictAutoSkipSameContent = load('conflictAutoSkipSameContent', true)
     data.conflictDigestMaxSizeMB = load('conflictDigestMaxSizeMB', 256)
     data.conflictDigestAlgo = load<'sha1' | 'sha256'>('conflictDigestAlgo', 'sha1')
     try { data.contextMenuOrder = JSON.parse(localStorage.getItem('sftp-plus-context-menu-order') || '[]') } catch { data.contextMenuOrder = [] }
+    try { data.contextMenuDisabled = JSON.parse(localStorage.getItem('sftp-plus-context-menu-disabled') || '[]') } catch { data.contextMenuDisabled = [] }
     data.panelHotkeys = defaultPanelHotkeys()
     try { data.paneCustomOrder = JSON.parse(localStorage.getItem('sftp-plus-pane-custom-order') || '["label","back","forward","up","refresh","home","path","hidden","filter","bookmark"]') } catch { data.paneCustomOrder = ['label', 'back', 'forward', 'up', 'refresh', 'home', 'path', 'hidden', 'filter', 'bookmark'] }
     try { data.paneHiddenItems = JSON.parse(localStorage.getItem('sftp-plus-pane-hidden-items') || '[]') } catch { data.paneHiddenItems = [] }
@@ -3645,9 +4226,48 @@ export class SftpSettingsTabComponent implements OnDestroy {
     return data
   }
 
-  /** 导出数据为 JSON 文件 */
+  /**
+   * 按勾选的类别过滤导出数据（★ 2026-09-29）。
+   * 未勾选的类别**完全不写入** JSON —— 导入侧对不存在的字段是「不覆盖」语义，
+   * 所以「只导外观」的备份在导入时不会清空书签、路径记忆与传输日志。
+   */
+  private filterExportData(all: Record<string, unknown>): Record<string, unknown> {
+    // ★ 2026-09-29：九类，与设置页分区一一对应；顺序与弹窗展示顺序一致
+    const picks: Array<[boolean, string]> = [
+      [this.exportPickLang, 'lang'],
+      [this.exportPickTheme, 'theme'],
+      [this.exportPickLayout, 'layout'],
+      [this.exportPickIcons, 'icons'],
+      [this.exportPickOther, 'other'],
+      [this.exportPickTransfer, 'transfer'],
+      [this.exportPickHotkeys, 'hotkeys'],
+      [this.exportPickData, 'data'],
+      [this.exportPickLogs, 'logs'],
+    ]
+    const out: Record<string, unknown> = {}
+    for (const [enabled, category] of picks) {
+      if (!enabled) continue
+      for (const field of EXPORT_CATEGORY_FIELDS[category] ?? []) {
+        if (field in all) out[field] = all[field]
+      }
+    }
+    return out
+  }
+
+  /**
+   * 导出数据为 JSON 文件。
+   * ★ 2026-09-29：改为**按弹窗里勾选的配置类别**导出（原实现无条件导出全部内容，
+   *   用户要「只备份外观/只备份书签」时只能全量导出再手动删键）。
+   */
   exportData(): void {
-    const data = this.collectAllData()
+    const all = this.collectAllData()
+    const data = this.filterExportData(all)
+    if (!Object.keys(data).length) {
+      // 兜底：一类都没勾（按钮已 disabled，这里防键盘/脚本绕过）→ 不生成空备份文件
+      this.showExportDialog = false
+      return
+    }
+    this.showExportDialog = false
     const json = JSON.stringify({ 'tabby-sftp-plus': data }, null, 2)
     const blob = new Blob([json], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
@@ -3731,13 +4351,12 @@ export class SftpSettingsTabComponent implements OnDestroy {
           if (data.dateFormat !== undefined) target.dateFormat = data.dateFormat
           if (data.transferUploadConcurrency !== undefined) target.transferUploadConcurrency = data.transferUploadConcurrency
           if (data.transferDownloadConcurrency !== undefined) target.transferDownloadConcurrency = data.transferDownloadConcurrency
-          if (data.transferFastMode !== undefined) target.transferFastMode = data.transferFastMode
-          if (data.transferTarAcceleration !== undefined) target.transferTarAcceleration = data.transferTarAcceleration
+          if ((data as any).transferChannelMode !== undefined) target.transferChannelMode = (data as any).transferChannelMode
           if (data.conflictDigestEnabled !== undefined) target.conflictDigestEnabled = data.conflictDigestEnabled !== false
           if (data.conflictAutoSkipSameContent !== undefined) target.conflictAutoSkipSameContent = data.conflictAutoSkipSameContent !== false
           if (data.conflictDigestMaxSizeMB !== undefined) {
-            const mb = Number(data.conflictDigestMaxSizeMB)
-            target.conflictDigestMaxSizeMB = Number.isFinite(mb) && mb > 0 ? Math.floor(mb) : 256
+            // ★ 2026-09-21 P2：导入的配置同样要 clamp 上界（外部 JSON 不可信）
+            target.conflictDigestMaxSizeMB = this._clampDigestMaxMB(data.conflictDigestMaxSizeMB)
           }
           if (data.conflictDigestAlgo !== undefined) target.conflictDigestAlgo = data.conflictDigestAlgo === 'sha256' ? 'sha256' : 'sha1'
           if (data.defaultUploadPath !== undefined) target.defaultUploadPath = data.defaultUploadPath
@@ -3756,7 +4375,10 @@ export class SftpSettingsTabComponent implements OnDestroy {
             target.allowEditAllFiles = on
             target.allowViewAllAsText = on
           }
+          if (data.showTextLineNumbers !== undefined) target.showTextLineNumbers = data.showTextLineNumbers !== false
+          if (data.textCaretShape !== undefined) target.textCaretShape = normalizeCaretShape(data.textCaretShape)
           if (data.contextMenuOrder !== undefined) target.contextMenuOrder = data.contextMenuOrder
+          if (data.contextMenuDisabled !== undefined) target.contextMenuDisabled = data.contextMenuDisabled
           // ★ 2026-08-24 修复：与 _saveToConfig 同理，panelHotkeys 为结构成员须逐叶子赋值
           if (data.panelHotkeys !== undefined) {
             const ph = (target as any).panelHotkeys
@@ -3778,22 +4400,86 @@ export class SftpSettingsTabComponent implements OnDestroy {
           if (data.paneHiddenItems !== undefined) target.paneHiddenItems = data.paneHiddenItems
           // 导入路径记忆：导出已含 pathMemory，导入须写回，否则备份无法恢复（# 导出导入不对称缺陷修复）
           if (data.pathMemory !== undefined) target.pathMemory = data.pathMemory
-          // 导入书签
-          if (data.bookmarks !== undefined) target.bookmarks = data.bookmarks
+          // 导入书签：沿用正常添加路径的规范化规则，拒绝畸形记录和无效路径。
+          if (Array.isArray(data.bookmarks)) {
+            const ids = new Set<string>()
+            target.bookmarks = data.bookmarks.flatMap((raw: any, index: number) => {
+              if (!raw || (raw.type !== 'local' && raw.type !== 'remote')) return []
+              const normalizedPath = normalizeBookmarkPath(raw.path, raw.type)
+              if (!normalizedPath) return []
+              let id = typeof raw.id === 'string' ? raw.id.slice(0, 256) : ''
+              if (!id || ids.has(id)) id = `import-${Date.now().toString(36)}-${index.toString(36)}`
+              ids.add(id)
+              return [{
+                id,
+                name: String(raw.name ?? path.basename(normalizedPath) ?? normalizedPath).slice(0, 512),
+                path: normalizedPath,
+                type: raw.type,
+                connectionKey: raw.connectionKey == null ? undefined : String(raw.connectionKey).slice(0, 512),
+                createdAt: Number(raw.createdAt) || Date.now(),
+              }]
+            })
+          }
+          if (data.paneState && typeof data.paneState === 'object' && !Array.isArray(data.paneState)) {
+            const incoming = data.paneState as Record<string, unknown>
+            const paneState = target.paneState && typeof target.paneState === 'object'
+              ? target.paneState
+              : (target.paneState = {})
+            for (const section of ['layout', 'local', 'remote'] as const) {
+              const clean = this._cloneBackupValue(incoming[section])
+              if (clean && typeof clean === 'object' && !Array.isArray(clean)) {
+                paneState[section] = { ...(paneState[section] ?? {}), ...(clean as Record<string, unknown>) }
+              }
+            }
+          }
           this.configService.save()
-          // 传输日志只写 localStorage（不污染 config.yaml）
+          // 传输日志只写 localStorage，但必须经过服务层清洗、条数及 4MB 上限。
           if (data.transferLogs !== undefined) {
-            try { localStorage.setItem('sftp-plus-transfer-logs', JSON.stringify(data.transferLogs)) } catch (e) { log.warn('Import transfer logs failed', e) }
+            if (!this.transferLogImport.replaceFromImport(data.transferLogs)) {
+              log.warn('Import transfer logs ignored: expected an array')
+            }
           }
           // 路径记忆导入 localStorage（与 saveCurrentPath 统一路径）
           if (data.paneState?.perHost) {
+            const paneState = target.paneState && typeof target.paneState === 'object'
+              ? target.paneState
+              : (target.paneState = {})
+            const perHost = paneState.perHost && typeof paneState.perHost === 'object'
+              ? paneState.perHost
+              : (paneState.perHost = {})
             for (const [host, entry] of Object.entries(data.paneState.perHost)) {
               // 防御：仅允许合法主机名字符，拒绝注入
               if (!/^[a-zA-Z0-9._:-]+$/.test(host)) continue
-              if ((entry as any).savedLocalPath) localStorage.setItem(`sftp-plus-saved-local-path.${host}`, (entry as any).savedLocalPath)
-              if ((entry as any).savedRemotePath) localStorage.setItem(`sftp-plus-saved-remote-path.${host}`, (entry as any).savedRemotePath)
-              if ((entry as any).pathMode) localStorage.setItem(`sftp-plus-path-mode.${host}`, (entry as any).pathMode)
+              const localRaw = typeof (entry as any).savedLocalPath === 'string' ? (entry as any).savedLocalPath.trim() : ''
+              if (localRaw && !/[\0-\x1f]/.test(localRaw)) {
+                const localNormalized = path.normalize(localRaw)
+                if (path.isAbsolute(localNormalized)) {
+                  localStorage.setItem(`sftp-plus-saved-local-path.${host}`, localNormalized)
+                  const hostState = perHost[host] && typeof perHost[host] === 'object'
+                    ? perHost[host]
+                    : (perHost[host] = {})
+                  hostState.savedLocalPath = localNormalized
+                }
+              }
+              const remoteRaw = typeof (entry as any).savedRemotePath === 'string' ? (entry as any).savedRemotePath.trim() : ''
+              if (remoteRaw.startsWith('/') && !/[\0-\x1f]/.test(remoteRaw)) {
+                const remoteNormalized = path.posix.normalize(remoteRaw.replace(/\/+/g, '/'))
+                localStorage.setItem(`sftp-plus-saved-remote-path.${host}`, remoteNormalized)
+                const hostState = perHost[host] && typeof perHost[host] === 'object'
+                  ? perHost[host]
+                  : (perHost[host] = {})
+                hostState.savedRemotePath = remoteNormalized
+              }
+              const importedMode = (entry as any).pathMode
+              if (importedMode === 'off' || importedMode === 'remember' || importedMode === 'sync') {
+                localStorage.setItem(`sftp-plus-path-mode.${host}`, importedMode)
+                const hostState = perHost[host] && typeof perHost[host] === 'object'
+                  ? perHost[host]
+                  : (perHost[host] = {})
+                hostState.pathMode = importedMode
+              }
             }
+            this.configService.save()
           }
           alert(this.i18n.t('settings.importComplete'))
         } else {
@@ -3811,7 +4497,73 @@ export class SftpSettingsTabComponent implements OnDestroy {
     input.value = ''
   }
 
-  /** 清除确认弹窗是否显示 */
+  /**
+   * 导出勾选弹窗（★ 2026-09-29）：按配置类别选择性导出。
+   * ★ 2026-09-29 二次调整：九个类别**逐项对齐设置页自己的分区标题**
+   *   （语言 / 主题 / 布局 / 对象图标 / 其它 / 传输设置 / 快捷键 / 数据 / 传输记录），
+   *   其中「传输记录」从原「书签与记录」拆出独立成项。类别名直接复用设置页标题的 i18n key。
+   */
+  showExportDialog = false
+  exportPickLang = true
+  exportPickTheme = true
+  exportPickLayout = true
+  exportPickIcons = true
+  exportPickOther = true
+  exportPickTransfer = true
+  exportPickHotkeys = true
+  exportPickData = true
+  exportPickLogs = true
+
+  /** 导出类别总数（新增/删除类别时改这里，exportAllPicked 与探针都据此判定） */
+  get exportPickTotal(): number { return 9 }
+
+  /** 当前勾选状态数组（顺序与 filterExportData 的 picks 一致） */
+  private _exportPicks(): boolean[] {
+    return [
+      this.exportPickLang, this.exportPickTheme, this.exportPickLayout, this.exportPickIcons,
+      this.exportPickOther, this.exportPickTransfer, this.exportPickHotkeys,
+      this.exportPickData, this.exportPickLogs,
+    ]
+  }
+
+  /** 一次性把九类设为同一值（打开弹窗 / 全选 / 全不选共用） */
+  private _setAllExportPicks(v: boolean): void {
+    this.exportPickLang = v
+    this.exportPickTheme = v
+    this.exportPickLayout = v
+    this.exportPickIcons = v
+    this.exportPickOther = v
+    this.exportPickTransfer = v
+    this.exportPickHotkeys = v
+    this.exportPickData = v
+    this.exportPickLogs = v
+  }
+
+  /** 已勾选的类别数（0 → 禁用导出按钮，避免导出空备份） */
+  get exportPickCount(): number {
+    return this._exportPicks().filter(Boolean).length
+  }
+
+  /** 是否九类全勾（决定底部小按钮显示「全选」还是「全不选」） */
+  get exportAllPicked(): boolean {
+    return this.exportPickCount === this.exportPickTotal
+  }
+
+  /** 打开导出勾选弹窗；每次回到全选，避免上次的勾选残留导致「以为全导出了其实没有」 */
+  openExportDialog(): void {
+    this._setAllExportPicks(true)
+    this.showExportDialog = true
+  }
+
+  closeExportDialog(): void {
+    this.showExportDialog = false
+  }
+
+  /** 全选 / 全不选一键切换 */
+  toggleExportAll(): void {
+    this._setAllExportPicks(!this.exportAllPicked)
+  }
+
   showClearConfirm = false
   clearConfirmInput = ''
 
@@ -3825,38 +4577,100 @@ export class SftpSettingsTabComponent implements OnDestroy {
   }
   closeClearConfirm(): void { this.showClearConfirm = false; this.clearConfirmInput = '' }
 
-  /** 清空所有 SFTP+ 数据（需输入 DELETE 确认） */
-  doClearData(): void {
+  /**
+   * 把 ConfigProxy 上的单个键恢复为插件默认值。
+   *
+   * ⚠ 结构成员（非空对象、非数组、无 __nonStructural 标记）在 ConfigProxy 里**只有 getter**：
+   *   直接 `target[k] = 默认对象` 会抛 TypeError（严格模式）→ 被外层 catch 吞掉 → 该键及其后所有键都不落盘。
+   *   宿主判定口径见 tabby-core `isStructuralMember()`：
+   *   `v instanceof Object && !(v instanceof Array) && Object.keys(v).length > 0 && !v.__nonStructural`。
+   *   故结构成员必须**递归到叶子**逐项赋值（本文件 _saveToConfig 与 importData 对 panelHotkeys 用的是同一套写法）。
+   *
+   * 非结构成员（标量 / 数组 / 空对象 / 带 __nonStructural 的对象）走 setter：
+   *   ConfigProxy.__setValue 在「新值 deepEqual 默认值」时直接 `delete real[key]`，
+   *   所以赋默认值 = 真正抹掉该键（重启后由 defaults 兜底）——这正是「清空」想要的语义。
+   */
+  private _resetConfigKey(target: any, key: string, def: unknown): void {
+    const isStructural = def instanceof Object && !(def instanceof Array)
+      && Object.keys(def as object).length > 0 && !(def as { __nonStructural?: boolean }).__nonStructural
+    if (isStructural) {
+      const cur = target[key]
+      if (!cur || typeof cur !== 'object') throw new Error(`structural member "${key}" unavailable`)
+      for (const sub of Object.keys(def as object)) {
+        this._resetConfigKey(cur, sub, (def as Record<string, unknown>)[sub])
+      }
+      return
+    }
+    target[key] = def
+  }
+
+  /**
+   * 清空所有 SFTP+ 数据（需输入 DELETE 确认）
+   *
+   * ★ 2026-09-29 修复「点了清空仍有残留」：原实现是单层 for 循环裸赋值 `target[k] = defaults[k]`，
+   *   在第 23 个键 `panelHotkeys`（结构成员，只有 getter）处抛 TypeError → 整个循环中断，
+   *   其后的 contextMenuOrder / 传输设置 / 图标 / 冲突摘要 / 书签 / 路径记忆 / 面板状态 / 传输日志
+   *   **全部没被清掉**；异常还被最外层 catch 吞掉，连带跳过了 localStorage 清理、界面刷新与提示。
+   *   现在：① localStorage 先清；② config 逐键独立 try/catch（单键失败不牵连其余）；
+   *   ③ 结构成员走 _resetConfigKey 递归；④ 顺带清 Tabby 级「面板开关快捷键」（不在插件子树内）；
+   *   ⑤ 无论 config 侧是否出错，都刷新界面并给用户提示。
+   */
+  async doClearData(): Promise<void> {
     if (this.clearConfirmInput !== 'DELETE') return
     this.showClearConfirm = false
     this.clearConfirmInput = ''
+    const failed: string[] = []
+
+    // ① localStorage：所有 sftp-plus-* 键（书签墓碑、传输日志、列宽/排序、路径记忆、面板几何…）
     try {
-      // 重置 config.store 为默认值
-      if (this.configService?.store) {
-        const target = this.configService.store['tabby-sftp-plus']
+      const keysToRemove: string[] = []
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i)
+        if (k && k.startsWith('sftp-plus-')) keysToRemove.push(k)
+      }
+      for (const k of keysToRemove) localStorage.removeItem(k)
+    } catch (e) {
+      failed.push('localStorage')
+      log.error('Clear data: localStorage failed', e)
+    }
+
+    // ② config.store 恢复默认值（逐键独立，避免一键失败中断整轮）
+    try {
+      const target = this.configService?.store?.['tabby-sftp-plus']
+      if (target) {
         const defaults = defaultSftpPlusConfig()
         for (const k of Object.keys(defaults)) {
-          target[k] = defaults[k]
+          try {
+            this._resetConfigKey(target, k, (defaults as unknown as Record<string, unknown>)[k])
+          } catch (e) {
+            failed.push(k)
+            log.error(`Clear data: reset "${k}" failed`, e)
+          }
         }
-        this.configService.save()
       }
-      // 清除 localStorage 中所有 sftp-plus-* 遗留数据
-      try {
-        const keysToRemove: string[] = []
-        for (let i = 0; i < localStorage.length; i++) {
-          const k = localStorage.key(i)
-          if (k && k.startsWith('sftp-plus-')) keysToRemove.push(k)
-        }
-        for (const k of keysToRemove) localStorage.removeItem(k)
-      } catch {}
-      // 重置组件状态到默认值并刷新
-      this._refreshFromConfig()
-      this.notifyPanels()
-      const msg = this.i18n.t('settings.dataCleared')
-      alert(msg)
     } catch (e) {
-      log.error('Clear data failed', e)
+      failed.push('config')
+      log.error('Clear data: config reset failed', e)
     }
+
+    // ③ Tabby 级插件热键（面板开关快捷键）不在这棵插件子树里，须单独清
+    try {
+      const hk = this.configService?.store?.hotkeys as Record<string, unknown> | undefined
+      if (hk && hk[SFTP_PLUS_TOGGLE_HOTKEY]) hk[SFTP_PLUS_TOGGLE_HOTKEY] = []
+    } catch (e) {
+      failed.push('hotkeys')
+      log.error('Clear data: hotkeys failed', e)
+    }
+
+    try { await this.configService?.save() } catch (e) { log.error('Clear data: save failed', e) }
+
+    // ④ 设置页状态回默认 + 通知面板重读（无论上面是否出错都要做，否则界面仍显示旧值）
+    try { this._refreshFromConfig() } catch (e) { log.error('Clear data: refresh failed', e) }
+    this.notifyPanels()
+
+    const msg = this.i18n.t('settings.dataCleared')
+    // 兜底诊断：正常路径不会走到这里；真出错时把未清干净的键名一并显示，便于回报问题
+    alert(failed.length ? `${msg}\n\n⚠ ${failed.join(', ')}` : msg)
   }
 
   openGithub(): void {
@@ -3878,13 +4692,164 @@ export class SftpSettingsTabComponent implements OnDestroy {
     }
   }
 
-  openFeedback(): void {
-    const url = 'https://github.com/10D24D/Tabby-SFTP-Plus/issues'
+  /**
+   * 「报告问题」入口：预填环境信息后打开「缺陷报告」issue 表单（按界面语言路由中/英模板）
+   *   机制：GitHub issue forms 的字段 `id` 就是 URL query 参数名（官方文档：id 是 URL query
+   *        parameter prefills 的规范标识），配合 ?template=<模板文件> 使用即可自动填好环境信息。
+   *   注意：本仓库 config.yml 已关闭 blank_issues_enabled，故不能用 ?body= 空白编辑器方案。
+   */
+  openBugReport(): void {
+    this._openIssue('bug')
+  }
+
+  /**
+   * 「提出需求」入口：预填环境信息后打开「功能需求」issue 表单（按界面语言路由中/英模板）
+   */
+  openFeatureRequest(): void {
+    this._openIssue('feature')
+  }
+
+  /** 统一打开 issue 表单：kind=bug 走缺陷报告模板，kind=feature 走功能需求模板；任一异常都回退为纯新建页 */
+  private _openIssue(kind: 'bug' | 'feature'): void {
+    const url = this._buildIssueUrl(kind)
     try {
       ;(window as any).require('electron').shell.openExternal(url)
     } catch {
       try { window.open(url, '_blank') } catch { /* ignore */ }
     }
+  }
+
+  /**
+   * 组装 issue 表单 URL（template + 字段预填）；任何异常都回退为纯新建页，绝不阻塞反馈入口
+   *
+   * ★ 模板按界面语言路由 —— 中文用 bug_report.yml / feature_request.yml，其余语言用对应 _en 版。
+   *   两份语言模板的**字段 id 完全一致**，故这套预填参数在两种语言下通用，不需要分叉。
+   *   template 参数放在 try 之外，保证预填失败时用户仍落到正确语言的那份表单。
+   */
+  private _buildIssueUrl(kind: 'bug' | 'feature'): string {
+    const zh = this._isChinese()
+    const template = kind === 'bug'
+      ? (zh ? 'bug_report.yml' : 'bug_report_en.yml')
+      : (zh ? 'feature_request.yml' : 'feature_request_en.yml')
+    const base = `https://github.com/10D24D/Tabby-SFTP-Plus/issues/new?template=${template}`
+    try {
+      const params: string[] = []
+      const add = (key: string, value: string): void => {
+        if (value) params.push(`${key}=${encodeURIComponent(value)}`)
+      }
+      add('os_version', this._platformLabel())
+      add('tabby_version', this._safeStr(() => this.platformService?.getAppVersion?.(), ''))
+      add('sftp_plus_version', this.pkgVersion)
+      add('tabby_frontend', this._safeStr(() => this.configService?.store?.terminal?.frontend, ''))
+      add('installed_plugins', this._pluginsLabel())
+      // base 里已带 ?template=…，预填参数一律用 & 追加
+      return params.length ? `${base}&${params.join('&')}` : base
+    } catch {
+      return base
+    }
+  }
+
+  /**
+   * 界面语言是否为中文 —— 决定意见反馈用哪份 issue 模板
+   * 依据 effectiveLang（显式设置优先，Auto 时按系统语言），故中文用户默认拿到中文表单；
+   * 取不到时按英文处理（对非中文用户更通用）
+   */
+  private _isChinese(): boolean {
+    try {
+      return String(this.effectiveLang || '').toLowerCase().startsWith('zh')
+    } catch {
+      return false
+    }
+  }
+
+  /**
+   * 平台描述：系统市场版本名 + 精确版本号 + CPU 架构，如 `Windows 11 25H2 (build 26200, x64)`
+   *
+   * ★ 修复「Windows 版本取不准」：PlatformService.getOSRelease() 底层就是 Node 的 os.release()，
+   *   而 Windows 11 沿用 NT 10.0 内核号（本机实测 = `Windows 10.0.26200`），
+   *   旧写法把内核号原样透出 → issue 里显示 "Windows 10.0.26200"，用户实机却是 Win11。
+   *   现改为按 build 号反查市场版本名：≥22000 判为 Windows 11，并用 WINDOWS_BUILD_RELEASES 定位 21H2/25H2 等代号。
+   * 隐私红线：仅取系统版本与 CPU 架构，不采集主机名、用户名、文件路径、服务器地址、书签/Profile 名称等敏感字段
+   */
+  private _platformLabel(): string {
+    const host = this._safeStr(() => this.hostApp?.platform, '')
+    const arch = (typeof process !== 'undefined' && (process as any)?.arch) ? String((process as any).arch) : ''
+    const raw = this._safeStr(() => this.platformService?.getOSRelease?.(), '')
+    // getOSRelease() 形如 `Windows 10.0.26200`，剥掉自带平台名前缀，避免拼出「Windows Windows」
+    const ver = raw.replace(/^(Windows|macOS|Linux|Darwin)\s+/i, '').trim()
+
+    const build = this._windowsBuild(ver)
+    if (build != null) {
+      // Server 与客户端常共用同一 build（如 17763 = Win10 1809 / Server 2019），只能靠产品名区分
+      if (/server/i.test(this._osProductName())) {
+        return this._platformTail('Windows Server', `build ${build}`, arch)
+      }
+      const release = this._windowsReleaseName(build)
+      const name = `Windows ${build >= 22000 ? 11 : 10}${release ? ` ${release}` : ''}`
+      return this._platformTail(name, `build ${build}`, arch)
+    }
+
+    // macOS：给的是 Darwin 内核号，按主版本映射回市场版本；主版本 < 18 视为已是市场版本，不干预
+    const darwin = /^(\d+)\.(\d+)/.exec(ver)
+    if (darwin && Number(darwin[1]) >= 18) {
+      const mac = MACOS_BY_DARWIN[Number(darwin[1])]
+      return this._platformTail(mac ? `macOS ${mac}` : 'macOS', `Darwin ${ver}`, arch)
+    }
+
+    // 其他（Linux 等）：平台名 + 原始内核/系统版本
+    return this._platformTail(host || 'unknown', ver || undefined, arch)
+  }
+
+  /** 从内核版本号 `10.0.26200` 取 build 号；Windows 自 Vista 起统一为 10.0.<build> 格式 */
+  private _windowsBuild(ver: string): number | null {
+    const m = /^10\.0\.(\d+)(?:\.|$)/.exec(ver || '')
+    return m ? Number(m[1]) : null
+  }
+
+  /** build 号 → Windows 市场版本代号（26200 → 25H2）；超出已知表返回空串，不猜 */
+  private _windowsReleaseName(build: number): string {
+    let name = ''
+    for (const [b, n] of WINDOWS_BUILD_RELEASES) {
+      if (build >= b) name = n
+      else break
+    }
+    return name
+  }
+
+  /**
+   * 本机系统产品名（best-effort），Windows 下形如 `Windows 11 Pro` / `Windows Server 2025 Standard`
+   * 仅用于区分 Server 版；renderer 无 require('os') 或取不到时返回空串，不影响主流程
+   */
+  private _osProductName(): string {
+    try {
+      const req = (typeof window !== 'undefined') ? (window as any).require : null
+      return String(req ? req('os')?.version?.() ?? '' : '')
+    } catch { return '' }
+  }
+
+  /** 拼装 `名称 (细节, 架构)`，空项自动略过；名称缺失时回退 unknown */
+  private _platformTail(name: string, detail?: string, arch?: string): string {
+    const extras = [detail, arch].filter(x => !!x && x !== 'unknown') as string[]
+    return extras.length ? `${name || 'unknown'} (${extras.join(', ')})` : (name || 'unknown')
+  }
+
+  /** 已安装的非内置插件列表（name@version），便于作者判断插件组合冲突 */
+  private _pluginsLabel(): string {
+    try {
+      const list = (this.bootstrapData?.installedPlugins || []).filter((p: any) => p && !p.isBuiltin)
+      const names = list
+        .map((p: any) => (p.version ? `${p.name}@${p.version}` : String(p.name || '')))
+        .filter(Boolean)
+      return names.join(', ') || 'none'
+    } catch { return '' }
+  }
+
+  /** 安全读取：服务未注入/取值抛错时返回兜底值，绝不让反馈入口本身崩掉 */
+  private _safeStr(fn: () => any, fallback = 'unknown'): string {
+    try {
+      const v = fn()
+      return (v === undefined || v === null || v === '') ? fallback : String(v)
+    } catch { return fallback }
   }
 
   /** 转换旧版 prefixed localStorage 格式到新版扁平字段 */

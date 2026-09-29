@@ -3,8 +3,10 @@
  * 字符串格式与官方一致：Ctrl-Shift-S / Win-K / ⌘-⌥-P
  * 创建人：DD1024z
  * 创建时间：2026-07-25
- * 修改人：DD1024z + Hy3 preview
- * 修改时间：2026-08-31
+ * 修改人：DD1024z + Deepseek-V4.1-Flash
+ * 修改时间：2026-09-29 — 指针类绑定扩展：新增鼠标中键 Mouse1 与滚轮 WheelUp/WheelDown；
+ *              录制与匹配共用 pointerSpecFromEvent()（同一构造口径，避免录出来对不上）
+ *              2026-09-20 — 面板热键 Alt+Enter 可转 Tabby 格式做全局冲突检测
  */
 import { SFTP_PLUS_TOGGLE_HOTKEY } from './hotkey-provider'
 
@@ -179,21 +181,23 @@ export function matchPanelHotkeyKey(event: KeyboardEvent, spec: string): boolean
   if (event.altKey !== p.alt) return false
   if (event.shiftKey !== p.shift) return false
   if (event.metaKey !== p.meta) return false
-  // 主键比较：单字符忽略大小写；命名键（Backspace/F2/F5…）精确比较
+  // 主键比较：单字符忽略大小写；命名键（Backspace/F2/F5/Space…）精确比较
   const ek = event.key
+  if (p.key === 'Space') return ek === ' '
   if (p.key.length === 1) return ek.toLowerCase() === p.key.toLowerCase()
   return ek === p.key
 }
 
-/** 显示用：空串返回占位符（调用方决定显示文案） */
+/** 显示用：空串返回占位符（调用方决定显示文案）；空格键显示为 "Space" */
 export function formatPanelHotkeyKey(spec: string, placeholder = '—'): string {
+  if (spec === ' ') return 'Space'
   return spec && spec.trim() ? spec.trim() : placeholder
 }
 
-/** 由 KeyboardEvent 生成面板热键 spec 串（录制时调用） */
+/** 由 KeyboardEvent 生成面板热键 spec 串（录制时调用）；空格键统一生成 "Space" */
 export function eventToPanelHotkeySpec(event: KeyboardEvent): string | null {
   if (event.key === 'Control' || event.key === 'Meta' || event.key === 'Alt' || event.key === 'Shift') return null
-  const main = event.key.length === 1 ? event.key.toUpperCase() : event.key
+  const main = event.key === ' ' ? 'Space' : (event.key.length === 1 ? event.key.toUpperCase() : event.key)
   const parts: string[] = []
   if (event.ctrlKey) parts.push('Ctrl')
   if (event.metaKey) parts.push('Meta')
@@ -203,59 +207,152 @@ export function eventToPanelHotkeySpec(event: KeyboardEvent): string | null {
   return parts.join('+')
 }
 
+/**
+ * 面板热键 spec（Alt+Enter）→ Tabby 全局热键串（Alt-Enter），用于与 config.store.hotkeys 做冲突比对。
+ * 鼠标侧键无法映射到 Tabby 热键，返回 null。
+ */
+export function panelHotkeySpecToTabbyBinding(spec: string): string | null {
+  // 指针类（鼠标键/滚轮）无法映射到 Tabby 热键，返回 null
+  if (!spec || isPointerHotkeySpec(spec)) return null
+  const p = parsePanelHotkeyKey(spec)
+  if (!p) return null
+  const parts: string[] = []
+  if (p.ctrl) parts.push('Ctrl')
+  if (p.meta) parts.push(META_NAME)
+  if (p.alt) parts.push(ALT_NAME)
+  if (p.shift) parts.push('Shift')
+  parts.push(p.key.length === 1 ? p.key.toUpperCase() : p.key)
+  return parts.join('-')
+}
+
 /* ──────────────────────────────────────────────────────────────
- * 鼠标侧键绑定（2026-08-31）
- * 前进/后退除键盘外还可绑鼠标侧键：button 3 = 后退（XButton1）、
- * button 4 = 前进（XButton2）。与键盘 spec 混存在同一 keys[] 数组里，
- * 匹配时按来源分流：键盘事件只看键盘 spec，鼠标事件只看鼠标 spec。
+ * 指针类绑定（鼠标键 + 滚轮）
+ *   2026-08-31 起支持鼠标侧键；2026-09-29 扩展中键与滚轮上/下滚。
+ *   - button 1 = 滚轮点击（中键）→ Mouse1
+ *   - button 3 = 后退（XButton1）→ Mouse3
+ *   - button 4 = 前进（XButton2）→ Mouse4
+ *   - deltaY < 0 = 上滚 → WheelUp；deltaY > 0 = 下滚 → WheelDown
+ * 与键盘 spec 混存在同一 keys[] 数组里，匹配时按来源分流：
+ * 键盘事件只看键盘 spec，指针事件只看指针 spec（互为对方的「不匹配」）。
+ * ★ 录制与匹配共用同一个构造函数 pointerSpecFromEvent()：
+ *   只要录得出来，就一定匹配得上（同日曾因两处各写一套而录不出滚轮）。
  * ────────────────────────────────────────────────────────────── */
 
+/** 鼠标中键（滚轮点击）spec，对应 MouseEvent.button === 1 */
+export const MOUSE_MIDDLE_SPEC = 'Mouse1'
 /** 鼠标后退键 spec（对应 MouseEvent.button === 3） */
 export const MOUSE_BACK_SPEC = 'Mouse3'
 /** 鼠标前进键 spec（对应 MouseEvent.button === 4） */
 export const MOUSE_FORWARD_SPEC = 'Mouse4'
+/** 滚轮上滚 spec（WheelEvent.deltaY < 0） */
+export const WHEEL_UP_SPEC = 'WheelUp'
+/** 滚轮下滚 spec（WheelEvent.deltaY > 0） */
+export const WHEEL_DOWN_SPEC = 'WheelDown'
 
-/** 判断面板热键 spec 是否为鼠标侧键绑定 */
-export function isMouseHotkeySpec(spec: string): boolean {
-  return spec === MOUSE_BACK_SPEC || spec === MOUSE_FORWARD_SPEC
+/**
+ * 取 spec 的主键（去掉修饰键前缀）：'Alt+WheelUp' → 'WheelUp'，'Mouse1' → 'Mouse1'。
+ * ★ 指针类判定必须看主键而非全串 —— 否则 'Alt+WheelUp' 这类带修饰键的绑定会被判成「不是滚轮」，
+ *   于是匹配时永不命中、键盘路径也不跳过它（探针 panel-pointer-hotkey-probe.cjs 抓到的真缺陷）。
+ */
+export function pointerMainKeyOfSpec(spec: string): string {
+  if (!spec || !spec.trim()) return ''
+  const s = spec.trim()
+  const cut = s.lastIndexOf('+')
+  return cut >= 0 ? s.slice(cut + 1) : s
 }
 
-/** 鼠标键 spec → MouseEvent.button；非鼠标键返回 null */
+/** 判断面板热键 spec 是否为鼠标键绑定（中键/后退/前进），带修饰键亦算 */
+export function isMouseHotkeySpec(spec: string): boolean {
+  const k = pointerMainKeyOfSpec(spec)
+  return k === MOUSE_MIDDLE_SPEC || k === MOUSE_BACK_SPEC || k === MOUSE_FORWARD_SPEC
+}
+
+/** 判断面板热键 spec 是否为滚轮绑定，带修饰键亦算 */
+export function isWheelHotkeySpec(spec: string): boolean {
+  const k = pointerMainKeyOfSpec(spec)
+  return k === WHEEL_UP_SPEC || k === WHEEL_DOWN_SPEC
+}
+
+/** 判断是否指针类绑定（鼠标键或滚轮）—— 键盘匹配路径必须整体跳过它们 */
+export function isPointerHotkeySpec(spec: string): boolean {
+  return isMouseHotkeySpec(spec) || isWheelHotkeySpec(spec)
+}
+
+/** 鼠标键 spec → MouseEvent.button（带修饰键亦按主键解析）；非鼠标键返回 null */
 export function mouseButtonFromSpec(spec: string): number | null {
-  if (spec === MOUSE_BACK_SPEC) return 3
-  if (spec === MOUSE_FORWARD_SPEC) return 4
+  const k = pointerMainKeyOfSpec(spec)
+  if (k === MOUSE_MIDDLE_SPEC) return 1
+  if (k === MOUSE_BACK_SPEC) return 3
+  if (k === MOUSE_FORWARD_SPEC) return 4
   return null
 }
 
-/** MouseEvent.button → 鼠标键 spec（仅 3/4；其余返回 null，表示不参与绑定） */
+/** MouseEvent.button → 鼠标键 spec（仅 1/3/4；0 左键与 2 右键返回 null，表示不参与绑定） */
 export function mouseSpecFromButton(button: number): string | null {
+  if (button === 1) return MOUSE_MIDDLE_SPEC
   if (button === 3) return MOUSE_BACK_SPEC
   if (button === 4) return MOUSE_FORWARD_SPEC
   return null
 }
 
-/** 判断 MouseEvent.button 是否命中绑定列表中的鼠标键 */
-export function matchMouseHotkeySpecs(button: number, specs: string[]): boolean {
-  if (!Array.isArray(specs)) return false
-  const spec = mouseSpecFromButton(button)
-  if (!spec) return false
-  return specs.includes(spec)
+/** WheelEvent.deltaY → 滚轮 spec（只看符号；0 或非有限值返回 null） */
+export function wheelSpecFromDelta(deltaY: number): string | null {
+  if (!Number.isFinite(deltaY) || deltaY === 0) return null
+  return deltaY < 0 ? WHEEL_UP_SPEC : WHEEL_DOWN_SPEC
 }
 
-/** 多绑定匹配：任一键盘绑定命中即 true（鼠标键跳过，由鼠标路径单独处理） */
+/**
+ * 由鼠标/滚轮事件生成面板热键 spec（带修饰键前缀），录制与匹配共用同一口径。
+ *   MouseEvent → 'Mouse1' / 'Alt+Mouse3'；WheelEvent → 'WheelUp' / 'Ctrl+WheelDown'
+ * 不参与绑定的输入（左键/右键/deltaY 为 0）返回 null。
+ */
+export function pointerSpecFromEvent(event: MouseEvent | WheelEvent): string | null {
+  // WheelEvent 独有的 deltaY 作为判别依据（比 instanceof 稳，跨 realm 也成立）
+  const isWheel = typeof (event as WheelEvent).deltaY === 'number'
+  const main = isWheel
+    ? wheelSpecFromDelta((event as WheelEvent).deltaY)
+    : mouseSpecFromButton(event.button)
+  if (!main) return null
+  const parts: string[] = []
+  if (event.ctrlKey) parts.push('Ctrl')
+  if (event.metaKey) parts.push('Meta')
+  if (event.altKey) parts.push('Alt')
+  if (event.shiftKey) parts.push('Shift')
+  parts.push(main)
+  return parts.join('+')
+}
+
+/** 指针事件是否命中绑定列表（修饰键精确比较；口径与 pointerSpecFromEvent 完全相同） */
+export function matchPointerHotkeySpecs(event: MouseEvent | WheelEvent, specs: string[]): boolean {
+  if (!Array.isArray(specs) || !specs.length) return false
+  const spec = pointerSpecFromEvent(event)
+  if (!spec) return false
+  return specs.some(s => !!s && isPointerHotkeySpec(s) && s === spec)
+}
+
+/**
+ * 是否「裸滚轮」绑定（**全串相等**，即不带任何修饰键）。
+ * ⚠ 与 isWheelHotkeySpec 的区别：后者看主键（Alt+WheelUp 也算滚轮），
+ *   本函数只认真正的裸滚轮 —— 只有裸滚轮才会顶掉列表滚动，提示文案据此决定。
+ */
+export function isBareWheelSpec(spec: string): boolean {
+  return spec === WHEEL_UP_SPEC || spec === WHEEL_DOWN_SPEC
+}
+
+/** 多绑定匹配：任一键盘绑定命中即 true（鼠标键与滚轮跳过，由指针路径单独处理） */
 export function matchPanelHotkeyKeys(event: KeyboardEvent, specs: string[]): boolean {
   if (!Array.isArray(specs) || !specs.length) return false
   for (const spec of specs) {
-    if (isMouseHotkeySpec(spec)) continue
+    if (isPointerHotkeySpec(spec)) continue
     if (matchPanelHotkeyKey(event, spec)) return true
   }
   return false
 }
 
-/** 取绑定列表中的键盘绑定（过滤鼠标键）；用于右键菜单等只展示键盘键的场合 */
+/** 取绑定列表中的键盘绑定（过滤鼠标键与滚轮）；用于右键菜单等只展示键盘键的场合 */
 export function keyboardHotkeySpecs(specs: string[]): string[] {
   if (!Array.isArray(specs)) return []
-  return specs.filter(s => s && !isMouseHotkeySpec(s))
+  return specs.filter(s => s && !isPointerHotkeySpec(s))
 }
 
 /**

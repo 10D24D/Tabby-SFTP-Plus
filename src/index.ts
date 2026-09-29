@@ -4,8 +4,9 @@
  *   参考：tabby-command-workbench 的模块结构
  * 创建人：DD1024z + Claude
  * 创建时间：2026-06-21
- * 修改人：DD1024z + Deepseek-V4-Flash
- * 修改时间：2026-06-29
+ * 修改人：DD1024z + Hy3
+ * 修改时间：2026-09-28
+ *   - 注册 SftpDirMissingDialogComponent（传输目标目录不存在三选一确认框）
  *   - 注册 SftpPlusConfigProvider（Tabby config.yaml 持久化）
  */
 import { CommonModule } from '@angular/common'
@@ -29,6 +30,7 @@ import { SftpFilePaneComponent } from './sftp/components/sftp-file-pane.componen
 import { SftpContextMenuComponent } from './sftp/components/sftp-context-menu.component'
 import { SftpBookmarkPopupComponent } from './sftp/components/sftp-bookmark-popup.component'
 import { SftpDeleteDialogComponent } from './sftp/components/sftp-delete-dialog.component'
+import { SftpDirMissingDialogComponent } from './sftp/components/sftp-dir-missing-dialog.component'
 import { SftpInputDialogComponent } from './sftp/components/sftp-input-dialog.component'
 import { SftpPermDialogComponent } from './sftp/components/sftp-perm-dialog.component'
 import { SftpDetailsDialogComponent } from './sftp/components/sftp-details-dialog.component'
@@ -55,6 +57,7 @@ import { SftpCwdSetupDialogComponent } from './sftp/components/sftp-cwd-setup-di
     SftpContextMenuComponent,
     SftpBookmarkPopupComponent,
     SftpDeleteDialogComponent,
+    SftpDirMissingDialogComponent,
     SftpInputDialogComponent,
     SftpPermDialogComponent,
     SftpDetailsDialogComponent,

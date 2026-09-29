@@ -119,8 +119,33 @@ export class SftpConfigService {
     this._migratePerHost(paneState)
     this._migrateLayout(paneState)
     this._migrateColumns(paneState)
-    // 迁移后落盘（保留旧 key 不删，仅写入新结构）
+    // ★ BUG-10 修复：迁移后清理旧 key，避免旧数据残留
+    this._cleanupOldKeys(paneState)
     this.flush()
+  }
+
+  /** 清理迁移后的旧扁平 key，避免旧数据残留 */
+  private _cleanupOldKeys(paneState: Record<string, any>): void {
+    // perHost 旧 key
+    const hostKeys = Object.keys(paneState).filter(k => k.startsWith('sftp-plus-path-mode.'))
+    for (const key of hostKeys) {
+      const host = key.substring('sftp-plus-path-mode.'.length)
+      delete paneState[`sftp-plus-path-mode.${host}`]
+      delete paneState[`sftp-plus-path-mem.${host}`]
+      delete paneState[`sftp-plus-saved-local-path.${host}`]
+      delete paneState[`sftp-plus-saved-remote-path.${host}`]
+    }
+    // layout 旧 key
+    delete paneState['sftp-plus-layout-mode']
+    delete paneState['sftp-plus-horizontal-split-ratio']
+    delete paneState['sftp-plus-vertical-split-ratio']
+    // columns 旧 key
+    for (const scope of ['local', 'remote'] as const) {
+      delete paneState[`sftp-plus-${scope}-sort`]
+      delete paneState[`sftp-plus-${scope}-cols`]
+      delete paneState[`sftp-plus-${scope}-cols-order`]
+      delete paneState[`sftp-plus-${scope}-col-widths`]
+    }
   }
 
   /** 主机相关（原 root@host 拼进 key） */
@@ -199,7 +224,14 @@ export class SftpConfigService {
     if (colMatch) {
       const scope = colMatch[1]
       const field = colMatch[2]
-      const raw = paneState[`sftp-plus-${scope}-${field}`]
+      // ★ 2026-09-21 P2 修复：旧扁平 key 用的是 kebab-case（sftp-plus-local-cols-order /
+      //   -col-widths，见 _migrateColumns），这里直接拼驼峰 field 拼出的是不存在的
+      //   sftp-plus-local-colsOrder → 迁移被跳过时列顺序/列宽的双读回退永远拿不到值。
+      //   sort/cols 两个名字恰好一致，所以只有这两个字段受影响。
+      const legacyField = field === 'colsOrder' ? 'cols-order'
+        : field === 'colWidths' ? 'col-widths'
+        : field
+      const raw = paneState[`sftp-plus-${scope}-${legacyField}`]
       return raw !== undefined ? this._safeParse(raw) : undefined
     }
 

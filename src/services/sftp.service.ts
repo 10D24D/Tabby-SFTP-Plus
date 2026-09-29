@@ -1,11 +1,18 @@
 /**
  * SFTP 连接服务
  * 功能描述：封装 Tabby SSH Session 的 SFTP 连接，提供统一的文件操作接口
- * 创建人：DD1024z + Claude
- * 创建时间：2026-06-21
+ * @创建人：DD1024z + Claude
+ * @创建时间：2026-06-21
+ * @修改人：DD1024z + GPT-5.6 Sol
+ * @修改时间：2026-09-21 — 修复共享会话失效后旧 holder 释放时误关闭新代际通道；
+ *              第六轮审计 P1 修复：新增 forceInvalidate()（会话级故障广播），
+ *              修复多面板共享会话时心跳恢复缓存命中同一坏对象的死循环
+ *              2026-09-20 — P1-1 审计修复：openFromSSHSession 迟到通道清理判定「consumed === late」恒真（死代码）→ 改超时标志，
+ *              超时后到达的 SFTP 子通道得以真正 end()，不再永久泄漏
+ *              2026-09-20 — N1 审计修复：resolveRemoteSymlinkStat 改用 path.posix 显式命名空间，修复 Windows 主机上远程符号链接目录进入失效
  */
 import { Injectable } from '@angular/core'
-import * as posix from 'path'
+import { posix } from 'path'
 
 import { log } from './sftp-logger'
 /** 远程列表元数据补全选项（按可见列跳过不必要 I/O） */
@@ -246,7 +253,15 @@ export async function statRemotePath(
 export async function resolveRemoteSymlinkStat(
   session: SFTPSessionLike,
   fullPath: string,
+  /** ★ BUG-19 修复：已访问路径集合（防止符号链接循环引用导致栈溢出） */
+  _visited?: Set<string>,
 ): Promise<{ isDirectory: boolean; mode?: number; size?: number; mtime?: Date } | null> {
+  const visited = _visited ?? new Set<string>()
+  if (visited.has(fullPath)) {
+    log.warn('resolveRemoteSymlinkStat: circular symlink detected:', fullPath)
+    return null
+  }
+  visited.add(fullPath)
   let st = await statRemotePath(session, fullPath)
   if (st && !st.isDirectory && st.isSymlink) {
     // 个别服务器 STAT 不跟随链接 → 对齐 Tabby 官方 SFTP 面板：readlink 解析真实目标再 stat
@@ -256,14 +271,14 @@ export async function resolveRemoteSymlinkStat(
     if (typeof sessionReadlink === 'function') {
       try {
         const target = await sessionReadlink.call(session, fullPath)
-        st = await statRemotePath(session, posix.resolve(posix.dirname(fullPath), target))
+        st = await resolveRemoteSymlinkStat(session, posix.resolve(posix.dirname(fullPath), target), visited)
       } catch (e) {
         log.warn('resolveRemoteSymlinkStat readlink failed:', (e as Error).message)
       }
     } else if (typeof innerReadlink === 'function') {
       try {
         const target = await innerReadlink.call(inner, fullPath)
-        st = await statRemotePath(session, posix.resolve(posix.dirname(fullPath), target))
+        st = await resolveRemoteSymlinkStat(session, posix.resolve(posix.dirname(fullPath), target), visited)
       } catch (e) {
         log.warn('resolveRemoteSymlinkStat readlink (russh) failed:', (e as Error).message)
       }
@@ -301,6 +316,16 @@ export type SFTPSessionLike = {
    *    stat 返回 isDirectory/isSymlink 已由包装层把 russh type 数字枚举正确映射。 */
   stat?: (p: string) => Promise<{ isDirectory?: boolean; isSymlink?: boolean; mode?: number; size?: number; modified?: Date; mtime?: number }>
   readlink?: (p: string) => Promise<string>
+  /** ★ 2026-09-26：Tabby SFTPSession 运行时的句柄式打开（`open(path, mode)` → `handle.read()`，
+   *    顺序读、**无 seek**；见 tabby-ssh/src/session/sftp.ts 的 SFTPFileHandle）。
+   *    类型声明未列出（同 stat/readlink），运行时存在。
+   *    用途：transfer-adapters 的「自管分块下载」——单次 read 请求超时只重试该次 read，
+   *    不必像整文件通道那样从头再来（russh 每个 SFTP 请求有固定 ~10s 超时）。
+   *    @修改人：DD1024z + Deepseek-V4.1-Flash @修改时间：2026-09-26 */
+  open?: (p: string, mode: number) => Promise<{
+    read?: () => Promise<Uint8Array>
+    close?: () => Promise<void>
+  }>
 }
 
 export type SSHSessionLike = {
@@ -345,13 +370,16 @@ export class SftpConnectionService {
     const SFTP_OPEN_TIMEOUT_MS = 30_000
     const openPromise = sshSession.openSFTP()
     // ★ 2026-08-10 修复 #15：超时/被取代后，迟到的通道若仍开成功必须主动释放，否则泄漏。
-    //   consumed 记录已被 race 消费（安装或 end）的通道实例，后注册的回调先比对再决定是否 end，
-    //   避免微任务顺序误杀正常通道
-    let consumed: SFTPSessionLike | null = null
-    const raceWinner = openPromise.then((s) => { consumed = s; return s })
+    // ★ 2026-09-20 P1-1 审计修复：原判定「consumed === late」是死代码——同一 Promise 的 then
+    //   回调严格按注册顺序执行，赋值回调先注册并必然先把 consumed 置为该通道，比较恒为真，
+    //   清理分支永不执行 → 超时后迟到的通道实际永久泄漏（慢网/高负载可复现）。
+    //   改用超时标志：它在 timeout 宏任务回调里同步置位，必然早于迟到通道的微任务回调；
+    //   正常的「开成功抢先于超时」场景下该标志恒为 false，不会误杀已安装的通道。
+    //   gen 失配（会话被取代）的通道由下方成功路径自行 end()，此处不重复释放。
+    let timedOut = false
     openPromise.then((late) => {
-      if (consumed === late) return
-      log.warn('late SFTP channel arrived after timeout/supersede, ending it')
+      if (!timedOut) return
+      log.warn('late SFTP channel arrived after timeout, ending it')
       try {
         const endResult = (late as { end?: () => unknown }).end?.()
         if (endResult && typeof (endResult as Promise<unknown>).catch === 'function') {
@@ -362,11 +390,12 @@ export class SftpConnectionService {
     let timeoutId: ReturnType<typeof setTimeout> | undefined
     const timeoutPromise = new Promise<never>((_, reject) => {
       timeoutId = setTimeout(() => {
+        timedOut = true
         this.pending.delete(sshSession)
         reject(new Error(`SFTP open timed out after ${SFTP_OPEN_TIMEOUT_MS}ms`))
       }, SFTP_OPEN_TIMEOUT_MS)
     })
-    const promise = Promise.race([raceWinner, timeoutPromise])
+    const promise = Promise.race([openPromise, timeoutPromise])
     this.pending.set(sshSession, promise)
     try {
       const sftpSession = await promise
@@ -391,13 +420,19 @@ export class SftpConnectionService {
     }
   }
 
-  closeForSSHSession(sshSession: SSHSessionLike): void {
+  closeForSSHSession(sshSession: SSHSessionLike, expectedSession?: SFTPSessionLike | null): void {
+    const sftp = this.sessions.get(sshSession)
+    // 共享 SSH 下 forceInvalidate 会清掉旧代际并允许其它面板建立新通道。
+    // 旧面板稍后销毁时只能释放自己实际持有的对象，绝不能递减/关闭当前新代际。
+    if (expectedSession && sftp !== expectedSession) {
+      log.info('closeForSSHSession: ignored stale SFTP holder')
+      return
+    }
     this.pending.delete(sshSession)
     // ★ 2026-08-10 修复 #6：关闭时立即 bumpGen（而非仅引用归零时）——
     //   若此刻仍有 pending 的 openSFTP，其迟到结果会因 gen 失配被 end() 释放，
     //   否则通道既未注册也无人关闭 → 泄漏
     this.bumpGen(sshSession)
-    const sftp = this.sessions.get(sshSession)
     if (!sftp) return
     // ★ B5：引用计数——仅当引用归零才真正结束通道
     const refs = (this.refCounts.get(sshSession) ?? 1) - 1
@@ -413,6 +448,30 @@ export class SftpConnectionService {
         (result as Promise<unknown>).catch(() => {})
       }
     } catch (e) { log.warn('sftp.end() sync error during cleanup:', (e as Error)?.message) }
+  }
+
+  /**
+   * ★ 2026-09-21 P1：会话级故障广播——心跳已确认通道死亡时，无视引用计数直接使
+   *   缓存会话失效并 end()。此前心跳恢复路径 release（计数不归零）后再 open 会缓存命中
+   *   **同一个已死会话**，多面板共享（floating + workspace 同开一终端）时陷入
+   *   「每 10s 一轮恢复成功误报」的死循环。
+   *   其他共享面板持有的旧对象会在下次操作时失败，触发各自心跳走本方法（幂等）后重建，
+   *   最终所有面板收敛到全新会话。
+   */
+  forceInvalidate(sshSession: SSHSessionLike): void {
+    this.pending.delete(sshSession)
+    this.bumpGen(sshSession)
+    const sftp = this.sessions.get(sshSession)
+    this.refCounts.delete(sshSession)
+    this.sessions.delete(sshSession)
+    if (!sftp) return
+    log.warn('forceInvalidate: ending dead SFTP session (heartbeat-confirmed)')
+    try {
+      const result = (sftp as { end?: () => unknown }).end?.()
+      if (result && typeof (result as Promise<unknown>).catch === 'function') {
+        (result as Promise<unknown>).catch(() => {})
+      }
+    } catch (e) { log.warn('sftp.end() sync error during forceInvalidate:', (e as Error)?.message) }
   }
 }
 
@@ -512,10 +571,19 @@ async function enrichOwnersViaStat(
   )
   if (!missing.length) return entries
 
+  // ★ 2026-09-20 P1-6 审计修复：stat 总数上限——超大目录（如 node_modules 2w+ 文件）
+  //   每个缺 owner 的文件都发一次 stat，短时间内产生海量 SSH 请求可能被限流/断开。
+  //   超出上限的条目放弃 owner 补全，保持 uid 数字显示。
+  const STAT_ENRICH_LIMIT = 500
+  const toStat = missing.length > STAT_ENRICH_LIMIT ? missing.slice(0, STAT_ENRICH_LIMIT) : missing
+  if (missing.length > STAT_ENRICH_LIMIT) {
+    log.warn(`enrichOwnersViaStat: ${missing.length} entries need stat, capped at ${STAT_ENRICH_LIMIT}`)
+  }
+
   const patches = new Map<string, { owner?: string; group?: string; ownerUid?: number; groupGid?: number; atimeMs?: number }>()
   const batchSize = 12
-  for (let i = 0; i < missing.length; i += batchSize) {
-    const batch = missing.slice(i, i + batchSize)
+  for (let i = 0; i < toStat.length; i += batchSize) {
+    const batch = toStat.slice(i, i + batchSize)
     await Promise.all(batch.map(async e => {
       try {
         const raw = await inner.stat!(e.fullPath)
