@@ -1,14 +1,22 @@
 ﻿/**
  * SFTP+ 文件冲突对话框（从主面板抽离）
  * 功能描述：上传/下载覆盖冲突确认对话框，展示本地/远程两侧文件大小、修改时间、路径供用户选择
- * 创建人：DD1024z + Hy3
- * 创建时间：2026-07-16
- * 修改人：DD1024z + Composer
- * 修改时间：2026-09-17 — 无效/epoch 修改时间不显示 1970；mtime 对比忽略未就绪值
+ * @创建人：DD1024z + Hy3
+ * @创建时间：2026-07-16
+ * @修改人：DD1024z + Deepseek-V4.1-Flash
+ * @修改时间：2026-09-29 — 两侧内容摘要相同时，「跳过」按钮加绿色高亮（.conflict-btn-skip--identical：
+ *              绿色描边 + 浅绿底，与绿色提示条同色，不做实心填充以免抢「覆盖」的主次）——
+ *              与 onKeyDown 的 Enter 默认动作（skip）语义对齐，让非破坏性默认项一眼可辨；
+ *              内容不同时不加该类，保持普通次要按钮外观
+ *              2026-09-21 — 冲突文件名旁图标改用与列表一致的彩色 SVG（fileIconUrl），无映射时回退 emoji
+ *              2026-09-21 — 清理过期焦点定时器，并将 Enter 默认动作改为安全的跳过；
+ *              右上角增加 × 关闭按钮（等同「取消」）；窄分栏紧凑/可滚动布局
+ *              2026-09-21 — 窄分栏：对话框约束在面板内（max 100%）、对比区可滚动、矮/窄启用紧凑样式，避免底部操作被裁切
+ *              2026-09-17 — 无效/epoch 修改时间不显示 1970；mtime 对比忽略未就绪值
  *              2026-09-17 — 目录大小扫描中显示「计算中…」；目录冲突文案按方向区分本地/远程
  *              2026-09-07 — issue #15：两侧新增内容摘要行，内容实际相同时显示绿色提示
  */
-import { Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, Output, SimpleChanges, ViewChild } from '@angular/core'
+import { ChangeDetectorRef, Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, Output, SimpleChanges, ViewChild } from '@angular/core'
 
 import { SftpI18nService } from '../../services/sftp-i18n.service'
 import type { ConflictFileInfo } from '../core/panel-types'
@@ -19,7 +27,7 @@ import { formatDate, formatSize } from '../core/file-utils'
   template: `
     <div class="overlay" *ngIf="visible && data" #overlayEl tabindex="-1"
       (keydown)="onKeyDown($event)">
-      <div class="dialog conflict-dialog">
+      <div class="dialog conflict-dialog" [class.is-compact]="compact">
         <div class="conflict-header">
           <span class="conflict-title-icon">⚠️</span>
           <span class="conflict-title-text">{{ i18n.t('conflict.title') }}</span>
@@ -29,88 +37,101 @@ import { formatDate, formatSize } from '../core/file-utils'
             [class.dir-download]="data.direction === 'download'">{{ directionLabel }}</span>
           <!-- ★ 2026-08-10 修复 #24：去掉硬编码中文"冲突"，用语言中性的序号进度（标题已译） -->
           <span class="conflict-progress" *ngIf="totalIdx > 1">{{ currIdx }} / {{ totalIdx }}</span>
+          <button type="button" class="conflict-close"
+                  (click)="resolve.emit('cancel')"
+                  [title]="i18n.t('app.close')">×</button>
         </div>
         <div class="conflict-desc">
-          <span *ngIf="data.isDirectory">📁</span><span *ngIf="!data.isDirectory">📄</span>
+          <img *ngIf="fileIconUrl" class="conflict-file-icon" [src]="fileIconUrl" [alt]="data.fileName" draggable="false" />
+          <span class="conflict-file-emoji" *ngIf="!fileIconUrl && data.isDirectory">📁</span>
+          <span class="conflict-file-emoji" *ngIf="!fileIconUrl && !data.isDirectory">📄</span>
           <strong>{{ data.fileName }}</strong>
           {{ data.isSamePane ? i18n.t('conflict.existsSamePane') : (data.direction === 'download' ? i18n.t('conflict.existsLocal') : i18n.t('conflict.existsRemote')) }}
         </div>
-        <div class="conflict-compare">
-          <div class="conflict-side conflict-side-remote">
-            <div class="conflict-side-title">{{ data.isSamePane ? '📄 ' + i18n.t('conflict.sourceFile') : '🌐 ' + i18n.t('conflict.remoteFile') }}</div>
-            <div class="conflict-file-info">
-              <div class="conflict-info-row" [class.conflict-diff]="sizeDiffers">
-                <span class="conflict-label">{{ i18n.t('conflict.size') }}</span>
-                <span class="conflict-val" [class.conflict-val--pending]="data.remoteSizePending">{{ remoteSizeLabel }}</span>
-                <span class="conflict-diff-dot" *ngIf="sizeDiffers">≠</span>
+        <div class="conflict-body">
+          <div class="conflict-compare">
+            <div class="conflict-side conflict-side-remote">
+              <div class="conflict-side-title">{{ data.isSamePane ? '📄 ' + i18n.t('conflict.sourceFile') : '🌐 ' + i18n.t('conflict.remoteFile') }}</div>
+              <div class="conflict-file-info">
+                <div class="conflict-info-row" [class.conflict-diff]="sizeDiffers">
+                  <span class="conflict-label">{{ i18n.t('conflict.size') }}</span>
+                  <span class="conflict-val" [class.conflict-val--pending]="data.remoteSizePending">{{ remoteSizeLabel }}</span>
+                  <span class="conflict-diff-dot" *ngIf="sizeDiffers">≠</span>
+                </div>
+                <div class="conflict-info-row" [class.conflict-diff]="mtimeDiffers">
+                  <span class="conflict-label">{{ i18n.t('conflict.modified') }}</span>
+                  <span class="conflict-val">{{ formatConflictMtime(data.remoteMtime) }}</span>
+                  <span class="conflict-diff-dot" *ngIf="mtimeDiffers">≠</span>
+                </div>
+                <div class="conflict-info-row conflict-path">
+                  <span class="conflict-label">{{ i18n.t('conflict.path') }}</span>
+                  <span class="conflict-val" [title]="data.remotePath">{{ data.remotePath }}</span>
+                </div>
+                <!-- ★ 2026-09-07 issue #15：内容摘要，用于识别「mtime 变了但内容没变」 -->
+                <div class="conflict-info-row conflict-digest" [class.conflict-diff]="digestDiffers">
+                  <span class="conflict-label">{{ i18n.t('conflict.digest') }}</span>
+                  <span class="conflict-val conflict-digest-val" *ngIf="data.remoteDigest" [title]="data.remoteDigest">{{ shortDigest(data.remoteDigest) }}</span>
+                  <span class="conflict-val conflict-digest-val conflict-digest-unavailable" *ngIf="!data.remoteDigest" title="摘要不可用（文件大小不同或远程服务器不支持）">—</span>
+                  <span class="conflict-diff-dot" *ngIf="digestDiffers">≠</span>
+                </div>
               </div>
-              <div class="conflict-info-row" [class.conflict-diff]="mtimeDiffers">
-                <span class="conflict-label">{{ i18n.t('conflict.modified') }}</span>
-                <span class="conflict-val">{{ formatConflictMtime(data.remoteMtime) }}</span>
-                <span class="conflict-diff-dot" *ngIf="mtimeDiffers">≠</span>
-              </div>
-              <div class="conflict-info-row conflict-path">
-                <span class="conflict-label">{{ i18n.t('conflict.path') }}</span>
-                <span class="conflict-val" [title]="data.remotePath">{{ data.remotePath }}</span>
-              </div>
-              <!-- ★ 2026-09-07 issue #15：内容摘要，用于识别「mtime 变了但内容没变」 -->
-              <div class="conflict-info-row conflict-digest" [class.conflict-diff]="digestDiffers">
-                <span class="conflict-label">{{ i18n.t('conflict.digest') }}</span>
-                <span class="conflict-val conflict-digest-val" *ngIf="data.remoteDigest" [title]="data.remoteDigest">{{ shortDigest(data.remoteDigest) }}</span>
-                <span class="conflict-val conflict-digest-val conflict-digest-unavailable" *ngIf="!data.remoteDigest" title="摘要不可用（文件大小不同或远程服务器不支持）">—</span>
-                <span class="conflict-diff-dot" *ngIf="digestDiffers">≠</span>
+            </div>
+            <div class="conflict-vs-row">
+              <span class="conflict-vs-line"></span>
+              <span class="conflict-vs">VS</span>
+              <span class="conflict-vs-line"></span>
+            </div>
+            <div class="conflict-side conflict-side-local">
+              <div class="conflict-side-title">{{ data.isSamePane ? '📂 ' + i18n.t('conflict.targetFileExists') : '🖥 ' + i18n.t('conflict.localFile') }}</div>
+              <div class="conflict-file-info">
+                <div class="conflict-info-row" [class.conflict-diff]="sizeDiffers">
+                  <span class="conflict-label">{{ i18n.t('conflict.size') }}</span>
+                  <span class="conflict-val" [class.conflict-val--pending]="data.localSizePending">{{ localSizeLabel }}</span>
+                  <span class="conflict-diff-dot" *ngIf="sizeDiffers">≠</span>
+                </div>
+                <div class="conflict-info-row" [class.conflict-diff]="mtimeDiffers">
+                  <span class="conflict-label">{{ i18n.t('conflict.modified') }}</span>
+                  <span class="conflict-val">{{ formatConflictMtime(data.localMtime) }}</span>
+                  <span class="conflict-diff-dot" *ngIf="mtimeDiffers">≠</span>
+                </div>
+                <div class="conflict-info-row conflict-path">
+                  <span class="conflict-label">{{ i18n.t('conflict.path') }}</span>
+                  <span class="conflict-val" [title]="data.localPath">{{ data.localPath }}</span>
+                </div>
+                <!-- ★ 2026-09-07 issue #15：内容摘要 -->
+                <div class="conflict-info-row conflict-digest" [class.conflict-diff]="digestDiffers">
+                  <span class="conflict-label">{{ i18n.t('conflict.digest') }}</span>
+                  <span class="conflict-val conflict-digest-val" *ngIf="data.localDigest" [title]="data.localDigest">{{ shortDigest(data.localDigest) }}</span>
+                  <span class="conflict-val conflict-digest-val conflict-digest-unavailable" *ngIf="!data.localDigest" title="摘要不可用（文件大小不同或本地读取失败）">—</span>
+                  <span class="conflict-diff-dot" *ngIf="digestDiffers">≠</span>
+                </div>
               </div>
             </div>
           </div>
-          <div class="conflict-vs-row">
-            <span class="conflict-vs-line"></span>
-            <span class="conflict-vs">VS</span>
-            <span class="conflict-vs-line"></span>
-          </div>
-          <div class="conflict-side conflict-side-local">
-            <div class="conflict-side-title">{{ data.isSamePane ? '📂 ' + i18n.t('conflict.targetFileExists') : '🖥 ' + i18n.t('conflict.localFile') }}</div>
-            <div class="conflict-file-info">
-              <div class="conflict-info-row" [class.conflict-diff]="sizeDiffers">
-                <span class="conflict-label">{{ i18n.t('conflict.size') }}</span>
-                <span class="conflict-val" [class.conflict-val--pending]="data.localSizePending">{{ localSizeLabel }}</span>
-                <span class="conflict-diff-dot" *ngIf="sizeDiffers">≠</span>
-              </div>
-              <div class="conflict-info-row" [class.conflict-diff]="mtimeDiffers">
-                <span class="conflict-label">{{ i18n.t('conflict.modified') }}</span>
-                <span class="conflict-val">{{ formatConflictMtime(data.localMtime) }}</span>
-                <span class="conflict-diff-dot" *ngIf="mtimeDiffers">≠</span>
-              </div>
-              <div class="conflict-info-row conflict-path">
-                <span class="conflict-label">{{ i18n.t('conflict.path') }}</span>
-                <span class="conflict-val" [title]="data.localPath">{{ data.localPath }}</span>
-              </div>
-              <!-- ★ 2026-09-07 issue #15：内容摘要 -->
-              <div class="conflict-info-row conflict-digest" [class.conflict-diff]="digestDiffers">
-                <span class="conflict-label">{{ i18n.t('conflict.digest') }}</span>
-                <span class="conflict-val conflict-digest-val" *ngIf="data.localDigest" [title]="data.localDigest">{{ shortDigest(data.localDigest) }}</span>
-                <span class="conflict-val conflict-digest-val conflict-digest-unavailable" *ngIf="!data.localDigest" title="摘要不可用（文件大小不同或本地读取失败）">—</span>
-                <span class="conflict-diff-dot" *ngIf="digestDiffers">≠</span>
-              </div>
-            </div>
+          <!-- ★ 2026-09-07 issue #15：内容实际相同的提示（此时选「跳过」是安全的） -->
+          <div class="conflict-identical-hint" *ngIf="data.contentIdentical">
+            <span>✅</span> {{ i18n.t('conflict.contentIdentical') }}
           </div>
         </div>
-        <!-- ★ 2026-09-07 issue #15：内容实际相同的提示（此时选「跳过」是安全的） -->
-        <div class="conflict-identical-hint" *ngIf="data.contentIdentical">
-          <span>✅</span> {{ i18n.t('conflict.contentIdentical') }}
-        </div>
-        <div class="conflict-actions">
-          <button class="conflict-btn" (click)="resolve.emit('cancel')">{{ i18n.t('conflict.cancel') }}</button>
-          <button class="conflict-btn conflict-btn-skip" (click)="resolve.emit('skip')">{{ i18n.t('conflict.skip') }}</button>
-          <button class="conflict-btn conflict-btn-rename" (click)="resolve.emit('rename')">{{ i18n.t('conflict.rename') }}</button>
-          <button class="conflict-btn conflict-btn-danger" (click)="resolve.emit('overwrite')">{{ i18n.t('conflict.overwrite') }}</button>
-        </div>
-        <div class="conflict-all-row">
-          <span class="conflict-all-label">{{ i18n.t('conflict.batch') }}</span>
-          <button class="conflict-link" (click)="resolve.emit('skip-all')">{{ i18n.t('conflict.skipAll') }}</button>
-          <span class="conflict-sep">·</span>
-          <button class="conflict-link" (click)="resolve.emit('rename-all')">{{ i18n.t('conflict.renameAll') }}</button>
-          <span class="conflict-sep">·</span>
-          <button class="conflict-link" (click)="resolve.emit('overwrite-all')">{{ i18n.t('conflict.overwriteAll') }}</button>
+        <div class="conflict-footer">
+          <div class="conflict-actions">
+            <button class="conflict-btn" (click)="resolve.emit('cancel')">{{ i18n.t('conflict.cancel') }}</button>
+            <!-- ★ 2026-09-29：内容实际相同时把「跳过」高亮为推荐动作（与绿色提示条同色），
+                 与 Enter 默认动作（onKeyDown → skip）保持一致；内容不同则保持普通次要按钮外观 -->
+            <button class="conflict-btn conflict-btn-skip"
+                    [class.conflict-btn-skip--identical]="data.contentIdentical"
+                    (click)="resolve.emit('skip')">{{ i18n.t('conflict.skip') }}</button>
+            <button class="conflict-btn conflict-btn-rename" (click)="resolve.emit('rename')">{{ i18n.t('conflict.rename') }}</button>
+            <button class="conflict-btn conflict-btn-danger" (click)="resolve.emit('overwrite')">{{ i18n.t('conflict.overwrite') }}</button>
+          </div>
+          <div class="conflict-all-row">
+            <span class="conflict-all-label">{{ i18n.t('conflict.batch') }}</span>
+            <button class="conflict-link" (click)="resolve.emit('skip-all')">{{ i18n.t('conflict.skipAll') }}</button>
+            <span class="conflict-sep">·</span>
+            <button class="conflict-link" (click)="resolve.emit('rename-all')">{{ i18n.t('conflict.renameAll') }}</button>
+            <span class="conflict-sep">·</span>
+            <button class="conflict-link" (click)="resolve.emit('overwrite-all')">{{ i18n.t('conflict.overwriteAll') }}</button>
+          </div>
         </div>
       </div>
     </div>
@@ -120,31 +141,82 @@ import { formatDate, formatSize } from '../core/file-utils'
       position: absolute; inset: 0;
       background: rgba(0,0,0,0.6);
       display: flex; align-items: center; justify-content: center; z-index: 100;
+      /* ★ 2026-09-21：给对话框留边，避免贴死分栏边缘 */
+      padding: 6px;
+      box-sizing: border-box;
       transition: none !important; animation: none !important;
     }
     .dialog {
       background: var(--_bg);
       border: 1px solid var(--_border);
-      border-radius: 10px; padding: 16px; min-width: 280px; max-width: 92vw;
+      border-radius: 10px; padding: 16px; min-width: 0; max-width: 100%;
       box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+      box-sizing: border-box;
     }
-    .conflict-dialog { min-width: 420px; max-width: 520px; padding: 20px 24px; border-radius: 12px; }
-    .conflict-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .conflict-dialog {
+      /* ★ 2026-09-21：相对面板 overlay，禁止再用固定 420px/视口基准——小分栏会裁切底部批量操作 */
+      width: min(520px, 100%);
+      max-width: 100%;
+      max-height: 100%;
+      min-width: 0;
+      padding: 16px 18px;
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .conflict-header {
+      display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
+      flex-shrink: 0; flex-wrap: wrap;
+    }
     .conflict-title-icon { font-size: 20px; }
     .conflict-title-text { font-size: 16px; font-weight: 700; }
     .conflict-progress {
-      margin-left: auto; font-size: 11px; padding: 2px 10px;
+      font-size: 11px; padding: 2px 10px;
       border-radius: 10px; background: var(--_input-bg, rgba(128,128,128,0.08));
       color: var(--_text); opacity: 0.65; font-weight: 500;
+    }
+    .conflict-close {
+      margin-left: auto;
+      flex-shrink: 0;
+      width: 28px; height: 28px;
+      border: none; border-radius: 6px;
+      background: transparent;
+      color: var(--_text);
+      font-size: 18px; line-height: 1;
+      padding: 0;
+      cursor: pointer;
+      opacity: 0.55;
+      display: inline-flex; align-items: center; justify-content: center;
+    }
+    .conflict-close:hover {
+      opacity: 1;
+      background: rgba(244, 67, 54, 0.12);
+      color: #f44336;
     }
     .conflict-direction { font-size: 11px; padding: 2px 10px; border-radius: 10px; font-weight: 600; white-space: nowrap; }
     .dir-upload { background: rgba(76,175,80,0.15); color: #4caf50; }
     .dir-download { background: rgba(33,150,243,0.15); color: #2196f3; }
     .conflict-desc {
+      display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
       font-size: 13px; color: var(--_text); opacity: 0.8;
-      margin-bottom: 16px; word-break: break-all; padding: 0 2px;
+      margin-bottom: 10px; word-break: break-all; padding: 0 2px;
+      flex-shrink: 0;
     }
-    .conflict-compare { display: flex; flex-direction: column; gap: 4px; margin-bottom: 18px; }
+    .conflict-file-icon {
+      width: 18px; height: 18px; flex-shrink: 0;
+      object-fit: contain; vertical-align: middle;
+    }
+    .conflict-file-emoji { flex-shrink: 0; font-size: 15px; line-height: 1; }
+    .conflict-body {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      margin-bottom: 10px;
+      scrollbar-width: thin;
+    }
+    .conflict-compare { display: flex; flex-direction: column; gap: 4px; }
     .conflict-side {
       background: var(--_content); border-radius: 8px; padding: 10px 14px;
       border: 1px solid var(--_border); border-left: 3px solid var(--_primary, #3b82f6);
@@ -154,30 +226,27 @@ import { formatDate, formatSize } from '../core/file-utils'
     .conflict-file-info { display: flex; flex-direction: column; gap: 2px; }
     .conflict-info-row { display: flex; align-items: center; gap: 6px; font-size: 12px; min-height: 20px; }
     .conflict-label { flex-shrink: 0; color: var(--_text); opacity: 0.45; min-width: 52px; font-size: 11px; }
-    .conflict-val { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .conflict-val { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
     .conflict-val--pending { opacity: 0.55; font-style: italic; }
     .conflict-diff { background: rgba(255,152,0,0.08); border-radius: 3px; padding: 0 2px; }
     .conflict-diff-dot { flex-shrink: 0; font-size: 10px; font-weight: 700; color: #ff9800; width: 14px; text-align: center; }
     .conflict-path .conflict-val { font-size: 11px; opacity: 0.7; }
-    /* ★ 2026-09-07 issue #15：摘要行——等宽字体避免字符跳动，弱化呈现 */
     .conflict-digest .conflict-digest-val {
       font-family: ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace;
       font-size: 11px;
       opacity: 0.75;
       letter-spacing: 0.2px;
     }
-    /* 摘要不可用时显示的占位符 */
     .conflict-digest-unavailable {
       opacity: 0.35 !important;
       font-style: italic;
       cursor: help;
     }
-    /* 内容实际相同提示（深/浅色主题均可见） */
     .conflict-identical-hint {
       display: flex;
       align-items: center;
       gap: 5px;
-      margin: 0 0 10px;
+      margin: 8px 0 0;
       padding: 7px 10px;
       border-radius: 6px;
       font-size: 12px;
@@ -189,7 +258,8 @@ import { formatDate, formatSize } from '../core/file-utils'
     .conflict-vs-row { display: flex; align-items: center; gap: 10px; padding: 2px 0; }
     .conflict-vs-line { flex: 1; height: 1px; background: var(--_border, rgba(128,128,128,0.2)); }
     .conflict-vs { flex-shrink: 0; font-size: 11px; font-weight: 700; padding: 0 10px; color: var(--_text); opacity: 0.4; letter-spacing: 1px; }
-    .conflict-actions { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+    .conflict-footer { flex-shrink: 0; }
+    .conflict-actions { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
     .conflict-btn {
       padding: 6px 18px; border-radius: 6px; border: 1px solid var(--_border);
       background: var(--_content); color: var(--_text); cursor: pointer;
@@ -198,6 +268,21 @@ import { formatDate, formatSize } from '../core/file-utils'
     .conflict-btn:hover { background: var(--_hover); }
     .conflict-btn-skip { opacity: 0.7; }
     .conflict-btn-skip:hover { opacity: 1; }
+    /* ★ 2026-09-29：内容实际相同时，「跳过」升为推荐动作 —— 复用提示条的绿色（描边 + 浅底），
+       不做实心填充，避免与危险动作（实心红「覆盖」）抢主次。
+       特异性注意：必须排在上面的 .conflict-btn-skip 之后（同为单类，靠文件内顺序决胜），
+       且必须额外写 :hover 版本 —— 否则 .conflict-btn:hover 的灰底（0,1,1）会盖掉这里的浅绿底。 */
+    .conflict-btn-skip--identical {
+      opacity: 1;
+      color: #4caf50;
+      border-color: rgba(76, 175, 80, 0.55);
+      background: rgba(76, 175, 80, 0.14);
+    }
+    .conflict-btn-skip--identical:hover {
+      color: #4caf50;
+      border-color: rgba(76, 175, 80, 0.85);
+      background: rgba(76, 175, 80, 0.26);
+    }
     .conflict-btn-rename { background: transparent; border-color: var(--_primary, #3b82f6); color: var(--_primary, #3b82f6); }
     .conflict-btn-rename:hover { background: rgba(59,130,246,0.1); }
     .conflict-btn-danger { background: #d32f2f; color: #fff; border-color: #c62828; font-weight: 600; }
@@ -213,11 +298,36 @@ import { formatDate, formatSize } from '../core/file-utils'
     }
     .conflict-link:hover { background: var(--_hover); text-decoration: underline; }
     .conflict-sep { color: var(--_text); opacity: 0.3; font-size: 12px; }
+
+    /* ★ 2026-09-21：矮/窄分栏紧凑样式——缩小间距与字号，优先保住操作按钮可见 */
+    .conflict-dialog.is-compact {
+      padding: 10px 12px;
+      border-radius: 8px;
+    }
+    .conflict-dialog.is-compact .conflict-title-icon { font-size: 16px; }
+    .conflict-dialog.is-compact .conflict-title-text { font-size: 14px; }
+    .conflict-dialog.is-compact .conflict-direction,
+    .conflict-dialog.is-compact .conflict-progress { font-size: 10px; padding: 1px 7px; }
+    .conflict-dialog.is-compact .conflict-close { width: 24px; height: 24px; font-size: 16px; }
+    .conflict-dialog.is-compact .conflict-desc { font-size: 12px; margin-bottom: 6px; }
+    .conflict-dialog.is-compact .conflict-file-icon { width: 16px; height: 16px; }
+    .conflict-dialog.is-compact .conflict-side { padding: 6px 8px; border-radius: 6px; }
+    .conflict-dialog.is-compact .conflict-side-title { font-size: 12px; }
+    .conflict-dialog.is-compact .conflict-info-row { font-size: 11px; min-height: 18px; }
+    .conflict-dialog.is-compact .conflict-label { min-width: 40px; font-size: 10px; }
+    .conflict-dialog.is-compact .conflict-identical-hint { padding: 5px 8px; font-size: 11px; margin-top: 6px; }
+    .conflict-dialog.is-compact .conflict-btn { padding: 5px 12px; font-size: 12px; }
+    .conflict-dialog.is-compact .conflict-actions { gap: 6px; margin-bottom: 6px; }
+    .conflict-dialog.is-compact .conflict-all-row { padding-top: 6px; gap: 4px; }
+    .conflict-dialog.is-compact .conflict-link,
+    .conflict-dialog.is-compact .conflict-all-label { font-size: 11px; }
   `],
 })
 export class SftpConflictDialogComponent implements OnChanges, OnDestroy {
   @Input() visible = false
   @Input() data: ConflictFileInfo | null = null
+  /** 与文件列表一致的彩色 SVG 图标 URL（file://...）；空则回退 emoji */
+  @Input() fileIconUrl: string | null = null
   @Input() currIdx = 1
   @Input() totalIdx = 1
   @Output() resolve = new EventEmitter<string>()
@@ -225,6 +335,13 @@ export class SftpConflictDialogComponent implements OnChanges, OnDestroy {
 
   formatSize = formatSize
   formatDate = formatDate
+
+  /** 窄/矮分栏时启用紧凑样式 */
+  compact = false
+  private _focusTimer: ReturnType<typeof setTimeout> | null = null
+  private _ro: ResizeObserver | null = null
+
+  constructor(private cdr: ChangeDetectorRef) {}
 
   /** 过滤 Unix epoch / 0，避免冲突框误显示 1970-01-01 */
   formatConflictMtime(ms?: number): string {
@@ -250,14 +367,23 @@ export class SftpConflictDialogComponent implements OnChanges, OnDestroy {
     return d.localDigest !== d.remoteDigest
   }
 
-  private _focusTimer: ReturnType<typeof setTimeout> | null = null
-
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['visible'] && this.visible) {
-      this._focusTimer = setTimeout(() => {
-        this._focusTimer = null
-        this.overlayEl?.nativeElement?.focus()
-      })
+    if (changes['visible']) {
+      if (this.visible) {
+        if (this._focusTimer) clearTimeout(this._focusTimer)
+        this._focusTimer = setTimeout(() => {
+          this._focusTimer = null
+          this.overlayEl?.nativeElement?.focus()
+          this._bindCompactObserver()
+        })
+      } else {
+        if (this._focusTimer) {
+          clearTimeout(this._focusTimer)
+          this._focusTimer = null
+        }
+        this._unbindCompactObserver()
+        this.compact = false
+      }
     }
   }
 
@@ -266,10 +392,47 @@ export class SftpConflictDialogComponent implements OnChanges, OnDestroy {
       clearTimeout(this._focusTimer)
       this._focusTimer = null
     }
+    this._unbindCompactObserver()
+  }
+
+  private _bindCompactObserver(): void {
+    this._unbindCompactObserver()
+    const el = this.overlayEl?.nativeElement
+    if (!el || typeof ResizeObserver === 'undefined') {
+      this._updateCompactFromSize(el?.clientWidth ?? 0, el?.clientHeight ?? 0)
+      return
+    }
+    this._ro = new ResizeObserver(entries => {
+      const cr = entries[0]?.contentRect
+      if (!cr) return
+      this._updateCompactFromSize(cr.width, cr.height)
+    })
+    this._ro.observe(el)
+    this._updateCompactFromSize(el.clientWidth, el.clientHeight)
+  }
+
+  private _unbindCompactObserver(): void {
+    try { this._ro?.disconnect() } catch { /* ignore */ }
+    this._ro = null
+  }
+
+  private _updateCompactFromSize(w: number, h: number): void {
+    // 高度不足以舒适放下「双栏对比 + 按钮」或宽度明显窄于理想对话框时启用紧凑
+    const next = (h > 0 && h < 480) || (w > 0 && w < 420)
+    if (next === this.compact) return
+    this.compact = next
+    try { this.cdr.detectChanges() } catch { /* ignore */ }
   }
 
   onKeyDown(event: KeyboardEvent): void {
     if (event.key === 'Escape') {
+      event.preventDefault()
+      event.stopImmediatePropagation()
+      // 与右上角 × /「取消」一致，关闭对话框而不跳过当前项
+      this.resolve.emit('cancel')
+    }
+    // 冲突对话框的 Enter 使用非破坏性默认动作，避免误触直接覆盖本地或远程文件。
+    if (event.key === 'Enter') {
       event.preventDefault()
       event.stopImmediatePropagation()
       this.resolve.emit('skip')
@@ -277,10 +440,10 @@ export class SftpConflictDialogComponent implements OnChanges, OnDestroy {
   }
 
   /** ★ 2026-08-17：格式化后相同但字节数不同时，括号内显示精确值 */
-  /** ★ 2026-09-07 issue #15：显示完整摘要（sha1=40hex，sha256=64hex，对话框宽度足够） */
+  /** ★ 2026-09-07 issue #15：宽屏显示完整摘要；紧凑模式截断，完整值仍在 title */
   shortDigest(d?: string | null): string {
     if (!d) return ''
-    // sha1=40 hex，sha256=64 hex；对话框宽度足够显示完整值，不再截断
+    if (this.compact && d.length > 18) return `${d.slice(0, 8)}…${d.slice(-6)}`
     return d
   }
 

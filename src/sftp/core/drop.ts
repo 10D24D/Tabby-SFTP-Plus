@@ -1,9 +1,20 @@
 /**
  * 功能描述：SFTP+ drop 逻辑聚合模块（由旧 core 多文件合并）
- * 创建人：DD1024z + Hy3
- * 创建时间：2026-07-16
- * 修改人：DD1024z + Hy3
- * 修改时间：2026-08-02 — B19：_toSftpFile 增加 modified 无效 fallback 与诊断 log
+ * @创建人：DD1024z + Hy3
+ * @创建时间：2026-07-16
+ * @修改人：DD1024z + Deepseek-V4.1-Flash
+ * @修改时间：2026-09-29 — ★ 接入「多选批量上传」（用户提议：多选一批文件、可含文件夹，其实也能
+ *              走一个 tar 归档）。此前 drop 两处（内部 payload 与 OS 路径）都是
+ *              paths.map(streamUploadOne) → 文件夹各自打包、散装文件恒走逐文件。现在两处都在
+ *              Promise.all 之前先试 _tryBatchUpload：返回 true（本批已被单个 tar 归档接管）则
+ *              刷新远端并直接返回；返回 false 则完全按原流程逐项处理。
+ *              DropTransferPort / PanelDropHost 各加可选 tryUploadBatch?，适配层按存在性转发。
+ *              2026-09-21 — 修复旧 Node 复制回退跟随符号链接，并让异步 UI 刷新走安全入口；
+ *              第六轮审计 P2 修复：_toSftpFile 的 modified 占位改 epoch(0)
+ *              （让下载用例的 stat 兜底真正生效，此前 new Date() 占位使其永不触发）
+ *              2026-09-20 — P2-2 审计修复：拖入兜底临时目录 sftp-plus-dragdrop 按面板作用域分目录，
+ *              新增 dragDropTempDir()，供面板销毁时定向清理（此前该目录无任何清理路径）
+ *              2026-08-02 — B19：_toSftpFile 增加 modified 无效 fallback 与诊断 log
  * 合并来源：drop-rules, drop-use-case, panel-drop-adapter, panel-file-drop-parser
  */
 
@@ -84,6 +95,8 @@ export interface DropExecuteInput {
   targetPane: DropPane
   rawPayload: DragPayload | null
   osPaths: string[]
+  /** ★ 2026-09-20：拖到文件夹行时覆盖落点目录（否则用当前 cwd） */
+  destDirOverride?: string
 }
 
 export interface DropContextPort {
@@ -95,9 +108,16 @@ export interface DropContextPort {
 
 export interface DropTransferPort {
   uploadToRemote(remoteDir: string, localPath: string): Promise<boolean>
-  /** 上传入队：预注册占位条目 + 并发调度（与下载对称） */
-  streamUploadOne(localPath: string): Promise<void>
-  downloadRemoteEntry(entry: RemoteDropEntry): Promise<void>
+  /** 上传入队：预注册占位条目 + 并发调度（与下载对称）；destRemoteDir 可选覆盖目标目录 */
+  streamUploadOne(localPath: string, destRemoteDir?: string): Promise<void>
+  /**
+   * ★ 2026-09-29（四）：多选/拖拽多项先试「整批打成一个归档」。
+   * 返回 true = 本批已由打包通道处理完，调用方**必须直接收工**（再逐项入队会重传整批）；
+   * 返回 false = 未接管，按原有逐项流程处理。
+   * 可选成员：未实现时按「未接管」处理 —— 拖拽在任何情况下都不能因这条加速路径变差。
+   */
+  tryUploadBatch?(localPaths: string[], remoteDir: string): Promise<boolean>
+  downloadRemoteEntry(entry: RemoteDropEntry, destLocalDir?: string): Promise<void>
 }
 
 export interface DropPanePort {
@@ -145,14 +165,14 @@ export class DropUseCase {
   constructor(private readonly ports: DropPorts) {}
 
   async execute(input: DropExecuteInput): Promise<void> {
-    const { targetPane, rawPayload, osPaths } = input
+    const { targetPane, rawPayload, osPaths, destDirOverride } = input
     const ctx = this.ports.context
 
     if (rawPayload && isSameDirInternalDrop(
       rawPayload,
       targetPane,
-      ctx.getLocalPath(),
-      ctx.getRemotePath(),
+      destDirOverride || ctx.getLocalPath(),
+      destDirOverride || ctx.getRemotePath(),
     )) {
       this.ports.dragState.reset()
       this.ports.ui.markViewDirty()
@@ -162,23 +182,55 @@ export class DropUseCase {
     this.ports.dragState.reset()
 
     if (rawPayload) {
-      const handled = await this._handleInternalPayload(rawPayload, targetPane)
+      const handled = await this._handleInternalPayload(rawPayload, targetPane, destDirOverride)
       if (handled) return
     }
 
-    await this._handleOsPaths(osPaths, targetPane)
+    await this._handleOsPaths(osPaths, targetPane, destDirOverride)
   }
 
-  private async _handleInternalPayload(payload: DragPayload, targetPane: DropPane): Promise<boolean> {
+  /**
+   * ★ 2026-09-29（四）：拖拽多项先试「整批打成一个归档」。
+   *
+   * 返回 true = 本批已由打包通道处理完，调用方**必须直接收工**（继续逐项入队会把整批重传一遍）。
+   * 端口未实现 / 抛异常一律按「未接管」处理：批量打包只是叠加在逐项通道之上的加速，
+   * 它自己出任何意外都不该让这次拖拽失败（那会比没有它更差）。
+   */
+  private async _tryBatchUpload(paths: string[], remoteDir: string): Promise<boolean> {
+    if (paths.length < 2) return false
+    const f = this.ports.transfer.tryUploadBatch
+    if (!f) return false
+    try {
+      return await f(paths, remoteDir)
+    } catch (e) {
+      log.warn('[batch-upload] drop batch path threw, using per-file flow:', e)
+      return false
+    }
+  }
+
+  private async _handleInternalPayload(
+    payload: DragPayload,
+    targetPane: DropPane,
+    destDirOverride?: string,
+  ): Promise<boolean> {
     const ctx = this.ports.context
     if (!ctx.isConnected() || !ctx.hasSftpSession()) return false
 
     if (payload.kind === 'local-paths' && targetPane === 'remote') {
-      // ★ 2026-08-10：并行入队（非串行 await）——面板侧会预注册全部排队条目并
-      //   限制实际并发；此前串行等待每个文件传完才进下一个，传输列表永远只显示 1 项
+      const remoteDir = destDirOverride || ctx.getRemotePath()
+      // ★ 2026-09-29（四）：多项时先试整批打包；已接管则直接收工（勿再逐项入队）
+      if (await this._tryBatchUpload(payload.paths.map(p => p.fullPath), remoteDir)) {
+        if (this.ports.conflict.hasPendingConflicts()) {
+          this.ports.conflict.showConflictDialog()
+        }
+        await this.ports.pane.refreshRemote()
+        this.ports.pane.clearLocalSelection()
+        this.ports.ui.markViewDirty()
+        return true
+      }
       await Promise.all(payload.paths.map(async (p) => {
         try {
-          await this.ports.transfer.streamUploadOne(p.fullPath)
+          await this.ports.transfer.streamUploadOne(p.fullPath, remoteDir)
         } catch (e) {
           log.error('Upload failed for', p.fullPath, e)
         }
@@ -193,13 +245,12 @@ export class DropUseCase {
     }
 
     if (payload.kind === 'remote-paths' && targetPane === 'local') {
+      const localDir = destDirOverride || ctx.getLocalPath()
       log.info('[drop] remote→local payload.paths.length:', payload.paths.length)
-      // ★ 2026-08-10：并行入队（非串行 await）——面板侧会预注册全部排队条目并
-      //   限制实际并发；此前串行等待每个文件传完才进下一个，传输列表永远只显示 1 项
       await Promise.all(payload.paths.map(async (p, i) => {
         log.info('[drop] downloading remote entry #' + i + ':', p.name, p.remotePath, 'isDir:', p.isDirectory)
         try {
-          await this.ports.transfer.downloadRemoteEntry(p)
+          await this.ports.transfer.downloadRemoteEntry(p, localDir)
         } catch (e) {
           log.error('Download failed for', p.remotePath, e)
         }
@@ -216,12 +267,13 @@ export class DropUseCase {
     return false
   }
 
-  private async _handleOsPaths(osPaths: string[], targetPane: DropPane): Promise<void> {
+  private async _handleOsPaths(osPaths: string[], targetPane: DropPane, destDirOverride?: string): Promise<void> {
     if (!osPaths.length) return
 
     const ctx = this.ports.context
+    const localDest = destDirOverride || ctx.getLocalPath()
 
-    if (targetPane === 'local' && isOsDropIntoSameLocalDir(osPaths, ctx.getLocalPath())) {
+    if (targetPane === 'local' && isOsDropIntoSameLocalDir(osPaths, localDest)) {
       this.ports.dragState.reset()
       this.ports.ui.markViewDirty()
       return
@@ -229,10 +281,18 @@ export class DropUseCase {
 
     if (targetPane === 'remote') {
       if (!ctx.isConnected() || !ctx.hasSftpSession()) return
-      // ★ 2026-08-10：并行入队（非串行 await），全部条目立即预注册到传输列表
+      const remoteDir = destDirOverride || ctx.getRemotePath()
+      // ★ 2026-09-29（四）：从系统资源管理器拖入多个条目时同样先试整批打包
+      if (await this._tryBatchUpload(osPaths, remoteDir)) {
+        if (this.ports.conflict.hasPendingConflicts()) {
+          this.ports.conflict.showConflictDialog()
+        }
+        await this.ports.pane.refreshRemote()
+        return
+      }
       await Promise.all(osPaths.map(async (p) => {
         try {
-          await this.ports.transfer.streamUploadOne(p)
+          await this.ports.transfer.streamUploadOne(p, remoteDir)
         } catch (e) {
           log.error('Upload failed for', p, e)
         }
@@ -245,7 +305,7 @@ export class DropUseCase {
     }
 
     if (targetPane === 'local') {
-      await this.ports.filesystem.copyIntoLocalDir(osPaths, ctx.getLocalPath())
+      await this.ports.filesystem.copyIntoLocalDir(osPaths, localDest)
       await this.ports.pane.refreshLocal()
     }
   }
@@ -258,10 +318,13 @@ export class DropUseCase {
 
 export interface PanelDropHost {
   cdr: ChangeDetectorRef
+  markViewDirty?(): void
   connected: boolean
   sftpSession: unknown
   remotePath: string
   localPath: string
+  /** ★ 2026-09-20 P2-2：拖入兜底临时目录的作用域（面板级唯一），供销毁时定向清理 */
+  dropTmpScope?: string
   effectiveLang: string
   i18n: { t(key: string, params?: Record<string, string | number>): string }
   notifications: { error?(msg: string, detail: string): void } | null
@@ -270,8 +333,10 @@ export interface PanelDropHost {
   hasConflictQueue(): boolean
   resetFileDragState(): void
   uploadPathToRemote(remoteDir: string, localPath: string): Promise<boolean>
-  streamUploadOne(localPath: string): Promise<void>
-  streamDownloadOne(file: SFTPFile): Promise<void>
+  streamUploadOne(localPath: string, destRemoteDir?: string): Promise<void>
+  /** ★ 2026-09-29（四）：多选批量打包入口（可选，未实现则一律逐项） */
+  tryUploadBatch?(localPaths: string[], remoteDir: string): Promise<boolean>
+  streamDownloadOne(file: SFTPFile, targetLocalDir?: string): Promise<void>
   refreshLocal(): Promise<unknown>
   refreshRemote(): Promise<unknown>
   showConflictDialog(): void
@@ -284,11 +349,11 @@ export class PanelDropAdapter {
     this.useCase = new DropUseCase(this._buildPorts())
   }
 
-  async onDrop(ev: DragEvent, targetPane: DropPane): Promise<void> {
+  async onDrop(ev: DragEvent, targetPane: DropPane, destDirOverride?: string): Promise<void> {
     ev.preventDefault()
     const rawPayload = parseDragPayload(ev)
-    const osPaths = await getDroppedOsPaths(ev)
-    await this.useCase.execute({ targetPane, rawPayload, osPaths })
+    const osPaths = await getDroppedOsPaths(ev, this.host.dropTmpScope)
+    await this.useCase.execute({ targetPane, rawPayload, osPaths, destDirOverride })
   }
 
   private _buildPorts(): DropPorts {
@@ -302,8 +367,12 @@ export class PanelDropAdapter {
       },
       transfer: {
         uploadToRemote: (remoteDir, localPath) => host.uploadPathToRemote(remoteDir, localPath),
-        streamUploadOne: (localPath) => host.streamUploadOne(localPath),
-        downloadRemoteEntry: (entry) => host.streamDownloadOne(this._toSftpFile(entry)),
+        streamUploadOne: (localPath, destRemoteDir) => host.streamUploadOne(localPath, destRemoteDir),
+        // ★ 2026-09-29（四）：可选端口逐跳转发。两端都是 `?` 成员时 TS 不会报「漏转发」，
+        //   故此处显式做一次存在性判断（未实现即视为「未接管」）
+        tryUploadBatch: (localPaths, remoteDir) =>
+          host.tryUploadBatch ? host.tryUploadBatch(localPaths, remoteDir) : Promise.resolve(false),
+        downloadRemoteEntry: (entry, destLocalDir) => host.streamDownloadOne(this._toSftpFile(entry), destLocalDir),
       },
       pane: {
         refreshLocal: async () => { await host.refreshLocal() },
@@ -325,7 +394,12 @@ export class PanelDropAdapter {
         reset: () => host.resetFileDragState(),
       },
       ui: {
-        markViewDirty: () => host.cdr.detectChanges(),
+        markViewDirty: () => {
+          if (host.markViewDirty) host.markViewDirty()
+          else {
+            try { host.cdr.detectChanges() } catch { /* destroyed view */ }
+          }
+        },
       },
     }
   }
@@ -333,8 +407,10 @@ export class PanelDropAdapter {
   private _toSftpFile(entry: RemoteDropEntry): SFTPFile {
     const mtime = entry.modified
     log.info('[drop] _toSftpFile modified raw:', mtime, 'name:', entry.name)
-    // 若拖拽 payload 里的 modified 为 0/缺失，用当前时间占位；真正的准确时间由下载用例 stat 兜底
-    const modified = (mtime != null && mtime > 0) ? new Date(mtime) : new Date()
+    // ★ 2026-09-21 P2 修复：modified 缺失时改用 epoch(0) 占位而非当前时间——
+    //   entryMtimeToMsOrUndefined 会过滤 epoch 返回 undefined，使下载用例的 stat 兜底
+    //   （remoteMtime == null 才 stat）真正生效；此前 new Date() 占位让兜底永远不触发
+    const modified = (mtime != null && mtime > 0) ? new Date(mtime) : new Date(0)
     return {
       name: entry.name,
       fullPath: entry.remotePath,
@@ -385,14 +461,24 @@ export class PanelDropAdapter {
   }
 
   /** fs.cp 的兼容性回退（Node.js < 16.7） */
-  private async _copyIntoLocalDirFallback(src: string, dest: string): Promise<void> {
-    const st = await fs.stat(src).catch(() => null)
+  private async _copyIntoLocalDirFallback(src: string, dest: string, depth = 0): Promise<void> {
+    // ★ 2026-09-20 P1-8 审计修复：递归深度上限，防止异常目录结构导致无限递归
+    if (depth > 64) {
+      log.warn('_copyIntoLocalDirFallback max depth exceeded:', src)
+      return
+    }
+    const st = await fs.lstat(src).catch(() => null)
     if (!st) return
+    // 与 fs.cp({ dereference: false }) 及常规目录复制保持一致：不跟随链接目标。
+    if (st.isSymbolicLink()) {
+      log.info('Skip symlink in OS drop fallback:', src)
+      return
+    }
     if (st.isDirectory()) {
       await fs.mkdir(dest, { recursive: true })
       const entries = await fs.readdir(src)
       for (const entry of entries) {
-        await this._copyIntoLocalDirFallback(path.join(src, entry), path.join(dest, entry))
+        await this._copyIntoLocalDirFallback(path.join(src, entry), path.join(dest, entry), depth + 1)
       }
     } else {
       await fs.copyFile(src, dest)
@@ -420,8 +506,17 @@ export function parseDragPayload(ev: DragEvent): DragPayload | null {
   } catch { return null }
 }
 
-/** 从 OS 拖入的 DataTransfer 中提取本地文件系统路径 */
-export async function getDroppedOsPaths(ev: DragEvent): Promise<string[]> {
+/** ★ 2026-09-20 P2-2：拖入兜底临时目录（按调用方作用域分目录，便于各面板各自清理）
+ *  作用域缺省时用 shared 目录，保证旧调用方行为不变。 */
+export function dragDropTempDir(scope?: string): string {
+  const safeScope = (safeEntryName(scope ?? '') || '').replace(/[\\/]/g, '')
+  return path.join(os.tmpdir(), 'sftp-plus-dragdrop', safeScope || 'shared')
+}
+
+/** 从 OS 拖入的 DataTransfer 中提取本地文件系统路径
+ *  ★ 2026-09-20 P2-2：策略2（写入临时目录兜底）产生的文件此前无任何清理路径——
+ *  目录按 tmpScope 分组，由调用方（面板）在销毁时清理自己作用域内的副本。 */
+export async function getDroppedOsPaths(ev: DragEvent, tmpScope?: string): Promise<string[]> {
   const dt = ev.dataTransfer
   if (!dt) return []
 
@@ -462,7 +557,7 @@ export async function getDroppedOsPaths(ev: DragEvent): Promise<string[]> {
     }
   }
   if (fileObjects.length) {
-    const sessionDir = path.join(os.tmpdir(), 'sftp-plus-dragdrop', randomUUID())
+    const sessionDir = path.join(dragDropTempDir(tmpScope), randomUUID())
     let dirOk = false
     try {
       await fs.mkdir(sessionDir, { recursive: true })

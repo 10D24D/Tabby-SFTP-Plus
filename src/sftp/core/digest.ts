@@ -112,7 +112,15 @@ export class ContentDigestService implements ContentDigestPort {
           log.warn('[digest] remote digest skipped: no SSH session for', remotePath)
           return null
         }
-        if (size != null && !this._withinLimit(size)) {
+        // ★ 2026-09-21 P2 修复：size 为 null 时原先直接放行（_withinLimit 返回 true），
+        //   于是对大小未知的远端文件会整文件求 hash，完全绕过 maxBytes——
+        //   冲突检测路径未带 size 时，远端大文件会吃满 CPU/IO 直到 timeoutMs。
+        //   未知大小改为保守拒绝（返回 null ⇒ 上层照常弹冲突框让用户决定）。
+        if (size == null) {
+          log.warn('[digest] remote size unknown, skipping digest to avoid unbounded hashing:', remotePath)
+          return null
+        }
+        if (!this._withinLimit(size)) {
           log.warn('[digest] remote file exceeds max size limit:', remotePath, 'size:', size)
           return null
         }
@@ -128,7 +136,8 @@ export class ContentDigestService implements ContentDigestPort {
         const cmd = this.remoteBin === 'openssl'
           ? `openssl dgst -${this.algo} ${shellQuotePosix(remotePath)}`
           : `${this.remoteBin} ${shellQuotePosix(remotePath)}`
-        const out = await execSshCommand(ssh, cmd, this.timeoutMs)
+        // ★ 2026-09-20 P1-13：幂等命令显式启用重试
+        const out = await execSshCommand(ssh, cmd, this.timeoutMs, { retryOnEmpty: true })
         const m = HEX_RE.exec(out || '')
         if (!m) {
           log.warn('[digest] remote digest output parse failed for', remotePath, 'output:', out?.slice(0, 200))
@@ -168,7 +177,8 @@ export class ContentDigestService implements ContentDigestPort {
         this.algo === 'sha256' ? ['sha256sum', 'openssl'] : ['sha1sum', 'openssl']
       for (const bin of candidates) {
         try {
-          const out = await execSshCommand(ssh, `command -v ${bin} 2>/dev/null`, Math.min(this.timeoutMs, 8000))
+          // ★ 2026-09-20 P1-13：幂等探测命令显式启用重试
+          const out = await execSshCommand(ssh, `command -v ${bin} 2>/dev/null`, Math.min(this.timeoutMs, 8000), { retryOnEmpty: true })
           if (out && out.trim()) {
             log.info('[digest] remote bin detected:', bin)
             this.remoteBin = bin

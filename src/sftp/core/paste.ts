@@ -1,9 +1,15 @@
 /**
  * 功能描述：SFTP+ paste 逻辑聚合模块（由旧 core 多文件合并）
- * 创建人：DD1024z + Hy3
- * 创建时间：2026-07-16
- * 修改人：DD1024z + Composer
- * 修改时间：2026-09-17 — 目录冲突预检补齐远程 mtime（与拖拽上传一致，避免粘贴显示 1970）
+ * @创建人：DD1024z + Hy3
+ * @创建时间：2026-07-16
+ * @修改人：DD1024z + Claude Opus 5
+ * @修改时间：2026-09-21 — P1 修复：scanConflicts 补同面板目录的同名冲突预检 —— 原先 source===destPane
+ *              时直接 continue，execute 会径直 copyLocalDir/copyRemoteDir 合并进已存在的同名目录
+ *              并覆盖同名文件，既无对话框也无提示（同面板的「文件」本就走 checkDestExists，只有目录漏了）
+ *              2026-09-21 — 第六轮审计 P2 修复：execute 的 try/catch 挪进条目循环
+ *              （单条目失败不再中断整批，刷新独立兜底，有失败才统一提示）
+ *              2026-09-20 — 跨栏粘贴冲突补齐远端 dest 元数据，勿用本地 size 冒充 remoteFileSize
+ *              2026-09-17 — 目录冲突预检补齐远程 mtime（与拖拽上传一致，避免粘贴显示 1970）
  *              2026-07-25 — safeEntryName 防路径穿越
  * 合并来源：paste-use-case, panel-paste-adapter
  */
@@ -168,6 +174,30 @@ export class PasteUseCase {
               mode,
             })
           }
+        } else if (source === destPane) {
+          // ★ 2026-09-21 P1 修复：同面板粘贴目录此前直接 continue，不做同名预检——
+          //   execute 会径直 copyLocalDir/copyRemoteDir 合并进已存在的同名目录并覆盖同名文件，
+          //   既无对话框也无提示（同面板的「文件」是走下面 checkDestExists 的，只有目录漏了）。
+          const exists = await this.ports.conflict.checkDestExists(destPane, destFilePath)
+          if (exists) {
+            const srcPath = entry.fullPath ?? ''
+            const destStat: Stats = { size: entry.size ?? 0, mtimeMs: entry.mtimeMs ?? Date.now() } as Stats
+            this.ports.conflict.enqueue({
+              localPath: destFilePath,
+              remoteDir: destPane === 'remote' ? destPath : path.posix.dirname(srcPath),
+              fileName: safeName,
+              remotePath: srcPath,
+              localStat: destStat,
+              direction: 'upload',
+              isDirectory: true,
+              isSamePane: true,
+              samePaneSource: source,
+              remoteFileSize: entry.size ?? 0,
+              remoteFileMtime: entry.mtimeMs ?? Date.now(),
+              entryKey: pasteEntryKey(entry),
+              mode,
+            })
+          }
         } else if (source === 'remote' && destPane === 'local') {
           if (await this.ports.fs.localDirExists(destFilePath)) {
             const remoteMeta = await this._remoteListingMeta(
@@ -219,6 +249,16 @@ export class PasteUseCase {
             }
           } catch { /* ignore */ }
         }
+      } else if (destPane === 'remote') {
+        // ★ 2026-09-20：跨栏上传冲突需取远端目标元数据（勿用本地 entry.size 冒充 remoteFileSize）
+        const meta = await this._remoteListingMeta(destPath, safeName)
+        destStat = {
+          size: meta.size ?? 0,
+          mtimeMs: meta.mtimeMs ?? Date.now(),
+        } as Stats
+      } else if (destPane === 'local') {
+        const st = await this.ports.fs.statLocal(destFilePath)
+        if (st) destStat = st
       }
 
       this.ports.conflict.enqueue(this._buildFileConflictItem(
@@ -236,8 +276,11 @@ export class PasteUseCase {
     mode: 'copy' | 'cut',
     source: 'local' | 'remote',
   ): Promise<void> {
-    try {
-      for (const entry of entries) {
+    // ★ 2026-09-21 P2 修复：try/catch 从循环外挪进循环内——原实现单条目失败会中断整批，
+    //   剩余条目静默不处理（用户只看到一条 pasteFailed，不知道哪些没执行）
+    let failed = 0
+    for (const entry of entries) {
+      try {
         const srcPath = entry.fullPath ?? ''
         if (!srcPath) continue
         // ★ 2026-07-25：剥离服务器返回文件名中的目录组件与 ..，防止路径穿越
@@ -257,11 +300,18 @@ export class PasteUseCase {
         } else {
           await this._pasteRemoteToLocal(entry, srcPath, destPath, destFilePath, mode)
         }
+      } catch (e) {
+        failed++
+        log.error('Paste entry failed:', entry.name, e)
       }
+    }
+    try {
       if (destPane === 'local' || source === 'local') await this.ports.ui.refreshLocal()
       if (destPane === 'remote' || source === 'remote') await this.ports.ui.refreshRemote()
     } catch (e) {
-      log.error('Paste failed', e)
+      log.warn('Paste post-refresh failed:', e)
+    }
+    if (failed > 0) {
       this.ports.ui.notifyPasteFailed()
     }
   }
@@ -389,15 +439,27 @@ export class PasteUseCase {
     destStat: Stats,
     mode: 'copy' | 'cut',
   ): ConflictQueueItem {
+    // ★ 2026-09-20：远端侧 size/mtime 一律用 destStat（跨栏上传）或 entry（跨栏下载的源）
+    const remoteSize = destPane === 'remote'
+      ? Number(destStat.size) || 0
+      : (entry.size ?? 0)
+    const remoteMtime = destPane === 'remote'
+      ? Number(destStat.mtimeMs) || Date.now()
+      : (entry.mtimeMs ?? Date.now())
+    const localStat = isSamePane
+      ? destStat
+      : (source === 'local'
+        ? { size: entry.size ?? 0, mtimeMs: entry.mtimeMs ?? Date.now() } as Stats
+        : destStat)
     return {
       localPath: isSamePane ? destFilePath : (source === 'local' ? (entry.fullPath ?? '') : destFilePath),
       remoteDir: destPane === 'remote' ? destPath : path.posix.dirname(entry.fullPath ?? ''),
       fileName: entry.name,
       remotePath: isSamePane ? (entry.fullPath ?? '') : (destPane === 'remote' ? destFilePath : (entry.fullPath ?? '')),
-      localStat: isSamePane ? destStat : { size: entry.size ?? 0, mtimeMs: entry.mtimeMs ?? Date.now() } as Stats,
+      localStat,
       direction,
-      remoteFileSize: entry.size ?? 0,
-      remoteFileMtime: entry.mtimeMs ?? Date.now(),
+      remoteFileSize: remoteSize,
+      remoteFileMtime: remoteMtime,
       isSamePane,
       samePaneSource: isSamePane ? source : undefined,
       entryKey: pasteEntryKey(entry),
@@ -511,7 +573,11 @@ export class PanelPasteAdapter {
       mkdir: async (p: string) => { await (host.sftpSession as any).mkdir(p) },
       readdir: async (p: string) => {
         const entries = await (host.sftpSession as any).readdir(p)
-        return entries.map((e: any) => ({ name: e.name, isDirectory: !!e.isDirectory, isSymbolicLink: !!e.isSymbolicLink }))
+        return entries.map((e: any) => ({
+          name: e.name,
+          isDirectory: !!e.isDirectory,
+          isSymbolicLink: !!(e.isSymlink || e.isSymbolicLink),
+        }))
       },
       download: (r: string, l: string) => host.downloadFile(r, l),
       upload: (r: string, l: string) => host.uploadFile(r, l),

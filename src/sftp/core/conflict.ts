@@ -1,11 +1,19 @@
 /**
  * 功能描述：SFTP+ conflict 逻辑聚合模块（由旧 core 多文件合并）
- * 创建人：DD1024z + Hy3
- * 创建时间：2026-07-16
- * 修改人：DD1024z + Composer
- * 修改时间：2026-09-17 — 冲突「取消/跳过」删除误记的失败传输记录（未真正传输）
- *              2026-09-07 — issue #15：冲突检测支持内容摘要，size 相同但 mtime 超出容差时按摘要判同，内容相同则不弹冲突框
- *              2026-09-07 — issue #15+：detector 的 autoSkipSameContent 改为回调，避免 panel 构造时序导致 settings 失联（用户关掉自动跳过却仍按 true 跑）
+ * @创建人：DD1024z + Hy3
+ * @创建时间：2026-07-16
+ * @修改人：DD1024z + Claude Opus 5
+ * @修改时间：2026-09-21 — P1 修复：applyAction 的 overwrite/rename 把 isSamePane 判断提到 isDirectory
+ *              之前 —— 同面板目录冲突原会落进跨栏分支走 mergeLocalDirToRemote/downloadRemoteDir，
+ *              本地→本地的目录复制被当成「合并上传到远程」，方向完全错；同面板处理器按
+ *              item.isDirectory 传递 copyRemoteDir 的 isDir；目录剪切不再走 backup 策略
+ *              （unlinkRemote 删不掉目录，失败会在服务器上永久留下 *.sftp-plus-bak-* 目录）
+ *              2026-09-21 — 第六轮审计 P1 修复：_samePaneOverwrite 删除「unlink(backup) 失败就把 backup
+ *              改名回 dest」的危险 fallback（此时 dest 已是 src 内容，回滚即剪切丢数据）及重复 unlink
+ *              2026-09-20 — 单端摘要失败仍回传另一端供 UI 展示（auto-skip 仍要求两端齐全）
+ *              2026-09-20 — 同面板剪切仅成功后删源；共享 transferCtx 的 skip/flip；size+mtime 相同视为 auto-skipped；目录剪切走递归删除；下载覆盖强制合并
+ *              2026-09-17 — 冲突「取消/跳过」删除误记的失败传输记录（未真正传输）
+ *              2026-09-07 — issue #15：冲突检测支持内容摘要
  * 合并来源：conflict-rules, conflict-resolve, sftp-conflict-detector
  */
 
@@ -127,8 +135,8 @@ export type AutoSkippedInfo = {
 
 /**
  * ★ 2026-09-07 issue #15+：冲突检测的完整结果枚举，把「自动跳过」与「无冲突」分离。
- * - no-conflict：文件不存在或不应处理，调用方继续正常传输
- * - auto-skipped：内容已确认为相同（摘要匹配），调用方必须跳过，不下载/不上传
+ * - no-conflict：目标不存在，调用方应首次传输（勿把「内容已相同」塞进此分支）
+ * - auto-skipped：已确认相同（size+mtime 容差内，或内容摘要匹配），调用方必须跳过
  * - conflict：需由用户决定覆盖/重命名/跳过，调用方入队弹框
  */
 export type ConflictCheckOutcome =
@@ -177,7 +185,8 @@ export interface ConflictResolveExecutionPort {
   // ★ 2026-08-10：传输方法返回 boolean（true=完整成功），剪切删源前必须校验
   // ★ 2026-08-11：reuseLogEntryId 传入时合并传输复用来源传输记录并自行收尾成败
   mergeLocalDirToRemote(localSrc: string, remoteDest: string, reuseLogEntryId?: string): Promise<boolean>
-  downloadRemoteDir(remotePath: string, localDestParent: string, localName?: string): Promise<boolean>
+  /** ★ 2026-09-20：forceOverwrite=true 时跳过子文件冲突检测（用户已明确选目录覆盖） */
+  downloadRemoteDir(remotePath: string, localDestParent: string, localName?: string, forceOverwrite?: boolean): Promise<boolean>
   doDownload(remotePath: string, localPath: string, mode?: number, size?: number): Promise<boolean>
   doUpload(remotePath: string, localPath: string): Promise<boolean>
   copyLocalDir(src: string, dest: string): Promise<void>
@@ -196,6 +205,9 @@ export interface ConflictResolveExecutionPort {
   unlinkLocal(path: string): Promise<void>
   /** 删除远程文件（剪切模式冲突解决后清理源文件） */
   unlinkRemote(path: string): Promise<void>
+  /** ★ 2026-09-20：目录剪切需递归删除（单文件 unlink 对目录常 EISDIR） */
+  deleteLocalRecursive(path: string): Promise<void>
+  deleteRemoteRecursive(path: string): Promise<void>
 }
 
 export interface ConflictPendingPastePort {
@@ -241,6 +253,8 @@ export class ConflictResolveUseCase {
 
   /** ★ 2026-08-15 修复 #3：重入锁——防止 resolve/processNext 并发消费同一条目 */
   private _processing = false
+  /** ★ 2026-09-20：共享 transferCtx 上至少有一次覆盖/重命名成功（决定末项 skip 是 discard 还是 flip） */
+  private _ctxHadSuccess = new Set<string>()
 
   async resolve(action: string): Promise<void> {
     if (this._processing) return
@@ -279,6 +293,7 @@ export class ConflictResolveUseCase {
     if (this.ports.queue.length() === 0) {
       this.ports.queue.resetAllMode()
       this.ports.queue.resetOriginalTotal()
+      this._ctxHadSuccess.clear()
       this.ports.ui.clearSelection()
       if (this.ports.pendingPaste.hasPendingPaste()) {
         await this.ports.pendingPaste.resumePaste(this.ports.queue.getResolvedKeys())
@@ -323,8 +338,9 @@ export class ConflictResolveUseCase {
     switch (action) {
       case 'cancel': {
         // ★ 2026-09-17：冲突入队时已 finish(false) 误记失败；用户取消=未传输，应删除记录而非留红叉
-        this._discardConflictTransferLog(item)
-        for (const q of this.ports.queue.snapshot()) this._discardConflictTransferLog(q)
+        this._discardConflictTransferLog(item, true)
+        for (const q of this.ports.queue.snapshot()) this._discardConflictTransferLog(q, true)
+        this._ctxHadSuccess.clear()
         this.ports.queue.clear()
         this.ports.pendingPaste.restoreClipboardFromPending()
         this.ports.pendingPaste.clearPending()
@@ -332,23 +348,29 @@ export class ConflictResolveUseCase {
         return false
       }
       case 'skip':
-        // 跳过同样未真正传输，去掉误记失败记录
-        this._discardConflictTransferLog(item)
+        // 跳过同样未真正传输；共享 ctx 时等队列中同批项都处理完再 discard/flip
+        this._finalizeSharedCtxOnSkip(item)
         return true
       case 'overwrite':
-        if (item.isDirectory) {
+        // ★ 2026-09-21 P1 修复：isSamePane 必须先于 isDirectory 判断。
+        //   同面板（本地→本地 / 远程→远程）目录冲突若落进下面的 isDirectory 分支，
+        //   会被当成跨栏传输去走 mergeLocalDirToRemote / downloadRemoteDir——
+        //   本地→本地的目录复制会变成「合并上传到远程」，方向完全错。
+        if (item.isSamePane) {
+          const outcome = await this._samePaneOverwrite(item)
+          if (outcome === 'copied') await this._deleteSourceIfCut(item, true)
+          // moved：源已通过 rename 挪走；failed：禁止删源
+        } else if (item.isDirectory) {
           let ok: boolean
           if (item.direction === 'upload') {
             // ★ 2026-08-11：合并上传复用来源记录并自建进度条目，成败由其收尾，不再翻正
             ok = await exec.mergeLocalDirToRemote(item.localPath, item.remotePath, item.transferCtx?.logEntryId)
           } else {
-            ok = await exec.downloadRemoteDir(item.remotePath, path.dirname(item.localPath))
+            // ★ 2026-09-20：下载目录覆盖强制合并，避免子文件再次弹冲突（与上传 merge 对称）
+            ok = await exec.downloadRemoteDir(item.remotePath, path.dirname(item.localPath), undefined, true)
             this._flipTransferLog(item, ok)
           }
           await this._deleteSourceIfCut(item, ok)
-        } else if (item.isSamePane) {
-          const consumed = await this._samePaneOverwrite(item)
-          if (!consumed) await this._deleteSourceIfCut(item)
         } else if (item.direction === 'download') {
           const ok = await exec.doDownload(item.remotePath, item.localPath, 0o644, item.remoteFileSize)
           await this._deleteSourceIfCut(item, ok)
@@ -360,6 +382,15 @@ export class ConflictResolveUseCase {
         }
         return true
       case 'rename': {
+        // ★ 2026-09-21 P1 修复：同面板优先（理由同 overwrite 分支）；目录用目录命名规则
+        if (item.isSamePane) {
+          const newName = item.isDirectory
+            ? buildConflictRenameDirName(item.fileName)
+            : buildConflictRenameName(item.fileName)
+          const outcome = await this._samePaneRename(item, newName)
+          if (outcome === 'copied') await this._deleteSourceIfCut(item, true)
+          return true
+        }
         if (item.isDirectory) {
           const newName = buildConflictRenameDirName(item.fileName)
           let ok: boolean
@@ -367,17 +398,14 @@ export class ConflictResolveUseCase {
             const newRemote = path.posix.join(item.remoteDir, newName)
             ok = await exec.mergeLocalDirToRemote(item.localPath, newRemote, item.transferCtx?.logEntryId)
           } else {
-            ok = await exec.downloadRemoteDir(item.remotePath, path.dirname(item.localPath), newName)
+            ok = await exec.downloadRemoteDir(item.remotePath, path.dirname(item.localPath), newName, true)
             this._flipTransferLog(item, ok)
           }
           await this._deleteSourceIfCut(item, ok)
           return true
         }
         const newName = buildConflictRenameName(item.fileName)
-        if (item.isSamePane) {
-          const consumed = await this._samePaneRename(item, newName)
-          if (!consumed) await this._deleteSourceIfCut(item)
-        } else if (item.direction === 'download') {
+        if (item.direction === 'download') {
           const newLocal = path.join(path.dirname(item.localPath), newName)
           const ok = await exec.doDownload(item.remotePath, newLocal, 0o644, item.remoteFileSize)
           await this._deleteSourceIfCut(item, ok)
@@ -393,16 +421,41 @@ export class ConflictResolveUseCase {
     }
   }
 
-  /** ★ 2026-08-11：冲突入队时来源传输已被 finish(false) 记失败；覆盖/重命名真正
-   *  传完后把记录翻正，避免「文件都到位了但传输记录显示失败」 */
-  private _flipTransferLog(item: ConflictQueueItem, ok: boolean): void {
-    if (!ok || !item.transferCtx) return
-    try { this.ports.execution.markTransferSucceeded(item.transferCtx) } catch { /* ignore */ }
+  /** 队列中仍挂着同一 transferCtx 的冲突项数量（当前项已 shift） */
+  private _remainingSharedCtxCount(item: ConflictQueueItem): number {
+    const id = item.transferCtx?.logEntryId
+    if (id == null || id === '') return 0
+    return this.ports.queue.snapshot().filter(q => q.transferCtx?.logEntryId === id).length
   }
 
-  /** ★ 2026-09-17：取消/跳过时删除误记失败记录 */
-  private _discardConflictTransferLog(item: ConflictQueueItem): void {
+  /** ★ 2026-08-11：冲突入队时来源传输已被 finish(false) 记失败；覆盖/重命名真正
+   *  传完后把记录翻正。共享 ctx 时等同批冲突全部解决后再翻正。 */
+  private _flipTransferLog(item: ConflictQueueItem, ok: boolean): void {
+    if (!ok || !item.transferCtx) return
+    const id = item.transferCtx.logEntryId
+    if (id) this._ctxHadSuccess.add(id)
+    if (this._remainingSharedCtxCount(item) > 0) return
+    try { this.ports.execution.markTransferSucceeded(item.transferCtx) } catch { /* ignore */ }
+    if (id) this._ctxHadSuccess.delete(id)
+  }
+
+  /** 跳过：若同批还有冲突项则保留日志；末项时有过成功则翻正，否则 discard */
+  private _finalizeSharedCtxOnSkip(item: ConflictQueueItem): void {
     if (!item.transferCtx) return
+    if (this._remainingSharedCtxCount(item) > 0) return
+    const id = item.transferCtx.logEntryId
+    if (id && this._ctxHadSuccess.has(id)) {
+      try { this.ports.execution.markTransferSucceeded(item.transferCtx) } catch { /* ignore */ }
+      this._ctxHadSuccess.delete(id)
+      return
+    }
+    this._discardConflictTransferLog(item, true)
+  }
+
+  /** ★ 2026-09-17：取消/跳过时删除误记失败记录；force 忽略共享计数（取消整批） */
+  private _discardConflictTransferLog(item: ConflictQueueItem, force = false): void {
+    if (!item.transferCtx) return
+    if (!force && this._remainingSharedCtxCount(item) > 0) return
     try { this.ports.execution.discardTransferLog(item.transferCtx) } catch { /* ignore */ }
   }
 
@@ -425,15 +478,25 @@ export class ConflictResolveUseCase {
     }
     const exec = this.ports.execution
     try {
+      if (item.isDirectory) {
+        // ★ 2026-09-20：目录必须递归删；unlink 对目录会 EISDIR，此前剪切覆盖后源目录残留
+        if (item.isSamePane) {
+          if (item.samePaneSource === 'local') await exec.deleteLocalRecursive(item.remotePath)
+          else await exec.deleteRemoteRecursive(item.remotePath)
+        } else if (item.direction === 'upload') {
+          await exec.deleteLocalRecursive(item.localPath)
+        } else {
+          await exec.deleteRemoteRecursive(item.remotePath)
+        }
+        return
+      }
       if (item.isSamePane) {
         // 同面板：源文件 = remotePath（_buildFileConflictItem 中 isSamePane=true 时）
         if (item.samePaneSource === 'local') await exec.unlinkLocal(item.remotePath)
         else await exec.unlinkRemote(item.remotePath)
       } else if (item.direction === 'upload') {
-        // 本地上传：源文件 = localPath
         await exec.unlinkLocal(item.localPath)
       } else {
-        // 远程下载：源文件 = remotePath
         await exec.unlinkRemote(item.remotePath)
       }
     } catch (e) {
@@ -441,7 +504,8 @@ export class ConflictResolveUseCase {
     }
   }
 
-  private async _samePaneOverwrite(item: ConflictQueueItem): Promise<boolean> {
+  /** @returns moved=源已挪走；copied=拷贝成功（剪切需再删源）；failed=失败勿删源 */
+  private async _samePaneOverwrite(item: ConflictQueueItem): Promise<'moved' | 'copied' | 'failed'> {
     const src = item.remotePath
     const dest = item.localPath
     const exec = this.ports.execution
@@ -449,36 +513,51 @@ export class ConflictResolveUseCase {
     const sameFile = item.samePaneSource === 'local'
       ? path.resolve(src) === path.resolve(dest)
       : src === dest
-    if (sameFile) return false
+    if (sameFile) return 'failed'
     if (item.samePaneSource === 'local') {
       try {
         const st = await exec.statLocal(src)
-        if (!st) return false
+        if (!st) return 'failed'
         if (st.isDirectory) await exec.copyLocalDir(src, dest)
         else await exec.copyLocalFile(src, dest)
+        return 'copied'
       } catch (e) {
         log.error('Same-pane overwrite failed', e)
+        return 'failed'
       }
-      return false
     }
-    if (!exec.hasSftpSession()) return false
+    if (!exec.hasSftpSession()) return 'failed'
     try {
+      // ★ 2026-09-21 P1 修复：目录剪切不走「备份 dest」策略——unlinkRemote 删不掉目录，
+      //   失败路径会在服务器上永久留下 *.sftp-plus-bak-* 目录。先直接试 rename
+      //   （dest 不存在或为空目录时可成功），失败则落到下面的复制路径，
+      //   源由 _deleteSourceIfCut 递归删除。
+      if (item.mode === 'cut' && item.isDirectory) {
+        try {
+          await exec.renameRemote(src, dest)
+          return 'moved'
+        } catch (e) {
+          log.info('same-pane dir cut: rename failed, falling back to copy+delete:', src, '->', dest, e)
+        }
+      }
       // 同服移动（剪切覆盖）：先把目标挪到备份名，再 rename 源→目标；失败可回滚
-      if (item.mode === 'cut') {
+      if (item.mode === 'cut' && !item.isDirectory) {
         const backup = dest + `.sftp-plus-bak-${Date.now()}`
         let backedUp = false
         try {
           await exec.renameRemote(src, dest)
-          return true
+          return 'moved'
         } catch {
           try {
             await exec.renameRemote(dest, backup)
             backedUp = true
             await exec.renameRemote(src, dest)
-            await exec.unlinkRemote(backup).catch(() => exec.renameRemote(backup, dest).catch(() => {}))
-            // 若 backup 仍是目录，unlink 可能失败——尽力删
-            try { await exec.unlinkRemote(backup) } catch { /* ignore */ }
-            return true
+            // ★ 2026-09-21 P1 修复：此处绝不能带「删不掉就把 backup 改名回 dest」的 fallback——
+            //   上一行 rename 已成功（dest 已是 src 内容），把 backup 改回 dest 会覆盖掉 src 内容，
+            //   而 src 已被挪走 → 剪切变成数据丢失。删不掉就留下 backup（留备份总比丢数据好）。
+            //   （原实现还有一行重复的 unlink，一并删除）
+            try { await exec.unlinkRemote(backup) } catch { /* 留下 backup 总比丢数据好 */ }
+            return 'moved'
           } catch (e2) {
             if (backedUp) {
               try { await exec.renameRemote(backup, dest) } catch { /* 无法恢复则留下 backup */ }
@@ -492,61 +571,67 @@ export class ConflictResolveUseCase {
       const baseName = path.posix.basename(src)
       const parentEntries = await exec.readdirRemote(parentDir)
       const srcEntry = parentEntries.find(e => e.name === baseName)
-      if (srcEntry) {
-        // [2026-07-12 修复] 同 _samePaneRename：不能依赖 srcEntry.isDirectory，
-        // 强制按"文件"路径处理（overwrite 场景一定是文件，目录合并走 applyAction 的 isDirectory 分支）
-        await exec.copyRemoteDir(src, dest, false)
-      }
-      return false
+      if (!srcEntry) return 'failed'
+      // ★ 2026-09-21 P1 修复：原先硬编码 false（按文件处理），因为同面板目录当时走不到这里。
+      //   现在 applyAction 把同面板目录也分流到本方法，必须按 item.isDirectory 传递；
+      //   仍与 listing 交叉确认，避免 stale 元数据把文件当目录走 mkdir+readdir 死路（dest 变 0B）。
+      const isDir = !!item.isDirectory && srcEntry.isDirectory !== false
+      await exec.copyRemoteDir(src, dest, isDir)
+      return 'copied'
     } catch (e) {
       log.error('Same-pane remote overwrite failed', e)
-      return false
+      return 'failed'
     }
   }
 
-  private async _samePaneRename(item: ConflictQueueItem, newName: string): Promise<boolean> {
+  private async _samePaneRename(item: ConflictQueueItem, newName: string): Promise<'moved' | 'copied' | 'failed'> {
     const src = item.remotePath
     const destDir = path.dirname(item.localPath)
     const dest = path.join(destDir, newName)
     const exec = this.ports.execution
-    // 防御：重命名目标恒不等于源，但保留自我拷贝守卫以防回归
     const sameFile = item.samePaneSource === 'local'
       ? path.resolve(src) === path.resolve(dest)
       : src === dest
-    if (sameFile) return false
+    if (sameFile) return 'failed'
     if (item.samePaneSource === 'local') {
       try {
         const st = await exec.statLocal(src)
-        if (!st) return false
-        // [诊断] 记录重命名拷贝时的源路径/目标路径/源是否目录（若源 size=0 说明更早被截断）
+        if (!st) return 'failed'
         log.info('_samePaneRename local:', { src, dest, isDir: st.isDirectory })
         if (st.isDirectory) await exec.copyLocalDir(src, dest)
         else await exec.copyLocalFile(src, dest)
+        return 'copied'
       } catch (e) {
         log.error('Same-pane rename failed', e)
+        return 'failed'
       }
-      return false
     }
-    if (!exec.hasSftpSession()) return false
+    if (!exec.hasSftpSession()) return 'failed'
     try {
-      // [2026-07-12 修复] ★ 关键修复：item.localPath 是 posix 路径（远程同面板），
-      // 但 path.dirname 在 Windows 上会把正斜杠转反斜杠 → path.posix.join 再混用时报错路 → 上传 0B
-      // 必须用 path.posix.dirname 处理远程路径
+      // item.localPath 是 posix 路径（远程同面板），必须用 path.posix.dirname
       const destRemote = path.posix.join(path.posix.dirname(item.localPath), newName)
-      // 同服移动（剪切重命名）：先备份目标再 rename，失败可回滚
-      if (item.mode === 'cut') {
+      // ★ 2026-09-21 P1 修复：目录剪切不走备份策略（理由同 _samePaneOverwrite）
+      if (item.mode === 'cut' && item.isDirectory) {
+        try {
+          await exec.renameRemote(src, destRemote)
+          return 'moved'
+        } catch (e) {
+          log.info('same-pane dir cut-rename failed, falling back to copy+delete:', src, '->', destRemote, e)
+        }
+      }
+      if (item.mode === 'cut' && !item.isDirectory) {
         const backup = destRemote + `.sftp-plus-bak-${Date.now()}`
         let backedUp = false
         try {
           await exec.renameRemote(src, destRemote)
-          return true
+          return 'moved'
         } catch {
           try {
             await exec.renameRemote(destRemote, backup)
             backedUp = true
             await exec.renameRemote(src, destRemote)
             try { await exec.unlinkRemote(backup) } catch { /* ignore */ }
-            return true
+            return 'moved'
           } catch (e2) {
             if (backedUp) {
               try { await exec.renameRemote(backup, destRemote) } catch { /* ignore */ }
@@ -559,14 +644,14 @@ export class ConflictResolveUseCase {
       const baseName = path.posix.basename(src)
       const parentEntries = await exec.readdirRemote(parentDir)
       const srcEntry = parentEntries.find(e => e.name === baseName)
-      if (srcEntry) {
-        // 强制按"文件"走：download(src→tmp) + upload(tmp→dest)
-        await exec.copyRemoteDir(src, destRemote, false)
-      }
-      return false
+      if (!srcEntry) return 'failed'
+      // ★ 2026-09-21 P1 修复：同上，按 item.isDirectory 传递并与 listing 交叉确认
+      const isDir = !!item.isDirectory && srcEntry.isDirectory !== false
+      await exec.copyRemoteDir(src, destRemote, isDir)
+      return 'copied'
     } catch (e) {
       log.error('Same-pane remote rename failed', e)
-      return false
+      return 'failed'
     }
   }
 }
@@ -629,11 +714,20 @@ export class SftpConflictDetector implements ConflictDetectionPort {
       }
       return map
     })()
+    // ★ 2026-09-20 P1-5 审计修复：LRU 淘汰代替全量 clear——
+    //   旧实现超过 256 条时 clear() 会把正在进行中的并发 Promise 也一并丢弃，
+    //   导致后续同目录请求再发一次 readdir。改为只删最早插入的一批。
+    if (this._dirListingCache.size > 256) {
+      const drop = Math.ceil(256 / 4)
+      let i = 0
+      for (const k of this._dirListingCache.keys()) {
+        if (i++ >= drop) break
+        this._dirListingCache.delete(k)
+      }
+    }
     this._dirListingCache.set(parentDir, p)
     // 解析后移除，避免长期持有；并发期间由同一 Promise 去重，确保同目录只查一次
     void p.then(() => this._dirListingCache.delete(parentDir)).catch(() => this._dirListingCache.delete(parentDir))
-    // 防御性上限，防止极长会话内存堆积
-    if (this._dirListingCache.size > 256) this._dirListingCache.clear()
     return p
   }
 
@@ -699,7 +793,13 @@ export class SftpConflictDetector implements ConflictDetectionPort {
 
     const rs = remoteSize
     const rm = remoteMtime ?? 0
-    if (filesAreSame(localSize, localMtime, rs, rm, this.mtimeToleranceMs)) return { kind: 'no-conflict' }
+    // ★ 2026-09-20：size+mtime 相同应跳过，而非 no-conflict（旧注释写「不存在才 no-conflict」，
+    //   实现却把「相同」也返回 no-conflict 导致整文件无意义重传）
+    if (filesAreSame(localSize, localMtime, rs, rm, this.mtimeToleranceMs)) {
+      log.info('[check-upload-conflict] size+mtime same, auto-skipped:', remotePath)
+      this.onAutoSkipped({ direction: 'upload', localPath, remotePath, digest: null })
+      return { kind: 'auto-skipped', digest: null }
+    }
 
     // ★ 2026-09-07 issue #15：size 相同但 mtime 超出容差时，用内容摘要判断内容是否真的变了。
     //   典型场景：Git 切换分支 / rsync 同步后 mtime 变化但内容一致，不应反复弹冲突框。
@@ -733,7 +833,11 @@ export class SftpConflictDetector implements ConflictDetectionPort {
         }
       }
       const st = await fs.stat(localPath)
-      if (filesAreSame(st.size, st.mtimeMs, remoteSize, remoteMtime, this.mtimeToleranceMs)) return { kind: 'no-conflict' }
+      if (filesAreSame(st.size, st.mtimeMs, remoteSize, remoteMtime, this.mtimeToleranceMs)) {
+        log.info('[check-local-conflict] size+mtime same, auto-skipped:', localPath)
+        this.onAutoSkipped({ direction: 'download', localPath, remotePath, digest: null })
+        return { kind: 'auto-skipped', digest: null }
+      }
 
       const digest = await this._resolveDigest(localPath, remotePath, st.size, st.mtimeMs, remoteSize, remoteMtime)
       if (this.isAutoSkipSameContent() && isContentIdentical(digest)) {
@@ -768,12 +872,17 @@ export class SftpConflictDetector implements ConflictDetectionPort {
         this.digest.localDigest(localPath, localSize, localMtime),
         remoteSize != null ? this.digest.remoteDigest(remotePath, remoteSize, remoteMtime) : Promise.resolve(null),
       ])
-      if (!localDigest || !remoteDigest) {
-        log.info('[resolveDigest] incomplete: local:', localDigest ? 'ok' : 'failed', 'remote:', remoteDigest ? 'ok' : 'failed')
+      // ★ 2026-09-20：单端失败仍返回另一端，供冲突框展示；auto-skip 仍要求两端齐全且相等
+      if (!localDigest && !remoteDigest) {
+        log.info('[resolveDigest] both failed for', localPath)
         return undefined
       }
-      log.info('[resolveDigest] computed for', localPath, 'local:', localDigest.slice(0, 8), '... remote:', remoteDigest.slice(0, 8), '...')
-      return { localDigest, remoteDigest }
+      if (!localDigest || !remoteDigest) {
+        log.info('[resolveDigest] partial: local:', localDigest ? 'ok' : 'failed', 'remote:', remoteDigest ? 'ok' : 'failed')
+      } else {
+        log.info('[resolveDigest] computed for', localPath, 'local:', localDigest.slice(0, 8), '... remote:', remoteDigest.slice(0, 8), '...')
+      }
+      return { localDigest: localDigest ?? null, remoteDigest: remoteDigest ?? null }
     } catch (e) {
       log.warn('[resolveDigest] failed:', e)
       return undefined
