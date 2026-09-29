@@ -1,9 +1,12 @@
 ﻿/**
  * SFTP+ 文本文件编辑对话框（本地 / 远程）
- * 创建人：DD1024z + Hy3
- * 创建时间：2026-08-05
- * 修改人：DD1024z + Composer
- * 修改时间：2026-09-17 — 脱离 ngModel 回写：保留原生撤销/重做、减轻粘贴卡顿；未保存 * 紧挨文件名
+ * @创建人：DD1024z + Hy3
+ * @创建时间：2026-08-05
+ * @修改人：DD1024z + GPT-5.6 Sol
+ * @修改时间：2026-09-21 — 右键菜单回调增加销毁安全的变更检测；
+ *              2026-09-20 — 可选行号栏（与 textarea 同步滚动）；设置项控制
+ *              2026-09-20 — A8 审计修复：删除死输出 closeConfirm（从不 emit，父模板亦未绑定）
+ *              2026-09-17 — 脱离 ngModel 回写：保留原生撤销/重做、减轻粘贴卡顿；未保存 * 紧挨文件名
  *              2026-08-10 — 新增「复制选中」按钮（有选中内容时显示，复制当前选中文本）
  *              2026-08-10 — 复制选中按钮消失修复(click/blur事件)
  *              2026-08-26 — 右键菜单卡顿：OnPush + zone 外原生 contextmenu + 选区检测禁 slice
@@ -90,15 +93,22 @@ function textareaSelectedText(ta?: ElementRef<HTMLTextAreaElement>): string {
         <div class="file-dialog-body editor-body">
           <div class="file-dialog-status" *ngIf="loading">{{ i18n.t('viewer.loading') }}</div>
           <div class="file-dialog-status file-dialog-error" *ngIf="!loading && error">{{ error }}</div>
-          <textarea #editorTextarea class="file-dialog-textarea"
-            *ngIf="!loading && !error"
-            (wheel)="onScrollableWheel($event)"
-            (input)="onTextareaInput($event)"
-            (mouseup)="updateHasSelection()" (keyup)="updateHasSelection()"
-            (select)="updateHasSelection()" (click)="updateHasSelection()"
-            (blur)="onTextareaBlur()"
-            [readonly]="saving"
-            spellcheck="false"></textarea>
+          <div class="file-dialog-editor-wrap" *ngIf="!loading && !error">
+            <div #lineGutter class="file-dialog-editor-gutter"
+              *ngIf="showLineNumbers"
+              [style.minWidth.ch]="lineGutterChars"
+              aria-hidden="true">{{ lineNumbersText }}</div>
+            <textarea #editorTextarea class="file-dialog-textarea"
+              wrap="off"
+              (wheel)="onScrollableWheel($event)"
+              (scroll)="onEditorScroll()"
+              (input)="onTextareaInput($event)"
+              (mouseup)="updateHasSelection()" (keyup)="updateHasSelection()"
+              (select)="updateHasSelection()" (click)="updateHasSelection()"
+              (blur)="onTextareaBlur()"
+              [readonly]="saving"
+              spellcheck="false"></textarea>
+          </div>
         </div>
         <div class="dialog-buttons">
           <span class="dialog-buttons-left">
@@ -144,8 +154,15 @@ function textareaSelectedText(ta?: ElementRef<HTMLTextAreaElement>): string {
 })
 export class SftpEditorDialogComponent implements OnChanges, OnDestroy, AfterViewChecked {
   private static readonly MAXIMIZED_KEY = 'sftp-plus-editor-maximized'
+  private _destroyed = false
+
+  private _safeDetect(): void {
+    if (this._destroyed) return
+    try { this.cdr.detectChanges() } catch { /* destroyed view */ }
+  }
 
   @ViewChild('editorTextarea') private editorTextarea?: ElementRef<HTMLTextAreaElement>
+  @ViewChild('lineGutter') private lineGutter?: ElementRef<HTMLDivElement>
 
   @Input() visible = false
   @Input() loading = false
@@ -156,12 +173,17 @@ export class SftpEditorDialogComponent implements OnChanges, OnDestroy, AfterVie
   @Input() content = ''
   @Input() error = ''
   @Input() showSystemAction = false
+  /** 是否显示行号（设置项，默认 true） */
+  @Input() showLineNumbers = true
 
   copied = false
   private copyTimer?: any
   copiedSel = false
   private copySelTimer?: any
   hasSelectionText = false
+  lineNumbersText = '1'
+  lineGutterChars = 3
+  private _lineCount = 1
 
   textMenuVisible = false
   textMenuX = 0
@@ -172,6 +194,7 @@ export class SftpEditorDialogComponent implements OnChanges, OnDestroy, AfterVie
   @Output() contentChange = new EventEmitter<string>()
   @Output() save = new EventEmitter<void>()
   @Output() cancel = new EventEmitter<void>()
+  // ★ 2026-09-20 A8 审计修复：删除死输出 closeConfirm（从不 emit，父模板也未绑定）
   @Output() systemAction = new EventEmitter<void>()
 
   @Input() i18n!: SftpI18nService
@@ -197,7 +220,7 @@ export class SftpEditorDialogComponent implements OnChanges, OnDestroy, AfterVie
     this.textMenuX = ev.clientX
     this.textMenuY = ev.clientY
     this.textMenuVisible = true
-    this.cdr.detectChanges()
+    this._safeDetect()
   }
 
   constructor(
@@ -229,6 +252,9 @@ export class SftpEditorDialogComponent implements OnChanges, OnDestroy, AfterVie
     if (changes['content'] && !this._localEditing) {
       this._syncTextareaFromContent()
     }
+    if (changes['showLineNumbers'] || (changes['content'] && !this._localEditing) || changes['visible']) {
+      this._rebuildLineNumbers(this.editorTextarea?.nativeElement?.value ?? this.content ?? '')
+    }
     this.cdr.markForCheck()
   }
 
@@ -238,13 +264,43 @@ export class SftpEditorDialogComponent implements OnChanges, OnDestroy, AfterVie
     if (this._pendingSync && target) {
       this._pendingSync = false
       this._syncTextareaFromContent()
+      this._rebuildLineNumbers(target.value)
+      this.onEditorScroll()
     }
   }
 
   ngOnDestroy(): void {
+    this._destroyed = true
     this._unbindCtxTarget()
     if (this.copyTimer) clearTimeout(this.copyTimer)
     if (this.copySelTimer) clearTimeout(this.copySelTimer)
+  }
+
+  onEditorScroll(): void {
+    const ta = this.editorTextarea?.nativeElement
+    const g = this.lineGutter?.nativeElement
+    if (ta && g) g.scrollTop = ta.scrollTop
+  }
+
+  private _rebuildLineNumbers(text: string): void {
+    if (!this.showLineNumbers) {
+      this._lineCount = 0
+      this.lineNumbersText = ''
+      return
+    }
+    let n = 1
+    for (let i = 0; i < text.length; i++) {
+      if (text.charCodeAt(i) === 10) n++
+    }
+    if (n === this._lineCount && this.lineNumbersText) {
+      this.lineGutterChars = Math.max(3, String(n).length)
+      return
+    }
+    this._lineCount = n
+    this.lineGutterChars = Math.max(3, String(n).length)
+    const parts = new Array<string>(n)
+    for (let i = 0; i < n; i++) parts[i] = String(i + 1)
+    this.lineNumbersText = parts.join('\n')
   }
 
   private _bindCtxTarget(el: HTMLElement | null): void {
@@ -271,6 +327,7 @@ export class SftpEditorDialogComponent implements OnChanges, OnDestroy, AfterVie
     }
     const next = this.content ?? ''
     if (el.value !== next) el.value = next
+    this._rebuildLineNumbers(next)
   }
 
   private _applyLocalValue(newVal: string, cursor?: number): void {
@@ -278,6 +335,7 @@ export class SftpEditorDialogComponent implements OnChanges, OnDestroy, AfterVie
     const ta = this.editorTextarea?.nativeElement
     if (ta && ta.value !== newVal) ta.value = newVal
     this.hasSelectionText = false
+    this._rebuildLineNumbers(newVal)
     this.contentChange.emit(newVal)
     if (cursor != null) {
       Promise.resolve().then(() => {
@@ -291,6 +349,7 @@ export class SftpEditorDialogComponent implements OnChanges, OnDestroy, AfterVie
     this._localEditing = true
     const value = (ev.target as HTMLTextAreaElement).value
     this.hasSelectionText = false
+    this._rebuildLineNumbers(value)
     this.contentChange.emit(value)
   }
 
