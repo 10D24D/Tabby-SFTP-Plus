@@ -1,5 +1,6 @@
 # 创建人: DD1024z + Composer; 创建时间: 2026-09-18
-# 修改人: DD1024z + Composer; 修改时间: 2026-09-18
+# 修改人: DD1024z + Hy3; 修改时间: 2026-09-24 — 新增 tabby_frontend / installed_plugins 两个可选字段，
+#   供插件「意见反馈」入口经 URL query 参数（按字段 id）自动预填
 name: 缺陷报告
 description: 报告 Bug（请尽量填全环境与复现步骤）
 title: "[Bug]: "
@@ -36,6 +37,25 @@ body:
       placeholder: 0.x.x
     validations:
       required: true
+
+  # 以下两项由插件「意见反馈」入口自动预填（URL query 参数按字段 id 注入）
+  - type: input
+    id: tabby_frontend
+    attributes:
+      label: Tabby 前端
+      description: 设置 → 外观 → 前端（如 xterm-webgl / xterm.js / vte）
+      placeholder: xterm-webgl
+    validations:
+      required: false
+
+  - type: input
+    id: installed_plugins
+    attributes:
+      label: 已安装插件
+      description: 插件列表，便于判断插件间冲突
+      placeholder: tabby-sftp-plus@2.3.1, tabby-quick-command-plus@1.0.0
+    validations:
+      required: false
 
   - type: textarea
     id: steps

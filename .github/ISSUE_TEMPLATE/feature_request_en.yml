@@ -1,0 +1,81 @@
+# 创建人: DD1024z + Hy3; 创建时间: 2026-09-24
+# 修改人: DD1024z + Hy3; 修改时间: 2026-09-24
+name: Feature Request
+description: Propose a new feature or improvement
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the suggestion! Please describe the use case and expected behavior.
+
+  - type: input
+    id: os_version
+    attributes:
+      label: OS version
+      description: e.g. Windows 11 24H2 / macOS 15.1 / Ubuntu 24.04
+      placeholder: Windows 11 24H2
+    validations:
+      required: true
+
+  - type: input
+    id: tabby_version
+    attributes:
+      label: Tabby version
+      description: Find it in Tabby → About
+      placeholder: 1.0.2xx
+    validations:
+      required: true
+
+  - type: input
+    id: sftp_plus_version
+    attributes:
+      label: SFTP+ plugin version
+      description: Find it in the plugin list, package.json, or the release page
+      placeholder: 0.x.x
+    validations:
+      required: true
+
+  # Auto-filled by the plugin's "Feature Request" entry (URL query param by field id)
+  - type: input
+    id: tabby_frontend
+    attributes:
+      label: Tabby frontend
+      description: Settings → Appearance → Frontend (e.g. xterm-webgl / xterm.js / vte)
+      placeholder: xterm-webgl
+    validations:
+      required: false
+
+  - type: input
+    id: installed_plugins
+    attributes:
+      label: Installed plugins
+      description: Plugin list, helps identify conflicts between plugins
+      placeholder: tabby-sftp-plus@2.3.1, tabby-quick-command-plus@1.0.0
+    validations:
+      required: false
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+      description: What is the current pain point or use case?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Expected feature / behavior
+      description: How would you like the product to behave?
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered (optional)
+      description: Any temporary workaround, or similar approaches in other products?
+    validations:
+      required: false

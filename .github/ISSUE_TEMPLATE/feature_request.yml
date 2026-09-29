@@ -37,6 +37,25 @@ body:
     validations:
       required: true
 
+  # 以下两项由插件「提出需求」入口自动预填（URL query 参数按字段 id 注入）
+  - type: input
+    id: tabby_frontend
+    attributes:
+      label: Tabby 前端
+      description: 设置 → 外观 → 前端（如 xterm-webgl / xterm.js / vte）
+      placeholder: xterm-webgl
+    validations:
+      required: false
+
+  - type: input
+    id: installed_plugins
+    attributes:
+      label: 已安装插件
+      description: 插件列表，便于判断插件间冲突
+      placeholder: tabby-sftp-plus@2.3.1, tabby-quick-command-plus@1.0.0
+    validations:
+      required: false
+
   - type: textarea
     id: problem
     attributes:

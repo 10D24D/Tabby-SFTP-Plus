@@ -1,0 +1,99 @@
+# 创建人: DD1024z + Hy3; 创建时间: 2026-09-24
+#
+# 英文版缺陷报告模板（bug_report.yml 的英文对应版）
+# 用途：插件「意见反馈」入口按界面语言路由 —— 非中文语言用本模板，中文用 bug_report.yml
+# 注意：本文件与 bug_report.yml 的**字段 id 必须完全一致**（os_version / tabby_version /
+#   sftp_plus_version / tabby_frontend / installed_plugins / steps / actual / expected / logs），
+#   否则插件侧同一套 URL query 预填参数在切语言后会失效。
+name: Bug report (English)
+description: Report a bug (please fill in the environment and steps as completely as possible)
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report! Complete information helps get it fixed faster.
+
+  - type: input
+    id: os_version
+    attributes:
+      label: OS version
+      description: e.g. Windows 11 24H2 / macOS 15.1 / Ubuntu 24.04
+      placeholder: Windows 11 24H2
+    validations:
+      required: true
+
+  - type: input
+    id: tabby_version
+    attributes:
+      label: Tabby version
+      description: See Tabby → About
+      placeholder: 1.0.2xx
+    validations:
+      required: true
+
+  - type: input
+    id: sftp_plus_version
+    attributes:
+      label: SFTP+ plugin version
+      description: Visible in the plugin list, package.json, or the release page
+      placeholder: 0.x.x
+    validations:
+      required: true
+
+  # The two fields below are auto-filled by the plugin's Feedback entry (injected as URL query params keyed by field id)
+  - type: input
+    id: tabby_frontend
+    attributes:
+      label: Tabby frontend
+      description: Settings → Appearance → Frontend (e.g. xterm-webgl / xterm.js / vte)
+      placeholder: xterm-webgl
+    validations:
+      required: false
+
+  - type: input
+    id: installed_plugins
+    attributes:
+      label: Installed plugins
+      description: Plugin list, helps detect conflicts between plugins
+      placeholder: tabby-sftp-plus@2.3.1, tabby-quick-command-plus@1.0.0
+    validations:
+      required: false
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: What did you do before the problem appeared?
+      placeholder: |
+        1. Open ...
+        2. Click ...
+        3. Type ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behaviour
+      description: What happens now? (error messages and screenshots welcome)
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+      description: What should have happened instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs (optional)
+      description: Paste logs as-is, they will be rendered as a code block
+      render: shell
+    validations:
+      required: false
