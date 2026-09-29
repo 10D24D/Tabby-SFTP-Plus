@@ -588,7 +588,7 @@ msgid "transfer.noTransfers"
 msgstr "Žádné aktivní transfery"
 
 msgid "transfer.clearConfirm"
-msgstr "Vymazat všechny záznamy transferu? Tuto akci nelze vrátit zpět."
+msgstr "Vymazat dokončené záznamy přenosu? Záznamy probíhajících přenosů budou zachovány."
 
 msgid "transfer.clearTitle"
 msgstr "Potvrdit Vymazání"
@@ -1176,6 +1176,8 @@ msgstr "Uložno"
 
 msgid "settings.interaction"
 msgstr "Interakce"
+msgid "settings.viewerEditor"
+msgstr "Prohlížeč a editor"
 
 msgid "settings.openOnClick"
 msgstr "Otevřít soubor/složku pomocí"
@@ -1302,6 +1304,10 @@ msgstr "Povolit prohlížení a úpravy všech typů souborů"
 
 msgid "settings.allowViewEditAllFilesHint"
 msgstr "Ignorovat omezení přípon. Libovolný soubor lze prohlížet; při úpravách zůstává binární obsah chráněn."
+msgid "settings.showTextLineNumbers"
+msgstr "Čísla řádků (prohlížeč/editor)"
+msgid "settings.showTextLineNumbersHint"
+msgstr "Zobrazit čísla řádků ve vestavěném prohlížeči a editoru."
 
 msgid "conflict.digest"
 msgstr "Digest"
@@ -1488,3 +1494,260 @@ msgid "settings.bookmarkFlatHint"
 msgstr "Bez seskupení mají globální záložky štítek Globální vpravo od názvu a lze je volně míchat s aktuálními záložkami."
 msgid "bookmark.globalBadge"
 msgstr "Globální"
+
+msgid "bookmark.locate"
+msgstr "Přejít na aktuální záložku"
+
+msgid "bookmark.locateNone"
+msgstr "Pro aktuální cestu není záložka"
+
+msgid "settings.reportBug"
+msgstr "Report a Bug"
+
+msgid "settings.featureRequest"
+msgstr "Feature Request"
+
+msgid "notify.duplicateTransfer"
+msgstr "{name} je již ve frontě přenosů — duplicitní požadavek ignorován"
+
+msgid "transfer.etaRemaining"
+msgstr "zbývá {time}"
+
+msgid "app.dirMissingTitle"
+msgstr "Cílová složka neexistuje"
+
+msgid "app.dirMissingText"
+msgstr "Cílová složka přenosu neexistuje. Vytvořit ji?"
+
+msgid "app.dirMissingCreate"
+msgstr "Vytvořit a přenést"
+
+msgid "app.dirMissingFallback"
+msgstr "Použít aktuální složku"
+
+msgid "app.dirMissingCancel"
+msgstr "Zrušit"
+
+msgid "app.dirCreated"
+msgstr "Složka vytvořena: {dir}"
+
+msgid "app.mkdirpFailed"
+msgstr "Vytvoření složky selhalo: {reason}"
+
+msgid "app.targetNotDir"
+msgstr "Cílová cesta není složka: {dir}"
+
+msgid "pane.groupBy"
+msgstr "Seskupit podle"
+
+msgid "group.none"
+msgstr "Žádná"
+
+msgid "group.name"
+msgstr "Název"
+
+msgid "group.modified"
+msgstr "Datum úpravy"
+
+msgid "group.type"
+msgstr "Typ"
+
+msgid "group.size"
+msgstr "Velikost"
+
+msgid "group.expand"
+msgstr "Rozbalit"
+
+msgid "group.collapse"
+msgstr "Sbalit"
+
+msgid "group.today"
+msgstr "Dnes"
+
+msgid "group.yesterday"
+msgstr "Včera"
+
+msgid "group.thisWeek"
+msgstr "Dříve tento týden"
+
+msgid "group.thisMonth"
+msgstr "Dříve tento měsíc"
+
+msgid "group.earlierThisYear"
+msgstr "Dříve tento rok"
+
+msgid "group.longAgo"
+msgstr "Dávno"
+
+msgid "group.folder"
+msgstr "Složka"
+
+msgid "group.noExt"
+msgstr "Ostatní soubory"
+
+msgid "group.typeFiles"
+msgstr "soubory"
+
+msgid "group.sizeTiny"
+msgstr "Velmi malý (0-16 KB)"
+
+msgid "group.sizeSmall"
+msgstr "Malý (16 KB - 1 MB)"
+
+msgid "group.sizeMedium"
+msgstr "Střední (1-128 MB)"
+
+msgid "group.sizeLarge"
+msgstr "Velký (128 MB - 1 GB)"
+
+msgid "group.sizeHuge"
+msgstr "Obrovský (1-4 GB)"
+
+msgid "group.sizeSuper"
+msgstr "Obří (>4 GB)"
+
+msgid "group.digit"
+msgstr "0-9"
+
+msgid "group.a2h"
+msgstr "A-H"
+
+msgid "group.i2p"
+msgstr "I-P"
+
+msgid "group.q2z"
+msgstr "Q-Z"
+
+msgid "group.pyAF"
+msgstr "Pinyin A-F"
+
+msgid "group.pyGL"
+msgstr "Pinyin G-L"
+
+msgid "group.pyMS"
+msgstr "Pinyin M-S"
+
+msgid "group.pyTZ"
+msgstr "Pinyin T-Z"
+
+msgid "group.other"
+msgstr "Ostatní"
+
+msgid "group.toggleAll"
+msgstr "Rozbalit/sbalit vše"
+
+msgid "group.expandAll"
+msgstr "Rozbalit vše"
+
+msgid "group.collapseAll"
+msgstr "Sbalit vše"
+
+msgid "settings.enableItem"
+msgstr "Povolit položku"
+
+msgid "settings.channelMode"
+msgstr "Transfer channel mode"
+
+msgid "settings.channelModeDesc"
+msgstr "Choose how folder transfers use tar packaging (TAR) vs file-by-file (SFTP)"
+
+msgid "settings.channelMode.smart"
+msgstr "Smart"
+
+msgid "settings.channelMode.sftpOnly"
+msgstr "SFTP only"
+
+msgid "settings.channelMode.tarOnly"
+msgstr "TAR only"
+
+msgid "settings.channelMode.preferSftp"
+msgstr "Prefer SFTP"
+
+msgid "settings.channelMode.preferTar"
+msgstr "Prefer TAR"
+
+msgid "settings.channelMode.smartDesc"
+msgstr "Auto-pick best channel by folder size and file count"
+
+msgid "settings.channelMode.sftpOnlyDesc"
+msgstr "Always transfer file by file; never use tar packing and no size-based routing"
+
+msgid "settings.channelMode.tarOnlyDesc"
+msgstr "Always use tar packing with no size-based routing; when packing is unavailable or fails, report the error instead of falling back to file-by-file. When the destination already exists the first attempt still goes file-by-file so conflicts can be detected; choosing Overwrite or Rename in the conflict prompt then continues with tar packing. A single file is always transferred file by file"
+
+msgid "settings.channelMode.preferSftpDesc"
+msgstr "Use tar only when clearly beneficial (requires many more files)"
+
+msgid "settings.channelMode.preferTarDesc"
+msgstr "Pack unless clearly worse (huge files); loose threshold"
+
+msgid "notify.tarOnlyFailed"
+msgstr "TAR-only mode: cannot transfer {name} - {reason}. Change Transfer channel mode to Smart / Prefer TAR in Settings, or fix the environment and retry"
+
+msgid "tarchan.reason.localTarMissing"
+msgstr "no usable tar command on this computer"
+
+msgid "tarchan.reason.remoteTarMissing"
+msgstr "no usable tar command on the remote server"
+
+msgid "tarchan.reason.symlinkUnsupported"
+msgstr "the folder contains symbolic links, which the packing channel does not support"
+
+msgid "tarchan.reason.packFailed"
+msgstr "packing or extracting the archive failed"
+
+msgid "tarchan.reason.tarballFailed"
+msgstr "transferring the archive file failed"
+
+msgid "tarchan.reason.other"
+msgstr "the packing channel is unavailable, see the log for details"
+
+msgid "notify.tarOnlyInapplicable"
+msgstr "TAR-only mode: {name} is not using the packed channel - {reason}. To send it as one archive, choose Overwrite in the directory conflict prompt, or delete the destination first and retry"
+
+msgid "tarchan.reason.targetExists"
+msgstr "the destination already exists, and an incremental transfer can only go through the per-file channel"
+
+msgid "tarchan.reason.localPackFailed"
+msgstr "packing the folder on this computer failed, possibly due to disk space or permissions"
+
+msgid "tarchan.reason.remotePackFailed"
+msgstr "packing or extracting on the remote server failed, possibly due to disk space or permissions"
+
+msgid "tarchan.reason.localExtractFailed"
+msgstr "extracting the archive on this computer failed, see the log for details"
+
+msgid "tarchan.reason.nameEncodingUnsupported"
+msgstr "the file names on the remote server cannot be decoded on this computer; switch to Smart or Prefer SFTP mode, or upgrade the tar command on the server"
+
+msgid "transfer.batchUpload"
+msgstr "{n} items from {dir}"
+
+msgid "settings.exportPickHint"
+msgstr "Vyberte, co má být součástí exportovaného souboru."
+
+msgid "settings.exportSelectAll"
+msgstr "Vybrat vše"
+
+msgid "settings.exportDeselectAll"
+msgstr "Zrušit výběr"
+
+msgid "settings.exportCatBookmarkData"
+msgstr "Data záložek"
+
+msgid "settings.hotkeyWheelHint"
+msgstr "Vazba na kolečko, kliknutím nahrajete znovu (seznam už nepůjde posouvat kolečkem)"
+
+msgid "settings.panelHotkeyWheelBareWarning"
+msgstr "Přiřazeno k {keys}; seznam už nelze posouvat kolečkem (přidejte Alt)"
+
+msgid "settings.textCaretShape"
+msgstr "Tvar kurzoru (prohlížeč/editor)"
+msgid "settings.textCaretShapeHint"
+msgstr "Tvar kurzoru vykreslovaného v prohlížeči. Tři volby odpovídají kurzoru terminálu Tabby. Editor používá systémový kurzor."
+msgid "settings.caretShapeBlock"
+msgstr "Blok"
+msgid "settings.caretShapeBeam"
+msgstr "Svislá čára"
+msgid "settings.caretShapeUnderline"
+msgstr "Podtržení"

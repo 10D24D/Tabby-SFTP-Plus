@@ -532,6 +532,9 @@ msgstr "File is too large to open"
 msgid "viewer.tooLargeView"
 msgstr "File is too large (over {limit}) and cannot be viewed"
 
+msgid "viewer.truncatedPreview"
+msgstr "File is large; showing the first {limit}. Use “Open in System” for the full file."
+
 msgid "viewer.typeNotSupported"
 msgstr "This file type cannot be viewed"
 
@@ -653,7 +656,7 @@ msgid "transfer.noTransfers"
 msgstr "No active transfers"
 
 msgid "transfer.clearConfirm"
-msgstr "Clear all transfer records? This action cannot be undone."
+msgstr "Clear finished transfer records? Records of transfers still in progress are kept."
 
 msgid "transfer.clearTitle"
 msgstr "Confirm Clear"
@@ -926,6 +929,8 @@ msgstr "Functionality"
 
 msgid "settings.interaction"
 msgstr "Interaction"
+msgid "settings.viewerEditor"
+msgstr "Viewer & editor"
 
 msgid "settings.openOnClick"
 msgstr "Open file/folder on"
@@ -954,6 +959,10 @@ msgid "settings.allowViewEditAllFiles"
 msgstr "Allow viewing and editing all file types"
 msgid "settings.allowViewEditAllFilesHint"
 msgstr "Ignore extension restrictions. Any file can be viewed; binary content remains protected when editing."
+msgid "settings.showTextLineNumbers"
+msgstr "Viewer/editor line numbers"
+msgid "settings.showTextLineNumbersHint"
+msgstr "Show line numbers in the built-in viewer and editor."
 msgid "settings.transferSection"
 msgstr "Transfer"
 
@@ -1151,6 +1160,27 @@ msgstr "Vertical Layout"
 
 msgid "layout.mode.single"
 msgstr "Single Pane (Remote Only)"
+
+msgid "layout.override.tooNarrow"
+msgstr "Panel too narrow for side-by-side; temporarily using top-bottom layout"
+
+msgid "layout.override.tooShort"
+msgstr "Panel too short for top-bottom; temporarily using side-by-side layout"
+
+msgid "layout.override.tooCramped"
+msgstr "Panel too small for dual panes; temporarily using single pane"
+
+msgid "layout.override.reasonNarrow"
+msgstr "too narrow"
+
+msgid "layout.override.reasonShort"
+msgstr "too short"
+
+msgid "layout.override.reasonCramped"
+msgstr "too small"
+
+msgid "layout.override.title"
+msgstr "{preferred} → {actual} ({reason})"
 
 msgid "notify.closeWithTransfers"
 msgstr "{count} transfer(s) in progress. Closing the panel will interrupt all transfers. Continue?"
@@ -1417,7 +1447,7 @@ msgid "settings.occupied.title"
 msgstr "Occupied shortcuts"
 
 msgid "settings.occupied.hint"
-msgstr "These keys are reserved by SFTP+ and cannot be changed. Avoid them when assigning shortcuts above, or both may fire."
+msgstr "These keys are reserved by SFTP+ and cannot be changed. Avoid them when assigning shortcuts above. Conflicts with Tabby global hotkeys (e.g. Alt+Enter = fullscreen) will prompt for confirmation when binding."
 
 msgid "settings.occupied.groupPanel"
 msgstr "Panel"
@@ -1452,6 +1482,9 @@ msgstr "Fast mode"
 msgid "log.modeTar"
 msgstr "Tar packing"
 
+msgid "log.modeSftp"
+msgstr "SFTP"
+
 msgid "log.fileCount"
 msgstr "{n} files"
 
@@ -1472,3 +1505,272 @@ msgid "settings.bookmarkFlatHint"
 msgstr "With grouping off, global bookmarks show a Global badge next to the name and can be freely mixed with current bookmarks."
 msgid "bookmark.globalBadge"
 msgstr "Global"
+
+msgid "bookmark.locate"
+msgstr "Locate current bookmark"
+
+msgid "bookmark.locateNone"
+msgstr "No bookmark for current path"
+
+msgid "editor.remoteChanged"
+msgstr "The remote file has been modified. Overwrite the version on the server?"
+
+msgid "notify.sftpRecovered"
+msgstr "SFTP session recovered; please retry interrupted transfers"
+
+msgid "perm.modeUnknown"
+msgstr "Cannot read permissions; cancelled"
+
+msgid "permission.chmodFailed"
+msgstr "Failed to change permissions"
+
+msgid "settings.reportBug"
+msgstr "Report a Bug"
+
+msgid "settings.featureRequest"
+msgstr "Feature Request"
+
+msgid "notify.duplicateTransfer"
+msgstr "{name} is already in the transfer queue — duplicate request ignored"
+
+msgid "transfer.etaRemaining"
+msgstr "{time} left"
+
+msgid "app.dirMissingTitle"
+msgstr "Target directory does not exist"
+
+msgid "app.dirMissingText"
+msgstr "The target directory for this transfer does not exist. Create it?"
+
+msgid "app.dirMissingCreate"
+msgstr "Create and transfer"
+
+msgid "app.dirMissingFallback"
+msgstr "Use current directory"
+
+msgid "app.dirMissingCancel"
+msgstr "Cancel"
+
+msgid "app.dirCreated"
+msgstr "Directory created: {dir}"
+
+msgid "app.mkdirpFailed"
+msgstr "Failed to create directory: {reason}"
+
+msgid "app.targetNotDir"
+msgstr "Target path is not a directory: {dir}"
+
+msgid "pane.groupBy"
+msgstr "Group by"
+
+msgid "group.none"
+msgstr "None"
+
+msgid "group.name"
+msgstr "Name"
+
+msgid "group.modified"
+msgstr "Date modified"
+
+msgid "group.type"
+msgstr "Type"
+
+msgid "group.size"
+msgstr "Size"
+
+msgid "group.expand"
+msgstr "Expand"
+
+msgid "group.collapse"
+msgstr "Collapse"
+
+msgid "group.today"
+msgstr "Today"
+
+msgid "group.yesterday"
+msgstr "Yesterday"
+
+msgid "group.thisWeek"
+msgstr "Earlier this week"
+
+msgid "group.thisMonth"
+msgstr "Earlier this month"
+
+msgid "group.earlierThisYear"
+msgstr "Earlier this year"
+
+msgid "group.longAgo"
+msgstr "A long time ago"
+
+msgid "group.folder"
+msgstr "Folder"
+
+msgid "group.noExt"
+msgstr "Other files"
+
+msgid "group.typeFiles"
+msgstr "files"
+
+msgid "group.sizeTiny"
+msgstr "Tiny (0-16 KB)"
+
+msgid "group.sizeSmall"
+msgstr "Small (16 KB - 1 MB)"
+
+msgid "group.sizeMedium"
+msgstr "Medium (1-128 MB)"
+
+msgid "group.sizeLarge"
+msgstr "Large (128 MB - 1 GB)"
+
+msgid "group.sizeHuge"
+msgstr "Huge (1-4 GB)"
+
+msgid "group.sizeSuper"
+msgstr "Enormous (>4 GB)"
+
+msgid "group.digit"
+msgstr "0-9"
+
+msgid "group.a2h"
+msgstr "A-H"
+
+msgid "group.i2p"
+msgstr "I-P"
+
+msgid "group.q2z"
+msgstr "Q-Z"
+
+msgid "group.pyAF"
+msgstr "Pinyin A-F"
+
+msgid "group.pyGL"
+msgstr "Pinyin G-L"
+
+msgid "group.pyMS"
+msgstr "Pinyin M-S"
+
+msgid "group.pyTZ"
+msgstr "Pinyin T-Z"
+
+msgid "group.other"
+msgstr "Other"
+
+msgid "group.toggleAll"
+msgstr "Expand/collapse all groups"
+
+msgid "group.expandAll"
+msgstr "Expand all"
+
+msgid "group.collapseAll"
+msgstr "Collapse all"
+
+msgid "settings.enableItem"
+msgstr "Enable item"
+
+msgid "settings.channelMode"
+msgstr "Transfer channel mode"
+
+msgid "settings.channelModeDesc"
+msgstr "Choose how folder transfers use tar packaging (TAR) vs file-by-file (SFTP)"
+
+msgid "settings.channelMode.smart"
+msgstr "Smart"
+
+msgid "settings.channelMode.sftpOnly"
+msgstr "SFTP only"
+
+msgid "settings.channelMode.tarOnly"
+msgstr "TAR only"
+
+msgid "settings.channelMode.preferSftp"
+msgstr "Prefer SFTP"
+
+msgid "settings.channelMode.preferTar"
+msgstr "Prefer TAR"
+
+msgid "settings.channelMode.smartDesc"
+msgstr "Auto-pick best channel by folder size and file count"
+
+msgid "settings.channelMode.sftpOnlyDesc"
+msgstr "Always transfer file by file; never use tar packing and no size-based routing"
+
+msgid "settings.channelMode.tarOnlyDesc"
+msgstr "Always use tar packing with no size-based routing; when packing is unavailable or fails, report the error instead of falling back to file-by-file. When the destination already exists the first attempt still goes file-by-file so conflicts can be detected; choosing Overwrite or Rename in the conflict prompt then continues with tar packing. A single file is always transferred file by file"
+
+msgid "settings.channelMode.preferSftpDesc"
+msgstr "Use tar only when clearly beneficial (requires many more files)"
+
+msgid "settings.channelMode.preferTarDesc"
+msgstr "Pack unless clearly worse (huge files); loose threshold"
+
+msgid "notify.tarOnlyFailed"
+msgstr "TAR-only mode: cannot transfer {name} - {reason}. Change Transfer channel mode to Smart / Prefer TAR in Settings, or fix the environment and retry"
+
+msgid "tarchan.reason.localTarMissing"
+msgstr "no usable tar command on this computer"
+
+msgid "tarchan.reason.remoteTarMissing"
+msgstr "no usable tar command on the remote server"
+
+msgid "tarchan.reason.symlinkUnsupported"
+msgstr "the folder contains symbolic links, which the packing channel does not support"
+
+msgid "tarchan.reason.packFailed"
+msgstr "packing or extracting the archive failed"
+
+msgid "tarchan.reason.tarballFailed"
+msgstr "transferring the archive file failed"
+
+msgid "tarchan.reason.other"
+msgstr "the packing channel is unavailable, see the log for details"
+
+msgid "notify.tarOnlyInapplicable"
+msgstr "TAR-only mode: {name} is not using the packed channel - {reason}. To send it as one archive, choose Overwrite in the directory conflict prompt, or delete the destination first and retry"
+
+msgid "tarchan.reason.targetExists"
+msgstr "the destination already exists, and an incremental transfer can only go through the per-file channel"
+
+msgid "tarchan.reason.localPackFailed"
+msgstr "packing the folder on this computer failed, possibly due to disk space or permissions"
+
+msgid "tarchan.reason.remotePackFailed"
+msgstr "packing or extracting on the remote server failed, possibly due to disk space or permissions"
+
+msgid "tarchan.reason.localExtractFailed"
+msgstr "extracting the archive on this computer failed, see the log for details"
+
+msgid "tarchan.reason.nameEncodingUnsupported"
+msgstr "the file names on the remote server cannot be decoded on this computer; switch to Smart or Prefer SFTP mode, or upgrade the tar command on the server"
+
+msgid "transfer.batchUpload"
+msgstr "{n} items from {dir}"
+
+msgid "settings.exportPickHint"
+msgstr "Choose what to include in the export file."
+
+msgid "settings.exportSelectAll"
+msgstr "Select All"
+
+msgid "settings.exportDeselectAll"
+msgstr "Clear Selection"
+
+msgid "settings.exportCatBookmarkData"
+msgstr "Bookmark data"
+
+msgid "settings.hotkeyWheelHint"
+msgstr "Wheel binding, click to re-record (the list can no longer be scrolled with the wheel)"
+
+msgid "settings.panelHotkeyWheelBareWarning"
+msgstr "Bound to {keys}; the file list can no longer be scrolled with the wheel (add Alt)"
+
+msgid "settings.textCaretShape"
+msgstr "Viewer/editor caret shape"
+msgid "settings.textCaretShapeHint"
+msgstr "Shape of the caret drawn in the viewer. The three options mirror the cursor of the Tabby terminal. The editor uses the system caret."
+msgid "settings.caretShapeBlock"
+msgstr "Block"
+msgid "settings.caretShapeBeam"
+msgstr "Vertical bar"
+msgid "settings.caretShapeUnderline"
+msgstr "Underline"

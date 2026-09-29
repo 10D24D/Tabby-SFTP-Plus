@@ -465,7 +465,7 @@ msgid "transfer.noTransfers"
 msgstr "Nej active transfers"
 
 msgid "transfer.clearConfirm"
-msgstr "Rensa all transfer records? This action cannot be undone."
+msgstr "Rensa avslutade överföringsloggar? Loggar för pågående överföringar behålls."
 
 msgid "transfer.clearTitle"
 msgstr "Bekräfta Rensa"
@@ -972,6 +972,8 @@ msgstr "Sparat"
 
 msgid "settings.interaction"
 msgstr "Interaktion"
+msgid "settings.viewerEditor"
+msgstr "Visare och redigerare"
 
 msgid "settings.openOnClick"
 msgstr "Öppna fil/mapp med"
@@ -1098,6 +1100,10 @@ msgstr "Tillåt visning och redigering av alla filtyper"
 
 msgid "settings.allowViewEditAllFilesHint"
 msgstr "Ignorera tilläggsbegränsningar. Vilken fil som helst kan visas; binärt innehåll skyddas vid redigering."
+msgid "settings.showTextLineNumbers"
+msgstr "Radnummer (visare/redigerare)"
+msgid "settings.showTextLineNumbersHint"
+msgstr "Visa radnummer i den inbyggda visaren och redigeraren."
 
 msgid "conflict.digest"
 msgstr "Sammandrag"
@@ -1284,3 +1290,260 @@ msgid "settings.bookmarkFlatHint"
 msgstr "Utan gruppering visar globala bokmärken en Global-bricka till höger om namnet och kan blandas fritt med aktuella bokmärken."
 msgid "bookmark.globalBadge"
 msgstr "Global"
+
+msgid "bookmark.locate"
+msgstr "Hitta aktuellt bokmärke"
+
+msgid "bookmark.locateNone"
+msgstr "Inget bokmärke för aktuell sökväg"
+
+msgid "settings.reportBug"
+msgstr "Report a Bug"
+
+msgid "settings.featureRequest"
+msgstr "Feature Request"
+
+msgid "notify.duplicateTransfer"
+msgstr "{name} finns redan i överföringskön — dubblerad begäran ignorerades"
+
+msgid "transfer.etaRemaining"
+msgstr "{time} kvar"
+
+msgid "app.dirMissingTitle"
+msgstr "Målkatalogen finns inte"
+
+msgid "app.dirMissingText"
+msgstr "Målkatalogen för överföringen finns inte. Skapa den?"
+
+msgid "app.dirMissingCreate"
+msgstr "Skapa och överför"
+
+msgid "app.dirMissingFallback"
+msgstr "Använd aktuell katalog"
+
+msgid "app.dirMissingCancel"
+msgstr "Avbryt"
+
+msgid "app.dirCreated"
+msgstr "Katalog skapad: {dir}"
+
+msgid "app.mkdirpFailed"
+msgstr "Kunde inte skapa katalog: {reason}"
+
+msgid "app.targetNotDir"
+msgstr "Målsökvägen är inte en katalog: {dir}"
+
+msgid "pane.groupBy"
+msgstr "Gruppera efter"
+
+msgid "group.none"
+msgstr "Ingen"
+
+msgid "group.name"
+msgstr "Namn"
+
+msgid "group.modified"
+msgstr "Ändringsdatum"
+
+msgid "group.type"
+msgstr "Typ"
+
+msgid "group.size"
+msgstr "Storlek"
+
+msgid "group.expand"
+msgstr "Utöka"
+
+msgid "group.collapse"
+msgstr "Fäll ihop"
+
+msgid "group.today"
+msgstr "Idag"
+
+msgid "group.yesterday"
+msgstr "Igår"
+
+msgid "group.thisWeek"
+msgstr "Tidigare denna vecka"
+
+msgid "group.thisMonth"
+msgstr "Tidigare denna månad"
+
+msgid "group.earlierThisYear"
+msgstr "Tidigare i år"
+
+msgid "group.longAgo"
+msgstr "Länge sedan"
+
+msgid "group.folder"
+msgstr "Mapp"
+
+msgid "group.noExt"
+msgstr "Andra filer"
+
+msgid "group.typeFiles"
+msgstr "filer"
+
+msgid "group.sizeTiny"
+msgstr "Mycket liten (0-16 KB)"
+
+msgid "group.sizeSmall"
+msgstr "Liten (16 KB - 1 MB)"
+
+msgid "group.sizeMedium"
+msgstr "Medel (1-128 MB)"
+
+msgid "group.sizeLarge"
+msgstr "Stor (128 MB - 1 GB)"
+
+msgid "group.sizeHuge"
+msgstr "Enorm (1-4 GB)"
+
+msgid "group.sizeSuper"
+msgstr "Jättelik (>4 GB)"
+
+msgid "group.digit"
+msgstr "0-9"
+
+msgid "group.a2h"
+msgstr "A-H"
+
+msgid "group.i2p"
+msgstr "I-P"
+
+msgid "group.q2z"
+msgstr "Q-Z"
+
+msgid "group.pyAF"
+msgstr "Pinyin A-F"
+
+msgid "group.pyGL"
+msgstr "Pinyin G-L"
+
+msgid "group.pyMS"
+msgstr "Pinyin M-S"
+
+msgid "group.pyTZ"
+msgstr "Pinyin T-Z"
+
+msgid "group.other"
+msgstr "Andra"
+
+msgid "group.toggleAll"
+msgstr "Utöka/fäll ihop alla"
+
+msgid "group.expandAll"
+msgstr "Utöka alla"
+
+msgid "group.collapseAll"
+msgstr "Fäll ihop alla"
+
+msgid "settings.enableItem"
+msgstr "Aktivera objekt"
+
+msgid "settings.channelMode"
+msgstr "Transfer channel mode"
+
+msgid "settings.channelModeDesc"
+msgstr "Choose how folder transfers use tar packaging (TAR) vs file-by-file (SFTP)"
+
+msgid "settings.channelMode.smart"
+msgstr "Smart"
+
+msgid "settings.channelMode.sftpOnly"
+msgstr "SFTP only"
+
+msgid "settings.channelMode.tarOnly"
+msgstr "TAR only"
+
+msgid "settings.channelMode.preferSftp"
+msgstr "Prefer SFTP"
+
+msgid "settings.channelMode.preferTar"
+msgstr "Prefer TAR"
+
+msgid "settings.channelMode.smartDesc"
+msgstr "Auto-pick best channel by folder size and file count"
+
+msgid "settings.channelMode.sftpOnlyDesc"
+msgstr "Always transfer file by file; never use tar packing and no size-based routing"
+
+msgid "settings.channelMode.tarOnlyDesc"
+msgstr "Always use tar packing with no size-based routing; when packing is unavailable or fails, report the error instead of falling back to file-by-file. When the destination already exists the first attempt still goes file-by-file so conflicts can be detected; choosing Overwrite or Rename in the conflict prompt then continues with tar packing. A single file is always transferred file by file"
+
+msgid "settings.channelMode.preferSftpDesc"
+msgstr "Use tar only when clearly beneficial (requires many more files)"
+
+msgid "settings.channelMode.preferTarDesc"
+msgstr "Pack unless clearly worse (huge files); loose threshold"
+
+msgid "notify.tarOnlyFailed"
+msgstr "TAR-only mode: cannot transfer {name} - {reason}. Change Transfer channel mode to Smart / Prefer TAR in Settings, or fix the environment and retry"
+
+msgid "tarchan.reason.localTarMissing"
+msgstr "no usable tar command on this computer"
+
+msgid "tarchan.reason.remoteTarMissing"
+msgstr "no usable tar command on the remote server"
+
+msgid "tarchan.reason.symlinkUnsupported"
+msgstr "the folder contains symbolic links, which the packing channel does not support"
+
+msgid "tarchan.reason.packFailed"
+msgstr "packing or extracting the archive failed"
+
+msgid "tarchan.reason.tarballFailed"
+msgstr "transferring the archive file failed"
+
+msgid "tarchan.reason.other"
+msgstr "the packing channel is unavailable, see the log for details"
+
+msgid "notify.tarOnlyInapplicable"
+msgstr "TAR-only mode: {name} is not using the packed channel - {reason}. To send it as one archive, choose Overwrite in the directory conflict prompt, or delete the destination first and retry"
+
+msgid "tarchan.reason.targetExists"
+msgstr "the destination already exists, and an incremental transfer can only go through the per-file channel"
+
+msgid "tarchan.reason.localPackFailed"
+msgstr "packing the folder on this computer failed, possibly due to disk space or permissions"
+
+msgid "tarchan.reason.remotePackFailed"
+msgstr "packing or extracting on the remote server failed, possibly due to disk space or permissions"
+
+msgid "tarchan.reason.localExtractFailed"
+msgstr "extracting the archive on this computer failed, see the log for details"
+
+msgid "tarchan.reason.nameEncodingUnsupported"
+msgstr "the file names on the remote server cannot be decoded on this computer; switch to Smart or Prefer SFTP mode, or upgrade the tar command on the server"
+
+msgid "transfer.batchUpload"
+msgstr "{n} items from {dir}"
+
+msgid "settings.exportPickHint"
+msgstr "Välj vad som ska ingå i exportfilen."
+
+msgid "settings.exportSelectAll"
+msgstr "Välj alla"
+
+msgid "settings.exportDeselectAll"
+msgstr "Rensa val"
+
+msgid "settings.exportCatBookmarkData"
+msgstr "Bokmärkesdata"
+
+msgid "settings.hotkeyWheelHint"
+msgstr "Hjulbindning, klicka för att spela in igen (listan kan inte längre rullas med hjulet)"
+
+msgid "settings.panelHotkeyWheelBareWarning"
+msgstr "Kopplat till {keys}; listan kan inte längre rullas med hjulet (lägg till Alt)"
+
+msgid "settings.textCaretShape"
+msgstr "Markörform (visare/redigerare)"
+msgid "settings.textCaretShapeHint"
+msgstr "Formen på markören som ritas i visaren. De tre valen motsvarar markören i Tabby-terminalen. Redigeraren använder systemmarkören."
+msgid "settings.caretShapeBlock"
+msgstr "Block"
+msgid "settings.caretShapeBeam"
+msgstr "Lodrät streck"
+msgid "settings.caretShapeUnderline"
+msgstr "Understrykning"

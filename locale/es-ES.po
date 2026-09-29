@@ -581,7 +581,7 @@ msgid "transfer.noTransfers"
 msgstr "No hay transferencias activas"
 
 msgid "transfer.clearConfirm"
-msgstr "¿Limpiar todos los registros de transferencia? Esta acción no se puede deshacer."
+msgstr "¿Borrar los registros de transferencia finalizados? Los registros de transferencias en curso se conservan."
 
 msgid "transfer.clearTitle"
 msgstr "Confirmar Limpieza"
@@ -1179,6 +1179,8 @@ msgstr "Guardado"
 
 msgid "settings.interaction"
 msgstr "Interacción"
+msgid "settings.viewerEditor"
+msgstr "Visor y editor"
 
 msgid "settings.openOnClick"
 msgstr "Abrir archivo/carpeta con"
@@ -1305,6 +1307,10 @@ msgstr "Permitir ver y editar todos los tipos de archivo"
 
 msgid "settings.allowViewEditAllFilesHint"
 msgstr "Ignora las restricciones de extensión. Se puede ver cualquier archivo; el contenido binario permanece protegido al editar."
+msgid "settings.showTextLineNumbers"
+msgstr "Números de línea (visor/editor)"
+msgid "settings.showTextLineNumbersHint"
+msgstr "Mostrar números de línea en el visor y el editor integrados."
 
 msgid "conflict.digest"
 msgstr "Resumen"
@@ -1491,3 +1497,260 @@ msgid "settings.bookmarkFlatHint"
 msgstr "Sin agrupación, los marcadores globales muestran una etiqueta Global a la derecha del nombre y se mezclan libremente con los actuales."
 msgid "bookmark.globalBadge"
 msgstr "Global"
+
+msgid "bookmark.locate"
+msgstr "Localizar marcador actual"
+
+msgid "bookmark.locateNone"
+msgstr "No hay marcador para la ruta actual"
+
+msgid "settings.reportBug"
+msgstr "Report a Bug"
+
+msgid "settings.featureRequest"
+msgstr "Feature Request"
+
+msgid "notify.duplicateTransfer"
+msgstr "{name} ya está en la cola de transferencia — solicitud duplicada ignorada"
+
+msgid "transfer.etaRemaining"
+msgstr "quedan {time}"
+
+msgid "app.dirMissingTitle"
+msgstr "El directorio de destino no existe"
+
+msgid "app.dirMissingText"
+msgstr "El directorio de destino de la transferencia no existe. ¿Crear?"
+
+msgid "app.dirMissingCreate"
+msgstr "Crear y transferir"
+
+msgid "app.dirMissingFallback"
+msgstr "Usar el directorio actual"
+
+msgid "app.dirMissingCancel"
+msgstr "Cancelar"
+
+msgid "app.dirCreated"
+msgstr "Directorio creado: {dir}"
+
+msgid "app.mkdirpFailed"
+msgstr "Error al crear el directorio: {reason}"
+
+msgid "app.targetNotDir"
+msgstr "La ruta de destino no es un directorio: {dir}"
+
+msgid "pane.groupBy"
+msgstr "Agrupar por"
+
+msgid "group.none"
+msgstr "Ninguno"
+
+msgid "group.name"
+msgstr "Nombre"
+
+msgid "group.modified"
+msgstr "Fecha de modificación"
+
+msgid "group.type"
+msgstr "Tipo"
+
+msgid "group.size"
+msgstr "Tamaño"
+
+msgid "group.expand"
+msgstr "Expandir"
+
+msgid "group.collapse"
+msgstr "Contraer"
+
+msgid "group.today"
+msgstr "Hoy"
+
+msgid "group.yesterday"
+msgstr "Ayer"
+
+msgid "group.thisWeek"
+msgstr "Anteriormente esta semana"
+
+msgid "group.thisMonth"
+msgstr "Anteriormente este mes"
+
+msgid "group.earlierThisYear"
+msgstr "Anteriormente este año"
+
+msgid "group.longAgo"
+msgstr "Hace mucho tiempo"
+
+msgid "group.folder"
+msgstr "Carpeta"
+
+msgid "group.noExt"
+msgstr "Otros archivos"
+
+msgid "group.typeFiles"
+msgstr "archivos"
+
+msgid "group.sizeTiny"
+msgstr "Diminuto (0-16 KB)"
+
+msgid "group.sizeSmall"
+msgstr "Pequeño (16 KB - 1 MB)"
+
+msgid "group.sizeMedium"
+msgstr "Mediano (1-128 MB)"
+
+msgid "group.sizeLarge"
+msgstr "Grande (128 MB - 1 GB)"
+
+msgid "group.sizeHuge"
+msgstr "Enorme (1-4 GB)"
+
+msgid "group.sizeSuper"
+msgstr "Gigante (>4 GB)"
+
+msgid "group.digit"
+msgstr "0-9"
+
+msgid "group.a2h"
+msgstr "A-H"
+
+msgid "group.i2p"
+msgstr "I-P"
+
+msgid "group.q2z"
+msgstr "Q-Z"
+
+msgid "group.pyAF"
+msgstr "Pinyin A-F"
+
+msgid "group.pyGL"
+msgstr "Pinyin G-L"
+
+msgid "group.pyMS"
+msgstr "Pinyin M-S"
+
+msgid "group.pyTZ"
+msgstr "Pinyin T-Z"
+
+msgid "group.other"
+msgstr "Otros"
+
+msgid "group.toggleAll"
+msgstr "Expandir/contraer todo"
+
+msgid "group.expandAll"
+msgstr "Expandir todo"
+
+msgid "group.collapseAll"
+msgstr "Contraer todo"
+
+msgid "settings.enableItem"
+msgstr "Habilitar elemento"
+
+msgid "settings.channelMode"
+msgstr "Modo de canal de transferencia"
+
+msgid "settings.channelModeDesc"
+msgstr "Choose how folder transfers use tar packaging (TAR) vs file-by-file (SFTP)"
+
+msgid "settings.channelMode.smart"
+msgstr "Inteligente"
+
+msgid "settings.channelMode.sftpOnly"
+msgstr "Solo SFTP"
+
+msgid "settings.channelMode.tarOnly"
+msgstr "Solo TAR"
+
+msgid "settings.channelMode.preferSftp"
+msgstr "Preferir SFTP"
+
+msgid "settings.channelMode.preferTar"
+msgstr "Preferir TAR"
+
+msgid "settings.channelMode.smartDesc"
+msgstr "Auto-pick best channel by folder size and file count"
+
+msgid "settings.channelMode.sftpOnlyDesc"
+msgstr "Always transfer file by file; never use tar packing and no size-based routing"
+
+msgid "settings.channelMode.tarOnlyDesc"
+msgstr "Always use tar packing with no size-based routing; when packing is unavailable or fails, report the error instead of falling back to file-by-file. When the destination already exists the first attempt still goes file-by-file so conflicts can be detected; choosing Overwrite or Rename in the conflict prompt then continues with tar packing. A single file is always transferred file by file"
+
+msgid "settings.channelMode.preferSftpDesc"
+msgstr "Use tar only when clearly beneficial (requires many more files)"
+
+msgid "settings.channelMode.preferTarDesc"
+msgstr "Pack unless clearly worse (huge files); loose threshold"
+
+msgid "notify.tarOnlyFailed"
+msgstr "TAR-only mode: cannot transfer {name} - {reason}. Change Transfer channel mode to Smart / Prefer TAR in Settings, or fix the environment and retry"
+
+msgid "tarchan.reason.localTarMissing"
+msgstr "no usable tar command on this computer"
+
+msgid "tarchan.reason.remoteTarMissing"
+msgstr "no usable tar command on the remote server"
+
+msgid "tarchan.reason.symlinkUnsupported"
+msgstr "the folder contains symbolic links, which the packing channel does not support"
+
+msgid "tarchan.reason.packFailed"
+msgstr "packing or extracting the archive failed"
+
+msgid "tarchan.reason.tarballFailed"
+msgstr "transferring the archive file failed"
+
+msgid "tarchan.reason.other"
+msgstr "the packing channel is unavailable, see the log for details"
+
+msgid "notify.tarOnlyInapplicable"
+msgstr "TAR-only mode: {name} is not using the packed channel - {reason}. To send it as one archive, choose Overwrite in the directory conflict prompt, or delete the destination first and retry"
+
+msgid "tarchan.reason.targetExists"
+msgstr "the destination already exists, and an incremental transfer can only go through the per-file channel"
+
+msgid "tarchan.reason.localPackFailed"
+msgstr "packing the folder on this computer failed, possibly due to disk space or permissions"
+
+msgid "tarchan.reason.remotePackFailed"
+msgstr "packing or extracting on the remote server failed, possibly due to disk space or permissions"
+
+msgid "tarchan.reason.localExtractFailed"
+msgstr "extracting the archive on this computer failed, see the log for details"
+
+msgid "tarchan.reason.nameEncodingUnsupported"
+msgstr "the file names on the remote server cannot be decoded on this computer; switch to Smart or Prefer SFTP mode, or upgrade the tar command on the server"
+
+msgid "transfer.batchUpload"
+msgstr "{n} items from {dir}"
+
+msgid "settings.exportPickHint"
+msgstr "Elige qué incluir en el archivo de exportación."
+
+msgid "settings.exportSelectAll"
+msgstr "Seleccionar todo"
+
+msgid "settings.exportDeselectAll"
+msgstr "Borrar selección"
+
+msgid "settings.exportCatBookmarkData"
+msgstr "Datos de marcadores"
+
+msgid "settings.hotkeyWheelHint"
+msgstr "Asignación a la rueda, haz clic para volver a grabar (la lista ya no se podrá desplazar con la rueda)"
+
+msgid "settings.panelHotkeyWheelBareWarning"
+msgstr "Asignado a {keys}; la lista ya no se podrá desplazar con la rueda (añade Alt)"
+
+msgid "settings.textCaretShape"
+msgstr "Forma del cursor (visor/editor)"
+msgid "settings.textCaretShapeHint"
+msgstr "Forma del cursor que se dibuja en el visor. Las tres opciones imitan el cursor del terminal de Tabby. El editor usa el cursor del sistema."
+msgid "settings.caretShapeBlock"
+msgstr "Bloque"
+msgid "settings.caretShapeBeam"
+msgstr "Barra vertical"
+msgid "settings.caretShapeUnderline"
+msgstr "Subrayado"

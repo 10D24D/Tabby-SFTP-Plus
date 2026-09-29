@@ -590,7 +590,7 @@ msgid "transfer.noTransfers"
 msgstr "Brak aktywnych transferów"
 
 msgid "transfer.clearConfirm"
-msgstr "Wyczyścić wszystkie rekordy transferu? Ta akcja nie może być cofnięta."
+msgstr "Wyczyścić zakończone rekordy transferu? Rekordy trwających transferów zostaną zachowane."
 
 msgid "transfer.clearTitle"
 msgstr "Potwierdź Wyczyść"
@@ -1179,6 +1179,8 @@ msgstr "Zapisano"
 
 msgid "settings.interaction"
 msgstr "Interakcja"
+msgid "settings.viewerEditor"
+msgstr "Podgląd i edytor"
 
 msgid "settings.openOnClick"
 msgstr "Otwórz plik/folder przez"
@@ -1305,6 +1307,10 @@ msgstr "Zezwól na przeglądanie i edycję wszystkich typów plików"
 
 msgid "settings.allowViewEditAllFilesHint"
 msgstr "Ignoruj ograniczenia rozszerzeń. Każdy plik można przeglądać; przy edycji treść binarna pozostaje chroniona."
+msgid "settings.showTextLineNumbers"
+msgstr "Numery wierszy (podgląd/edytor)"
+msgid "settings.showTextLineNumbersHint"
+msgstr "Pokazuj numery wierszy w wbudowanym podglądzie i edytorze."
 
 msgid "conflict.digest"
 msgstr "Skrót"
@@ -1491,3 +1497,260 @@ msgid "settings.bookmarkFlatHint"
 msgstr "Bez grupowania globalne zakładki mają znacznik Global obok nazwy i można je mieszać z bieżącymi zakładkami."
 msgid "bookmark.globalBadge"
 msgstr "Globalne"
+
+msgid "bookmark.locate"
+msgstr "Pokaż bieżącą zakładkę"
+
+msgid "bookmark.locateNone"
+msgstr "Brak zakładki dla bieżącej ścieżki"
+
+msgid "settings.reportBug"
+msgstr "Report a Bug"
+
+msgid "settings.featureRequest"
+msgstr "Feature Request"
+
+msgid "notify.duplicateTransfer"
+msgstr "{name} jest już w kolejce transferu — zduplikowane żądanie zignorowano"
+
+msgid "transfer.etaRemaining"
+msgstr "pozostało {time}"
+
+msgid "app.dirMissingTitle"
+msgstr "Katalog docelowy nie istnieje"
+
+msgid "app.dirMissingText"
+msgstr "Katalog docelowy transferu nie istnieje. Utworzyć go?"
+
+msgid "app.dirMissingCreate"
+msgstr "Utwórz i przekaż"
+
+msgid "app.dirMissingFallback"
+msgstr "Użyj bieżącego katalogu"
+
+msgid "app.dirMissingCancel"
+msgstr "Anuluj"
+
+msgid "app.dirCreated"
+msgstr "Utworzono katalog: {dir}"
+
+msgid "app.mkdirpFailed"
+msgstr "Nie udało się utworzyć katalogu: {reason}"
+
+msgid "app.targetNotDir"
+msgstr "Ścieżka docelowa nie jest katalogiem: {dir}"
+
+msgid "pane.groupBy"
+msgstr "Grupuj według"
+
+msgid "group.none"
+msgstr "Brak"
+
+msgid "group.name"
+msgstr "Nazwa"
+
+msgid "group.modified"
+msgstr "Data modyfikacji"
+
+msgid "group.type"
+msgstr "Typ"
+
+msgid "group.size"
+msgstr "Rozmiar"
+
+msgid "group.expand"
+msgstr "Rozwiń"
+
+msgid "group.collapse"
+msgstr "Zwiń"
+
+msgid "group.today"
+msgstr "Dzisiaj"
+
+msgid "group.yesterday"
+msgstr "Wczoraj"
+
+msgid "group.thisWeek"
+msgstr "Wcześniej w tym tygodniu"
+
+msgid "group.thisMonth"
+msgstr "Wcześniej w tym miesiącu"
+
+msgid "group.earlierThisYear"
+msgstr "Wcześniej w tym roku"
+
+msgid "group.longAgo"
+msgstr "Dawno temu"
+
+msgid "group.folder"
+msgstr "Folder"
+
+msgid "group.noExt"
+msgstr "Inne pliki"
+
+msgid "group.typeFiles"
+msgstr "pliki"
+
+msgid "group.sizeTiny"
+msgstr "Bardzo mały (0-16 KB)"
+
+msgid "group.sizeSmall"
+msgstr "Mały (16 KB - 1 MB)"
+
+msgid "group.sizeMedium"
+msgstr "Średni (1-128 MB)"
+
+msgid "group.sizeLarge"
+msgstr "Duży (128 MB - 1 GB)"
+
+msgid "group.sizeHuge"
+msgstr "Ogromny (1-4 GB)"
+
+msgid "group.sizeSuper"
+msgstr "Gigantyczny (>4 GB)"
+
+msgid "group.digit"
+msgstr "0-9"
+
+msgid "group.a2h"
+msgstr "A-H"
+
+msgid "group.i2p"
+msgstr "I-P"
+
+msgid "group.q2z"
+msgstr "Q-Z"
+
+msgid "group.pyAF"
+msgstr "Pinyin A-F"
+
+msgid "group.pyGL"
+msgstr "Pinyin G-L"
+
+msgid "group.pyMS"
+msgstr "Pinyin M-S"
+
+msgid "group.pyTZ"
+msgstr "Pinyin T-Z"
+
+msgid "group.other"
+msgstr "Inne"
+
+msgid "group.toggleAll"
+msgstr "Rozwiń/zwiń wszystko"
+
+msgid "group.expandAll"
+msgstr "Rozwiń wszystko"
+
+msgid "group.collapseAll"
+msgstr "Zwiń wszystko"
+
+msgid "settings.enableItem"
+msgstr "Włącz element"
+
+msgid "settings.channelMode"
+msgstr "Transfer channel mode"
+
+msgid "settings.channelModeDesc"
+msgstr "Choose how folder transfers use tar packaging (TAR) vs file-by-file (SFTP)"
+
+msgid "settings.channelMode.smart"
+msgstr "Smart"
+
+msgid "settings.channelMode.sftpOnly"
+msgstr "SFTP only"
+
+msgid "settings.channelMode.tarOnly"
+msgstr "TAR only"
+
+msgid "settings.channelMode.preferSftp"
+msgstr "Prefer SFTP"
+
+msgid "settings.channelMode.preferTar"
+msgstr "Prefer TAR"
+
+msgid "settings.channelMode.smartDesc"
+msgstr "Auto-pick best channel by folder size and file count"
+
+msgid "settings.channelMode.sftpOnlyDesc"
+msgstr "Always transfer file by file; never use tar packing and no size-based routing"
+
+msgid "settings.channelMode.tarOnlyDesc"
+msgstr "Always use tar packing with no size-based routing; when packing is unavailable or fails, report the error instead of falling back to file-by-file. When the destination already exists the first attempt still goes file-by-file so conflicts can be detected; choosing Overwrite or Rename in the conflict prompt then continues with tar packing. A single file is always transferred file by file"
+
+msgid "settings.channelMode.preferSftpDesc"
+msgstr "Use tar only when clearly beneficial (requires many more files)"
+
+msgid "settings.channelMode.preferTarDesc"
+msgstr "Pack unless clearly worse (huge files); loose threshold"
+
+msgid "notify.tarOnlyFailed"
+msgstr "TAR-only mode: cannot transfer {name} - {reason}. Change Transfer channel mode to Smart / Prefer TAR in Settings, or fix the environment and retry"
+
+msgid "tarchan.reason.localTarMissing"
+msgstr "no usable tar command on this computer"
+
+msgid "tarchan.reason.remoteTarMissing"
+msgstr "no usable tar command on the remote server"
+
+msgid "tarchan.reason.symlinkUnsupported"
+msgstr "the folder contains symbolic links, which the packing channel does not support"
+
+msgid "tarchan.reason.packFailed"
+msgstr "packing or extracting the archive failed"
+
+msgid "tarchan.reason.tarballFailed"
+msgstr "transferring the archive file failed"
+
+msgid "tarchan.reason.other"
+msgstr "the packing channel is unavailable, see the log for details"
+
+msgid "notify.tarOnlyInapplicable"
+msgstr "TAR-only mode: {name} is not using the packed channel - {reason}. To send it as one archive, choose Overwrite in the directory conflict prompt, or delete the destination first and retry"
+
+msgid "tarchan.reason.targetExists"
+msgstr "the destination already exists, and an incremental transfer can only go through the per-file channel"
+
+msgid "tarchan.reason.localPackFailed"
+msgstr "packing the folder on this computer failed, possibly due to disk space or permissions"
+
+msgid "tarchan.reason.remotePackFailed"
+msgstr "packing or extracting on the remote server failed, possibly due to disk space or permissions"
+
+msgid "tarchan.reason.localExtractFailed"
+msgstr "extracting the archive on this computer failed, see the log for details"
+
+msgid "tarchan.reason.nameEncodingUnsupported"
+msgstr "the file names on the remote server cannot be decoded on this computer; switch to Smart or Prefer SFTP mode, or upgrade the tar command on the server"
+
+msgid "transfer.batchUpload"
+msgstr "{n} items from {dir}"
+
+msgid "settings.exportPickHint"
+msgstr "Wybierz, co ma zostać uwzględnione w pliku eksportu."
+
+msgid "settings.exportSelectAll"
+msgstr "Zaznacz wszystko"
+
+msgid "settings.exportDeselectAll"
+msgstr "Wyczyść wybór"
+
+msgid "settings.exportCatBookmarkData"
+msgstr "Dane zakładek"
+
+msgid "settings.hotkeyWheelHint"
+msgstr "Przypisanie kółka, kliknij, aby nagrać ponownie (lista nie będzie już przewijana kółkiem)"
+
+msgid "settings.panelHotkeyWheelBareWarning"
+msgstr "Przypisano do {keys}; lista nie będzie już przewijana kółkiem (dodaj Alt)"
+
+msgid "settings.textCaretShape"
+msgstr "Kształt kursora (podgląd/edytor)"
+msgid "settings.textCaretShapeHint"
+msgstr "Kształt kursora rysowanego w podglądzie. Trzy opcje odpowiadają kursorowi terminala Tabby. Edytor używa kursora systemowego."
+msgid "settings.caretShapeBlock"
+msgstr "Blok"
+msgid "settings.caretShapeBeam"
+msgstr "Pionowa kreska"
+msgid "settings.caretShapeUnderline"
+msgstr "Podkreślenie"

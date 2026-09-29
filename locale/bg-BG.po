@@ -465,7 +465,7 @@ msgid "transfer.noTransfers"
 msgstr "Не active transfers"
 
 msgid "transfer.clearConfirm"
-msgstr "Изчисти all transfer records? This action cannot be undone."
+msgstr "Изчистване на записите за завършени трансфери? Записите за текущи трансфери се запазват."
 
 msgid "transfer.clearTitle"
 msgstr "Потвърди Изчисти"
@@ -973,6 +973,8 @@ msgstr "Запазено"
 
 msgid "settings.interaction"
 msgstr "Взаимодействие"
+msgid "settings.viewerEditor"
+msgstr "Преглед и редактор"
 
 msgid "settings.openOnClick"
 msgstr "Отваряне на файл/папка с"
@@ -1099,6 +1101,10 @@ msgstr "Разреши преглед и редактиране на всичк�
 
 msgid "settings.allowViewEditAllFilesHint"
 msgstr "Игнорира ограниченията за разширения. Всеки файл може да се преглежда; при редакция двоичното съдържание остава защитено."
+msgid "settings.showTextLineNumbers"
+msgstr "Номера на редове (преглед/редактор)"
+msgid "settings.showTextLineNumbersHint"
+msgstr "Показване на номера на редове във вградения преглед и редактор."
 
 msgid "conflict.digest"
 msgstr "Дайджест"
@@ -1285,3 +1291,260 @@ msgid "settings.bookmarkFlatHint"
 msgstr "Без групиране глобалните отметки показват етикет „Глобални“ вдясно от името и могат свободно да се смесват с текущите."
 msgid "bookmark.globalBadge"
 msgstr "Глобални"
+
+msgid "bookmark.locate"
+msgstr "Отиди до текущата отметка"
+
+msgid "bookmark.locateNone"
+msgstr "Няма отметка за текущия път"
+
+msgid "settings.reportBug"
+msgstr "Report a Bug"
+
+msgid "settings.featureRequest"
+msgstr "Feature Request"
+
+msgid "notify.duplicateTransfer"
+msgstr "{name} вече е в опашката за трансфер — дублираната заявка е игнорирана"
+
+msgid "transfer.etaRemaining"
+msgstr "остават {time}"
+
+msgid "app.dirMissingTitle"
+msgstr "Целевата директория не съществува"
+
+msgid "app.dirMissingText"
+msgstr "Директорията за прехвърляне не съществува. Да я създам ли?"
+
+msgid "app.dirMissingCreate"
+msgstr "Създай и прехвърли"
+
+msgid "app.dirMissingFallback"
+msgstr "Използвай текущата директория"
+
+msgid "app.dirMissingCancel"
+msgstr "Отказ"
+
+msgid "app.dirCreated"
+msgstr "Директорията е създадена: {dir}"
+
+msgid "app.mkdirpFailed"
+msgstr "Неуспешно създаване на директория: {reason}"
+
+msgid "app.targetNotDir"
+msgstr "Целевият път не е директория: {dir}"
+
+msgid "pane.groupBy"
+msgstr "Групиране по"
+
+msgid "group.none"
+msgstr "Няма"
+
+msgid "group.name"
+msgstr "Име"
+
+msgid "group.modified"
+msgstr "Дата на промяна"
+
+msgid "group.type"
+msgstr "Тип"
+
+msgid "group.size"
+msgstr "Размер"
+
+msgid "group.expand"
+msgstr "Разгъване"
+
+msgid "group.collapse"
+msgstr "Свиване"
+
+msgid "group.today"
+msgstr "Днес"
+
+msgid "group.yesterday"
+msgstr "Вчера"
+
+msgid "group.thisWeek"
+msgstr "По-рано тази седмица"
+
+msgid "group.thisMonth"
+msgstr "По-рано този месец"
+
+msgid "group.earlierThisYear"
+msgstr "По-рано тази година"
+
+msgid "group.longAgo"
+msgstr "Отдавна"
+
+msgid "group.folder"
+msgstr "Папка"
+
+msgid "group.noExt"
+msgstr "Други файлове"
+
+msgid "group.typeFiles"
+msgstr "файлове"
+
+msgid "group.sizeTiny"
+msgstr "Много малък (0-16 KB)"
+
+msgid "group.sizeSmall"
+msgstr "Малък (16 KB - 1 MB)"
+
+msgid "group.sizeMedium"
+msgstr "Среден (1-128 MB)"
+
+msgid "group.sizeLarge"
+msgstr "Голям (128 MB - 1 GB)"
+
+msgid "group.sizeHuge"
+msgstr "Огромен (1-4 GB)"
+
+msgid "group.sizeSuper"
+msgstr "Гигантски (>4 GB)"
+
+msgid "group.digit"
+msgstr "0-9"
+
+msgid "group.a2h"
+msgstr "A-H"
+
+msgid "group.i2p"
+msgstr "I-P"
+
+msgid "group.q2z"
+msgstr "Q-Z"
+
+msgid "group.pyAF"
+msgstr "Пинин A-F"
+
+msgid "group.pyGL"
+msgstr "Пинин G-L"
+
+msgid "group.pyMS"
+msgstr "Пинин M-S"
+
+msgid "group.pyTZ"
+msgstr "Пинин T-Z"
+
+msgid "group.other"
+msgstr "Други"
+
+msgid "group.toggleAll"
+msgstr "Разгъни/свий всички групи"
+
+msgid "group.expandAll"
+msgstr "Разгъни всички"
+
+msgid "group.collapseAll"
+msgstr "Свий всички"
+
+msgid "settings.enableItem"
+msgstr "Активирай елемент"
+
+msgid "settings.channelMode"
+msgstr "Transfer channel mode"
+
+msgid "settings.channelModeDesc"
+msgstr "Choose how folder transfers use tar packaging (TAR) vs file-by-file (SFTP)"
+
+msgid "settings.channelMode.smart"
+msgstr "Smart"
+
+msgid "settings.channelMode.sftpOnly"
+msgstr "SFTP only"
+
+msgid "settings.channelMode.tarOnly"
+msgstr "TAR only"
+
+msgid "settings.channelMode.preferSftp"
+msgstr "Prefer SFTP"
+
+msgid "settings.channelMode.preferTar"
+msgstr "Prefer TAR"
+
+msgid "settings.channelMode.smartDesc"
+msgstr "Auto-pick best channel by folder size and file count"
+
+msgid "settings.channelMode.sftpOnlyDesc"
+msgstr "Always transfer file by file; never use tar packing and no size-based routing"
+
+msgid "settings.channelMode.tarOnlyDesc"
+msgstr "Always use tar packing with no size-based routing; when packing is unavailable or fails, report the error instead of falling back to file-by-file. When the destination already exists the first attempt still goes file-by-file so conflicts can be detected; choosing Overwrite or Rename in the conflict prompt then continues with tar packing. A single file is always transferred file by file"
+
+msgid "settings.channelMode.preferSftpDesc"
+msgstr "Use tar only when clearly beneficial (requires many more files)"
+
+msgid "settings.channelMode.preferTarDesc"
+msgstr "Pack unless clearly worse (huge files); loose threshold"
+
+msgid "notify.tarOnlyFailed"
+msgstr "TAR-only mode: cannot transfer {name} - {reason}. Change Transfer channel mode to Smart / Prefer TAR in Settings, or fix the environment and retry"
+
+msgid "tarchan.reason.localTarMissing"
+msgstr "no usable tar command on this computer"
+
+msgid "tarchan.reason.remoteTarMissing"
+msgstr "no usable tar command on the remote server"
+
+msgid "tarchan.reason.symlinkUnsupported"
+msgstr "the folder contains symbolic links, which the packing channel does not support"
+
+msgid "tarchan.reason.packFailed"
+msgstr "packing or extracting the archive failed"
+
+msgid "tarchan.reason.tarballFailed"
+msgstr "transferring the archive file failed"
+
+msgid "tarchan.reason.other"
+msgstr "the packing channel is unavailable, see the log for details"
+
+msgid "notify.tarOnlyInapplicable"
+msgstr "TAR-only mode: {name} is not using the packed channel - {reason}. To send it as one archive, choose Overwrite in the directory conflict prompt, or delete the destination first and retry"
+
+msgid "tarchan.reason.targetExists"
+msgstr "the destination already exists, and an incremental transfer can only go through the per-file channel"
+
+msgid "tarchan.reason.localPackFailed"
+msgstr "packing the folder on this computer failed, possibly due to disk space or permissions"
+
+msgid "tarchan.reason.remotePackFailed"
+msgstr "packing or extracting on the remote server failed, possibly due to disk space or permissions"
+
+msgid "tarchan.reason.localExtractFailed"
+msgstr "extracting the archive on this computer failed, see the log for details"
+
+msgid "tarchan.reason.nameEncodingUnsupported"
+msgstr "the file names on the remote server cannot be decoded on this computer; switch to Smart or Prefer SFTP mode, or upgrade the tar command on the server"
+
+msgid "transfer.batchUpload"
+msgstr "{n} items from {dir}"
+
+msgid "settings.exportPickHint"
+msgstr "Изберете какво да се включи във файла за експорт."
+
+msgid "settings.exportSelectAll"
+msgstr "Избери всички"
+
+msgid "settings.exportDeselectAll"
+msgstr "Изчисти избора"
+
+msgid "settings.exportCatBookmarkData"
+msgstr "Данни за отметки"
+
+msgid "settings.hotkeyWheelHint"
+msgstr "Обвързване с колелцето, щракнете за ново записване (списъкът вече не може да се превърта с колелцето)"
+
+msgid "settings.panelHotkeyWheelBareWarning"
+msgstr "Обвързано с {keys}; списъкът вече не може да се превърта с колелцето (добавете Alt)"
+
+msgid "settings.textCaretShape"
+msgstr "Форма на курсора (преглед/редактор)"
+msgid "settings.textCaretShapeHint"
+msgstr "Форма на курсора, рисуван в прегледа. Трите опции отговарят на курсора в терминала на Tabby. Редакторът използва системния курсор."
+msgid "settings.caretShapeBlock"
+msgstr "Блок"
+msgid "settings.caretShapeBeam"
+msgstr "Вертикална линия"
+msgid "settings.caretShapeUnderline"
+msgstr "Подчертаване"

@@ -161,13 +161,13 @@ msgid "fileType.unknown"
 msgstr "檔案"
 
 msgid "app.deleteConfirmFile"
-msgstr "確實要刪除此檔案嗎？"
+msgstr "確定要刪除此檔案嗎？"
 
 msgid "app.deleteConfirmFolder"
-msgstr "確實要刪除此資料夾嗎？"
+msgstr "確定要刪除此資料夾嗎？"
 
 msgid "app.deleteConfirmMultiple"
-msgstr "確實要刪除這 {count} 個專案嗎？"
+msgstr "確定要刪除這 {count} 個專案嗎？"
 
 msgid "app.rename"
 msgstr "重新命名"
@@ -623,7 +623,7 @@ msgid "transfer.noTransfers"
 msgstr "無進行中的傳輸"
 
 msgid "transfer.clearConfirm"
-msgstr "確定要清空所有傳輸記錄嗎？此操作不可撤銷。"
+msgstr "確定清除已結束的傳輸記錄嗎？正在傳輸中的記錄會保留。"
 
 msgid "transfer.clearTitle"
 msgstr "確認清空"
@@ -893,6 +893,8 @@ msgstr "功能性"
 
 msgid "settings.interaction"
 msgstr "互動設定"
+msgid "settings.viewerEditor"
+msgstr "檢視與編輯"
 
 msgid "settings.openOnClick"
 msgstr "檔案/資料夾開啟方式"
@@ -1119,6 +1121,27 @@ msgstr "垂直佈局"
 
 msgid "layout.mode.single"
 msgstr "單一窗格（僅遠端）"
+
+msgid "layout.override.tooNarrow"
+msgstr "面板過窄，左右佈局空間不足，已臨時改為上下佈局"
+
+msgid "layout.override.tooShort"
+msgstr "面板過矮，上下佈局空間不足，已臨時改為左右佈局"
+
+msgid "layout.override.tooCramped"
+msgstr "面板過窄且過矮，雙欄空間不足，已臨時改為單欄"
+
+msgid "layout.override.reasonNarrow"
+msgstr "過窄"
+
+msgid "layout.override.reasonShort"
+msgstr "過矮"
+
+msgid "layout.override.reasonCramped"
+msgstr "過窄且過矮"
+
+msgid "layout.override.title"
+msgstr "{preferred} → {actual}（{reason}）"
 
 msgid "notify.closeWithTransfers"
 msgstr "有 {count} 個傳輸正在進行。關閉面板將中斷所有傳輸。是否繼續？"
@@ -1408,6 +1431,10 @@ msgid "settings.allowViewEditAllFiles"
 msgstr "允許檢視與編輯所有檔案類型"
 msgid "settings.allowViewEditAllFilesHint"
 msgstr "忽略副檔名限制；可檢視任意檔案，編輯時二進位內容仍會受保護。"
+msgid "settings.showTextLineNumbers"
+msgstr "檢視編輯器顯示行號"
+msgid "settings.showTextLineNumbersHint"
+msgstr "在內建檢視器與編輯器左側顯示行號。"
 
 msgid "conflict.digest"
 msgstr "內容摘要"
@@ -1468,3 +1495,260 @@ msgid "settings.bookmarkFlatHint"
 msgstr "關閉分組後，全域書籤名稱右側會顯示「全域」標籤，並可與目前書籤自由拖曳混排"
 msgid "bookmark.globalBadge"
 msgstr "全域"
+
+msgid "bookmark.locate"
+msgstr "定位目前書籤"
+
+msgid "bookmark.locateNone"
+msgstr "目前路徑沒有對應書籤"
+
+msgid "settings.reportBug"
+msgstr "報告問題"
+
+msgid "settings.featureRequest"
+msgstr "提出需求"
+
+msgid "notify.duplicateTransfer"
+msgstr "{name} 已在傳輸佇列中，已忽略重複請求"
+
+msgid "transfer.etaRemaining"
+msgstr "剩餘 {time}"
+
+msgid "app.dirMissingTitle"
+msgstr "目標目錄不存在"
+
+msgid "app.dirMissingText"
+msgstr "傳輸目標目錄不存在，是否建立？"
+
+msgid "app.dirMissingCreate"
+msgstr "建立並傳輸"
+
+msgid "app.dirMissingFallback"
+msgstr "使用目前目錄"
+
+msgid "app.dirMissingCancel"
+msgstr "取消"
+
+msgid "app.dirCreated"
+msgstr "已建立目錄：{dir}"
+
+msgid "app.mkdirpFailed"
+msgstr "建立目錄失敗：{reason}"
+
+msgid "app.targetNotDir"
+msgstr "目標路徑不是目錄：{dir}"
+
+msgid "pane.groupBy"
+msgstr "分組依據"
+
+msgid "group.none"
+msgstr "無"
+
+msgid "group.name"
+msgstr "名稱"
+
+msgid "group.modified"
+msgstr "修改日期"
+
+msgid "group.type"
+msgstr "類型"
+
+msgid "group.size"
+msgstr "大小"
+
+msgid "group.expand"
+msgstr "展開"
+
+msgid "group.collapse"
+msgstr "摺疊"
+
+msgid "group.today"
+msgstr "今天"
+
+msgid "group.yesterday"
+msgstr "昨天"
+
+msgid "group.thisWeek"
+msgstr "本週"
+
+msgid "group.thisMonth"
+msgstr "本月"
+
+msgid "group.earlierThisYear"
+msgstr "今年較早時候"
+
+msgid "group.longAgo"
+msgstr "很久以前"
+
+msgid "group.folder"
+msgstr "資料夾"
+
+msgid "group.noExt"
+msgstr "其他檔案"
+
+msgid "group.typeFiles"
+msgstr "檔案"
+
+msgid "group.sizeTiny"
+msgstr "極小(0-16 KB)"
+
+msgid "group.sizeSmall"
+msgstr "小(16 KB - 1 MB)"
+
+msgid "group.sizeMedium"
+msgstr "中等(1-128 MB)"
+
+msgid "group.sizeLarge"
+msgstr "大(128 MB - 1 GB)"
+
+msgid "group.sizeHuge"
+msgstr "巨大(1-4 GB)"
+
+msgid "group.sizeSuper"
+msgstr "超大(>4 GB)"
+
+msgid "group.digit"
+msgstr "0-9"
+
+msgid "group.a2h"
+msgstr "A-H"
+
+msgid "group.i2p"
+msgstr "I-P"
+
+msgid "group.q2z"
+msgstr "Q-Z"
+
+msgid "group.pyAF"
+msgstr "拼音 A-F"
+
+msgid "group.pyGL"
+msgstr "拼音 G-L"
+
+msgid "group.pyMS"
+msgstr "拼音 M-S"
+
+msgid "group.pyTZ"
+msgstr "拼音 T-Z"
+
+msgid "group.other"
+msgstr "其他"
+
+msgid "group.toggleAll"
+msgstr "展開/摺疊所有分組"
+
+msgid "group.expandAll"
+msgstr "全部展開"
+
+msgid "group.collapseAll"
+msgstr "全部摺疊"
+
+msgid "settings.enableItem"
+msgstr "啟用該項"
+
+msgid "settings.channelMode"
+msgstr "傳輸通道模式"
+
+msgid "settings.channelModeDesc"
+msgstr "選擇資料夾傳輸時打包(TAR)與逐檔(SFTP)的使用策略"
+
+msgid "settings.channelMode.smart"
+msgstr "智慧模式"
+
+msgid "settings.channelMode.sftpOnly"
+msgstr "僅 SFTP"
+
+msgid "settings.channelMode.tarOnly"
+msgstr "僅 TAR"
+
+msgid "settings.channelMode.preferSftp"
+msgstr "優先 SFTP"
+
+msgid "settings.channelMode.preferTar"
+msgstr "優先 TAR"
+
+msgid "settings.channelMode.smartDesc"
+msgstr "按資料夾大小與檔案數自動選擇最優通道"
+
+msgid "settings.channelMode.sftpOnlyDesc"
+msgstr "一律逐檔傳輸，不使用打包通道，不做規模判斷"
+
+msgid "settings.channelMode.tarOnlyDesc"
+msgstr "一律走打包通道，不做規模判斷；打包不可用或失敗時直接提示失敗，不回退逐檔。目標已存在時首次嘗試仍走逐檔以檢測衝突，在衝突提示中選「覆蓋」或「重新命名」後會改走打包通道；單一檔案始終逐檔傳輸"
+
+msgid "settings.channelMode.preferSftpDesc"
+msgstr "僅當明顯划算時才打包（需要更多檔案）"
+
+msgid "settings.channelMode.preferTarDesc"
+msgstr "除非明顯吃虧（巨型檔案）才回退，門檻寬鬆"
+
+msgid "notify.tarOnlyFailed"
+msgstr "僅 TAR 模式：無法傳輸 {name} —— {reason}。可在「設定 · 傳輸通道模式」改為智慧或優先 TAR，或處理該問題後重試"
+
+msgid "tarchan.reason.localTarMissing"
+msgstr "本機沒有可用的 tar 命令"
+
+msgid "tarchan.reason.remoteTarMissing"
+msgstr "遠端伺服器沒有可用的 tar 命令"
+
+msgid "tarchan.reason.symlinkUnsupported"
+msgstr "目錄內含符號連結，打包通道不支援"
+
+msgid "tarchan.reason.packFailed"
+msgstr "打包或解包失敗"
+
+msgid "tarchan.reason.tarballFailed"
+msgstr "封存檔傳輸失敗"
+
+msgid "tarchan.reason.other"
+msgstr "打包通道無法使用，詳見日誌"
+
+msgid "notify.tarOnlyInapplicable"
+msgstr "僅 TAR 模式：{name} 未使用打包通道 —— {reason}。若希望打包傳輸，請在目錄衝突提示中選擇「覆蓋」，或先刪除目標目錄後重試"
+
+msgid "tarchan.reason.targetExists"
+msgstr "目標已存在，增量傳輸只能走逐檔通道"
+
+msgid "tarchan.reason.localPackFailed"
+msgstr "本機打包失敗，可能是磁碟空間或權限問題"
+
+msgid "tarchan.reason.remotePackFailed"
+msgstr "遠端打包或解包失敗，可能是磁碟空間或權限問題"
+
+msgid "tarchan.reason.localExtractFailed"
+msgstr "本機解包失敗，詳見日誌"
+
+msgid "tarchan.reason.nameEncodingUnsupported"
+msgstr "遠端檔名編碼無法在本機還原；請改用智慧或優先 SFTP 模式，或升級伺服器上的 tar 命令"
+
+msgid "transfer.batchUpload"
+msgstr "{dir} 等 {n} 項"
+
+msgid "settings.exportPickHint"
+msgstr "選擇要包含在匯出檔案中的內容。"
+
+msgid "settings.exportSelectAll"
+msgstr "全選"
+
+msgid "settings.exportDeselectAll"
+msgstr "全不選"
+
+msgid "settings.exportCatBookmarkData"
+msgstr "書籤資料"
+
+msgid "settings.hotkeyWheelHint"
+msgstr "滾輪綁定，點擊可重新錄製（綁定後清單將無法再用滾輪捲動）"
+
+msgid "settings.panelHotkeyWheelBareWarning"
+msgstr "已綁定 {keys}；面板清單將無法再用滾輪捲動（建議加上 Alt 等修飾鍵）"
+
+msgid "settings.textCaretShape"
+msgstr "檢視編輯器游標形狀"
+msgid "settings.textCaretShapeHint"
+msgstr "檢視器中繪製的插入游標形狀。三檔與 Tabby 終端機的游標形狀一致。編輯器使用系統原生游標。"
+msgid "settings.caretShapeBlock"
+msgstr "方塊"
+msgid "settings.caretShapeBeam"
+msgstr "直線"
+msgid "settings.caretShapeUnderline"
+msgstr "底線"

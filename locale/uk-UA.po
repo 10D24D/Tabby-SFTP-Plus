@@ -465,7 +465,7 @@ msgid "transfer.noTransfers"
 msgstr "Ні active transfers"
 
 msgid "transfer.clearConfirm"
-msgstr "Очистити all transfer records? This action cannot be undone."
+msgstr "Очистити записи про завершені передавання? Записи про передавання в процесі зберігаються."
 
 msgid "transfer.clearTitle"
 msgstr "Підтвердити Очистити"
@@ -973,6 +973,8 @@ msgstr "Збережено"
 
 msgid "settings.interaction"
 msgstr "Взаємодія"
+msgid "settings.viewerEditor"
+msgstr "Перегляд і редагування"
 
 msgid "settings.openOnClick"
 msgstr "Відкрити файл/папку за допомогою"
@@ -1099,6 +1101,10 @@ msgstr "Дозволити перегляд і редагування всіх �
 
 msgid "settings.allowViewEditAllFilesHint"
 msgstr "Ігнорувати обмеження розширень. Будь-який файл можна переглянути; під час редагування двійковий вміст залишається захищеним."
+msgid "settings.showTextLineNumbers"
+msgstr "Номери рядків (перегляд/редактор)"
+msgid "settings.showTextLineNumbersHint"
+msgstr "Показувати номери рядків у вбудованому перегляді та редакторі."
 
 msgid "conflict.digest"
 msgstr "Дайджест"
@@ -1285,3 +1291,260 @@ msgid "settings.bookmarkFlatHint"
 msgstr "Без групування глобальні закладки мають мітку «Глобал» праворуч від назви й вільно змішуються з поточними закладками."
 msgid "bookmark.globalBadge"
 msgstr "Глобал"
+
+msgid "bookmark.locate"
+msgstr "Перейти до поточної закладки"
+
+msgid "bookmark.locateNone"
+msgstr "Немає закладки для поточного шляху"
+
+msgid "settings.reportBug"
+msgstr "Report a Bug"
+
+msgid "settings.featureRequest"
+msgstr "Feature Request"
+
+msgid "notify.duplicateTransfer"
+msgstr "{name} вже в черзі передачі — повторний запит проігноровано"
+
+msgid "transfer.etaRemaining"
+msgstr "залишилось {time}"
+
+msgid "app.dirMissingTitle"
+msgstr "Цільовий каталог не існує"
+
+msgid "app.dirMissingText"
+msgstr "Каталог призначення для передачі не існує. Створити його?"
+
+msgid "app.dirMissingCreate"
+msgstr "Створити та передати"
+
+msgid "app.dirMissingFallback"
+msgstr "Використати поточний каталог"
+
+msgid "app.dirMissingCancel"
+msgstr "Скасувати"
+
+msgid "app.dirCreated"
+msgstr "Каталог створено: {dir}"
+
+msgid "app.mkdirpFailed"
+msgstr "Не вдалося створити каталог: {reason}"
+
+msgid "app.targetNotDir"
+msgstr "Цільовий шлях не є каталогом: {dir}"
+
+msgid "pane.groupBy"
+msgstr "Групувати за"
+
+msgid "group.none"
+msgstr "Немає"
+
+msgid "group.name"
+msgstr "Імʼя"
+
+msgid "group.modified"
+msgstr "Дата змінення"
+
+msgid "group.type"
+msgstr "Тип"
+
+msgid "group.size"
+msgstr "Розмір"
+
+msgid "group.expand"
+msgstr "Розгорнути"
+
+msgid "group.collapse"
+msgstr "Згорнути"
+
+msgid "group.today"
+msgstr "Сьогодні"
+
+msgid "group.yesterday"
+msgstr "Вчора"
+
+msgid "group.thisWeek"
+msgstr "Раніше цього тижня"
+
+msgid "group.thisMonth"
+msgstr "Раніше цього місяця"
+
+msgid "group.earlierThisYear"
+msgstr "Раніше цього року"
+
+msgid "group.longAgo"
+msgstr "Давно"
+
+msgid "group.folder"
+msgstr "Папка"
+
+msgid "group.noExt"
+msgstr "Інші файли"
+
+msgid "group.typeFiles"
+msgstr "файли"
+
+msgid "group.sizeTiny"
+msgstr "Дуже малий (0-16 KB)"
+
+msgid "group.sizeSmall"
+msgstr "Малий (16 KB - 1 MB)"
+
+msgid "group.sizeMedium"
+msgstr "Середній (1-128 MB)"
+
+msgid "group.sizeLarge"
+msgstr "Великий (128 MB - 1 GB)"
+
+msgid "group.sizeHuge"
+msgstr "Величезний (1-4 GB)"
+
+msgid "group.sizeSuper"
+msgstr "Гігантський (>4 GB)"
+
+msgid "group.digit"
+msgstr "0-9"
+
+msgid "group.a2h"
+msgstr "A-H"
+
+msgid "group.i2p"
+msgstr "I-P"
+
+msgid "group.q2z"
+msgstr "Q-Z"
+
+msgid "group.pyAF"
+msgstr "Піньїнь A-F"
+
+msgid "group.pyGL"
+msgstr "Піньїнь G-L"
+
+msgid "group.pyMS"
+msgstr "Піньїнь M-S"
+
+msgid "group.pyTZ"
+msgstr "Піньїнь T-Z"
+
+msgid "group.other"
+msgstr "Інші"
+
+msgid "group.toggleAll"
+msgstr "Розгорнути/згорнути все"
+
+msgid "group.expandAll"
+msgstr "Розгорнути все"
+
+msgid "group.collapseAll"
+msgstr "Згорнути все"
+
+msgid "settings.enableItem"
+msgstr "Увімкнути елемент"
+
+msgid "settings.channelMode"
+msgstr "Transfer channel mode"
+
+msgid "settings.channelModeDesc"
+msgstr "Choose how folder transfers use tar packaging (TAR) vs file-by-file (SFTP)"
+
+msgid "settings.channelMode.smart"
+msgstr "Smart"
+
+msgid "settings.channelMode.sftpOnly"
+msgstr "SFTP only"
+
+msgid "settings.channelMode.tarOnly"
+msgstr "TAR only"
+
+msgid "settings.channelMode.preferSftp"
+msgstr "Prefer SFTP"
+
+msgid "settings.channelMode.preferTar"
+msgstr "Prefer TAR"
+
+msgid "settings.channelMode.smartDesc"
+msgstr "Auto-pick best channel by folder size and file count"
+
+msgid "settings.channelMode.sftpOnlyDesc"
+msgstr "Always transfer file by file; never use tar packing and no size-based routing"
+
+msgid "settings.channelMode.tarOnlyDesc"
+msgstr "Always use tar packing with no size-based routing; when packing is unavailable or fails, report the error instead of falling back to file-by-file. When the destination already exists the first attempt still goes file-by-file so conflicts can be detected; choosing Overwrite or Rename in the conflict prompt then continues with tar packing. A single file is always transferred file by file"
+
+msgid "settings.channelMode.preferSftpDesc"
+msgstr "Use tar only when clearly beneficial (requires many more files)"
+
+msgid "settings.channelMode.preferTarDesc"
+msgstr "Pack unless clearly worse (huge files); loose threshold"
+
+msgid "notify.tarOnlyFailed"
+msgstr "TAR-only mode: cannot transfer {name} - {reason}. Change Transfer channel mode to Smart / Prefer TAR in Settings, or fix the environment and retry"
+
+msgid "tarchan.reason.localTarMissing"
+msgstr "no usable tar command on this computer"
+
+msgid "tarchan.reason.remoteTarMissing"
+msgstr "no usable tar command on the remote server"
+
+msgid "tarchan.reason.symlinkUnsupported"
+msgstr "the folder contains symbolic links, which the packing channel does not support"
+
+msgid "tarchan.reason.packFailed"
+msgstr "packing or extracting the archive failed"
+
+msgid "tarchan.reason.tarballFailed"
+msgstr "transferring the archive file failed"
+
+msgid "tarchan.reason.other"
+msgstr "the packing channel is unavailable, see the log for details"
+
+msgid "notify.tarOnlyInapplicable"
+msgstr "TAR-only mode: {name} is not using the packed channel - {reason}. To send it as one archive, choose Overwrite in the directory conflict prompt, or delete the destination first and retry"
+
+msgid "tarchan.reason.targetExists"
+msgstr "the destination already exists, and an incremental transfer can only go through the per-file channel"
+
+msgid "tarchan.reason.localPackFailed"
+msgstr "packing the folder on this computer failed, possibly due to disk space or permissions"
+
+msgid "tarchan.reason.remotePackFailed"
+msgstr "packing or extracting on the remote server failed, possibly due to disk space or permissions"
+
+msgid "tarchan.reason.localExtractFailed"
+msgstr "extracting the archive on this computer failed, see the log for details"
+
+msgid "tarchan.reason.nameEncodingUnsupported"
+msgstr "the file names on the remote server cannot be decoded on this computer; switch to Smart or Prefer SFTP mode, or upgrade the tar command on the server"
+
+msgid "transfer.batchUpload"
+msgstr "{n} items from {dir}"
+
+msgid "settings.exportPickHint"
+msgstr "Виберіть, що включити до файлу експорту."
+
+msgid "settings.exportSelectAll"
+msgstr "Вибрати все"
+
+msgid "settings.exportDeselectAll"
+msgstr "Очистити вибір"
+
+msgid "settings.exportCatBookmarkData"
+msgstr "Дані закладок"
+
+msgid "settings.hotkeyWheelHint"
+msgstr "Привязка до колеса, натисніть, щоб записати знову (список більше не прокручуватиметься колесом)"
+
+msgid "settings.panelHotkeyWheelBareWarning"
+msgstr "Призначено на {keys}; список більше не прокручуватиметься колесом (додайте Alt)"
+
+msgid "settings.textCaretShape"
+msgstr "Форма курсора (перегляд/редактор)"
+msgid "settings.textCaretShapeHint"
+msgstr "Форма курсора, що малюється в перегляді. Три варіанти відповідають курсору термінала Tabby. У редакторі використовується системний курсор."
+msgid "settings.caretShapeBlock"
+msgstr "Блок"
+msgid "settings.caretShapeBeam"
+msgstr "Вертикальна лінія"
+msgid "settings.caretShapeUnderline"
+msgstr "Підкреслення"

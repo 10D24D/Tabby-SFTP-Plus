@@ -595,7 +595,7 @@ msgid "transfer.noTransfers"
 msgstr "アクティブな転送はありません"
 
 msgid "transfer.clearConfirm"
-msgstr "すべての転送記録をクリアしますか？この操作は元に戻せません。"
+msgstr "完了した転送記録を消去しますか？転送中の記録は保持されます。"
 
 msgid "transfer.clearTitle"
 msgstr "クリアを確認"
@@ -1188,6 +1188,8 @@ msgstr "保存しました"
 
 msgid "settings.interaction"
 msgstr "操作"
+msgid "settings.viewerEditor"
+msgstr "表示と編集"
 
 msgid "settings.openOnClick"
 msgstr "ファイル/フォルダを開く（方法）"
@@ -1314,6 +1316,10 @@ msgstr "すべてのファイル種類の表示と編集を許可"
 
 msgid "settings.allowViewEditAllFilesHint"
 msgstr "拡張子の制限を無視します。任意のファイルを表示でき、編集時はバイナリ内容が保護されます。"
+msgid "settings.showTextLineNumbers"
+msgstr "ビューア/エディタの行番号"
+msgid "settings.showTextLineNumbersHint"
+msgstr "内蔵ビューアとエディタの左側に行番号を表示します。"
 
 msgid "conflict.digest"
 msgstr "ダイジェスト"
@@ -1500,3 +1506,260 @@ msgid "settings.bookmarkFlatHint"
 msgstr "グループ化オフ時、グローバルブックマーク名の右に「グローバル」バッジが付き、現在のブックマークと自由に並べ替えできます。"
 msgid "bookmark.globalBadge"
 msgstr "グローバル"
+
+msgid "bookmark.locate"
+msgstr "現在のブックマークへ移動"
+
+msgid "bookmark.locateNone"
+msgstr "現在のパスにブックマークがありません"
+
+msgid "settings.reportBug"
+msgstr "Report a Bug"
+
+msgid "settings.featureRequest"
+msgstr "Feature Request"
+
+msgid "notify.duplicateTransfer"
+msgstr "{name} はすでに転送キューにあります — 重複リクエストを無視しました"
+
+msgid "transfer.etaRemaining"
+msgstr "残り {time}"
+
+msgid "app.dirMissingTitle"
+msgstr "転送先ディレクトリが存在しません"
+
+msgid "app.dirMissingText"
+msgstr "転送先のディレクトリが存在しません。作成しますか？"
+
+msgid "app.dirMissingCreate"
+msgstr "作成して転送"
+
+msgid "app.dirMissingFallback"
+msgstr "現在のディレクトリを使用"
+
+msgid "app.dirMissingCancel"
+msgstr "キャンセル"
+
+msgid "app.dirCreated"
+msgstr "ディレクトリを作成しました: {dir}"
+
+msgid "app.mkdirpFailed"
+msgstr "ディレクトリの作成に失敗しました: {reason}"
+
+msgid "app.targetNotDir"
+msgstr "転送先パスはディレクトリではありません: {dir}"
+
+msgid "pane.groupBy"
+msgstr "グループ化"
+
+msgid "group.none"
+msgstr "なし"
+
+msgid "group.name"
+msgstr "名前"
+
+msgid "group.modified"
+msgstr "更新日時"
+
+msgid "group.type"
+msgstr "種類"
+
+msgid "group.size"
+msgstr "サイズ"
+
+msgid "group.expand"
+msgstr "展開"
+
+msgid "group.collapse"
+msgstr "折りたたむ"
+
+msgid "group.today"
+msgstr "今日"
+
+msgid "group.yesterday"
+msgstr "昨日"
+
+msgid "group.thisWeek"
+msgstr "今週"
+
+msgid "group.thisMonth"
+msgstr "今月"
+
+msgid "group.earlierThisYear"
+msgstr "今年"
+
+msgid "group.longAgo"
+msgstr "ずっと前"
+
+msgid "group.folder"
+msgstr "フォルダー"
+
+msgid "group.noExt"
+msgstr "その他のファイル"
+
+msgid "group.typeFiles"
+msgstr "ファイル"
+
+msgid "group.sizeTiny"
+msgstr "極小 (0-16 KB)"
+
+msgid "group.sizeSmall"
+msgstr "小 (16 KB - 1 MB)"
+
+msgid "group.sizeMedium"
+msgstr "中 (1-128 MB)"
+
+msgid "group.sizeLarge"
+msgstr "大 (128 MB - 1 GB)"
+
+msgid "group.sizeHuge"
+msgstr "巨大 (1-4 GB)"
+
+msgid "group.sizeSuper"
+msgstr "超大 (>4 GB)"
+
+msgid "group.digit"
+msgstr "0-9"
+
+msgid "group.a2h"
+msgstr "A-H"
+
+msgid "group.i2p"
+msgstr "I-P"
+
+msgid "group.q2z"
+msgstr "Q-Z"
+
+msgid "group.pyAF"
+msgstr "ピンイン A-F"
+
+msgid "group.pyGL"
+msgstr "ピンイン G-L"
+
+msgid "group.pyMS"
+msgstr "ピンイン M-S"
+
+msgid "group.pyTZ"
+msgstr "ピンイン T-Z"
+
+msgid "group.other"
+msgstr "その他"
+
+msgid "group.toggleAll"
+msgstr "すべて展開/折りたたみ"
+
+msgid "group.expandAll"
+msgstr "すべて展開"
+
+msgid "group.collapseAll"
+msgstr "すべて折りたたむ"
+
+msgid "settings.enableItem"
+msgstr "項目を有効にする"
+
+msgid "settings.channelMode"
+msgstr "転送チャネルモード"
+
+msgid "settings.channelModeDesc"
+msgstr "Choose how folder transfers use tar packaging (TAR) vs file-by-file (SFTP)"
+
+msgid "settings.channelMode.smart"
+msgstr "スマート"
+
+msgid "settings.channelMode.sftpOnly"
+msgstr "SFTP のみ"
+
+msgid "settings.channelMode.tarOnly"
+msgstr "TAR のみ"
+
+msgid "settings.channelMode.preferSftp"
+msgstr "SFTP 優先"
+
+msgid "settings.channelMode.preferTar"
+msgstr "TAR 優先"
+
+msgid "settings.channelMode.smartDesc"
+msgstr "Auto-pick best channel by folder size and file count"
+
+msgid "settings.channelMode.sftpOnlyDesc"
+msgstr "Always transfer file by file; never use tar packing and no size-based routing"
+
+msgid "settings.channelMode.tarOnlyDesc"
+msgstr "Always use tar packing with no size-based routing; when packing is unavailable or fails, report the error instead of falling back to file-by-file. When the destination already exists the first attempt still goes file-by-file so conflicts can be detected; choosing Overwrite or Rename in the conflict prompt then continues with tar packing. A single file is always transferred file by file"
+
+msgid "settings.channelMode.preferSftpDesc"
+msgstr "Use tar only when clearly beneficial (requires many more files)"
+
+msgid "settings.channelMode.preferTarDesc"
+msgstr "Pack unless clearly worse (huge files); loose threshold"
+
+msgid "notify.tarOnlyFailed"
+msgstr "TAR-only mode: cannot transfer {name} - {reason}. Change Transfer channel mode to Smart / Prefer TAR in Settings, or fix the environment and retry"
+
+msgid "tarchan.reason.localTarMissing"
+msgstr "no usable tar command on this computer"
+
+msgid "tarchan.reason.remoteTarMissing"
+msgstr "no usable tar command on the remote server"
+
+msgid "tarchan.reason.symlinkUnsupported"
+msgstr "the folder contains symbolic links, which the packing channel does not support"
+
+msgid "tarchan.reason.packFailed"
+msgstr "packing or extracting the archive failed"
+
+msgid "tarchan.reason.tarballFailed"
+msgstr "transferring the archive file failed"
+
+msgid "tarchan.reason.other"
+msgstr "the packing channel is unavailable, see the log for details"
+
+msgid "notify.tarOnlyInapplicable"
+msgstr "TAR-only mode: {name} is not using the packed channel - {reason}. To send it as one archive, choose Overwrite in the directory conflict prompt, or delete the destination first and retry"
+
+msgid "tarchan.reason.targetExists"
+msgstr "the destination already exists, and an incremental transfer can only go through the per-file channel"
+
+msgid "tarchan.reason.localPackFailed"
+msgstr "packing the folder on this computer failed, possibly due to disk space or permissions"
+
+msgid "tarchan.reason.remotePackFailed"
+msgstr "packing or extracting on the remote server failed, possibly due to disk space or permissions"
+
+msgid "tarchan.reason.localExtractFailed"
+msgstr "extracting the archive on this computer failed, see the log for details"
+
+msgid "tarchan.reason.nameEncodingUnsupported"
+msgstr "the file names on the remote server cannot be decoded on this computer; switch to Smart or Prefer SFTP mode, or upgrade the tar command on the server"
+
+msgid "transfer.batchUpload"
+msgstr "{n} items from {dir}"
+
+msgid "settings.exportPickHint"
+msgstr "エクスポートファイルに含める内容を選択してください。"
+
+msgid "settings.exportSelectAll"
+msgstr "すべて選択"
+
+msgid "settings.exportDeselectAll"
+msgstr "選択を解除"
+
+msgid "settings.exportCatBookmarkData"
+msgstr "ブックマークデータ"
+
+msgid "settings.hotkeyWheelHint"
+msgstr "ホイールの割り当て、クリックで再録音（リストはホイールでスクロールできなくなります）"
+
+msgid "settings.panelHotkeyWheelBareWarning"
+msgstr "{keys} に割り当てました。リストはホイールでスクロールできなくなります（Alt を併用してください）"
+
+msgid "settings.textCaretShape"
+msgstr "ビューア/エディタのキャレット形状"
+msgid "settings.textCaretShapeHint"
+msgstr "ビューアに描画されるキャレットの形状です。3 つの選択肢は Tabby ターミナルのカーソルに対応します。エディタはシステムのキャレットを使用します。"
+msgid "settings.caretShapeBlock"
+msgstr "ブロック"
+msgid "settings.caretShapeBeam"
+msgstr "縦線"
+msgid "settings.caretShapeUnderline"
+msgstr "下線"

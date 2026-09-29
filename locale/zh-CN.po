@@ -172,13 +172,13 @@ msgid "fileType.unknown"
 msgstr "文件"
 
 msgid "app.deleteConfirmFile"
-msgstr "确实要删除此文件吗？"
+msgstr "确定要删除此文件吗？"
 
 msgid "app.deleteConfirmFolder"
-msgstr "确实要删除此文件夹吗？"
+msgstr "确定要删除此文件夹吗？"
 
 msgid "app.deleteConfirmMultiple"
-msgstr "确实要删除这 {count} 个项目吗？"
+msgstr "确定要删除这 {count} 个项目吗？"
 
 # ★ 本地删除回收站/永久删除提示
 msgid "app.trashHint"
@@ -532,6 +532,9 @@ msgstr "文件过大，无法打开"
 msgid "viewer.tooLargeView"
 msgstr "文件过大（超过 {limit}），无法查看"
 
+msgid "viewer.truncatedPreview"
+msgstr "文件较大，仅预览前 {limit}；完整内容请用「在系统中打开」"
+
 msgid "viewer.typeNotSupported"
 msgstr "不支持查看此类型文件"
 
@@ -653,7 +656,7 @@ msgid "transfer.noTransfers"
 msgstr "无进行中的传输"
 
 msgid "transfer.clearConfirm"
-msgstr "确定要清空所有传输记录吗？此操作不可撤销。"
+msgstr "确定清除已结束的传输记录吗？正在传输中的记录会保留。"
 
 msgid "transfer.clearTitle"
 msgstr "确认清空"
@@ -927,6 +930,9 @@ msgstr "功能性"
 msgid "settings.interaction"
 msgstr "交互设置"
 
+msgid "settings.viewerEditor"
+msgstr "查看与编辑"
+
 msgid "settings.openOnClick"
 msgstr "文件/文件夹打开方式"
 
@@ -954,6 +960,10 @@ msgid "settings.allowViewEditAllFiles"
 msgstr "允许查看与编辑所有文件类型"
 msgid "settings.allowViewEditAllFilesHint"
 msgstr "忽略扩展名限制；查看任意文件，编辑时二进制内容仍会被保护。"
+msgid "settings.showTextLineNumbers"
+msgstr "查看编辑器显示行号"
+msgid "settings.showTextLineNumbersHint"
+msgstr "在内置查看器与编辑器左侧显示行号。"
 msgid "settings.transferSection"
 msgstr "传输设置"
 
@@ -1148,6 +1158,27 @@ msgstr "上下布局"
 
 msgid "layout.mode.single"
 msgstr "单栏布局（仅远程）"
+
+msgid "layout.override.tooNarrow"
+msgstr "面板过窄，左右布局空间不足，已临时改为上下布局"
+
+msgid "layout.override.tooShort"
+msgstr "面板过矮，上下布局空间不足，已临时改为左右布局"
+
+msgid "layout.override.tooCramped"
+msgstr "面板过窄且过矮，双栏空间不足，已临时改为单栏"
+
+msgid "layout.override.reasonNarrow"
+msgstr "过窄"
+
+msgid "layout.override.reasonShort"
+msgstr "过矮"
+
+msgid "layout.override.reasonCramped"
+msgstr "过窄且过矮"
+
+msgid "layout.override.title"
+msgstr "{preferred} → {actual}（{reason}）"
 
 msgid "notify.closeWithTransfers"
 msgstr "有 {count} 个传输正在进行中，关闭面板将中断所有传输。是否继续？"
@@ -1421,7 +1452,7 @@ msgid "settings.occupied.title"
 msgstr "已占用快捷键"
 
 msgid "settings.occupied.hint"
-msgstr "以下键位由 SFTP+ 固定占用、不可修改。为上方动作设置快捷键时请避开这些组合，以免互相抢触发。"
+msgstr "以下键位由 SFTP+ 固定占用、不可修改。为上方动作设置快捷键时请避开这些组合；若与 Tabby 全局快捷键（如 Alt+Enter=全屏）冲突，绑定时会弹出确认提示。"
 
 msgid "settings.occupied.groupPanel"
 msgstr "面板"
@@ -1456,6 +1487,9 @@ msgstr "快速模式"
 msgid "log.modeTar"
 msgstr "打包加速"
 
+msgid "log.modeSftp"
+msgstr "SFTP"
+
 msgid "log.fileCount"
 msgstr "{n} 个文件"
 
@@ -1476,3 +1510,272 @@ msgid "settings.bookmarkFlatHint"
 msgstr "关闭分组后，全局书签名称右侧会显示「全局」标签，并可与当前书签自由拖拽混排"
 msgid "bookmark.globalBadge"
 msgstr "全局"
+
+msgid "bookmark.locate"
+msgstr "定位当前书签"
+
+msgid "bookmark.locateNone"
+msgstr "当前路径没有对应书签"
+
+msgid "editor.remoteChanged"
+msgstr "远程文件已被修改。确定要覆盖服务器上的版本吗？"
+
+msgid "notify.sftpRecovered"
+msgstr "SFTP 会话已恢复，请重试被中断的传输"
+
+msgid "perm.modeUnknown"
+msgstr "无法读取权限，已取消"
+
+msgid "permission.chmodFailed"
+msgstr "权限修改失败"
+
+msgid "settings.reportBug"
+msgstr "报告问题"
+
+msgid "settings.featureRequest"
+msgstr "提出需求"
+
+msgid "notify.duplicateTransfer"
+msgstr "{name} 已在传输队列中，已忽略重复请求"
+
+msgid "transfer.etaRemaining"
+msgstr "剩余 {time}"
+
+msgid "app.dirMissingTitle"
+msgstr "目标目录不存在"
+
+msgid "app.dirMissingText"
+msgstr "传输目标目录不存在，是否创建？"
+
+msgid "app.dirMissingCreate"
+msgstr "创建并传输"
+
+msgid "app.dirMissingFallback"
+msgstr "使用当前目录"
+
+msgid "app.dirMissingCancel"
+msgstr "取消"
+
+msgid "app.dirCreated"
+msgstr "已创建目录：{dir}"
+
+msgid "app.mkdirpFailed"
+msgstr "创建目录失败：{reason}"
+
+msgid "app.targetNotDir"
+msgstr "目标路径不是目录：{dir}"
+
+msgid "pane.groupBy"
+msgstr "分组依据"
+
+msgid "group.none"
+msgstr "无"
+
+msgid "group.name"
+msgstr "名称"
+
+msgid "group.modified"
+msgstr "修改日期"
+
+msgid "group.type"
+msgstr "类型"
+
+msgid "group.size"
+msgstr "大小"
+
+msgid "group.expand"
+msgstr "展开"
+
+msgid "group.collapse"
+msgstr "折叠"
+
+msgid "group.today"
+msgstr "今天"
+
+msgid "group.yesterday"
+msgstr "昨天"
+
+msgid "group.thisWeek"
+msgstr "本周"
+
+msgid "group.thisMonth"
+msgstr "本月"
+
+msgid "group.earlierThisYear"
+msgstr "今年早些时候"
+
+msgid "group.longAgo"
+msgstr "很久以前"
+
+msgid "group.folder"
+msgstr "文件夹"
+
+msgid "group.noExt"
+msgstr "其他文件"
+
+msgid "group.typeFiles"
+msgstr "文件"
+
+msgid "group.sizeTiny"
+msgstr "极小(0-16 KB)"
+
+msgid "group.sizeSmall"
+msgstr "小(16 KB - 1 MB)"
+
+msgid "group.sizeMedium"
+msgstr "中等(1-128 MB)"
+
+msgid "group.sizeLarge"
+msgstr "大(128 MB - 1 GB)"
+
+msgid "group.sizeHuge"
+msgstr "巨大(1-4 GB)"
+
+msgid "group.sizeSuper"
+msgstr "超大(>4 GB)"
+
+msgid "group.digit"
+msgstr "0-9"
+
+msgid "group.a2h"
+msgstr "A-H"
+
+msgid "group.i2p"
+msgstr "I-P"
+
+msgid "group.q2z"
+msgstr "Q-Z"
+
+msgid "group.pyAF"
+msgstr "拼音 A-F"
+
+msgid "group.pyGL"
+msgstr "拼音 G-L"
+
+msgid "group.pyMS"
+msgstr "拼音 M-S"
+
+msgid "group.pyTZ"
+msgstr "拼音 T-Z"
+
+msgid "group.other"
+msgstr "其他"
+
+msgid "group.toggleAll"
+msgstr "展开/收起所有分组"
+
+msgid "group.expandAll"
+msgstr "全部展开"
+
+msgid "group.collapseAll"
+msgstr "全部折叠"
+
+msgid "settings.enableItem"
+msgstr "启用该项"
+
+msgid "settings.channelMode"
+msgstr "传输通道模式"
+
+msgid "settings.channelModeDesc"
+msgstr "选择文件夹传输时打包(TAR)与逐文件(SFTP)的使用策略"
+
+msgid "settings.channelMode.smart"
+msgstr "智能模式"
+
+msgid "settings.channelMode.sftpOnly"
+msgstr "仅 SFTP"
+
+msgid "settings.channelMode.tarOnly"
+msgstr "仅 TAR"
+
+msgid "settings.channelMode.preferSftp"
+msgstr "优先 SFTP"
+
+msgid "settings.channelMode.preferTar"
+msgstr "优先 TAR"
+
+msgid "settings.channelMode.smartDesc"
+msgstr "按文件夹大小与文件数自动选择最优通道"
+
+msgid "settings.channelMode.sftpOnlyDesc"
+msgstr "一律逐文件传输，不使用打包通道，不做规模判断"
+
+msgid "settings.channelMode.tarOnlyDesc"
+msgstr "一律走打包通道，不做规模判断；打包不可用或失败时直接提示失败，不回退逐文件。目标已存在时首次尝试仍走逐文件以检测冲突，在冲突提示中选「覆盖」或「重命名」后会改走打包通道；单个文件始终逐文件传输"
+
+msgid "settings.channelMode.preferSftpDesc"
+msgstr "仅当明显划算时才打包（需要更多文件）"
+
+msgid "settings.channelMode.preferTarDesc"
+msgstr "除非明显吃亏（巨型文件）才回退，门槛宽松"
+
+msgid "notify.tarOnlyFailed"
+msgstr "仅 TAR 模式：无法传输 {name} —— {reason}。可在「设置 · 传输通道模式」改为智能或优先 TAR，或处理该问题后重试"
+
+msgid "tarchan.reason.localTarMissing"
+msgstr "本机没有可用的 tar 命令"
+
+msgid "tarchan.reason.remoteTarMissing"
+msgstr "远端服务器没有可用的 tar 命令"
+
+msgid "tarchan.reason.symlinkUnsupported"
+msgstr "目录内含符号链接，打包通道不支持"
+
+msgid "tarchan.reason.packFailed"
+msgstr "打包或解包失败"
+
+msgid "tarchan.reason.tarballFailed"
+msgstr "归档文件传输失败"
+
+msgid "tarchan.reason.other"
+msgstr "打包通道不可用，详见日志"
+
+msgid "notify.tarOnlyInapplicable"
+msgstr "仅 TAR 模式：{name} 未使用打包通道 —— {reason}。若希望打包传输，请在目录冲突提示中选择「覆盖」，或先删除目标目录后重试"
+
+msgid "tarchan.reason.targetExists"
+msgstr "目标已存在，增量传输只能走逐文件通道"
+
+msgid "tarchan.reason.localPackFailed"
+msgstr "本机打包失败，可能是磁盘空间或权限问题"
+
+msgid "tarchan.reason.remotePackFailed"
+msgstr "远端打包或解包失败，可能是磁盘空间或权限问题"
+
+msgid "tarchan.reason.localExtractFailed"
+msgstr "本机解包失败，详见日志"
+
+msgid "tarchan.reason.nameEncodingUnsupported"
+msgstr "远端文件名编码无法在本机还原；请改用智能或优先 SFTP 模式，或升级服务器上的 tar 命令"
+
+msgid "transfer.batchUpload"
+msgstr "{dir} 等 {n} 项"
+
+msgid "settings.exportPickHint"
+msgstr "选择要包含在导出文件中的内容。"
+
+msgid "settings.exportSelectAll"
+msgstr "全选"
+
+msgid "settings.exportDeselectAll"
+msgstr "全不选"
+
+msgid "settings.exportCatBookmarkData"
+msgstr "书签数据"
+
+msgid "settings.hotkeyWheelHint"
+msgstr "滚轮绑定，点击可重新录制（绑定后列表将无法再用滚轮滚动）"
+
+msgid "settings.panelHotkeyWheelBareWarning"
+msgstr "已绑定 {keys}；面板列表将无法再用滚轮滚动（建议加 Alt 等修饰键）"
+
+msgid "settings.textCaretShape"
+msgstr "查看编辑器光标形状"
+msgid "settings.textCaretShapeHint"
+msgstr "查看器中绘制的插入光标形状。三档与 Tabby 终端的光标形状一致。编辑器使用系统原生光标。"
+msgid "settings.caretShapeBlock"
+msgstr "方块"
+msgid "settings.caretShapeBeam"
+msgstr "竖线"
+msgid "settings.caretShapeUnderline"
+msgstr "下划线"

@@ -588,7 +588,7 @@ msgid "transfer.noTransfers"
 msgstr "Tidak ada transfer aktif"
 
 msgid "transfer.clearConfirm"
-msgstr "Bersihkan semua catatan transfer? Tindakan ini tidak dapat dibatalkan."
+msgstr "Hapus catatan transfer yang selesai? Catatan transfer yang sedang berlangsung tetap disimpan."
 
 msgid "transfer.clearTitle"
 msgstr "Konfirmasi Bersihkan"
@@ -1172,6 +1172,8 @@ msgstr "Tersimpan"
 
 msgid "settings.interaction"
 msgstr "Interaksi"
+msgid "settings.viewerEditor"
+msgstr "Penampil & editor"
 
 msgid "settings.openOnClick"
 msgstr "Buka file/folder dengan"
@@ -1298,6 +1300,10 @@ msgstr "Izinkan melihat dan mengedit semua jenis file"
 
 msgid "settings.allowViewEditAllFilesHint"
 msgstr "Abaikan batasan ekstensi. File apa pun dapat dilihat; konten biner tetap dilindungi saat mengedit."
+msgid "settings.showTextLineNumbers"
+msgstr "Nomor baris (penampil/editor)"
+msgid "settings.showTextLineNumbersHint"
+msgstr "Tampilkan nomor baris di penampil dan editor bawaan."
 
 msgid "conflict.digest"
 msgstr "Digest"
@@ -1484,3 +1490,260 @@ msgid "settings.bookmarkFlatHint"
 msgstr "Tanpa pengelompokan, penanda global menampilkan lencana Global di kanan nama dan dapat dicampur bebas dengan penanda saat ini."
 msgid "bookmark.globalBadge"
 msgstr "Global"
+
+msgid "bookmark.locate"
+msgstr "Temukan penanda saat ini"
+
+msgid "bookmark.locateNone"
+msgstr "Tidak ada penanda untuk jalur saat ini"
+
+msgid "settings.reportBug"
+msgstr "Report a Bug"
+
+msgid "settings.featureRequest"
+msgstr "Feature Request"
+
+msgid "notify.duplicateTransfer"
+msgstr "{name} sudah ada dalam antrean transfer — permintaan duplikat diabaikan"
+
+msgid "transfer.etaRemaining"
+msgstr "sisa {time}"
+
+msgid "app.dirMissingTitle"
+msgstr "Direktori tujuan tidak ada"
+
+msgid "app.dirMissingText"
+msgstr "Direktori tujuan transfer tidak ada. Buat?"
+
+msgid "app.dirMissingCreate"
+msgstr "Buat dan transfer"
+
+msgid "app.dirMissingFallback"
+msgstr "Gunakan direktori saat ini"
+
+msgid "app.dirMissingCancel"
+msgstr "Batal"
+
+msgid "app.dirCreated"
+msgstr "Direktori dibuat: {dir}"
+
+msgid "app.mkdirpFailed"
+msgstr "Gagal membuat direktori: {reason}"
+
+msgid "app.targetNotDir"
+msgstr "Jalur tujuan bukan direktori: {dir}"
+
+msgid "pane.groupBy"
+msgstr "Kelompokkan menurut"
+
+msgid "group.none"
+msgstr "Tidak ada"
+
+msgid "group.name"
+msgstr "Nama"
+
+msgid "group.modified"
+msgstr "Tanggal diubah"
+
+msgid "group.type"
+msgstr "Tipe"
+
+msgid "group.size"
+msgstr "Ukuran"
+
+msgid "group.expand"
+msgstr "Perluas"
+
+msgid "group.collapse"
+msgstr "Ciutkan"
+
+msgid "group.today"
+msgstr "Hari ini"
+
+msgid "group.yesterday"
+msgstr "Kemarin"
+
+msgid "group.thisWeek"
+msgstr "Lebih awal pekan ini"
+
+msgid "group.thisMonth"
+msgstr "Lebih awal bulan ini"
+
+msgid "group.earlierThisYear"
+msgstr "Lebih awal tahun ini"
+
+msgid "group.longAgo"
+msgstr "Lama sekali"
+
+msgid "group.folder"
+msgstr "Folder"
+
+msgid "group.noExt"
+msgstr "File lain"
+
+msgid "group.typeFiles"
+msgstr "file"
+
+msgid "group.sizeTiny"
+msgstr "Sangat kecil (0-16 KB)"
+
+msgid "group.sizeSmall"
+msgstr "Kecil (16 KB - 1 MB)"
+
+msgid "group.sizeMedium"
+msgstr "Sedang (1-128 MB)"
+
+msgid "group.sizeLarge"
+msgstr "Besar (128 MB - 1 GB)"
+
+msgid "group.sizeHuge"
+msgstr "Raksasa (1-4 GB)"
+
+msgid "group.sizeSuper"
+msgstr "Sangat besar (>4 GB)"
+
+msgid "group.digit"
+msgstr "0-9"
+
+msgid "group.a2h"
+msgstr "A-H"
+
+msgid "group.i2p"
+msgstr "I-P"
+
+msgid "group.q2z"
+msgstr "Q-Z"
+
+msgid "group.pyAF"
+msgstr "Pinyin A-F"
+
+msgid "group.pyGL"
+msgstr "Pinyin G-L"
+
+msgid "group.pyMS"
+msgstr "Pinyin M-S"
+
+msgid "group.pyTZ"
+msgstr "Pinyin T-Z"
+
+msgid "group.other"
+msgstr "Lainnya"
+
+msgid "group.toggleAll"
+msgstr "Perluas/ciutkan semua"
+
+msgid "group.expandAll"
+msgstr "Perluas semua"
+
+msgid "group.collapseAll"
+msgstr "Ciutkan semua"
+
+msgid "settings.enableItem"
+msgstr "Aktifkan item"
+
+msgid "settings.channelMode"
+msgstr "Transfer channel mode"
+
+msgid "settings.channelModeDesc"
+msgstr "Choose how folder transfers use tar packaging (TAR) vs file-by-file (SFTP)"
+
+msgid "settings.channelMode.smart"
+msgstr "Smart"
+
+msgid "settings.channelMode.sftpOnly"
+msgstr "SFTP only"
+
+msgid "settings.channelMode.tarOnly"
+msgstr "TAR only"
+
+msgid "settings.channelMode.preferSftp"
+msgstr "Prefer SFTP"
+
+msgid "settings.channelMode.preferTar"
+msgstr "Prefer TAR"
+
+msgid "settings.channelMode.smartDesc"
+msgstr "Auto-pick best channel by folder size and file count"
+
+msgid "settings.channelMode.sftpOnlyDesc"
+msgstr "Always transfer file by file; never use tar packing and no size-based routing"
+
+msgid "settings.channelMode.tarOnlyDesc"
+msgstr "Always use tar packing with no size-based routing; when packing is unavailable or fails, report the error instead of falling back to file-by-file. When the destination already exists the first attempt still goes file-by-file so conflicts can be detected; choosing Overwrite or Rename in the conflict prompt then continues with tar packing. A single file is always transferred file by file"
+
+msgid "settings.channelMode.preferSftpDesc"
+msgstr "Use tar only when clearly beneficial (requires many more files)"
+
+msgid "settings.channelMode.preferTarDesc"
+msgstr "Pack unless clearly worse (huge files); loose threshold"
+
+msgid "notify.tarOnlyFailed"
+msgstr "TAR-only mode: cannot transfer {name} - {reason}. Change Transfer channel mode to Smart / Prefer TAR in Settings, or fix the environment and retry"
+
+msgid "tarchan.reason.localTarMissing"
+msgstr "no usable tar command on this computer"
+
+msgid "tarchan.reason.remoteTarMissing"
+msgstr "no usable tar command on the remote server"
+
+msgid "tarchan.reason.symlinkUnsupported"
+msgstr "the folder contains symbolic links, which the packing channel does not support"
+
+msgid "tarchan.reason.packFailed"
+msgstr "packing or extracting the archive failed"
+
+msgid "tarchan.reason.tarballFailed"
+msgstr "transferring the archive file failed"
+
+msgid "tarchan.reason.other"
+msgstr "the packing channel is unavailable, see the log for details"
+
+msgid "notify.tarOnlyInapplicable"
+msgstr "TAR-only mode: {name} is not using the packed channel - {reason}. To send it as one archive, choose Overwrite in the directory conflict prompt, or delete the destination first and retry"
+
+msgid "tarchan.reason.targetExists"
+msgstr "the destination already exists, and an incremental transfer can only go through the per-file channel"
+
+msgid "tarchan.reason.localPackFailed"
+msgstr "packing the folder on this computer failed, possibly due to disk space or permissions"
+
+msgid "tarchan.reason.remotePackFailed"
+msgstr "packing or extracting on the remote server failed, possibly due to disk space or permissions"
+
+msgid "tarchan.reason.localExtractFailed"
+msgstr "extracting the archive on this computer failed, see the log for details"
+
+msgid "tarchan.reason.nameEncodingUnsupported"
+msgstr "the file names on the remote server cannot be decoded on this computer; switch to Smart or Prefer SFTP mode, or upgrade the tar command on the server"
+
+msgid "transfer.batchUpload"
+msgstr "{n} items from {dir}"
+
+msgid "settings.exportPickHint"
+msgstr "Pilih apa yang akan disertakan dalam file ekspor."
+
+msgid "settings.exportSelectAll"
+msgstr "Pilih semua"
+
+msgid "settings.exportDeselectAll"
+msgstr "Hapus pilihan"
+
+msgid "settings.exportCatBookmarkData"
+msgstr "Data penanda"
+
+msgid "settings.hotkeyWheelHint"
+msgstr "Ikatan roda gulir, klik untuk merekam ulang (daftar tidak dapat digulir dengan roda lagi)"
+
+msgid "settings.panelHotkeyWheelBareWarning"
+msgstr "Ditugaskan ke {keys}; daftar tidak dapat digulir dengan roda lagi (tambahkan Alt)"
+
+msgid "settings.textCaretShape"
+msgstr "Bentuk kursor (penampil/editor)"
+msgid "settings.textCaretShapeHint"
+msgstr "Bentuk kursor yang digambar di penampil. Tiga opsi mengikuti kursor terminal Tabby. Editor memakai kursor sistem."
+msgid "settings.caretShapeBlock"
+msgstr "Blok"
+msgid "settings.caretShapeBeam"
+msgstr "Garis vertikal"
+msgid "settings.caretShapeUnderline"
+msgstr "Garis bawah"
