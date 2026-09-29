@@ -1,6 +1,6 @@
 {
   "name": "tabby-sftp-plus",
-  "version": "2.3.1",
+  "version": "2.4.0",
   "description": "SFTP+ 美观易用的文件管理插件，支持内置查看/编辑、拖拽操作、书签、路径记忆、传输记录、多语言等。 Beautiful SFTP file manager for Tabby with built-in view/edit, drag-and-drop, bookmarks, transfer logs, and i18n.",
   "keywords": [
     "tabby-plugin",
@@ -12,7 +12,8 @@
   "main": "dist/index.js",
   "scripts": {
     "check-common": "node scripts/check-common-sync.mjs",
-    "prebuild": "npm run check-common",
+    "check-i18n": "node scripts/check-i18n-keys.mjs",
+    "prebuild": "npm run check-common && npm run check-i18n",
     "build": "webpack --progress --color && node scripts/copy-icons.mjs && node scripts/copy-sftp-manifest.mjs",
     "watch": "webpack --progress --color --watch",
     "use-in-tabby": "powershell -NoProfile -ExecutionPolicy Bypass -File ./use-in-tabby.ps1",
