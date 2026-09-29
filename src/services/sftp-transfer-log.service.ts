@@ -2,10 +2,19 @@
  * 传输日志服务
  * 功能描述：记录所有文件传输操作（上传/下载/删除等），支持查看和导出
  *   存储到 localStorage，避免污染 Tabby 配置文件
- * 创建人：DD1024z + Claude
- * 创建时间：2026-06-21
- * 修改人：DD1024z + Hy4 preview
- * 修改时间：2026-09-03 — 新增 transferMode/fileCount 字段（传输模式与文件数展示）
+ * @创建人：DD1024z + Claude
+ * @创建时间：2026-06-21
+ * @修改人：DD1024z + Deepseek-V4.1-Flash
+ * @修改时间：2026-09-26 — 清除记录不再吞掉「正在传输中」的条目：clear()/clearProfile() 跳过
+ *              pending 条目（原实现一并 tombstone → 传输结束时 update(id) 找不到 id，
+ *              这次传输在记录里彻底消失：既无「进行中」也无最终结果）；配套新增
+ *              countClearable()，供「清除」按钮在无「可清除记录」时禁用
+ *              2026-09-21 — P2 修复：save() 合并 storage 中其它窗口的条目时就地收口过期 pending，
+ *              避免异常退出留下的僵尸记录被回写并长期显示「传输中」（load 时的 _reapStaleEntries
+ *              只清过本实例读到的那一批）
+ *              2026-09-21 — 新增受限的备份日志导入入口，统一执行类型清洗、条数与体积约束；
+ *              2026-09-20 — transferMode 增加 sftp（标准逐文件），与进度条/日志统一展示
+ *              2026-09-03 — 新增 transferMode/fileCount 字段（传输模式与文件数展示）
  */
 import { Injectable, Optional } from '@angular/core'
 import { ConfigService } from 'tabby-core'
@@ -29,11 +38,12 @@ export type TransferLogEntry = {
    *  修复"传输中误显示下载成功"——日志条目在 add 时即写入，传输完成才 update；缺此标志会导致
    *  进度期间日志显示 0ms ✓。 */
   pending?: boolean
-  /** ★ 2026-09-03：目录传输模式。fast=快速模式（跳过预扫描，无百分比进度）；
-   *  tar=tar 打包加速通道；undefined=标准逐文件模式（此时 fileCount 有值可显示） */
-  transferMode?: 'fast' | 'tar'
-  /** ★ 2026-09-03：目录传输的文件总数。仅标准模式预扫描后记录（快速模式未知不记、
-   *  tar 打包通道走整包不记）；单文件传输无此字段。0 表示未知/已被 tar 模式取代 */
+  /** ★ 2026-09-03：目录/文件传输方式。
+   *  sftp=标准逐文件 SFTP；tar=打包加速；
+   *  undefined=历史条目（仅 fileCount 可暗示标准目录模式） */
+  transferMode?: 'sftp' | 'tar'
+  /** ★ 2026-09-03：目录传输的文件总数。仅标准预扫描后记录（tar 打包通道走整包不记）；
+   *  单文件传输无此字段。0 表示未知/已被 tar 模式取代 */
   fileCount?: number
   /** ★ 2026-09-07 issue #15+：本条目因「内容已确认相同」被自动跳过，未实际传输。
    *  与 success:true 共存——成功语义是「传输意图已完成」，跳过也是意图达成。
@@ -195,8 +205,23 @@ export class SftpTransferLogService {
           const merged = new Map<string, TransferLogEntry>(
             this.logs.filter(l => l?.id && !deleted.has(l.id)).map(l => [l.id, l]),
           )
+          // ★ 2026-09-21 P2 修复：从存储并入的条目原样落库，其中可能有其它窗口异常退出
+          //   留下的 pending 僵尸；本实例 load() 时的 _reapStaleEntries 只清过自己读到的那批，
+          //   合并回写会让僵尸复活并长期显示「传输中」。这里按同样的年龄阈值就地收口。
+          const now = Date.now()
+          const REAP_PENDING_MAX_AGE_MS = 10 * 60 * 1000
           for (const l of stored) {
-            if (l?.id && !deleted.has(l.id) && !merged.has(l.id)) merged.set(l.id, l)
+            if (!l?.id || deleted.has(l.id) || merged.has(l.id)) continue
+            if (l.pending) {
+              const age = now - (l.startTime ?? l.timestamp)
+              if (Number.isFinite(age) && age >= REAP_PENDING_MAX_AGE_MS) {
+                l.pending = false
+                l.success = false
+                l.failReason = 'interrupted'
+                l.endTime = now
+              }
+            }
+            merged.set(l.id, l)
           }
           this.logs = [...merged.values()].sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0))
         }
@@ -210,14 +235,81 @@ export class SftpTransferLogService {
     try {
       const MAX_BYTES = 4 * 1024 * 1024 // 4 MB
       let serialized = JSON.stringify(this.logs)
-      while (serialized.length > MAX_BYTES && this.logs.length > 1) {
+      // ★ 2026-09-20 P2-12 审计修复：serialized.length 返回 UTF-16 字符数而非字节数。
+      //   中文路径 1 字符 = 3 字节（UTF-8），仅按字符数判断会低估实际大小，导致
+      //   看似 4MB 字符 ≈ 8~12MB 字节 → 超出 localStorage 配额 → save 静默失败。
+      //   改用 Blob 估算真实字节数（Electron 环境下可用），回退字符数 × 2。
+      let estimatedBytes: number
+      try {
+        estimatedBytes = new Blob([serialized]).size
+      } catch {
+        estimatedBytes = serialized.length * 2 // UTF-16 worst case
+      }
+      while (estimatedBytes > MAX_BYTES && this.logs.length > 1) {
         // 丢弃最旧的一半，直到大小合规
         this.logs = this.logs.slice(-Math.ceil(this.logs.length / 2))
         serialized = JSON.stringify(this.logs)
+        try {
+          estimatedBytes = new Blob([serialized]).size
+        } catch {
+          estimatedBytes = serialized.length * 2
+        }
       }
       localStorage.setItem(STORAGE_KEY, serialized)
       this._saveTombstones()
     } catch (e) { log.warn('localStorage save failed', e) }
+  }
+
+  /** 从设置备份替换导入日志；导入数据不得绕过运行时的清洗与存储上限。 */
+  replaceFromImport(raw: unknown): boolean {
+    if (!Array.isArray(raw)) return false
+    const operations = new Set<TransferLogEntry['operation']>([
+      'upload', 'download', 'edit-upload', 'edit-download',
+      'delete', 'rename', 'mkdir', 'chmod',
+    ])
+    const modes = new Set<NonNullable<TransferLogEntry['transferMode']>>(['sftp', 'tar'])
+    const now = Date.now()
+    const finiteNumber = (value: unknown): number | undefined => {
+      const number = Number(value)
+      return Number.isFinite(number) ? number : undefined
+    }
+    const imported: TransferLogEntry[] = []
+    for (const value of raw.slice(-MAX_LOGS)) {
+      if (!value || typeof value !== 'object') continue
+      const source = value as Record<string, unknown>
+      const operation = String(source.operation ?? '') as TransferLogEntry['operation']
+      if (!operations.has(operation)) continue
+      const wasPending = source.pending === true
+      const mode = String(source.transferMode ?? '') as NonNullable<TransferLogEntry['transferMode']>
+      imported.push({
+        id: typeof source.id === 'string' ? source.id.slice(0, 256) : '',
+        timestamp: finiteNumber(source.timestamp) ?? now,
+        operation,
+        localPath: String(source.localPath ?? '').slice(0, 4096),
+        remotePath: String(source.remotePath ?? '').slice(0, 4096),
+        profileName: source.profileName == null ? undefined : String(source.profileName).slice(0, 512),
+        success: wasPending ? false : source.success === true,
+        error: source.error == null ? undefined : String(source.error).slice(0, 16384),
+        size: finiteNumber(source.size),
+        duration: finiteNumber(source.duration),
+        startTime: finiteNumber(source.startTime),
+        endTime: wasPending ? now : finiteNumber(source.endTime),
+        failReason: wasPending ? 'interrupted'
+          : (source.failReason === 'cancelled' || source.failReason === 'interrupted' || source.failReason === 'error'
+              ? source.failReason : undefined),
+        pending: false,
+        transferMode: modes.has(mode) ? mode : undefined,
+        fileCount: finiteNumber(source.fileCount),
+      })
+    }
+    this.logs = this._sanitizeIds(imported)
+    this._tombstones = []
+    try {
+      localStorage.removeItem(STORAGE_KEY)
+      localStorage.removeItem(TOMBSTONE_KEY)
+    } catch { /* save() will report storage failures */ }
+    this.save()
+    return true
   }
 
   /**
@@ -301,7 +393,9 @@ export class SftpTransferLogService {
     if (options?.profileName) {
       // 仅排除「明确归属其他连接」的记录；无 profile 归属（旧日志/未关联）仍显示，
       // 避免某条传输记录的 profileName 为空时被当前连接筛选误排除（导致「2 次传输只显示 1 条」）
-      result = result.filter(l => !l.profileName || l.profileName === options.profileName)
+      // ★ 2026-09-26：抽成 _profileMatches——清除动作（clearProfile）与「可清除计数」
+      //   必须用同一归属规则，否则会出现「列表里看得到、点清除却清不掉」。
+      result = result.filter(l => this._profileMatches(l, options.profileName))
     }
     if (options?.since !== undefined) {
       result = result.filter(l => l.timestamp >= options.since!)
@@ -319,10 +413,19 @@ export class SftpTransferLogService {
    * 创建时间：2026-06-21
    */
   clear(): void {
-    // ★ 2026-08-10 修复 #9：不再直接 removeItem——先 tombstone 全部 id 再经 save() 写空，
+    // ★ 2026-08-10 修复 #9：不再直接 removeItem——先 tombstone 再经 save() 写空，
     //   保证其它窗口后续 save() 合并时也不会把已清记录复活
-    for (const l of this.logs) this._tombstone(l.id)
-    this.logs = []
+    // ★ 2026-09-26：**只清「已结束」的记录，保留 pending（正在传输中）**。
+    //   原实现把 pending 一起 tombstone：正在传输的条目被清掉后，该次传输结束时
+    //   transferLog.update(logEntryId) 找不到 id（返回 false）→ 这次传输在记录里
+    //   彻底消失（既无「进行中」也无最终结果），用户侧＝「我明明在传，记录却没了」。
+    //   界面侧由「清除」按钮的 disabled（clearableCount）兜住；此处仍保留 pending，
+    //   因为 clear() 亦可被其它入口调用（如导入覆盖、测试）。
+    const keptPending = this.logs.filter(l => l.pending === true)
+    for (const l of this.logs) {
+      if (l.pending !== true) this._tombstone(l.id)
+    }
+    this.logs = keptPending
     this.save()
   }
 
@@ -364,11 +467,36 @@ export class SftpTransferLogService {
    */
   clearProfile(profileName: string): void {
     // ★ 2026-08-10 修复 #9：被清除的条目记入 tombstone，否则 save() 合并会立即复活
+    // ★ 2026-09-26：① 跳过 pending（正在传输中）——只清该连接下「已结束」的记录；
+    //   ② 归属判定与 filter() 统一走 _profileMatches（无归属的旧记录也归本连接显示），
+    //   否则会出现「列表里看得到、点清除却清不掉」的不一致。
     for (const l of this.logs) {
-      if (l.profileName === profileName) this._tombstone(l.id)
+      if (l.pending !== true && this._profileMatches(l, profileName)) this._tombstone(l.id)
     }
-    this.logs = this.logs.filter(l => l.profileName !== profileName)
+    this.logs = this.logs.filter(l => l.pending === true || !this._profileMatches(l, profileName))
     this.save()
+  }
+
+  /**
+   * profile 归属匹配（filter / clearProfile / countClearable 共用同一规则）。
+   * 无 profileName 归属的记录（旧日志、未关联）视为属于当前连接，保持与界面显示一致。
+   */
+  private _profileMatches(l: TransferLogEntry, profileName?: string): boolean {
+    if (profileName === undefined) return true
+    return !l.profileName || l.profileName === profileName
+  }
+
+  /**
+   * 统计「可清除」的记录数（排除正在传输中的 pending 条目）。
+   * ★ 2026-09-26：供「清除」按钮判定可用性——列表本身为空、或剩下的全是
+   *   「正在传输中」时都不该让按钮可点（点了也清不掉任何东西）。
+   *   范围与清除动作严格一致：按 profileName 归属（不叠加界面上的 op/状态/时间筛选，
+   *   否则「筛选后为空但实际有记录」会误禁用）。
+   */
+  countClearable(profileName?: string): number {
+    return this.logs.filter(l =>
+      l.pending !== true && this._profileMatches(l, profileName),
+    ).length
   }
 
   /**
