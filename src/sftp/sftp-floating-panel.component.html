@@ -53,6 +53,7 @@
           </button>
           <!-- 布局模式切换 -->
           <button class="btn-link btn-icon btn-layout" (click)="cycleLayoutMode()"
+                  [class.layout-overridden]="!!_layoutOverrideReason"
                   title="{{ layoutModeTitle() }}">
             <!-- 自动模式：四格方块自适应图标 -->
             <svg *ngIf="_layoutMode === 'auto'" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.35">
@@ -131,7 +132,7 @@
       <div class="sftp-body">
         <!-- ====== 本地面板 ====== -->
         <sftp-file-pane
-          *ngIf="_layoutMode !== 'single'"
+          *ngIf="_effectiveLayout !== 'single'"
           [i18n]="i18n"
           labelIcon="🖥"
           [paneLabel]="i18n.t('pane.local')"
@@ -163,6 +164,10 @@
           [hasError]="_localError"
           [showEmpty]="getFilteredLocalEntries().length === 0 && !_localLoading"
           [entries]="getFilteredLocalEntries()"
+          [groupRows]="getLocalGroupRows()"
+          [navFocusKey]="navFocusKey('local')"
+          (groupToggle)="onLocalGroupToggle($event)"
+          (groupSelect)="onLocalGroupSelect($event)"
           [visibleCols]="localVisibleCols"
           [headerCols]="localHeaderPreviewCols"
           [colWidths]="getLocalColWidths()"
@@ -187,8 +192,8 @@
           (listDragLeave)="onDragLeave($event, 'local')"
           (listDrop)="onDrop($event, 'local')"
           (listMouseDown)="onPaneMouseDown($event, 'local')"
-          (mousedown)="onPaneMouseNav('local', $event)"
           (listMouseEnter)="activePane = 'local'"
+          (listWheel)="onPaneWheel($event, 'local')"
           (listScroll)="onPaneScroll()"
           (listClick)="onPaneListClick($event, 'local')"
           (listContextMenu)="onPaneContextMenu($event)"
@@ -207,7 +212,7 @@
 
         <!-- 拖拽分割线（窄屏上下布局/宽屏左右布局均显示） -->
         <div class="pane-splitter"
-             *ngIf="_layoutMode !== 'single'"
+             *ngIf="_effectiveLayout !== 'single'"
              [title]="splitterTitle()"
              (mousedown)="onSplitterDown($event)"
              (dblclick)="onSplitterDblClick($event)"></div>
@@ -249,6 +254,10 @@
           [showHeader]="connected"
           [showEmpty]="connected && getFilteredRemoteEntries().length === 0 && !_remoteLoading"
           [entries]="getFilteredRemoteEntries()"
+          [groupRows]="getRemoteGroupRows()"
+          [navFocusKey]="navFocusKey('remote')"
+          (groupToggle)="onRemoteGroupToggle($event)"
+          (groupSelect)="onRemoteGroupSelect($event)"
           [visibleCols]="remoteVisibleCols"
           [headerCols]="remoteHeaderPreviewCols"
           [colWidths]="getRemoteColWidths()"
@@ -274,8 +283,8 @@
           (listDragLeave)="onDragLeave($event, 'remote')"
           (listDrop)="onDrop($event, 'remote')"
           (listMouseDown)="onPaneMouseDown($event, 'remote')"
-          (mousedown)="onPaneMouseNav('remote', $event)"
           (listMouseEnter)="activePane = 'remote'"
+          (listWheel)="onPaneWheel($event, 'remote')"
           (listScroll)="onPaneScroll()"
           (listClick)="onPaneListClick($event, 'remote')"
           (listContextMenu)="onPaneContextMenu($event)"
@@ -318,6 +327,7 @@
         [batchText]="batchDeleteText"
         [isDir]="deleteItemIsDir"
         [name]="deleteItemName"
+        [location]="deleteItemLocation"
         [type]="deleteItemType"
         [size]="deleteItemSize"
         [date]="deleteItemDate"
@@ -347,6 +357,8 @@
         [i18n]="i18n"
         [top]="bookmarkPopupY"
         [left]="bookmarkPopupX"
+        [width]="bookmarkPopupW"
+        [maxHeight]="bookmarkPopupMaxH"
         [arrowLeft]="bookmarkArrowLeft"
         [paneLabel]="bookmarkPane === 'local' ? i18n.t('pane.local') : i18n.t('pane.remote')"
         [pane]="bookmarkPane"
@@ -381,11 +393,17 @@
       </sftp-bookmark-popup>
 
       <!-- 传输日志 -->
+      <!-- ★ 2026-09-20 A6：加 *ngIf——此前该元素常驻实例化，导致 [entries]="filteredTransferLogs"
+           与 [totalCount]="transferLogTotalCount" 两个 getter 在每次变更检测都全量 filter+reverse
+           （日志上限 1000 条），且返回新数组使子组件 ngOnChanges 每 CD 触发。
+           该对话框为纯展示组件（无 ngOnInit/监听器），按需挂载不丢任何状态。 -->
       <sftp-transfer-log-dialog
+        *ngIf="showTransferLog"
         [i18n]="i18n"
         [visible]="showTransferLog"
         [entries]="filteredTransferLogs"
         [totalCount]="transferLogTotalCount"
+        [clearableCount]="transferLogClearableCount"
         [filterOp]="logFilterOp"
         [filterStatus]="logFilterStatus"
         [filterTimeRange]="logFilterTimeRange"
@@ -410,10 +428,21 @@
         [i18n]="i18n"
         [visible]="showConflictDialog"
         [data]="conflictData"
+        [fileIconUrl]="conflictFileIconUrl"
         [currIdx]="conflictCurrIdx"
         [totalIdx]="conflictTotalIdx"
         (resolve)="resolveConflict($event)">
       </sftp-conflict-dialog>
+
+      <!-- 传输目标目录不存在对话框（2026-09-28：默认上传/下载路径不存在时三选一） -->
+      <sftp-dir-missing-dialog
+        [i18n]="i18n"
+        [visible]="dirMissingVisible"
+        [dir]="dirMissingDir"
+        [isRemote]="dirMissingIsRemote"
+        [showFallback]="dirMissingShowFallback"
+        (choice)="resolveDirMissing($event)">
+      </sftp-dir-missing-dialog>
 
       <sftp-context-menu
         [i18n]="i18n"
@@ -423,7 +452,6 @@
         [pane]="contextMenuPane"
         [entry]="contextMenuEntry"
         [hasSelection]="hasContextSelection()"
-        [hasFileActions]="hasFileActions()"
         [singleSelected]="contextMenuPane === 'local' ? selectedLocal.length === 1 : selectedRemote.length === 1"
         [clipboardHasEntries]="clipboardEntries.length > 0"
         [canView]="canViewEntry(contextMenuEntry)"
@@ -432,6 +460,12 @@
         [modKey]="modKey"
         [menuOrder]="contextMenuOrder"
         [panelHotkeyShortcuts]="contextMenuHotkeyShortcuts"
+        [groupByPane]="contextMenuEntry ? null : contextMenuPane"
+        [groupBy]="contextMenuPane === 'local' ? localGroupBy : remoteGroupBy"
+        [groupAllCollapsed]="groupAllCollapsed"
+        [disabledMenuEntries]="contextMenuDisabledEntries"
+        (groupByAction)="onGroupByMenuAction($event)"
+        (groupToggleAll)="onGroupToggleAll()"
         [headerVisible]="headerMenuVisible"
         [headerX]="headerMenuX"
         [headerY]="headerMenuY"
@@ -487,6 +521,8 @@
         [showSystemAction]="viewerShowSystemAction"
         [imageIndex]="viewerImageIndex"
         [imageCount]="viewerImageCount"
+        [showLineNumbers]="showTextLineNumbers"
+        [caretShape]="textCaretShape"
         (systemAction)="openViewerInSystem()"
         (prevImage)="gotoViewerImage(-1)"
         (nextImage)="gotoViewerImage(1)"
@@ -504,6 +540,7 @@
         [content]="editorContent"
         [error]="editorError"
         [showSystemAction]="editorShowSystemAction"
+        [showLineNumbers]="showTextLineNumbers"
         (contentChange)="onEditorContentChange($event)"
         (save)="saveEditor()"
         (cancel)="closeEditor()"

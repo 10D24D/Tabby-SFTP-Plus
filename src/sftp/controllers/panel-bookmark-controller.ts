@@ -4,7 +4,7 @@
  * 创建人：DD1024z + Hy3
  * 创建时间：2026-07-11
  * 修改人：DD1024z + Composer
- * 修改时间：2026-09-18 — 书签面板分组开关 / 分组顺序 / 扁平混排拖拽
+ * 修改时间：2026-09-21 — Tabby 多拆分窄窗：书签宽高按触发面板可用空间 clamp，避免远程半屏被固定 320×420 挤爆
  */
 import * as path from 'path'
 import { Bookmark, SftpBookmarksService, normalizeBookmarkPath } from '../../services/sftp-bookmarks.service'
@@ -35,6 +35,10 @@ export abstract class SftpPanelBookmarkController extends SftpPanelViewerControl
   newBookmarkPath = ''
   bookmarkPopupX = 0
   bookmarkPopupY = 0
+  /** 弹层宽度（按触发面板可用空间动态 clamp，理想 320） */
+  bookmarkPopupW = 320
+  /** 弹层最大高度（按面板下方剩余空间 clamp，理想 420） */
+  bookmarkPopupMaxH = 420
   /** 箭头水平位置（相对弹窗左缘，对准触发按钮中心） */
   bookmarkArrowLeft = 24
   // 拖拽排序状态
@@ -64,12 +68,14 @@ export abstract class SftpPanelBookmarkController extends SftpPanelViewerControl
     this.newBookmarkPath = pane === 'local' ? this.localPath : this.remotePath
     this.newBookmarkName = ''
 
-    // 计算弹出位置：按钮下方，在 .sftp-root 内
+    // 计算弹出位置：按钮下方，在 .sftp-root 内；宽高按触发面板可用空间 clamp
     const btn = (event?.currentTarget ?? event?.target) as HTMLElement | null
     const rootEl = (this.elRef?.nativeElement as HTMLElement)?.querySelector('.sftp-root') as HTMLElement | null
     if (!btn || !rootEl) {
       this.bookmarkPopupX = 80
       this.bookmarkPopupY = 87
+      this.bookmarkPopupW = 320
+      this.bookmarkPopupMaxH = 420
       this.bookmarkArrowLeft = 160
       this._bookmarkJustOpened = true
       this.showBookmarks = true
@@ -78,40 +84,76 @@ export abstract class SftpPanelBookmarkController extends SftpPanelViewerControl
     }
     const btnRect = btn.getBoundingClientRect()
     const rootRect = rootEl.getBoundingClientRect()
-    const popupW = 320
-    // ★ 用 getBoundingClientRect 宽度（精确到像素），避免 clientWidth 为 0 时回退 window.innerWidth 导致拆分窗口下溢出
-    const rootW = rootRect.width
-    let left = btnRect.left - rootRect.left
-    if (!this._isNarrowLayout && pane === 'local') {
-      // 左右布局：本地面板弹层右缘对齐书签按钮，向左展开（与远程面板对称）
-      left = btnRect.right - rootRect.left - popupW
-      const paneHost = btn.closest('sftp-file-pane') as HTMLElement | null
-      const paneRect = paneHost?.getBoundingClientRect()
-      if (paneRect) {
-        const paneLeft = paneRect.left - rootRect.left
-        left = Math.max(paneLeft + 8, left)
-      } else {
-        left = Math.max(8, left)
-      }
-      // 视觉微调：本地面板整体右移一点，避免过于贴左
-      left = Math.min(left + 8.8, Math.max(0, rootW - popupW - 8))
-    } else {
-      // 远程面板 / 窄布局：默认从按钮左缘向右展开；
-      // ★ 若右缘会超出面板边界 → 改为从按钮右缘向左展开（与本地对称）
-      if (left + popupW > rootW - 4) {
-        left = btnRect.right - rootRect.left - popupW
-      }
-      // 最终安全 clamp：确保不超出面板左右边界（各留 4px 边距）
-      left = Math.max(4, Math.min(left, rootW - popupW - 4))
-    }
-    this.bookmarkPopupX = left
+    const paneHost = btn.closest('sftp-file-pane') as HTMLElement | null
+    const paneRect = paneHost?.getBoundingClientRect()
     const paneTitle = btn.closest('.pane-title') as HTMLElement | null
     const titleRect = paneTitle?.getBoundingClientRect()
-    if (titleRect) {
-      this.bookmarkPopupY = titleRect.bottom - rootRect.top
+    // ★ 用 getBoundingClientRect（精确到像素），避免 clientWidth 为 0 时回退 window 导致拆分窗溢出
+    const rootW = rootRect.width
+    const rootH = rootRect.height
+    const margin = 4
+    const idealW = 320
+    const idealH = 420
+    // 宽度：优先贴齐触发面板；窄窗上下布局时最多占面板约 72%，给文件列表留缝
+    const paneW = paneRect ? paneRect.width : rootW
+    const widthCap = this._isNarrowLayout
+      ? Math.min(idealW, Math.max(180, Math.floor(paneW * 0.72)))
+      : idealW
+    const popupW = Math.min(widthCap, Math.max(160, Math.floor(Math.min(rootW, paneW) - margin * 2)))
+    this.bookmarkPopupW = popupW
+
+    let left = btnRect.left - rootRect.left
+    if (!this._isNarrowLayout && pane === 'local') {
+      // 左右布局：本地书签弹层右缘贴齐本地面板右缘（遮住列表滚动条），向左展开
+      if (paneRect) {
+        const paneLeft = paneRect.left - rootRect.left
+        const paneRight = paneRect.right - rootRect.left
+        left = paneRight - popupW - 1
+        left = Math.max(paneLeft + margin, left)
+      } else {
+        left = btnRect.right - rootRect.left - popupW
+        left = Math.max(margin, left)
+      }
+      left = Math.max(2, Math.min(left, rootW - popupW - 2))
+    } else if (!this._isNarrowLayout && pane === 'remote') {
+      // 左右布局：远程书签弹层右缘贴齐远程面板右缘，向左展开，遮住文件列表滚动条
+      const paneRight = paneRect ? (paneRect.right - rootRect.left) : rootW
+      const paneLeft = paneRect ? (paneRect.left - rootRect.left) : 0
+      left = paneRight - popupW - 2
+      left = Math.max(paneLeft + margin, left)
+      left = Math.max(2, Math.min(left, rootW - popupW - 2))
     } else {
-      this.bookmarkPopupY = btnRect.bottom - rootRect.top + 4
+      // 窄布局（上下）：同样贴齐触发面板右缘，宽度已按面板 clamp，避免固定 320 盖住整半屏
+      if (paneRect) {
+        const paneLeft = paneRect.left - rootRect.left
+        const paneRight = paneRect.right - rootRect.left
+        left = paneRight - popupW - 2
+        left = Math.max(paneLeft + margin, left)
+      } else if (left + popupW > rootW - margin) {
+        left = btnRect.right - rootRect.left - popupW
+      }
+      left = Math.max(margin, Math.min(left, rootW - popupW - margin))
     }
+    this.bookmarkPopupX = left
+
+    const anchorBottom = titleRect ? titleRect.bottom : (btnRect.bottom + 4)
+    let top = anchorBottom - rootRect.top
+    // 高度：优先落在触发面板内剩余高度，再与整根面板 clamp（拆分窗远程半屏常见不足 420）
+    const spaceBelowRoot = Math.max(96, rootRect.bottom - anchorBottom - margin)
+    const spaceBelowPane = paneRect
+      ? Math.max(96, paneRect.bottom - anchorBottom - margin)
+      : spaceBelowRoot
+    let maxH = Math.min(idealH, spaceBelowRoot, spaceBelowPane)
+    // 下方不够时尽量上移，保证弹层仍落在 .sftp-root 内
+    if (top + maxH > rootH - margin) {
+      top = Math.max(margin, rootH - margin - maxH)
+    }
+    if (top + maxH > rootH - margin) {
+      maxH = Math.max(96, rootH - margin - top)
+    }
+    this.bookmarkPopupY = top
+    this.bookmarkPopupMaxH = maxH
+
     const arrowSize = 12
     const arrowLeft = btnRect.left + btnRect.width / 2 - rootRect.left - left - arrowSize / 2
     this.bookmarkArrowLeft = Math.max(12, Math.min(popupW - 24, arrowLeft))

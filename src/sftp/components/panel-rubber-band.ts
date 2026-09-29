@@ -1,5 +1,9 @@
 ﻿/**
  * 框选（Rubber Band Selection）逻辑
+ * @修改人：DD1024z + Hy3
+ * @修改时间：2026-09-29 — 修复分组模式框选错行：原按「DOM 行序 ↔ 过滤列表序」位置对位，
+ *          分组开启后两序不一致（框住下方行、上方行被选中）→ 全链路改为 data-path 路径映射
+ *          （几何缓存 / Ctrl 追加基线 / 选中模型同步 / 右键框选菜单命中）
  */
 import { ChangeDetectorRef, ElementRef, NgZone } from '@angular/core'
 import type { LocalEntry } from '../core/panel-types'
@@ -64,8 +68,13 @@ export class PanelRubberBand {
   private _rbSkipNextContextMenu = false
   private _rbEntryRects: Array<{ top: number; left: number; width: number; height: number }> = []
   private _rbEntryEls: HTMLElement[] = []
+  /** ★ 2026-09-29：与 _rbEntryEls 平行的 data-path 数组（分组模式下 DOM 行序 ≠ 过滤列表序，位置对位会选错行） */
+  private _rbElPaths: string[] = []
   private _rbPaneListEl: HTMLElement | null = null
   private _rbPaneListRect: DOMRect | null = null
+  private _rbScrollHandler: (() => void) | null = null
+  private _rbScrollLeft = 0
+  private _rbScrollTop = 0
   private _rbRectEl: HTMLElement | null = null
   private _rbCtrlHeld = false
   private _rbRightClick = false
@@ -356,6 +365,10 @@ export class PanelRubberBand {
     }
     if (this._rbMoveHandler) document.removeEventListener('mousemove', this._rbMoveHandler)
     if (this._rbUpHandler) document.removeEventListener('mouseup', this._rbUpHandler)
+    if (this._rbScrollHandler && this._rbPaneListEl) {
+      this._rbPaneListEl.removeEventListener('scroll', this._rbScrollHandler)
+      this._rbScrollHandler = null
+    }
     this._rbDestroyRectEl()
     this.rubberBand.active = false
     this.rubberBand.startedOnEntry = false
@@ -364,6 +377,7 @@ export class PanelRubberBand {
     this._rbDragCancelled = false
     this._rbEntryRects = []
     this._rbEntryEls = []
+    this._rbElPaths = []
     this._rbPaneListEl = null
     this._rbPaneListRect = null
     this._rbCtrlHeld = false
@@ -398,15 +412,18 @@ export class PanelRubberBand {
       }
     })
 
+    // ★ 2026-09-29：分组模式下 DOM 行序（分组桶序）≠ 过滤列表序（排序序），
+    //    原先「DOM 序号 ↔ 过滤列表序号」位置对位会选错行（框下面、上面被选中）——
+    //    改为按 data-path 建立「路径 → DOM 行序号」映射，命中序号统一先转路径再取条目
+    this._rbElPaths = entryEls.map(el => el.getAttribute('data-path') ?? '')
     this._rbPathToIndex.clear()
+    this._rbElPaths.forEach((p, i) => { if (p) this._rbPathToIndex.set(p, i) })
     if (pane === 'local') {
       this._rbCachedLocalEntries = this.host.getFilteredLocalEntries()
       this._rbCachedRemoteEntries = null
-      this._rbCachedLocalEntries.forEach((e, i) => this._rbPathToIndex.set(e.fullPath, i))
     } else {
       this._rbCachedRemoteEntries = this.host.getFilteredRemoteEntries()
       this._rbCachedLocalEntries = null
-      this._rbCachedRemoteEntries.forEach((e, i) => this._rbPathToIndex.set(e.fullPath, i))
     }
   }
 
@@ -444,6 +461,27 @@ export class PanelRubberBand {
     if (this.rubberBand.active) return
     this.rubberBand.active = true
     this._rbCacheForRubberBand()
+    const listEl = this._rbPaneListEl
+    if (listEl) {
+      this._rbScrollLeft = listEl.scrollLeft
+      this._rbScrollTop = listEl.scrollTop
+      // ★ 2026-09-20：滚动时重算条目几何并平移框选起点，避免选错行
+      this._rbScrollHandler = () => {
+        if (!this.rubberBand.active || !this._rbPaneListEl) return
+        const dx = this._rbPaneListEl.scrollLeft - this._rbScrollLeft
+        const dy = this._rbPaneListEl.scrollTop - this._rbScrollTop
+        this._rbScrollLeft = this._rbPaneListEl.scrollLeft
+        this._rbScrollTop = this._rbPaneListEl.scrollTop
+        this.rubberBand.startX += dx
+        this.rubberBand.startY += dy
+        this.rubberBand.currentX += dx
+        this.rubberBand.currentY += dy
+        this._rbPaneListRect = this._rbPaneListEl.getBoundingClientRect()
+        this._rbCacheForRubberBand()
+        this._rbScheduleFrameUpdate()
+      }
+      listEl.addEventListener('scroll', this._rbScrollHandler, { passive: true })
+    }
 
     const rb = this.rubberBand
     const merge = this._rbCtrlHeld
@@ -477,25 +515,20 @@ export class PanelRubberBand {
     this.host.contextMenuY = y
     this.host.contextMenuPane = pane
 
+    // ★ 2026-09-29：hitIndex 是 DOM 行序号，经 _rbElPaths 转路径后在过滤列表里按路径找条目
     if (hitIndex != null && hitIndex >= 0) {
-      if (pane === 'local') {
-        const entry = this.host.getFilteredLocalEntries()[hitIndex]
-        if (entry) {
-          this.host.contextMenuEntry = entry
-          this.host.contextMenuVisible = true
-          this.host.cdr.detectChanges()
-          this.host.fixContextMenuPosition(x, y)
-          return
-        }
-      } else {
-        const entry = this.host.getFilteredRemoteEntries()[hitIndex]
-        if (entry) {
-          this.host.contextMenuEntry = entry
-          this.host.contextMenuVisible = true
-          this.host.cdr.detectChanges()
-          this.host.fixContextMenuPosition(x, y)
-          return
-        }
+      const hitPath = this._rbElPaths[hitIndex]
+      const entry = hitPath
+        ? (pane === 'local'
+            ? this.host.getFilteredLocalEntries().find(e => e.fullPath === hitPath)
+            : this.host.getFilteredRemoteEntries().find(e => e.fullPath === hitPath))
+        : null
+      if (entry) {
+        this.host.contextMenuEntry = entry
+        this.host.contextMenuVisible = true
+        this.host.cdr.detectChanges()
+        this.host.fixContextMenuPosition(x, y)
+        return
       }
     }
 
@@ -554,21 +587,21 @@ export class PanelRubberBand {
     return hitIndices
   }
 
-  /** 同步选中模型（不写 DOM）；条目引用对齐当前过滤列表 */
+  /** 同步选中模型；★ 2026-09-29：序号为 DOM 行序号，先经 _rbElPaths 转路径再按路径取条目（分组模式顺序无关） */
   private _rbSyncSelectionModel(indices: Set<number>): void {
     const rb = this.rubberBand
     const sorted = [...indices].sort((a, b) => a - b)
     if (rb.pane === 'local' && this._rbCachedLocalEntries) {
       const byPath = new Map(this.host.getFilteredLocalEntries().map(e => [e.fullPath, e]))
       this.host.selectedLocal = sorted
-        .map(i => this._rbCachedLocalEntries![i])
-        .map(e => byPath.get(e.fullPath) ?? e)
+        .map(i => this._rbElPaths[i])
+        .map(p => (p ? byPath.get(p) : null))
         .filter(Boolean) as LocalEntry[]
     } else if (rb.pane === 'remote' && this._rbCachedRemoteEntries) {
       const byPath = new Map(this.host.getFilteredRemoteEntries().map(e => [e.fullPath, e]))
       this.host.selectedRemote = sorted
-        .map(i => this._rbCachedRemoteEntries![i])
-        .map(e => byPath.get(e.fullPath) ?? e)
+        .map(i => this._rbElPaths[i])
+        .map(p => (p ? byPath.get(p) : null))
         .filter(Boolean) as SFTPFile[]
     }
   }

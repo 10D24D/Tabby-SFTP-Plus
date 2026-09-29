@@ -1,17 +1,24 @@
 /**
  * SFTP+ 列/表格设置逻辑基类（由 sftp-floating-panel.component.ts 抽取）
  * 功能描述：承载列可见性/列宽/重排/自适应/表头右键菜单等逻辑与状态，供浮动面板组件继承
- * 创建人：DD1024z + Hy3
- * 创建时间：2026-07-11
- * 修改人：DD1024z + Hy3
- * 修改时间：2026-07-29
+ * @创建人：DD1024z + Hy3
+ * @创建时间：2026-07-11
+ * @修改人：DD1024z + Claude Opus 5
+ * @修改时间：2026-09-21 — P2 修复：列顺序加载经 _normalizeColOrder 补齐缺失列（原先只 filter，
+ *              配置里存的是子集时缺失列会从表头彻底消失，且没有任何 UI 途径能加回来）；
+ *              列宽校验改用 Number.isFinite 排除 Infinity（写进 gridTemplateColumns 会让网格失效）
+ *              2026-09-21 — 表头菜单及列操作统一走销毁安全的视图刷新入口；
+ *              第六轮审计 P2 修复：loadLocalColWidths/loadRemoteColWidths 改用 _parsePaneJson
+ *              （2026-09-20 的「兼容对象与字符串」修复漏了这两个方法，迁移用户列宽回退默认）
+ *              2026-09-20 — 排序/列配置读写兼容对象与 JSON 字符串；排序变更立即 flush 防关窗丢失
  */
 import { ChangeDetectorRef, ElementRef, NgZone } from '@angular/core'
 import { SftpI18nService } from '../../services/sftp-i18n.service'
 import { PanelHeaderReorder } from '../components/panel-header-reorder'
 import type { LocalEntry, SFTPFile } from '../core/panel-types'
 
-export class SftpPanelColumnController {
+export abstract class SftpPanelColumnController {
+  protected abstract _safeDetect(): void
   // ===== 静态常量 =====
   static readonly LOCAL_COLS_KEY = 'sftp-plus-local-cols'
   static readonly LOCAL_COL_ORDER_KEY = 'sftp-plus-local-cols-order'
@@ -21,6 +28,29 @@ export class SftpPanelColumnController {
   static readonly TABLE_SETTINGS_KEY = 'sftp-plus-table'
   static readonly LOCAL_COL_WIDTHS_KEY = 'sftp-plus-local-col-widths'
   static readonly REMOTE_COL_WIDTHS_KEY = 'sftp-plus-remote-col-widths'
+
+  /**
+   * ★ 2026-09-21 P2 修复：持久化的列顺序只做 filter 不补齐，存的是子集时
+   * （损坏数据 / 旧版本少列 / 手改配置）缺失列会从 localVisibleCols 里彻底消失——
+   * 即使 showColX 为 true 也不渲染，且没有任何 UI 途径能把它加回来。
+   * 规范化 = 去重保序 + 追加 ALL_COLS 中缺失的列。
+   */
+  protected static _normalizeColOrder(parsed: unknown[]): string[] {
+    const all = SftpPanelColumnController.ALL_COLS as readonly string[]
+    const order: string[] = []
+    for (const c of parsed) {
+      if (typeof c === 'string' && all.includes(c) && !order.includes(c)) order.push(c)
+    }
+    for (const c of all) {
+      if (!order.includes(c)) order.push(c)
+    }
+    return order
+  }
+
+  /** 列宽合法性：必须是有限数且不小于各列下限（Infinity 会让 gridTemplateColumns 失效） */
+  protected static _validColWidth(v: unknown, min: number): boolean {
+    return typeof v === 'number' && Number.isFinite(v) && v >= min
+  }
 
   // ===== 列状态字段 =====
   showHiddenLocal = false
@@ -114,6 +144,18 @@ export class SftpPanelColumnController {
   protected formatOctalMode(mode: number): string { return '' }
   protected _paneGet(key: string, def?: any): any { return def }
   protected _paneSet(key: string, val: any): void {}
+  /** 子类覆盖：将 _paneSet 写入落盘（排序等低频变更应立即 flush） */
+  protected _paneFlush(): void {}
+
+  /** 兼容：历史存 JSON 字符串，ConfigProxy/YAML 回读可能已是对象 */
+  protected _parsePaneJson(raw: any): any {
+    if (raw == null || raw === '') return null
+    if (typeof raw === 'object') return raw
+    if (typeof raw === 'string') {
+      try { return JSON.parse(raw) } catch { return null }
+    }
+    return null
+  }
   protected _invalidateLocalCache(): void {}
   protected _invalidateRemoteCache(): void {}
   protected async refreshRemote(): Promise<boolean> { return false }
@@ -226,9 +268,8 @@ export class SftpPanelColumnController {
 
   protected loadLocalColSettings(): void {
     try {
-      const raw = this._paneGet(SftpPanelColumnController.LOCAL_COLS_KEY)
-      if (raw) {
-        const cols = JSON.parse(raw)
+      const cols = this._parsePaneJson(this._paneGet(SftpPanelColumnController.LOCAL_COLS_KEY))
+      if (cols) {
         this.localShowColSize = cols.size !== false
         this.localShowColDate = cols.date !== false
         this.localShowColPerms = cols.perms !== false
@@ -242,48 +283,41 @@ export class SftpPanelColumnController {
       }
     } catch { /* 使用默认值 */ }
     try {
-      const orderRaw = this._paneGet(SftpPanelColumnController.LOCAL_COL_ORDER_KEY)
-      if (orderRaw) {
-        const parsed = JSON.parse(orderRaw)
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          this.localColOrder = parsed.filter((c: string) => SftpPanelColumnController.ALL_COLS.includes(c as any))
-        }
+      const parsed = this._parsePaneJson(this._paneGet(SftpPanelColumnController.LOCAL_COL_ORDER_KEY))
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        this.localColOrder = SftpPanelColumnController._normalizeColOrder(parsed)
       }
     } catch { /* 使用默认顺序 */ }
     try {
-      const s = JSON.parse(this._paneGet('sftp-plus-local-sort') || '{}')
+      const s = this._parsePaneJson(this._paneGet('sftp-plus-local-sort')) || {}
       if (s.by) { this.localSortBy = s.by; this.localSortAsc = s.asc !== false }
     } catch {}
   }
 
   protected loadRemoteColSettings(): void {
     try {
-      const raw = this._paneGet(SftpPanelColumnController.REMOTE_COLS_KEY)
-      if (raw) {
-        const cols = JSON.parse(raw)
-        this.remoteShowColSize = cols.size !== false
-        this.remoteShowColDate = cols.date !== false
-        this.remoteShowColPerms = cols.perms !== false
+      const c = this._parsePaneJson(this._paneGet(SftpPanelColumnController.REMOTE_COLS_KEY))
+      if (c) {
+        this.remoteShowColSize = c.size !== false
+        this.remoteShowColDate = c.date !== false
+        this.remoteShowColPerms = c.perms !== false
         this.remoteShowColCreated = false
-        if (cols.mode !== undefined) this.remoteShowColMode = cols.mode
-        if (cols.access !== undefined) this.remoteShowColAccess = cols.access
-        if (cols.owner !== undefined) this.remoteShowColOwner = cols.owner
-        if (cols.group !== undefined) this.remoteShowColGroup = cols.group
-        if (cols.path !== undefined) this.remoteShowColPath = cols.path
-        if (cols.ext !== undefined) this.remoteShowColExt = cols.ext
+        if (c.mode !== undefined) this.remoteShowColMode = c.mode
+        if (c.access !== undefined) this.remoteShowColAccess = c.access
+        if (c.owner !== undefined) this.remoteShowColOwner = c.owner
+        if (c.group !== undefined) this.remoteShowColGroup = c.group
+        if (c.path !== undefined) this.remoteShowColPath = c.path
+        if (c.ext !== undefined) this.remoteShowColExt = c.ext
       }
     } catch { /* 使用默认值 */ }
     try {
-      const orderRaw = this._paneGet(SftpPanelColumnController.REMOTE_COL_ORDER_KEY)
-      if (orderRaw) {
-        const parsed = JSON.parse(orderRaw)
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          this.remoteColOrder = parsed.filter((c: string) => SftpPanelColumnController.ALL_COLS.includes(c as any))
-        }
+      const parsed = this._parsePaneJson(this._paneGet(SftpPanelColumnController.REMOTE_COL_ORDER_KEY))
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        this.remoteColOrder = SftpPanelColumnController._normalizeColOrder(parsed)
       }
     } catch { /* 使用默认顺序 */ }
     try {
-      const s = JSON.parse(this._paneGet('sftp-plus-remote-sort') || '{}')
+      const s = this._parsePaneJson(this._paneGet('sftp-plus-remote-sort')) || {}
       if (s.by && s.by !== 'birthtime') { this.remoteSortBy = s.by; this.remoteSortAsc = s.asc !== false }
     } catch {}
   }
@@ -426,7 +460,7 @@ export class SftpPanelColumnController {
     this.headerMenuVisible = false
     this.headerMenuCol = null
     if (isLocal) this.saveLocalColWidths(); else this.saveRemoteColWidths()
-    this.cdr.detectChanges()
+    this._safeDetect()
   }
 
   adjustAllColumnsWidth(): void {
@@ -444,7 +478,7 @@ export class SftpPanelColumnController {
     this.headerMenuVisible = false
     this.headerMenuCol = null
     if (isLocal) this.saveLocalColWidths(); else this.saveRemoteColWidths()
-    this.cdr.detectChanges()
+    this._safeDetect()
   }
 
   private _measureColWidth(col: string, isLocal: boolean): number {
@@ -521,7 +555,7 @@ export class SftpPanelColumnController {
     this.headerMenuX = ev.clientX
     this.headerMenuY = ev.clientY
     this.headerMenuVisible = true
-    this.cdr.detectChanges()
+    this._safeDetect()
     // 渲染后测量并修正
     setTimeout(() => {
       const menuEl = this.elRef.nativeElement.querySelector('.context-menu') as HTMLElement | null
@@ -537,7 +571,7 @@ export class SftpPanelColumnController {
       if (x !== this.headerMenuX || y !== this.headerMenuY) {
         this.headerMenuX = x
         this.headerMenuY = y
-        this.cdr.detectChanges()
+        this._safeDetect()
       }
     }, 0)
   }
@@ -558,7 +592,7 @@ export class SftpPanelColumnController {
     else this.saveRemoteColWidths()
     this._colJustResized = true
     setTimeout(() => { this._colJustResized = false }, 200)
-    this.cdr.detectChanges()
+    this._safeDetect()
   }
 
   onColResizeStart(col: string, event: MouseEvent, pane: 'local' | 'remote'): void {
@@ -626,12 +660,12 @@ export class SftpPanelColumnController {
       setTimeout(() => { this._colJustResized = false }, 200)
       if (this.resizePane === 'local') this.saveLocalColWidths()
       else this.saveRemoteColWidths()
-      this.cdr.detectChanges()
+      this._safeDetect()
     }
 
     document.addEventListener('mousemove', this._colResizeMoveHandler)
     document.addEventListener('mouseup', this._colResizeUpHandler)
-    this.cdr.detectChanges()
+    this._safeDetect()
   }
 
   /** 清理列宽调整事件监听器（组件销毁时调用，防止拖拽中销毁导致泄漏） */
@@ -695,35 +729,43 @@ export class SftpPanelColumnController {
 
   protected loadLocalColWidths(): void {
     try {
-      const w = JSON.parse(this._paneGet(SftpPanelColumnController.LOCAL_COL_WIDTHS_KEY) || '{}')
-      if (typeof w.name === 'number' && w.name >= this.colNameMinWidth) this.localColNameWidth = w.name
-      if (typeof w.size === 'number' && w.size >= 40) this.localColSizeWidth = w.size
-      if (typeof w.date === 'number' && w.date >= 80) this.localColDateWidth = w.date
-      if (typeof w.created === 'number' && w.created >= 80) this.localColCreatedWidth = w.created
-      if (typeof w.perms === 'number' && w.perms >= 40) this.localColPermsWidth = w.perms
-      if (typeof w.mode === 'number' && w.mode >= 40) this.localColModeWidth = w.mode
-      if (typeof w.access === 'number' && w.access >= 80) this.localColAccessWidth = w.access
-      if (typeof w.owner === 'number' && w.owner >= 40) this.localColOwnerWidth = w.owner
-      if (typeof w.group === 'number' && w.group >= 40) this.localColGroupWidth = w.group
-      if (typeof w.path === 'number' && w.path >= 60) this.localColPathWidth = w.path
-      if (typeof w.ext === 'number' && w.ext >= 30) this.localColExtWidth = w.ext
+      // ★ 2026-09-21 P2 修复：必须走 _parsePaneJson——迁移路径（SftpConfigService._migrateColumns
+      //   经 _safeParse）存的是对象而非 JSON 字符串，直接 JSON.parse(对象) 抛错被吞 → 列宽回退默认
+      const w = this._parsePaneJson(this._paneGet(SftpPanelColumnController.LOCAL_COL_WIDTHS_KEY)) || {}
+      // ★ 2026-09-21 P2 修复：改用 _validColWidth 排除 Infinity（原 typeof 检查放行，
+      //   写进 gridTemplateColumns 后整个网格布局失效）
+      const ok = SftpPanelColumnController._validColWidth
+      if (ok(w.name, this.colNameMinWidth)) this.localColNameWidth = w.name
+      if (ok(w.size, 40)) this.localColSizeWidth = w.size
+      if (ok(w.date, 80)) this.localColDateWidth = w.date
+      if (ok(w.created, 80)) this.localColCreatedWidth = w.created
+      if (ok(w.perms, 40)) this.localColPermsWidth = w.perms
+      if (ok(w.mode, 40)) this.localColModeWidth = w.mode
+      if (ok(w.access, 80)) this.localColAccessWidth = w.access
+      if (ok(w.owner, 40)) this.localColOwnerWidth = w.owner
+      if (ok(w.group, 40)) this.localColGroupWidth = w.group
+      if (ok(w.path, 60)) this.localColPathWidth = w.path
+      if (ok(w.ext, 30)) this.localColExtWidth = w.ext
     } catch {}
   }
 
   protected loadRemoteColWidths(): void {
     try {
-      const w = JSON.parse(this._paneGet(SftpPanelColumnController.REMOTE_COL_WIDTHS_KEY) || '{}')
-      if (typeof w.name === 'number' && w.name >= this.colNameMinWidth) this.remoteColNameWidth = w.name
-      if (typeof w.size === 'number' && w.size >= 40) this.remoteColSizeWidth = w.size
-      if (typeof w.date === 'number' && w.date >= 80) this.remoteColDateWidth = w.date
-      if (typeof w.created === 'number' && w.created >= 80) this.remoteColCreatedWidth = w.created
-      if (typeof w.perms === 'number' && w.perms >= 40) this.remoteColPermsWidth = w.perms
-      if (typeof w.mode === 'number' && w.mode >= 40) this.remoteColModeWidth = w.mode
-      if (typeof w.access === 'number' && w.access >= 80) this.remoteColAccessWidth = w.access
-      if (typeof w.owner === 'number' && w.owner >= 40) this.remoteColOwnerWidth = w.owner
-      if (typeof w.group === 'number' && w.group >= 40) this.remoteColGroupWidth = w.group
-      if (typeof w.path === 'number' && w.path >= 60) this.remoteColPathWidth = w.path
-      if (typeof w.ext === 'number' && w.ext >= 30) this.remoteColExtWidth = w.ext
+      // ★ 2026-09-21 P2 修复：同 loadLocalColWidths，迁移值是对象时必须用 _parsePaneJson
+      const w = this._parsePaneJson(this._paneGet(SftpPanelColumnController.REMOTE_COL_WIDTHS_KEY)) || {}
+      // ★ 2026-09-21 P2 修复：同 loadLocalColWidths，排除 Infinity
+      const ok = SftpPanelColumnController._validColWidth
+      if (ok(w.name, this.colNameMinWidth)) this.remoteColNameWidth = w.name
+      if (ok(w.size, 40)) this.remoteColSizeWidth = w.size
+      if (ok(w.date, 80)) this.remoteColDateWidth = w.date
+      if (ok(w.created, 80)) this.remoteColCreatedWidth = w.created
+      if (ok(w.perms, 40)) this.remoteColPermsWidth = w.perms
+      if (ok(w.mode, 40)) this.remoteColModeWidth = w.mode
+      if (ok(w.access, 80)) this.remoteColAccessWidth = w.access
+      if (ok(w.owner, 40)) this.remoteColOwnerWidth = w.owner
+      if (ok(w.group, 40)) this.remoteColGroupWidth = w.group
+      if (ok(w.path, 60)) this.remoteColPathWidth = w.path
+      if (ok(w.ext, 30)) this.remoteColExtWidth = w.ext
     } catch {}
   }
 }

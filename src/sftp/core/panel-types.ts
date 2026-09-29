@@ -1,12 +1,19 @@
 ﻿/**
  * SFTP+ 面板共享类型
- * 修改人：DD1024z + Composer
- * 修改时间：2026-09-17 — ConflictFileInfo 增加目录大小计算中标记 localSizePending / remoteSizePending
+ * 修改人：DD1024z + Deepseek-V4.1-Flash
+ * 修改时间：2026-09-26 — PanelTransferItem 增加 speedBps（EMA 平滑的数值速率）：
+ *              speed 是给人看的字符串无法参与运算，剩余时间估算需要原始数值
+ *              2026-09-26 二次修正：删除 lastProgressAt（停流判据）—— 剩余时间改为
+ *              「一旦测到可信速率就始终显示」，不再因「字节停止推进」而隐藏（用户要求保留旧预估）
+ *              2026-09-20 — P1-2 审计修复：PanelTransferItem 增加 _taskCancelRef（条目所属任务的取消引用，取消时按它广播）
+ *              2026-09-20 — PanelTransferItem 增加 transferMode（传输中进度条展示方式）
+ *              2026-09-17 — ConflictFileInfo 增加目录大小计算中标记 localSizePending / remoteSizePending
  *              2026-09-07 — issue #15：ConflictFileInfo 增加 localDigest / remoteDigest / contentIdentical 字段
  *   ConflictQueueItem 新增 entryKey 字段（= pasteEntryKey(entry)），用于冲突解决后准确排除已处理项
  */
 import type { Stats } from 'fs'
 import type { SFTPFile, SFTPSessionLike, SSHSessionLike } from '../../services/sftp.service'
+import type { TaskCancelRef } from './task-scope'
 
 export type LocalEntry = {
   name: string
@@ -88,6 +95,16 @@ export type FolderTransferCtx = {
   bytesDone: number
   itemDone: number
   hadConflict?: boolean
+  /**
+   * ★ 2026-09-26：**在途**子文件的字节级进度（key = 本地路径，value = 该文件已落盘字节的
+   *   **峰值**）。目录条目的行级进度 = `bytesDone`（已完成文件之和）+ 本表所有值之和。
+   *
+   *   为什么要按 ctx 记录、而不是各文件各报各的：同一目录的文件是**并发**下载的
+   *   （默认 3 路），若每个文件的回调只报「自己的基准 + 自己的字节」，那么一个 73MB 文件
+   *   报到 40MB 后，另一个刚起步的文件报 1.8MB 就会把界面**拉回去**。
+   *   取值用峰值（不用当前值）同样是为了单调：`getCompletedBytes()` 在整文件重试时会归零。
+   */
+  liveBytes?: Map<string, number>
 }
 
 export type BookmarkScope = 'connection' | 'global' | 'all'
@@ -100,6 +117,18 @@ export type PanelTransferItem = {
   localPath: string
   percent: number
   speed: string
+  /**
+   * ★ 2026-09-26：数值型瞬时速率（bytes/s），**仅供估算「剩余时间」**。
+   *   `speed` 是给人看的格式化字符串（"319.5 KB/s"），无法参与运算；此处保存原始值
+   *   （经 EMA 平滑，见各 tick 实现），队列组件用它算 ETA。
+   *
+   *   三态语义（2026-09-26 三次修正）：
+   *   · `undefined` = **从未测到**速率（开传瞬间）⇒ ETA 不显示；
+   *   · `> 0`       = 最近窗口的真实测量值 ⇒ 照常算 ETA（>24h 显示 ∞）；
+   *   · `0`         = 连续零推进超阈值后**如实写入的当前状态**（通道停摆，见
+   *                   SPEED_STALL_ZERO_MS）⇒ ETA 显示 `∞`。不是「没测到」，是「没在动」。
+   */
+  speedBps?: number
   bytesDone: number
   bytesTotal: number
   paused: boolean
@@ -117,6 +146,18 @@ export type PanelTransferItem = {
    * （不调用 _removeQueuedEntry），让 UI 以「已跳过 · 内容相同」状态展示。
    */
   skippedAsDuplicate?: boolean
+  /**
+   * ★ 2026-09-20：当前实际传输方式，供「传输中」进度条与日志展示。
+   * - sftp：逐文件 SFTP
+   * - tar：打包加速通道
+   */
+  transferMode?: 'sftp' | 'tar'
+  /**
+   * ★ 2026-09-20 P1-2 审计修复：该条目所属传输任务的取消引用。
+   *   并发多个目录任务时，取消必须广播到「本任务」的在途子流——
+   *   此前面板统一用 _cancelRef（永远指向最后启动的任务）→ 取消旧任务会误杀新任务。
+   */
+  _taskCancelRef?: TaskCancelRef
 }
 
 export type { SFTPFile, SFTPSessionLike, SSHSessionLike }

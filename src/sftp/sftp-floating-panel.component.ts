@@ -2,22 +2,205 @@
  * SFTP+ 浮动面板组件
  * 功能描述：纯 Angular 组件（不继承 BaseTabComponent），由装饰器动态创建为浮动 overlay
  *   双栏文件管理器（本地↔远程）、书签、传输日志、拖拽传输
- * 创建人：DD1024z + Claude
- * 创建时间：2026-06-21
- * 修改人：DD1024z + Grok 4.6
- * 修改时间：2026-09-17 — 合入 PR #22 面板根 keydown/keyup 隔离，并保留 window 捕获阶段剪贴板/粘贴屏蔽（issue #21）
+ * @创建人：DD1024z + Claude
+ * @创建时间：2026-06-21
+ * @修改人：DD1024z + Deepseek-V4.1-Flash
+ * @修改时间：2026-09-29 — ★ 查看器自绘光标改为「形状三档」：textCaretWidth(number) → textCaretShape
+ *              ('block'|'beam'|'underline')，getter 改名 + normalizeCaretShape() 归一化
+ *              （配置被手工改坏时回落 beam，不抛错），模板 [caretWidth] → [caretShape]
+ *              同日 — ★ 面板快捷键支持鼠标中键与滚轮上/下滚（用户：快捷键录制无法录制滚轮的点击
+ *              和上下滚动）。原 onPaneMouseNav（挂在组件宿主元素 mousedown 上，只认 back/forward）
+ *              替换为统一指针分发：_consumePanePointerHotkey() 找命中动作 + _runPanePointerHotkey() 执行，
+ *              **全部 15 个动作**都能绑指针事件，可执行性判定与键盘路径同源（_contextHotkeyReady 等）。
+ *              接线改为列表级（listMouseDown + 新增 listWheel 输出），中键/滚轮只在文件列表内生效。
+ *              命中即吞掉默认行为（中键自动滚动、滚轮滚动列表）；未命中一律不干预。滚轮 150ms 节流，
+ *              且节流窗口内**继续拦截**——否则列表会「滚一下停一下」。指针路径无 Shift 语义：
+ *              delete 一律走回收站，永久删除仍只由 Shift+键盘触发。
+ *              2026-09-29 — ★ 同栏冲突「源文件」内容摘要永远显示「—」（用户实测：把同一个文件粘贴回它
+ *              自己所在目录，冲突框里源侧摘要为空、目标侧正常）。根因：`_computeConflictDigests` 一律
+ *              **按字段名**选通道（localPath → 本地读盘、remotePath → 远端 sha1sum），而**同栏粘贴**时
+ *              这两个字段装的是**同一侧**的两个路径（paste._buildFileConflictItem：localPath=目标、
+ *              remotePath=源）→ local→local 对本地源路径跑 sha1sum（实测 log：「execSshCommand empty
+ *              output (retried): sha1sum "$(echo 'RDpcRGVza3RvcFx0ZXN0XHRlc3Q=' | base64 -d)" +
+ *              「[digest] remote digest output parse failed」），remote→remote 对远端目标路径读本地盘
+ *              （实测 log：「[digest] local digest failed」）—— 两端必有一端显示「—」。
+ *              修法：冲突队列项把 `samePaneSource` 透传到 `_computeConflictDigests`，两端按**实际所在侧**
+ *              选通道（同栏 local→local 两端都走 localDigest、remote→remote 两端都走 remoteDigest），
+ *              跨栏（上传/下载）两字段天然分居两侧，逻辑不变。副作用：同栏不再白发 SSH 命令，
+ *              「内容相同」提示在这一场景也能正常出现。
+ *              2026-09-29 — ★ issue #25（心跳恢复 / 目录刷新反复失败、日志噪声）：
+ *              ① 目录刷新撞上「通道已死」（session/channel closed、连接被重置）时**静默换一条
+ *              新 SFTP 子通道并重试一次**（refreshRemote → _refreshRemoteInternal + 新增叶子模块
+ *              core/session-errors.isChannelDeadError + lifecycle.recoverChannelForListing），
+ *              不再每点一次刷新就清空列表 + 刷一条 error（实测日志 129 条 session closed）；
+ *              ② 心跳恢复：**没有在途传输被中断就不弹提示**（弱网实测 363 次恢复 = 363 次打扰）、
+ *              恢复日志限流（前 3 次 info，其后 debug，每 10 次汇总）、反复恢复按倍率退避；
+ *              ③ 心跳探针失败日志降为 debug（每次恢复前必然出现 need 次，弱网下刷满 log.txt）；
+ *              ④ issue #17 残留（fweiger 报「Mac 终端 Cmd+C/V 被面板抢」）**核实不成立，未改行为**：
+ *              接管标志由「面板内 mousedown」置位、由「面板外 mousedown（含点终端区）」清除，
+ *              面板热键入口另有 _isTerminalFocusTarget 守卫 → 焦点一回到终端，Cmd+C/V 完全归终端。
+ *              焦点在面板时面板接管剪贴板快捷键是**有意行为**：面板内按 Ctrl+C 必须只做面板复制，
+ *              绝不能把 ^C 打进终端（会杀掉对面正在跑的命令）。
+ *              曾把该标志改成 4s 有效期，被用户指出是过度修复：既没必要（点终端即交还），
+ *              又收窄了「点面板 → 慢慢选文件 → Cmd+C/V」的可用窗口，已回退为原布尔语义。
+ *              2026-09-29 — ★ 打包通道失败原因「按发生位置」拆开（用户实测质问：「这是远程打包失败了
+ *              呢？还是传输到本地，本地解压失败了？」—— 旧码 packFailed 的文案「打包或解包失败」
+ *              同时覆盖远端打包/本机打包/本机解包三件事，答不出来）。TAR_CHANNEL_FAILURE_REASON_KEYS
+ *              删 packFailed，新增 localPackFailed / remotePackFailed / localExtractFailed，
+ *              并单列 nameEncodingUnsupported（跨系统文件名编码还原不了，有明确解法：换智能或优先
+ *              SFTP、或升级远端 tar）。24 语言文案由 scripts/add-tar-failure-split-i18n.mjs 补齐。
+ *              （真实根因与修复见 tar-channel.ts 文件头同日记录。）
+ *              2026-09-29 — ★ 修复「选了仅 TAR 却走了 SFTP」的**标记与告知**两处：
+ *              ① 通道归属改显式：新增 host 回调 markChannelMode，转发链
+ *              tar-channel → FolderTransferPort → PanelTransferHost → 本组件；
+ *              updateFolderLogSize 不再顺带写 transferMode='tar'（它只在需要回填
+ *              真实目录大小时才被调用，用它当副证会出现「走了 tar 却显示 ⇄SFTP」）。
+ *              ② 仅 TAR 下「打包通道不适用」（目标已存在 → 只能逐文件增量）不再静默：
+ *              TAR_CHANNEL_FAILURE_REASON_KEYS 新增 targetExists，notifyTarChannelFailure
+ *              对该 code 改用说明性文案 notify.tarOnlyInapplicable（含解法），不再用
+ *              「无法传输」的失败措辞。
+ *              （根因是 transfer-coordinator._buildPorts 固化通道模式，已在该文件修复。）
+ *              2026-09-29 — 分组表头高亮改为 file-pane 内部按「组内选中比例」判定，不再由父组件下发
+ *              「是否全选」：删除上一轮新增的 `_allEntriesSelected(side)`、`local/remoteAllEntriesSelected`
+ *              两个模板 getter 与模板上的 `[allEntriesSelected]` 绑定（连同 file-pane 的对应输入）。
+ *              用户实测两轮：Ctrl+A 全选、以及非全选只选部分时，被选中的单条目分组表头都不亮，
+ *              而同屏 ≥2 项的组头亮 —— 门槛（items.length > 1 / 或全选）本身就不该存在。
+ *              新规则见 sftp-file-pane.component.ts 的 groupSelState()。
+ *              方向键连发性能（用户实测：按住 Shift+↑/↓ 连续多选「有点延迟卡顿」）。
+ *              用产物里的真实代码 + 无头浏览器量出瓶颈后逐项收口（前两项是主要开销）：
+ *              ① 变更检测做了两遍：捕获阶段 zone.run 除执行处理函数外，还会在微任务清空时触发
+ *                 ApplicationRef.tick()（整站 CD），而方向键分支本就在收尾显式 _safeDetect() ——
+ *                 改为方向键走 runOutsideAngular，每步只保留 1 遍面板 CD（其余热键仍走 zone.run）；
+ *              ② 每步都做两处 O(n) DOM 扫描（3000 行实测）：syncPaneSelectionVisual 全表
+ *                 getAttribute+classList ≈1.07ms、_scrollRowElIntoView 的 querySelectorAll+Array.from+find
+ *                 ≈0.79ms → 前者在方向键路径替换为增量的 `_stripSelectionVisual`（只处理
+ *                 「上一轮选中、这轮不选」的行，≈0.001ms；新增选中由 CD 的 [class.selected] 绑定负责），
+ *                 后者改用属性选择器直取（`_findRowEl`，≈0.024ms，含异常退回线性匹配）；
+ *              ③ 导航序列改缓存（`_navCacheFor` + NavCache：out/index/headerPrefix）：
+ *                 原先每步重建对象数组 + slice 各分组条目（≈0.16ms），且用 findIndex 线性扫 2~3 遍定位
+ *                 焦点/锚点；改为 O(1) Map 查询。Shift 区间在「区间内无表头行」时走直拼快路径，
+ *                 免去 Set 去重（≈0.34ms → ≈0.05ms）；
+ *              ④ 收尾顺序改为「先滚动定位（尚未写类、几何不受视觉类影响）→ 再补差异视觉 → 最后 CD」，
+ *                 避免旧顺序「写完类才读 rect」每步触发一次同步重排。
+ *              （同日）键盘游标（用户实测：组内只有 1 个文件的分组头"无法移动选中"）：
+ *              根因不在导航序列（表头行本就在序列里、键盘能停上去），而在**焦点没有自己的视觉语言**——
+ *              单条目分组里「游标停在表头」与「停在唯一那条文件上」选中集完全相同，而表头高亮又被
+ *              file-pane 当时的 groupAllSelected ≥2 项门槛挡住（该门槛已于同日取消，见 groupSelState）
+ *              → 屏幕毫无变化，像按键卡住。修复：
+ *              `navFocusKey(pane)` 把当前焦点键下发给 file-pane（选中 与 游标 拆成两套语义，
+ *              游标由 .nav-focus 表达）；NAV_HEADER_KEY_PREFIX 下沉到 core/grouping（父子共用同一常量）。
+ *              分组头纳入方向键导航（用户要求：↑/↓ 也能停在分组头上）：
+ *              `_navRows` 返回结构升级为 NavRow（kind/key/entries/listIndex/groupKey，表头行携带整组条目），
+ *              表头行被选中 = 全选该组（与鼠标点击表头一致）；Shift 区间按 entries 展开 + fullPath 去重；
+ *              焦点/锚点字段由 `_localNavFocusPath` 更名为 `_localNavFocusKey`（兼存表头导航键，
+ *              前缀 NAV_HEADER_KEY_PREFIX）；滚动改走 `_scrollNavRowIntoView`（表头按 data-group-key 定位）；
+ *              点击表头时同步键盘焦点，与点击条目行对称。
+ *              同日：Shift+↑/↓ 连续多选（此前该组合被直接放行，无法多选）：新增
+ *              `_handleArrowNav(side, down, extend)` 统一承载「移动」与「Shift 区间扩展」，
+ *              焦点/锚点按 fullPath 记录（`_localNavFocusKey` / `_localNavAnchorKey`），
+ *              Shift 时取**显示序**区间 [锚点 … 焦点] 整体替换（折叠组内条目不在显示序中，自然不入选）；
+ *              `_onPaneClick` 同步焦点/锚点（Shift+点击时锚点不动），
+ *              `_dropSelection` / `_pruneSelection` / 分组头全选处一并清理；
+ *              `_eventWouldConsumePanelHotkey` 不再排除 Shift —— 需在捕获阶段就认领组合键，
+ *              否则会被宿主先消费掉。
+ *              同日：方向键导航修复（用户实测：分组模式下从文件夹组末行 uploads 按 ↓ 直接跳到
+ *              TMP 组的 .tmp）：分组视图按桶重排渲染，**显示序 ≠ 排序序**，而旧实现拿
+ *              getFilteredXxxEntries() 的排序序走下标 → 视觉乱跳。新增 `_navRows()` 返回「显示序」
+ *              （分组模式取 groupRows 的 entry 行，折叠组不产生行 → 自动跳过；附带原列表下标供
+ *              shift 连选沿用旧语义），方向键上下改用它导航；`_scrollEntryIntoView` 参数由
+ *              「列表下标」改为「条目对象」并按 data-path 精确匹配行（原 rows[idx] 在分组模式同样错位）。
+ *              分组表头点击改为切换选中：组内全选中→从选择集移除该组（其他组保留），
+ *              否则选中该组全部（onLocal/RemoteGroupSelect，按 fullPath 识别条目）；
+ *              同日：仅 TAR 模式改为硬失败（打包通道不可用时不再回退逐文件）→ host 新增
+ *              notifyTarChannelFailure（按 TarFailureCode 翻译成「原因 + 解决方法」toast，
+ *              映射见 TAR_CHANNEL_FAILURE_REASON_KEYS）
+ *              2026-09-28 — 传输通道模式：_transferTarAcceleration 替换为 _transferChannelMode
+ *              （smart/sftpOnly/tarOnly/preferSftp/preferTar），host 提供 tarChannelMode() 取代 tarAcceleration()；
+ *              加载时迁移旧 transferTarAcceleration 开关（false→sftpOnly，其余→smart）
+ *              2026-09-28 — 「展开/收起所有分组」从定制项移除（已并入分组依据子菜单）；
+ *              contextMenuDisabledEntries 忽略历史配置残留的 groupToggleAll 停用值
+ *              2026-09-28 — 修复：分组表头右键被 onPaneContextMenu 误判为空白区右键、
+ *              清空已选中的整组（分组头复用 .header 类被 .entry:not(.header) 排除）；
+ *              改为分组头右键保留选中态、仍弹面板菜单（动作作用于整组）
+ *              2026-09-28 — 文件列表分组（类似 Windows「分组依据」）：localGroupBy/remoteGroupBy
+ *              状态（localStorage 持久化）、getLocal/RemoteGroupRows 行缓存（模式/排序方向/折叠
+ *              版本签名失效）、分组表头行收展与全选该组处理器、右键空白区菜单「分组依据」分发
+ *              2026-09-28 — 传输目标目录预检（用户：默认上传/下载路径不存在时传输直接失败，
+ *              应检测并询问是否创建）：右键上传/下载入队前用 statRemotePath（远程）/
+ *              fs.stat（本地）预检目标目录，不存在时弹三选一确认框（sftp-dir-missing-dialog）——
+ *              创建并传输（远程 _remoteMkdirp 逐级 mkdir / 本地 recursive mkdir）、
+ *              本次使用当前目录、取消；每批只问一次，路径存在但是文件时提示后取消
+ *              2026-09-26 — 目录传输「行级实时进度」+ 停摆如实显示（用户：「这次似乎又完全不会动了」）：
+ *              ① `_doDownloadRaw` 新增尾参 onProgress，400ms 轮询 dl.getCompletedBytes()
+ *                 把本文件已落盘字节交给用例层节流上报 —— 目录条目原先只在文件传完时更新一次，
+ *                 单个大文件期间整行（百分比/速度/当前文件/剩余时间）完全静止；
+ *              ② `_updateFolderProgress` 连续零推进 ≥ SPEED_STALL_ZERO_MS 即如实写 0 B/s、
+ *                 speedBps=0（剩余时间随之显示 ∞），不再拿旧速率报一个不动的假数字
+ *              2026-09-26 — 传输记录「清除」按钮补可用性判定：新增 transferLogClearableCount
+ *              （= 该连接下已结束的记录数）传给对话框，为 0 时按钮禁用、clearLog() 直接返回，
+ *              消除「一条记录都没有 / 剩下的全是正在传输中的条目」时仍能点出确认框的空操作
+ *              2026-09-26 — _updateFolderProgress（文件夹/打包通道进度）同步维护数值速率
+ *              speedBps，供传输中条目显示预估剩余时间
+ *              2026-09-26 — 修掉「开机前几秒显示天文数字剩余时间」的真元凶：速度窗口的**首次**
+ *              采样把左端当成 0（`_lastSpeedUpdate || 0`）⇒ deltaTime = 纪元毫秒（≈1.79e12）
+ *              ⇒ 速率被压到 1e-9 量级，速度显示 "0 B/s"、剩余时间显示
+ *              "3255876663332h01m"；且该毒值经 EMA 污染随后窗口（169.2 KB/s 却报 21m07s）。
+ *              改为「首次只建基准不出速率」；resumeTransfer 同时重置窗口基准，避免把暂停时长
+ *              当成测量窗口把速率摊薄。字段 lastProgressAt 随之删除（见 panel-types）
+ *              2026-09-25 — P1 修复：顶层传输入口（downloadRemoteDir / uploadPathToRemote）新增
+ *              重复入队只读预检 `_blockDuplicateTransfer`（槽位真源在协调器）——同一
+ *              (方向, 远端, 本地) 已在队列/传输中时提示「已在传输队列中，已忽略重复请求」并
+ *              直接忽略。此前用户 Ctrl+V 后界面未及时响应、再点一次「下载」，会生成两条相同传输：
+ *              并发跑同一 tar 打包/解包 + 并发写同一目标文件（逐文件守卫互相 skip 且都记失败）
+ *              → **双双失败且无任何提示**
+ *              2026-09-25 — P0-3 修复：向连接生命周期提供 hasActiveTransfers()（心跳据此放宽
+ *              「通道死亡」判定阈值，避免大流量下载时探测超时误判 → end 会话中断在途传输）
+ *              2026-09-25 — P0-2 修复：downloadRemoteDir 补 `_forceOverwrite` 形参并原样转发给协调器
+ *              （此前静默漏转发 → 远程→本地下载、目标文件夹已存在时选「覆盖」必失败：
+ *              子文件冲突重新入队 → markHadConflict → 整目录被收尾成失败）
+ *              2026-09-25 — 第七轮审计 P3-1 修复：enqueueConflict 不再把冲突总数重置为当前队列长度
+ *              （改为只抬高 Math.max），避免 execute 阶段迟到入队的目录冲突使「x/N」进度跳动
+ *              2026-09-21 — 冲突对话框文件名图标复用 resolveDetailsIcon（与列表/属性框一致的彩色 SVG）
+ *              2026-09-21 — P0 修复：目录切换/刷新后收口选择模型（_dropSelection/_pruneSelection），
+ *              此前残留选中项仍指向已离开的目录，按 Delete 会删掉上一个目录里的文件；
+ *              删除确认框改为显示目标所在目录（单项与批量），作为第二道防线
+ *              2026-09-21 — 修复销毁时未取消在途传输，并向连接生命周期提供存活状态；
+ *              第六轮审计修复：新增 _activeUploadTargets 同名并发上传守卫（互踩 .tabby-upload）；
+ *              saveCurrentPath 同步写嵌套配置（修复迁移用户路径记忆被旧值卡住）；
+ *              右键单文件 auto-skip 无占位条目时补落「已跳过 · 内容相同」日志（此前完全静默）；
+ *              ngOnDestroy 补「系统中打开」临时文件清理
+ *              2026-09-21 — 过窄/过矮双向回退并 toast 提示；按钮 title 显示偏好→实际；保留用户布局偏好
+ *              2026-09-21 — 左右布局在面板过窄时自动退回上下（不改用户偏好）；动态 minPaneW 避免 450 硬下限挤成细条
+ *              2026-09-21 — 上下布局动态抬高两侧最小高度，避免多拆分下远程半屏过矮
+ *              2026-09-20 — P1-2/P2-1/P2-2 审计修复：目录任务接入「任务作用域」（task-scope），
+ *              条目登记自己的 cancelRef，取消/清空按条目所属任务广播（不再误杀并发的新任务）；
+ *              拖入兜底临时目录按面板作用域隔离并在销毁时清理
+ *              2026-09-20 — 面板热键支持打开/查看/编辑（默认未绑定）
+ *              2026-09-20 — A2/A3/A5/A6/A7/A8/A9 审计修复：_destroyed 收口为 _safeDetect/_isAlive（并把「已跳过」延迟移除定时器纳入清理）；
+ *              接线 disposeColResize；缓存内置图标目录（消除变更检测中的同步 IO）；传输日志框改按需挂载；
+ *              未配置图标时返回共享空数组；删除死成员（hasFileActions/inputDialogIsRename 等）；菜单顺序统一 sanitizeMenuOrder
+ *              2026-09-20 — 修复属性等快捷键：不依赖右键 contextMenuEntry，按当前选中项打开
+ *              2026-09-20 — 面板热键在捕获阶段拦截，避免与 Tabby 全局键（如 Alt+Enter 全屏）抢触发；右键菜单显示属性等快捷键
+ *              2026-09-20 — 粘贴冲突支持「内容相同自动跳过」；传输中进度条展示传输方式（SFTP/打包）
+ *              2026-09-20 — 冲突框异步补算内容摘要（粘贴路径此前未入队 digest）
+ *              2026-09-20 — 修复 Ctrl+V/Ctrl+A：owns 时勿再用「无选中」清标志交还终端；粘贴目标用 activePane
+ *              2026-09-24 — issue #24 修复：终端键入空格被面板键入定位(type-ahead)吞掉。新增 _isTerminalFocusTarget，
+ *              在 _handlePanelWindowHotkey 与 _capturePanelHotkeysBeforeTabby 中，焦点位于终端 xterm 时绝不劫持按键；
+ *              键入定位改为仅在面板文件列表自身获焦时消费空格/字母，避免启用插件后终端无法键入空格
  */
 import * as path from 'path'
 import * as fs from 'fs/promises'
 import * as fsSync from 'fs'
 import * as os from 'os'
+import { randomUUID } from 'crypto'
 
 import { Component, OnInit, OnDestroy, AfterViewInit, HostListener, ChangeDetectorRef, ElementRef, NgZone, Injector, ViewEncapsulation, Inject, Optional } from '@angular/core'
 import { ThemesService, NotificationsService, ConfigService, AppService } from 'tabby-core'
 
 import { LocalPathFileDownload, LocalPathFileUpload, uploadLocalFile, downloadRemoteFile, cancelAllInFlight } from './core/transfer-adapters'
+import { currentTaskScope, runInTaskScope, type TaskCancelRef } from './core/task-scope'
 import { log } from '../services/sftp-logger'
-import { SftpConnectionService, SFTPFile, SFTPSessionLike, SSHSessionLike, SftpEnrichOptions, getSftpConnectionService, enrichSftpFilesWithAtime, enrichRemoteOwnersViaStat, resolveRemoteSymlinkStat } from '../services/sftp.service'
+import { SftpConnectionService, SFTPFile, SFTPSessionLike, SSHSessionLike, SftpEnrichOptions, getSftpConnectionService, enrichSftpFilesWithAtime, enrichRemoteOwnersViaStat, resolveRemoteSymlinkStat, statRemotePath } from '../services/sftp.service'
 import { SftpI18nService } from '../services/sftp-i18n.service'
 import type { Locale } from '../services/sftp-i18n.service'
 import { SftpConfigService } from '../services/sftp-config.service'
@@ -28,19 +211,22 @@ import { PanelConnectionLifecycle, PathFollowMode } from './components/connectio
 import { PanelRubberBand } from './components/panel-rubber-band'
 import { PanelHeaderReorder } from './components/panel-header-reorder'
 import { PanelFileDnd } from './components/panel-file-dnd'
-import { PanelDropAdapter } from './core/drop'
-import { PanelTransferCoordinator } from './core/transfer-coordinator'
+import { PanelDropAdapter, dragDropTempDir } from './core/drop'
+import { PanelTransferCoordinator, SPEED_STALL_ZERO_MS, SPEED_STALL_ZERO_TEXT } from './core/transfer-coordinator'
 import { PanelPasteAdapter } from './core/paste'
+import { ContentDigestService } from './core/digest'
 import { copyLocalDir, copyRemoteDir, deleteLocalRecursive, deleteRemoteRecursive, tryRemoteCpViaSsh, tryRemoteRmViaSsh } from './core/fs-ops'
+import { isChannelDeadError } from './core/session-errors'
 import { ConcurrencyLimiter } from './core/concurrency'
 import { trashLocalPath } from './core/trash-local'
 import { PanelConflictResolver } from './components/panel-conflict-resolver'
 import { PanelTransferRuntime } from './core/transfer-coordinator'
 import { PaneNavHistory } from './core/selection'
 import { computeSelection, computeSortToggle } from './core/selection'
+import { GroupByMode, GroupDisplayRow, NAV_HEADER_KEY_PREFIX, buildGroupedRows, groupModeSortField, navHeaderKey } from './core/grouping'
 import {
   keyboardHotkeySpecs,
-  matchMouseHotkeySpecs,
+  matchPointerHotkeySpecs,
   matchPanelHotkeyKey,
   matchPanelHotkeyKeys,
   normalizePanelHotkeyKeys,
@@ -49,7 +235,9 @@ import {
 import {
   CONTEXT_ACTION_HOTKEYS,
   defaultPanelHotkeys,
+  normalizeCaretShape,
   PANEL_HOTKEY_ACTIONS,
+  type CaretShape,
   type PanelHotkeyAction,
 } from '../tabby/config-provider'
 import { isColorDark } from '@common/utils'
@@ -89,6 +277,8 @@ import { SFTP_PANEL_STYLES } from './components/styles'
 import { IdNameResolver, execSshCommand, safeEntryName, safeJoinUnder } from './core/path-utils'
 import type { PaneNavAction, PaneSortAction } from './components/sftp-file-pane.component'
 import type { ContextMenuAction, HeaderMenuAction, ColVisibilityState } from './components/sftp-context-menu.component'
+// ★ 2026-09-20 A9：菜单顺序配置的运行期收敛（同时消除 string[] / ContextMenuAction[] 的类型漂移）
+import { sanitizeMenuOrder } from './components/sftp-context-menu.component'
 import type { PermField } from './components/sftp-perm-dialog.component'
 import type { DetailsDisplay } from './components/sftp-details-dialog.component'
 import type { ViewerMode } from './components/sftp-viewer-dialog.component'
@@ -120,6 +310,82 @@ import {
 
 /** 面板热键"已清除"哨兵值（可打印字符串，Tabby config 清洗不会删除；与 settings 组件 PANEL_HOTKEY_CLEARED 一致） */
 const HOTKEY_CLEARED = '__NONE__'
+
+/** ★ 2026-09-29（性能）：方向键差异视觉清理最多逐路径直取多少行；超出则改走全表扫描（见 _stripSelectionVisual） */
+const STRIP_QUERY_MAX = 64
+
+/* ★ 2026-09-29：分组表头导航键前缀由本文件局部常量下沉到 core/grouping（NAV_HEADER_KEY_PREFIX），
+   file-pane 判定「键盘游标是否停在表头」需要用同一个常量，放在叶子模块才能父子共用而不成环 */
+
+/**
+ * 方向键导航序列（_navRows）中的一行。
+ * ★ 2026-09-29：分组表头行也参与导航——按 ↑/↓ 可停在分组头上，选中即「全选该组」
+ *   （与鼠标点击表头的行为一致）。折叠的分组同样占一行（其条目不可见但不妨碍整体选中）。
+ */
+interface NavRow {
+  kind: 'header' | 'entry'
+  /** 焦点标识：entry 行 = fullPath；header 行 = NAV_HEADER_KEY_PREFIX + bucketKey */
+  key: string
+  /** 该行代表的条目集合：entry 行 = [entry]；header 行 = 该组全部条目（折叠组也带） */
+  entries: any[]
+  /** entry 行 = 扁平列表中的排序序下标（供 localLastSelectedIndex 沿用旧语义）；header 行 = -1 */
+  listIndex: number
+  /** 滚动定位用：header 行 = bucketKey（对应 DOM 的 data-group-key） */
+  groupKey?: string
+}
+
+/**
+ * ★ 2026-09-29（性能）：导航序列缓存 —— 方向键连发时避免每步重建序列 + 线性查找。
+ * @字段 src/rows      生成缓存时的「过滤列表 / 分组行」引用（两者任一变化即失效）
+ * @字段 out           显示序序列（表头行 + 条目行）
+ * @字段 index         key → out 下标（焦点/锚点定位由 O(n) findIndex 降为 O(1)）
+ * @字段 headerPrefix  headerPrefix[i] = out[0..i-1] 的表头行数；用于判断区间内是否含表头
+ *                     （不含表头 → 区间内每行恰好 1 项，可免去 Set 去重，见 _handleArrowNav）
+ */
+interface NavCache {
+  src: any
+  rows: any
+  out: NavRow[]
+  index: Map<string, number>
+  headerPrefix: number[]
+}
+
+/**
+ * ★ 2026-09-20 A7 审计修复：未配置时的共享空数组常量。
+ *   原 getter 在「无自定义图标规则 / 无禁用图标」时每轮变更检测都 `return []`（新引用），
+ *   而这两个值直接绑给 ngOnChanges 型子组件 sftp-file-pane → 子组件每次 CD 都被判定输入变化。
+ *   改为复用同一冻结引用，语义不变（只读使用）且消除该churn。
+ */
+const EMPTY_ICON_RULES: { ext: string; svg: string; name?: string }[] = Object.freeze([]) as unknown as { ext: string; svg: string; name?: string }[]
+const EMPTY_SVG_LIST: string[] = Object.freeze([]) as unknown as string[]
+
+/**
+ * ★ 2026-09-29：打包通道失败原因（TarFailureCode）→ i18n key。
+ *
+ * 仅「仅 TAR 模式」下会用到：该模式不回退逐文件通道，传输必然失败，所以必须把
+ * 「为什么失败 + 怎么解决」讲清楚。按**解法**分组，不按代码路径分组（见 tar-channel
+ * 的 TarFailureCode 注释）。未知 code 回退「其它原因（详见日志）」。
+ */
+const TAR_CHANNEL_FAILURE_REASON_KEYS: Record<string, string> = {
+  localTarMissing: 'tarchan.reason.localTarMissing',
+  remoteTarMissing: 'tarchan.reason.remoteTarMissing',
+  symlinkUnsupported: 'tarchan.reason.symlinkUnsupported',
+  // ★ 2026-09-29（二）：`packFailed` 一码拆三 —— 用户实测质问「这是远程打包失败了，还是本地解压
+  //   失败了？」，而旧文案「打包或解包失败」同时覆盖三种完全不同的发生位置，答不上来。
+  //   现在按**哪一端**直接说清（见 tar-channel 的 TarFailureCode 注释）。
+  localPackFailed: 'tarchan.reason.localPackFailed',
+  remotePackFailed: 'tarchan.reason.remotePackFailed',
+  localExtractFailed: 'tarchan.reason.localExtractFailed',
+  // ★ 2026-09-29（二）：跨系统文件名编码还原不了（Linux GNU tar 默认格式 ↔ Windows bsdtar），
+  //   解法是换通道/升级远端 tar，与「环境故障」不同，单独成码给出可行动的建议。
+  nameEncodingUnsupported: 'tarchan.reason.nameEncodingUnsupported',
+  tarballFailed: 'tarchan.reason.tarballFailed',
+  // ★ 2026-09-29：与上面几条「通道不可用/失败」性质不同 —— 这是**不适用**（目标已存在，
+  //   只能走逐文件增量），传输会正常完成。仅 TAR 下也要提示，否则用户只看到 ⇄SFTP 标签，
+  //   无法区分「设置没生效」与「本次不适用」（实测）。
+  targetExists: 'tarchan.reason.targetExists',
+  other: 'tarchan.reason.other',
+}
 
 @Component({
   selector: 'sftp-plus-panel',
@@ -175,6 +441,30 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
 
   /** 是否已最小化 */
   minimized = false
+
+  /** ★ BUG-1 修复：组件是否已销毁（防止异步回调操作已销毁组件） */
+  private _destroyed = false
+  /**
+   * ★ 2026-09-20 A2 审计修复：此前 `_destroyed` 只写不读，销毁路径形同虚设——
+   *   跨 await / 定时器 / 异步回调仍会对已销毁视图 cdr.detectChanges() → ViewDestroyedError，
+   *   并让组件实例被闭包多留一段时间。
+   *   现统一收口：视图操作走 _safeDetect()，长延时回调先判 _isAlive。
+   */
+  /** 「已跳过 · 内容相同」条目延迟移除的定时器句柄（销毁时统一清理，避免回调打在已销毁视图） */
+  private _queuedEntryTimers: ReturnType<typeof setTimeout>[] = []
+
+  /** 组件是否仍存活（销毁后所有异步视图操作必须短路） */
+  private get _isAlive(): boolean {
+    return !this._destroyed
+  }
+
+  /** 变更检测安全包装：销毁后 no-op，替代裸 cdr.detectChanges 防 ViewDestroyedError。
+   *  不吞异常：非销毁类的真实错误（如开发期表达式变更）仍照常抛出，避免掩盖真问题。 */
+  protected override _safeDetect(): void {
+    if (this._destroyed) return
+    const cdr = this.cdr
+    cdr.detectChanges()
+  }
 
   // ========== 浮动面板几何（仅 floating 模式）：拖拽移动 / 缩放 / 最大化 ==========
   /** 是否已初始化浮动几何（floating 且已切换为绝对定位） */
@@ -238,6 +528,32 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     this._localSelectedPaths = new Set(val.map(e => e.fullPath))
   }
   localLastSelectedIndex: number | null = null
+  /**
+   * ★ 2026-09-29：方向键导航的「焦点行」与「Shift 扩展锚点」，按**导航键**记录（NavRow.key）：
+   * 条目行 = fullPath，分组头行 = NAV_HEADER_KEY_PREFIX + bucketKey。
+   * 与 localLastSelectedIndex（排序序下标，供鼠标 Shift+点击的 computeSelection 用）分开存放：
+   * 分组模式下**显示序 ≠ 排序序**（详见 _navRows），键盘连续选择必须按屏幕序算区间，
+   * 否则 Shift+↓ 会选中夹在别组里的条目。
+   */
+  private _localNavFocusKey: string | null = null
+  private _localNavAnchorKey: string | null = null
+  /**
+   * ★ 2026-09-29（性能）：导航序列缓存（详见 _navCacheFor）。
+   * 方向键连发时每步都要一份「显示序」序列；原实现每次都重建对象数组并 slice 各分组条目
+   * （3000 条目实测 ≈0.16ms/步），还要用 findIndex 线性扫 2~3 遍找焦点/锚点。
+   * 缓存的失效条件是「过滤列表引用」或「分组行引用」变化——分组行本身已有缓存（引用稳定），
+   * 故一次键盘连发期间命中率接近 100%。
+   */
+  private _localNavCache: NavCache | null = null
+  /**
+   * ★ 2026-09-29：**键盘游标是否可见**（与 _localNavFocusKey 分开存）。
+   * 焦点键本身在鼠标点击时也会写入（作为方向键的起点 / Shift 区间锚点，见 _onPaneClick），
+   * 但「游标」这个视觉语义只在**键盘操作**时才该出现——否则用户随便点一行就会在行上留下
+   * 一条无法解释的竖条。故：方向键移动后置 true，鼠标点击/选择集重置后置 false。
+   */
+  private _localNavCursorOn = false
+  /** 上一次发起 listing 的本地目录：用于判定「目录已切换」并丢弃残留选择（见 _dropSelection） */
+  private _lastLocalListedPath: string | null = null
   /** 本地面板是否正在加载 */
   _localLoading = false
   /** 本地面板刷新闪烁 */
@@ -269,6 +585,15 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     this._remoteSelectedPaths = new Set(val.map(e => e.fullPath))
   }
   remoteLastSelectedIndex: number | null = null
+  /** 远端面板的方向键焦点/Shift 锚点（语义同 _localNavFocusKey / _localNavAnchorKey，同为导航键） */
+  private _remoteNavFocusKey: string | null = null
+  private _remoteNavAnchorKey: string | null = null
+  /** 远端面板的导航序列缓存（语义同 _localNavCache） */
+  private _remoteNavCache: NavCache | null = null
+  /** 远端面板的键盘游标可见性（语义同 _localNavCursorOn） */
+  private _remoteNavCursorOn = false
+  /** 上一次发起 listing 的远程目录：用于判定「目录已切换」并丢弃残留选择（见 _dropSelection） */
+  private _lastRemoteListedPath: string | null = null
   /** 远程面板是否正在加载 */
   _remoteLoading = false
   /** 远程面板刷新闪烁 */
@@ -314,6 +639,9 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
   deleteConfirmBatch = false  // true=批量, false=单个
   /** 单个删除时的条目信息 */
   deleteItemName = ''
+  /** ★ 2026-09-21 P0 修复：删除确认框显示目标所在目录（单项与批量共用）——
+   *  此前只显示文件名，选择残留跨目录时用户无法判断删的是哪个目录下的文件 */
+  deleteItemLocation = ''
   deleteItemIsDir = false
   deleteItemType = ''
   deleteItemSize: string | null = null
@@ -332,11 +660,7 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
   private inputDialogMode: 'local-mkdir' | 'remote-mkdir' | 'local-rename' | 'remote-rename' | 'remote-chmod' | 'local-touch' | 'remote-touch' | null = null
   private inputDialogTargetPath: string | null = null
   private inputDialogRemotePath: string | null = null
-
-  get inputDialogIsRename(): boolean {
-    return this.inputDialogMode === 'local-rename' || this.inputDialogMode === 'remote-rename'
-  }
-
+  // ★ 2026-09-20 A8 审计修复：删除死成员 get inputDialogIsRename()（全仓库无引用，模板亦未使用）
 
   // ========== 右键菜单 ==========
   contextMenuX = 0
@@ -406,9 +730,212 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
   /** 当前修改权限的文件/文件夹名（供对话框显示） */
   permTargetName = ''
 
+  // ========== 文件列表分组（★ 2026-09-28，类似 Windows「分组依据」）==========
+  /** 本地面板分组依据（none=默认不分组），持久化到 localStorage */
+  localGroupBy: GroupByMode = 'none'
+  /** 远程面板分组依据 */
+  remoteGroupBy: GroupByMode = 'none'
+  /** 已折叠分组 key 集合（会话内状态，不持久化） */
+  private _localCollapsedGroups = new Set<string>()
+  private _remoteCollapsedGroups = new Set<string>()
+  /** 折叠状态版本号（变更后使行缓存失效） */
+  private _localCollapsedVersion = 0
+  private _remoteCollapsedVersion = 0
+  /** 分组行缓存（以过滤缓存引用 + 签名判定失效） */
+  private _localRowsCache: GroupDisplayRow[] | null = null
+  private _localRowsSource: any[] | null = null
+  private _localRowsSig = ''
+  private _remoteRowsCache: GroupDisplayRow[] | null = null
+  private _remoteRowsSource: any[] | null = null
+  private _remoteRowsSig = ''
+
+  private _loadGroupBy(): void {
+    try {
+      const keyPrefix = SftpFloatingPanel.TABLE_SETTINGS_KEY
+      const gl = localStorage.getItem(`${keyPrefix}.groupByLocal`) as GroupByMode | null
+      const gr = localStorage.getItem(`${keyPrefix}.groupByRemote`) as GroupByMode | null
+      const valid: GroupByMode[] = ['none', 'name', 'modified', 'type', 'size']
+      if (gl && valid.includes(gl)) this.localGroupBy = gl
+      if (gr && valid.includes(gr)) this.remoteGroupBy = gr
+    } catch { /* 使用默认值 */ }
+  }
+
+  private _saveGroupBy(pane: 'local' | 'remote'): void {
+    try {
+      const keyPrefix = SftpFloatingPanel.TABLE_SETTINGS_KEY
+      const v = pane === 'local' ? this.localGroupBy : this.remoteGroupBy
+      localStorage.setItem(`${keyPrefix}.groupBy${pane === 'local' ? 'Local' : 'Remote'}`, v)
+    } catch { /* 忽略持久化失败 */ }
+  }
+
+  /** 设置某面板的分组依据；切回 none 时清空折叠状态与行缓存 */
+  setGroupBy(pane: 'local' | 'remote', mode: GroupByMode): void {
+    if (pane === 'local') {
+      this.localGroupBy = mode
+      this._localCollapsedGroups.clear()
+      this._localCollapsedVersion++
+    } else {
+      this.remoteGroupBy = mode
+      this._remoteCollapsedGroups.clear()
+      this._remoteCollapsedVersion++
+    }
+    this._saveGroupBy(pane)
+  }
+
+  /** 分组行签名：过滤缓存引用变化 / 模式 / 排序方向 / 折叠版本任一变化即失效 */
+  private _rowsSig(pane: 'local' | 'remote'): string {
+    const mode = pane === 'local' ? this.localGroupBy : this.remoteGroupBy
+    const asc = pane === 'local' ? this.localSortAsc : this.remoteSortAsc
+    const sortBy = pane === 'local' ? this.localSortBy : this.remoteSortBy
+    const ver = pane === 'local' ? this._localCollapsedVersion : this._remoteCollapsedVersion
+    return `${mode}|${asc ? 1 : 0}|${sortBy}|${ver}`
+  }
+
+  /** 分组显示行（分组关闭返回 null；模板据此走扁平路径） */
+  getLocalGroupRows(): GroupDisplayRow[] | null {
+    if (this.localGroupBy === 'none') return null
+    const list = this.getFilteredLocalEntries()
+    const sig = this._rowsSig('local')
+    if (this._localRowsSource === list && this._localRowsSig === sig && this._localRowsCache) return this._localRowsCache
+    const rows = buildGroupedRows(list, this.localGroupBy, this._reverseGroups('local'), this._localCollapsedGroups, b => this._groupLabel(b))
+    this._localRowsCache = rows
+    this._localRowsSource = list
+    this._localRowsSig = sig
+    return rows
+  }
+
+  getRemoteGroupRows(): GroupDisplayRow[] | null {
+    if (this.remoteGroupBy === 'none') return null
+    const list = this.getFilteredRemoteEntries()
+    const sig = this._rowsSig('remote')
+    if (this._remoteRowsSource === list && this._remoteRowsSig === sig && this._remoteRowsCache) return this._remoteRowsCache
+    const rows = buildGroupedRows(list, this.remoteGroupBy, this._reverseGroups('remote'), this._remoteCollapsedGroups, b => this._groupLabel(b))
+    this._remoteRowsCache = rows
+    this._remoteRowsSource = list
+    this._remoteRowsSig = sig
+    return rows
+  }
+
+  /** 组序是否应反转：分组维度与当前排序列一致且为降序时反转（贴近资源管理器行为） */
+  private _reverseGroups(pane: 'local' | 'remote'): boolean {
+    const mode = pane === 'local' ? this.localGroupBy : this.remoteGroupBy
+    const field = groupModeSortField(mode)
+    if (!field) return false
+    const sortBy = pane === 'local' ? this.localSortBy : this.remoteSortBy
+    const asc = pane === 'local' ? this.localSortAsc : this.remoteSortAsc
+    return sortBy === field && !asc
+  }
+
+  /** 分组桶 → 显示文本（type 模式的扩展名桶拼接「EXT 文件」；其余直接翻译） */
+  private _groupLabel(b: { labelKey: string; arg?: string }): string {
+    const base = this.i18n ? this.i18n.t(b.labelKey) : ''
+    if (b.labelKey === 'group.typeFiles') return b.arg ? `${b.arg} ${base}` : base
+    return base
+  }
+
+  /** 分组表头行：箭头点击 → 收/展 */
+  onLocalGroupToggle(key: string): void {
+    if (this._localCollapsedGroups.has(key)) this._localCollapsedGroups.delete(key)
+    else this._localCollapsedGroups.add(key)
+    this._localCollapsedVersion++
+  }
+
+  onRemoteGroupToggle(key: string): void {
+    if (this._remoteCollapsedGroups.has(key)) this._remoteCollapsedGroups.delete(key)
+    else this._remoteCollapsedGroups.add(key)
+    this._remoteCollapsedVersion++
+  }
+
+  /**
+   * 分组表头行：其余区域点击 → 切换该组选中态（★ 2026-09-29 由「仅全选」改为「全选⇄取消」）：
+   * 组内条目已全部选中 → 从当前选择集中移除该组条目（其他组的选择保留）；
+   * 否则 → 选中该组全部条目（替换当前选择，与原行为一致）。
+   * 条目按 fullPath 识别，不依赖对象引用。
+   */
+  onLocalGroupSelect(key: string): void {
+    const rows = this.getLocalGroupRows()
+    const g = rows?.find(r => r.kind === 'header' && r.bucketKey === key)
+    if (!g) return
+    const items = (g.items || []) as any[]
+    if (!items.length) return
+    const sel = (this.selectedLocal || []) as any[]
+    const paths = new Set(items.map((it: any) => it.fullPath))
+    const allSelected = items.every((it: any) => sel.some((s: any) => s.fullPath === it.fullPath))
+    if (allSelected) {
+      this.selectedLocal = sel.filter((s: any) => !paths.has(s.fullPath)) as any
+    } else {
+      this.selectedLocal = [...items] as any
+    }
+    this.selectedRemote = []
+    this.localLastSelectedIndex = null
+    // ★ 2026-09-29：与点击条目行对称——键盘焦点/锚点落在该分组头（导航键），
+    //   之后按 Shift+↑/↓ 即可从这一组（表头行）起算区间。
+    this._localNavFocusKey = navHeaderKey(key)
+    this._localNavAnchorKey = this._localNavFocusKey
+    this._localNavCursorOn = false
+  }
+
+  /** 分组表头行：其余区域点击 → 切换该组选中态（逻辑同 onLocalGroupSelect，作用于远端面板） */
+  onRemoteGroupSelect(key: string): void {
+    const rows = this.getRemoteGroupRows()
+    const g = rows?.find(r => r.kind === 'header' && r.bucketKey === key)
+    if (!g) return
+    const items = (g.items || []) as any[]
+    if (!items.length) return
+    const sel = (this.selectedRemote || []) as any[]
+    const paths = new Set(items.map((it: any) => it.fullPath))
+    const allSelected = items.every((it: any) => sel.some((s: any) => s.fullPath === it.fullPath))
+    if (allSelected) {
+      this.selectedRemote = sel.filter((s: any) => !paths.has(s.fullPath)) as any
+    } else {
+      this.selectedRemote = [...items] as any
+    }
+    this.selectedLocal = []
+    this.remoteLastSelectedIndex = null
+    // ★ 2026-09-29：同 onLocalGroupSelect，键盘焦点/锚点落在该分组头
+    this._remoteNavFocusKey = navHeaderKey(key)
+    this._remoteNavAnchorKey = this._remoteNavFocusKey
+    this._remoteNavCursorOn = false
+  }
+
+  /** 右键菜单「分组依据」分发 */
+  onGroupByMenuAction(mode: GroupByMode): void {
+    const pane = this.contextMenuPane
+    this.setGroupBy(pane, mode)
+    this.contextMenuVisible = false
+    this._safeDetect()
+  }
+
+  /** 右键菜单「展开/收起所有分组」分发：当前面板所有分组全折叠⇄全展开 */
+  onGroupToggleAll(): void {
+    const pane = this.contextMenuPane
+    const collapsed = pane === 'local' ? this._localCollapsedGroups : this._remoteCollapsedGroups
+    const rows = pane === 'local' ? this.getLocalGroupRows() : this.getRemoteGroupRows()
+    const keys = (rows || []).filter(r => r.kind === 'header' && r.bucketKey != null).map(r => r.bucketKey as string)
+    // 只要存在一个未折叠分组 → 折叠全部；否则（已全部折叠或为空）→ 展开全部
+    const allCollapsed = keys.length > 0 && keys.every(k => collapsed.has(k))
+    collapsed.clear()
+    if (!allCollapsed) for (const k of keys) collapsed.add(k)
+    if (pane === 'local') this._localCollapsedVersion++
+    else this._remoteCollapsedVersion++
+    this.contextMenuVisible = false
+    this._safeDetect()
+  }
+
+  /** 当前面板是否所有分组都已折叠（供「展开/收起所有分组」按钮文案） */
+  get groupAllCollapsed(): boolean {
+    const pane = this.contextMenuPane
+    const collapsed = pane === 'local' ? this._localCollapsedGroups : this._remoteCollapsedGroups
+    const rows = pane === 'local' ? this.getLocalGroupRows() : this.getRemoteGroupRows()
+    const keys = (rows || []).filter(r => r.kind === 'header' && r.bucketKey != null).map(r => r.bucketKey as string)
+    return keys.length > 0 && keys.every(k => collapsed.has(k))
+  }
+
   // ========== 表格样式设置（从设置页读取）==========
 
   private loadTableSettings(): void {
+    // ★ 2026-09-28：加载文件列表分组依据
+    this._loadGroupBy()
     try {
       // 直接从 localStorage 读取，绕过 _paneStore 缓存
       // 避免因 _paneFlushToConfig 导致的配置覆盖问题
@@ -544,16 +1071,21 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     // 空白区域右键：清除该面板选中，显示面板级上下文菜单
     const target = ev.target as HTMLElement
     const paneList = target.closest('.pane-list') as HTMLElement | null
+    // ★ 2026-09-28 修复：分组表头复用 .header 类，会被上面 .entry:not(.header) 判定误判为「空白区」，
+    //   导致右键分组头把已选中的整组清空。分组头右键应保留选中（菜单动作作用于整组选择集）
+    const onGroupHeader = !!(target.closest('.entry.header.group-row'))
     if (!target.closest('.entry:not(.header)') && paneList) {
-      // 清除该面板选中
-      if (paneList.classList.contains('local-pane')) {
-        this.selectedLocal = []
-        this.localLastSelectedIndex = null
-      } else if (paneList.classList.contains('remote-pane')) {
-        this.selectedRemote = []
-        this.remoteLastSelectedIndex = null
+      // 清除该面板选中（分组头右键除外，保留选中态）
+      if (!onGroupHeader) {
+        if (paneList.classList.contains('local-pane')) {
+          this.selectedLocal = []
+          this.localLastSelectedIndex = null
+        } else if (paneList.classList.contains('remote-pane')) {
+          this.selectedRemote = []
+          this.remoteLastSelectedIndex = null
+        }
+        try { this._safeDetect() } catch {}
       }
-      try { this.cdr.detectChanges() } catch {}
 
       // 显示面板级上下文菜单（新建、刷新等）
       const pane = paneList.classList.contains('local-pane') ? 'local' : 'remote'
@@ -565,7 +1097,7 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
         this.contextMenuX = ev.clientX
         this.contextMenuY = ev.clientY
         this.contextMenuVisible = true
-        this.cdr.detectChanges()
+        this._safeDetect()
         this.fixContextMenuPosition(ev.clientX, ev.clientY)
       })
       return
@@ -681,6 +1213,10 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     try {
       localStorage.setItem(this._profileKey(SftpFloatingPanel.SAVED_LOCAL_PATH_KEY), this.localPath)
       localStorage.setItem(this._profileKey(SftpFloatingPanel.SAVED_REMOTE_PATH_KEY), this.remotePath)
+      // ★ 2026-09-21 P2 修复：同步写嵌套配置路径——_restoreSavedRemotePath 经 _paneGet
+      //   嵌套优先读取，只写 localStorage 会让迁移用户的嵌套旧值永远压过新值（路径记忆「卡住」）
+      this._paneSet(this._profileKey(SftpFloatingPanel.SAVED_LOCAL_PATH_KEY), this.localPath)
+      this._paneSet(this._profileKey(SftpFloatingPanel.SAVED_REMOTE_PATH_KEY), this.remotePath)
     } catch { /* ignore */ }
   }
 
@@ -811,7 +1347,7 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       if (offerSetup && !this.cwdSetupVisible && !this._cwdSetupPrompted) {
         this._cwdSetupPrompted = true
         this.cwdSetupVisible = true
-        this.cdr.detectChanges()
+        this._safeDetect()
       }
       return
     }
@@ -826,7 +1362,7 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     this.remotePathInput = cwd
     if (offerSetup) this._pushRemoteNav(cwd)
     await this.refreshRemote()
-    this.cdr.detectChanges()
+    this._safeDetect()
   }
 
   async onCwdSetupChoice(choice: CwdSetupChoice): Promise<void> {
@@ -834,7 +1370,7 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     if (choice === 'cancel') {
       // 取消 = 放弃同步，回到路径模式关闭
       this.setPathMode('off')
-      this.cdr.detectChanges()
+      this._safeDetect()
       return
     }
     const ok = choice === 'permanent'
@@ -843,7 +1379,7 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     if (!ok) {
       this.showToast(this.i18n.t('path.cwdSetupFailed'))
       this.setPathMode('off')
-      this.cdr.detectChanges()
+      this._safeDetect()
       return
     }
     this.showToast(this.i18n.t('path.cwdSetupDone'))
@@ -857,11 +1393,11 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
         this.remotePathInput = cwd
         this._pushRemoteNav(cwd)
         await this.refreshRemote()
-        this.cdr.detectChanges()
+        this._safeDetect()
         return
       }
     }
-    this.cdr.detectChanges()
+    this._safeDetect()
   }
 
   /** 仅当前交互会话：用户确认后向终端发送临时 PS1 上报 */
@@ -930,6 +1466,93 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     return true
   }
 
+  /**
+   * 根据偏好布局 + 实际宽高，计算「真正渲染」的布局。
+   * 偏好（_layoutMode）始终保留；空间不够时临时回退，并记录原因供提示。
+   * - horizontal + 过窄 → 上下（too-narrow）
+   * - vertical + 过矮 → 左右（too-short）；若同时过窄 → 单栏（too-cramped）
+   * - auto：按宽高自适应，不算「违背偏好」，不弹强制回退提示
+   */
+  private _resolveEffectiveLayout(measuredW?: number, measuredH?: number): {
+    split: 'horizontal' | 'vertical' | 'single'
+    reason: null | 'too-narrow' | 'too-short' | 'too-cramped'
+  } {
+    if (this._layoutMode === 'single') return { split: 'single', reason: null }
+
+    const w = typeof measuredW === 'number' && measuredW > 0
+      ? measuredW
+      : this._measureLayoutWidth()
+    let h = typeof measuredH === 'number' && measuredH > 0 ? measuredH : 0
+    if (h <= 0) {
+      try {
+        const body = this.elRef?.nativeElement?.querySelector('.sftp-body') as HTMLElement | null
+        if (body) h = this._measureBodySize(body).h
+      } catch { /* ignore */ }
+    }
+    if (h <= 0) h = 480
+
+    const tooNarrow = w < SftpFloatingPanel._HORIZONTAL_FALLBACK_WIDTH
+    const tooShort = h < SftpFloatingPanel._VERTICAL_FALLBACK_HEIGHT
+
+    if (this._layoutMode === 'horizontal') {
+      if (tooNarrow && tooShort) return { split: 'single', reason: 'too-cramped' }
+      if (tooNarrow) return { split: 'vertical', reason: 'too-narrow' }
+      return { split: 'horizontal', reason: null }
+    }
+
+    if (this._layoutMode === 'vertical') {
+      if (tooShort && tooNarrow) return { split: 'single', reason: 'too-cramped' }
+      if (tooShort) return { split: 'horizontal', reason: 'too-short' }
+      return { split: 'vertical', reason: null }
+    }
+
+    // auto：按空间选最合适；过窄且过矮时单栏更可用
+    if (tooNarrow && tooShort) return { split: 'single', reason: 'too-cramped' }
+    if (tooNarrow || w <= SftpFloatingPanel._AUTO_NARROW_WIDTH) return { split: 'vertical', reason: null }
+    if (tooShort) return { split: 'horizontal', reason: null }
+    return { split: 'horizontal', reason: null }
+  }
+
+  /** 同步有效布局到 `_effectiveLayout` / `_isNarrowLayout` / 回退原因 */
+  private _syncNarrowLayout(measuredW?: number, measuredH?: number): void {
+    const { split, reason } = this._resolveEffectiveLayout(measuredW, measuredH)
+    this._effectiveLayout = split
+    this._layoutOverrideReason = reason
+    this._isNarrowLayout = split === 'vertical'
+  }
+
+  /** 布局回退文案（面板内 toast + 按钮 title） */
+  private _layoutOverrideToastMessage(): string {
+    const reason = this._layoutOverrideReason
+    if (!reason) return ''
+    const key =
+      reason === 'too-narrow' ? 'layout.override.tooNarrow'
+        : reason === 'too-short' ? 'layout.override.tooShort'
+          : 'layout.override.tooCramped'
+    return this.i18n.t(key)
+  }
+
+  /**
+   * 在偏好被空间限制临时改写时提示用户。
+   * - force：用户手动点布局按钮时必提示（若有回退）
+   * - 否则仅在 reason 变化时提示，避免 resize 刷屏
+   */
+  private _maybeAnnounceLayoutOverride(force = false): void {
+    const reason = this._layoutOverrideReason
+    // auto 的 too-cramped 也提示；其它 auto 自适应不算「违背偏好」
+    const shouldTell =
+      !!reason &&
+      (force || reason !== this._lastAnnouncedOverrideReason) &&
+      (this._layoutMode !== 'auto' || reason === 'too-cramped' || force)
+    if (!shouldTell) {
+      if (!reason) this._lastAnnouncedOverrideReason = null
+      return
+    }
+    this._lastAnnouncedOverrideReason = reason
+    const msg = this._layoutOverrideToastMessage()
+    if (msg) this.showToast(msg, force ? 4200 : 3200)
+  }
+
   /** 循环切换布局模式：auto → horizontal → vertical → single → auto
    *  写入 configService.store（Tabby config.yaml），通知设置页同步 */
   cycleLayoutMode(): void {
@@ -946,33 +1569,29 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       const target = this.configService?.store?.['tabby-sftp-plus']
       if (target) { target.layoutMode = this._layoutMode; this.configService?.save() }
     } catch {}
-    if (this._layoutMode === 'horizontal') this._isNarrowLayout = false
-    else if (this._layoutMode === 'vertical') this._isNarrowLayout = true
-    else if (this._layoutMode === 'single') { this._isNarrowLayout = false; this.activePane = 'remote' }
-    else this._updateAutoLayout()
-    setTimeout(() => this._applyPaneSplit(), 50)
-    this.cdr.detectChanges()
+    if (this._layoutMode === 'single') this.activePane = 'remote'
+    this._syncNarrowLayout()
+    setTimeout(() => {
+      this._safeDetect() // 先让 *ngIf 按 _effectiveLayout 卸掉本地面板
+      this._applyPaneSplit()
+      this._maybeAnnounceLayoutOverride(true)
+    }, 50)
     try { window.dispatchEvent(new CustomEvent('sftp-plus-settings-changed')) } catch {}
   }
 
   /** 根据容器宽度更新自动布局状态 */
   private _updateAutoLayout(): void {
     if (this._layoutMode !== 'auto') return
-    try {
-      const w = this._measureLayoutWidth()
-      this._isNarrowLayout = w <= 960
-    } catch {
-      this._isNarrowLayout = false
-    }
+    this._syncNarrowLayout()
   }
 
   /** 读取可用于布局计算的容器宽度 */
   private _measureLayoutWidth(): number {
     const root = this.elRef?.nativeElement as HTMLElement | undefined
-    if (!root) return 960
+    if (!root) return SftpFloatingPanel._AUTO_NARROW_WIDTH
     // 浮动面板：以面板自身宽度判断窄屏（祖先为遮罩/终端，远大于面板，不能取最大值）
     if (this.displayMode === 'floating') {
-      return root.clientWidth > 0 ? root.clientWidth : 960
+      return root.clientWidth > 0 ? root.clientWidth : SftpFloatingPanel._AUTO_NARROW_WIDTH
     }
     const widths: number[] = []
     let el: HTMLElement | null = root
@@ -981,7 +1600,7 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       el = el.parentElement
     }
     if (widths.length) return Math.max(...widths)
-    return 960
+    return SftpFloatingPanel._AUTO_NARROW_WIDTH
   }
 
   /** 工作区标签页：在宿主布局稳定后刷新自适应布局 */
@@ -1003,21 +1622,38 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     const root = this.elRef?.nativeElement as HTMLElement | undefined
     if (!root) return
 
-    if (this._layoutMode === 'horizontal') this._isNarrowLayout = false
-    else if (this._layoutMode === 'vertical') this._isNarrowLayout = true
-    else if (this._layoutMode === 'single') this._isNarrowLayout = false
-    else this._updateAutoLayout()
-
     const body = root.querySelector('.sftp-body') as HTMLElement | null
     if (body) {
       const { w, h } = this._measureBodySize(body)
-      if (w === this._lastLayoutBodyW && h === this._lastLayoutBodyH && this._isNarrowLayout === this._lastLayoutNarrow) return
+      if (this._layoutMode === 'single') {
+        this._effectiveLayout = 'single'
+        this._layoutOverrideReason = null
+        this._isNarrowLayout = false
+      } else {
+        this._syncNarrowLayout(w > 0 ? w : undefined, h > 0 ? h : undefined)
+      }
+      if (
+        w === this._lastLayoutBodyW &&
+        h === this._lastLayoutBodyH &&
+        this._isNarrowLayout === this._lastLayoutNarrow &&
+        this._effectiveLayout === this._lastEffectiveLayout &&
+        this._layoutOverrideReason === this._lastOverrideReason
+      ) return
       this._lastLayoutBodyW = w
       this._lastLayoutBodyH = h
       this._lastLayoutNarrow = this._isNarrowLayout
+      this._lastEffectiveLayout = this._effectiveLayout
+      this._lastOverrideReason = this._layoutOverrideReason
+    } else if (this._layoutMode !== 'single') {
+      this._syncNarrowLayout()
+    } else {
+      this._effectiveLayout = 'single'
+      this._layoutOverrideReason = null
+      this._isNarrowLayout = false
     }
     this._applyPaneSplit()
-    this.cdr.detectChanges()
+    this._maybeAnnounceLayoutOverride(false)
+    this._safeDetect()
   }
 
   /** 窗口尺寸变化时关闭悬浮菜单，避免位置错位 */
@@ -1037,7 +1673,7 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       this.headerMenuCol = null
       changed = true
     }
-    if (changed) this.cdr.detectChanges()
+    if (changed) this._safeDetect()
   }
 
   private _bindLayoutObservers(): void {
@@ -1084,7 +1720,7 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     return { w, h }
   }
 
-  /** 布局模式按钮悬浮提示 */
+  /** 布局模式按钮悬浮提示（有回退时标明偏好→实际） */
   layoutModeTitle(): string {
     const map: Record<string, string> = {
       auto: this.i18n.t('layout.mode.auto'),
@@ -1092,7 +1728,14 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       vertical: this.i18n.t('layout.mode.vertical'),
       single: this.i18n.t('layout.mode.single'),
     }
-    return map[this._layoutMode] || this.i18n.t('layout.mode.auto')
+    const preferred = map[this._layoutMode] || this.i18n.t('layout.mode.auto')
+    if (!this._layoutOverrideReason) return preferred
+    const actual = map[this._effectiveLayout] || this._effectiveLayout
+    const reason =
+      this._layoutOverrideReason === 'too-narrow' ? this.i18n.t('layout.override.reasonNarrow')
+        : this._layoutOverrideReason === 'too-short' ? this.i18n.t('layout.override.reasonShort')
+          : this.i18n.t('layout.override.reasonCramped')
+    return this.i18n.t('layout.override.title', { preferred, actual, reason })
   }
 
   /** 面板分割线悬浮提示 */
@@ -1145,6 +1788,26 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
   // ========== 文件冲突对话框 ==========
   showConflictDialog = false
   conflictData: ConflictFileInfo | null = null
+
+  // ========== 传输目标目录不存在对话框（2026-09-28） ==========
+  dirMissingVisible = false
+  /** 不存在的目标目录完整路径（仅用于展示） */
+  dirMissingDir = ''
+  /** true = 远程目录（上传）；false = 本地目录（下载） */
+  dirMissingIsRemote = false
+  /** 请求目录与面板当前目录不同时才显示「使用当前目录」回退按钮 */
+  dirMissingShowFallback = true
+  /** 等待用户在目录不存在对话框上做出选择的 resolver */
+  private _dirMissingResolve: ((c: 'create' | 'fallback' | 'cancel') => void) | null = null
+  /**
+   * ★ 2026-09-21：冲突框文件名旁图标与列表/属性框共用 resolveDetailsIcon
+   *   （如 .log → text.svg），避免再显示与列表不一致的 📄 emoji。
+   */
+  get conflictFileIconUrl(): string | null {
+    const d = this.conflictData
+    if (!d) return null
+    return this.resolveDetailsIcon({ name: d.fileName, isDirectory: !!d.isDirectory })
+  }
   /** 当前冲突在处理队列中的索引（从 1 开始），-1 表示未知 */
   conflictCurrIdx = 1
   /** 总冲突数 */
@@ -1173,7 +1836,18 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
 
   // ========== 面板分割线（上下/左右布局共用） ==========
   _isNarrowLayout = false
-  /** 布局模式: 'auto' | 'horizontal' | 'vertical' | 'single' */
+  /** 实际渲染布局（可能因空间不足与偏好 _layoutMode 不同） */
+  _effectiveLayout: 'horizontal' | 'vertical' | 'single' = 'horizontal'
+  /** 空间不足导致的临时回退原因；null = 按偏好原样显示 */
+  _layoutOverrideReason: null | 'too-narrow' | 'too-short' | 'too-cramped' = null
+  private _lastAnnouncedOverrideReason: null | 'too-narrow' | 'too-short' | 'too-cramped' = null
+  /** 自适应：面板宽度 ≤ 此值时切上下 */
+  private static readonly _AUTO_NARROW_WIDTH = 960
+  /** 强制左右时：body 低于此宽度仍临时改上下（约 2×320+分割线） */
+  private static readonly _HORIZONTAL_FALLBACK_WIDTH = 680
+  /** 强制上下时：body 低于此高度仍临时改左右（约 2×160+分割线） */
+  private static readonly _VERTICAL_FALLBACK_HEIGHT = 360
+  /** 布局模式偏好: 'auto' | 'horizontal' | 'vertical' | 'single' */
   _layoutMode: 'auto' | 'horizontal' | 'vertical' | 'single' = 'auto'
   _verticalSplitRatio = 0.5   // 上下布局比例（本地面板占比，默认50%）
   _horizontalSplitRatio = 0.5 // 左右布局比例
@@ -1184,8 +1858,14 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
   private _splitUpHandler: ((e: MouseEvent) => void) | null = null
   // ★ 暂停下载时取消当前子文件的引用
   _cancelRef: { current: any; active?: Set<any> } | null = null
+  // ★ BUG-2 修复：独立的取消引用集合（按传输任务隔离，避免全局共享导致误取消）
+  private _cancelRefs = new Set<{ current: any; active?: Set<any> }>()
+  /** ★ 2026-09-20 P2-2：本面板的「拖入兜底临时目录」作用域（面板级唯一），销毁时定向清理自己产生的副本 */
+  private readonly _dropTmpScope = randomUUID()
   // ★ 2026-07-25：并发同名下载守卫（防止两个下载写同一个 .tmp 造成数据损坏，见 B3）
   private _activeDownloadTargets = new Set<string>()
+  // ★ 2026-09-21 P1：并发同名上传守卫（对称下载）——防止两个并发上传互踩同一 .tabby-upload
+  private _activeUploadTargets = new Set<string>()
   private _splitterDidDrag = false
 
   constructor(
@@ -1275,6 +1955,9 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     })
     this._fileDropRuntime = new PanelDropAdapter({
       cdr: this.cdr,
+      markViewDirty: () => panel._safeDetect(),
+      // ★ 2026-09-20 P2-2：拖入兜底临时目录归属本面板，销毁时定向清理
+      dropTmpScope: panel._dropTmpScope,
       get connected() { return panel.connected },
       get sftpSession() { return panel.sftpSession },
       get remotePath() { return panel.remotePath },
@@ -1289,8 +1972,11 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       hasConflictQueue: () => panel._conflictQueue.length > 0,
       resetFileDragState: () => panel._resetFileDragState(),
       uploadPathToRemote: (remoteDir, localPath) => panel.uploadPathToRemote(remoteDir, localPath),
-      streamUploadOne: (localPath) => panel._streamUploadOne(localPath),
-      streamDownloadOne: (file) => panel._streamDownloadOne(file),
+      streamUploadOne: (localPath, destRemoteDir) => panel._streamUploadOne(localPath, destRemoteDir),
+      // ★ 2026-09-29（四）：拖拽链路的多选批量打包入口（与 ctxUpload 共用同一个实现，
+      //   保证「多选」这个事实只在 _tryBatchUpload 一处被翻译成批量请求）
+      tryUploadBatch: (localPaths, remoteDir) => panel._tryBatchUpload(localPaths, remoteDir),
+      streamDownloadOne: (file, targetLocalDir) => panel._streamDownloadOne(file, targetLocalDir),
       refreshLocal: () => panel.refreshLocal(),
       refreshRemote: () => panel.refreshRemote(),
       showConflictDialog: () => panel._showConflictDialog(),
@@ -1301,16 +1987,40 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       get sshSession() { return panel.sshSession },
       mtimeToleranceMs: SftpFloatingPanel.MTIME_TOLERANCE_MS,
       get localPath() { return panel.localPath },
+      // ★ 2026-09-25 P1：协调器识别到「同一 方向/远端/本地 已在传输中」时提示用户。
+      //   走这里而不是各调用点，是因为右键/菜单/拖拽下载绕过面板方法、直达协调器。
+      notifyDuplicateTransfer: (displayName: string) => {
+        try {
+          panel.showToast(panel.i18n.t('notify.duplicateTransfer', { name: displayName }), 4200)
+        } catch { /* ignore */ }
+      },
+      // ★ 2026-09-29：仅 TAR 模式下打包通道不可用/失败 —— 该模式**不回退**，所以这里必须
+      //   把「原因 + 解决方法」讲清楚，否则用户只看到一次失败的传输而不知道怎么继续。
+      //   技术细节（原始报错/路径）只进日志（tar-channel 已完整写盘），toast 里只给结论。
+      notifyTarChannelFailure: (name: string, code: string, detail: string) => {
+        try {
+          const reasonKey = TAR_CHANNEL_FAILURE_REASON_KEYS[code] ?? 'tarchan.reason.other'
+          // ★ 2026-09-29：'targetExists' 是「不适用」而非失败 —— 目标已存在时只能走逐文件增量，
+          //   传输会正常完成。用说明性文案 + 解法，避免「失败」措辞让用户以为传输出错。
+          const inapplicable = code === 'targetExists'
+          panel.showToast(panel.i18n.t(
+            inapplicable ? 'notify.tarOnlyInapplicable' : 'notify.tarOnlyFailed',
+            { name, reason: panel.i18n.t(reasonKey) },
+          ), inapplicable ? 6000 : 7000)
+        } catch { /* ignore */ }
+        log.warn(`[tar-only] channel ${code === 'targetExists' ? 'not applicable' : 'unusable'} for "${name}" (${code}): ${detail}`)
+      },
       enqueueConflict: (item) => {
         panel._conflictQueue.push(item)
-        panel.conflictOriginalTotal = panel._conflictQueue.length
+        // ★ 2026-09-25 P3-1 修复：只抬高不重置——原先每次入队都把总数写成「当前队列长度」，
+        //   execute 阶段迟到入队的目录冲突会把 N 改小为剩余数，导致「x/N」进度跳动。
+        panel.conflictOriginalTotal = Math.max(panel.conflictOriginalTotal, panel._conflictQueue.length)
       },
       showConflictDialog: () => panel._showConflictDialog(),
       // ★ 2026-08-11：size/count 合并为单次遍历 + 并发 readdir（原 4 个串行递归函数）
       scanLocalDir: (p) => panel._scanLocalDir(p),
       scanRemoteDir: (p) => panel._scanRemoteDir(p),
-      fastMode: () => panel._transferFastMode,
-      tarAcceleration: () => panel._transferTarAcceleration,
+      tarChannelMode: () => panel._transferChannelMode,
       // ★ 2026-09-07 issue #15：内容摘要配置（实时读，改设置后无需重建协调器）
       conflictDigestOptions: () => (panel._conflictDigestEnabled ? {
         enabled: true,
@@ -1328,11 +2038,25 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       },
       finishFolderTransfer: (ctx, success) =>
         panel._finishFolderTransfer(ctx.t, ctx.startTime, ctx.logEntryId, success),
-      // ★ 2026-08-11：tar 打包通道回填传输记录的真实目录大小（初始记的是压缩包大小，易误导）
-      // ★ 2026-09-03：updateLogSize 仅 tar 打包通道会调用 → 顺带把记录标记为 tar 模式，
-      //   并清除 folder.start 时占位写入的 itemCount（tar 走整包，逐文件计数无意义）
+      discardFolderTransfer: (ctx) => {
+        panel.transfers = panel.transfers.filter(x => x !== ctx.t)
+        try { panel.transferLog.remove(ctx.logEntryId) } catch { /* ignore */ }
+        panel._safeDetect()
+      },
+      // ★ 2026-09-29：通道归属改为**显式**标记 —— 此前 transferMode='tar' 是在这里顺带写的，
+      //   而本回调只在「需要回填真实目录大小」时才会被 tar 通道调用（下载要求 realSize>0，
+      //   否则要等解包后兜底扫描且非 mergeIntoExisting）→ 明明走了 tar 却显示 ⇄SFTP。
+      markChannelMode: (ctx, mode) => {
+        try {
+          panel.transferLog.update(ctx.logEntryId, { transferMode: mode, fileCount: 0 })
+        } catch { /* ignore */ }
+        try {
+          ctx.t.transferMode = mode
+          panel._safeDetect()
+        } catch { /* ignore */ }
+      },
       updateFolderLogSize: (ctx, size) => {
-        try { panel.transferLog.update(ctx.logEntryId, { size, transferMode: 'tar', fileCount: 0 }) } catch { /* ignore */ }
+        try { panel.transferLog.update(ctx.logEntryId, { size }) } catch { /* ignore */ }
       },
       updateFolderProgress: (ctx, bytesDone, currentItem, itemDone, currentItemSize) =>
         panel._updateFolderProgress(ctx.t, bytesDone, currentItem, itemDone, currentItemSize),
@@ -1342,8 +2066,8 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       uploadRaw: (remotePath, localPath) => panel._doUploadRaw(remotePath, localPath),
       downloadTopLevel: (remotePath, localPath, mode, size) =>
         panel._doDownload(remotePath, localPath, mode, size),
-      downloadRaw: (remotePath, localPath, mode, size) =>
-        panel._doDownloadRaw(remotePath, localPath, mode, size),
+      downloadRaw: (remotePath, localPath, mode, size, onProgress) =>
+        panel._doDownloadRaw(remotePath, localPath, mode, size, onProgress),
       refreshRemote: () => panel.refreshRemote(),
       // ★ 2026-08-10：目录内文件级并发复用上传/下载并发数设置（实时生效）
       dirUploadConcurrency: () => panel._uploadConcurrency,
@@ -1388,6 +2112,8 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     this._conflictResolver = new PanelConflictResolver({
       get sftpSession() { return panel.sftpSession },
       get cdr() { return panel.cdr },
+      // ★ 2026-09-20 A2：面板销毁后，冲突框的异步 stat / 扫描 / 摘要回调必须短路
+      isAlive: () => panel._isAlive,
       renameRemote: async (src, dest) => {
         if (!panel.sftpSession) return
         await panel.sftpSession.rename(src, dest)
@@ -1440,8 +2166,8 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
 
       doDownload: (remotePath, localPath, mode, size) => panel._doDownload(remotePath, localPath, mode, size),
       doUpload: (remotePath, localPath) => panel._doUpload(remotePath, localPath),
-      downloadRemoteDir: (remoteDir, localDestDir, targetPane, top, renameTo) =>
-        panel._transferCoordinator.downloadRemoteDir(remoteDir, localDestDir, top, renameTo),
+      downloadRemoteDir: (remoteDir, localDestDir, targetPane, top, renameTo, forceOverwrite) =>
+        panel._transferCoordinator.downloadRemoteDir(remoteDir, localDestDir, top, renameTo, forceOverwrite),
       // ★ 2026-09-03 修复：此前适配器签名漏转发第三参 reuseLogEntryId，导致目录冲突
       //   覆盖/重命名时合并上传无法复用来源记录（入队时已被 finish(false) 误记失败的那条），
       //   转而新建成功记录 → 传输记录出现「一失败一成功」两条同目录条目（拖拽路径必现）
@@ -1456,13 +2182,28 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       copyLocalDir: (src, dest) => copyLocalDir(src, dest),
       scanLocalDir: (p) => panel._scanLocalDir(p),
       scanRemoteDir: (p) => panel._scanRemoteDir(p),
+      computeConflictDigests: (args) => panel._computeConflictDigests(args),
+      shouldAutoSkipSameContent: () =>
+        !!(panel._conflictDigestEnabled && panel._conflictAutoSkipSameContent),
+      notifyConflictAutoSkipped: (fileName) => {
+        try {
+          const tip = panel.i18n.t('transfer.skippedAsDuplicate')
+          panel.showToast(`${fileName} — ${tip}`)
+        } catch {
+          panel.showToast(`${fileName}: skipped (same content)`)
+        }
+      },
       copyRemoteDir: (srcRemotePath, destRemotePath, isDirectory) => copyRemoteDir(
         srcRemotePath, destRemotePath, isDirectory, {
           hasSession: () => !!panel.sftpSession,
           mkdir: async (p) => { await panel.sftpSession!.mkdir(p) },
           readdir: async (p) => {
             const entries = await panel.sftpSession!.readdir(p)
-            return entries.map(e => ({ name: e.name, isDirectory: !!e.isDirectory, isSymbolicLink: !!(e as any).isSymbolicLink }))
+            return entries.map(e => ({
+              name: e.name,
+              isDirectory: !!e.isDirectory,
+              isSymbolicLink: !!(e as any).isSymlink || !!(e as any).isSymbolicLink,
+            }))
           },
           download: (r, l) => panel._doDownload(r, l),
           upload: (r, l) => panel._doUpload(r, l),
@@ -1481,6 +2222,7 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       get effectiveLang() { return panel.effectiveLang },
       get notifications() { return panel.notifications },
       get cdr() { return panel.cdr },
+      detectChanges: () => panel._safeDetect(),
       get zone() { return panel.zone },
       formatSpeed: (bytes, ms) => panel._formatSpeed(bytes, ms),
     })
@@ -1620,6 +2362,11 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     this.sftpConfig?.flush()
   }
 
+  /** 供列控制器基类调用的落盘入口 */
+  protected override _paneFlush(): void {
+    this._paneFlushToConfig()
+  }
+
   /** 使用界面语言（代理到 i18n service） */
   get effectiveLang(): Locale {
     return this.i18n.getLocale()
@@ -1660,8 +2407,14 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       },
       clearRemoteListing: () => panel.clearRemoteListing(),
       setRemoteLoading: (loading) => { panel._remoteLoading = loading },
+      isAlive: () => panel._isAlive,
       abortInFlightTransfers: () => {
         try { panel.clearTransfers() } catch { /* ignore */ }
+      },
+      // ★ 2026-09-25 P0-3：心跳据此判断是否有在途传输，从而放宽「通道死亡」判定阈值
+      //   （大流量下载时探测请求易被数据挤超时，不能在单次超时后拆会话/中断传输）
+      hasActiveTransfers: () => {
+        try { return panel.transfers.length > 0 } catch { return false }
       },
     })
 
@@ -1729,17 +2482,25 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       const lmode = this.sftpConfig?.get('paneState/layout/mode')
       if (lmode === 'horizontal' || lmode === 'vertical' || lmode === 'single') this._layoutMode = lmode
       else this._layoutMode = 'auto'
-      if (this._layoutMode === 'horizontal') this._isNarrowLayout = false
-      else if (this._layoutMode === 'vertical') this._isNarrowLayout = true
-      else if (this._layoutMode === 'single') this._isNarrowLayout = false
-      else {
-        const h = this.elRef?.nativeElement as HTMLElement | undefined
-        if (h) this._isNarrowLayout = h.clientWidth <= 960
+      if (this._layoutMode === 'single') {
+        this._effectiveLayout = 'single'
+        this._layoutOverrideReason = null
+        this._isNarrowLayout = false
+      } else {
+        const bodyEl = this.elRef?.nativeElement?.querySelector('.sftp-body') as HTMLElement | null
+        if (bodyEl) {
+          const { w, h } = this._measureBodySize(bodyEl)
+          this._syncNarrowLayout(w > 0 ? w : undefined, h > 0 ? h : undefined)
+        } else {
+          this._syncNarrowLayout()
+        }
       }
       this._applyPaneSplit()
+      this._maybeAnnounceLayoutOverride(true)
       this._applyAutoTheme()
       this._applyFontSize()
-      this.cdr.detectChanges()
+      this._safeDetect()
+      this.cdr.markForCheck()
     }
     window.addEventListener('sftp-plus-settings-changed', this._settingsChangedHandler)
 
@@ -1767,7 +2528,7 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
         if (!target?.closest('.bookmark-popup') && !target?.closest('.bm-btn')) {
           this.zone.run(() => {
             this.closeBookmarks()
-            if (changed) this.cdr.detectChanges()
+            if (changed) this._safeDetect()
           })
           return
         }
@@ -1776,7 +2537,7 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
         if (!target?.closest('.context-menu')) {
           this.zone.run(() => {
             this.contextMenuVisible = false
-            this.cdr.detectChanges()
+            this._safeDetect()
           })
           return
         }
@@ -1785,16 +2546,25 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
         if (!target?.closest('.context-menu')) {
           this.zone.run(() => {
             this.headerMenuVisible = false
-            this.cdr.detectChanges()
+            this._safeDetect()
           })
           return
         }
       }
       if (changed) {
-        this.zone.run(() => this.cdr.detectChanges())
+        this.zone.run(() => this._safeDetect())
       }
     }
     document.addEventListener('click', this._docClickCapture, true)
+
+    // ★ 2026-09-20：关 Tabby 窗口时 Electron 可能来不及走完整 destroy；beforeunload 再 flush 一次
+    this._beforeUnloadFlush = () => {
+      try { this._paneFlushToConfig() } catch { /* ignore */ }
+      try {
+        if (this.displayMode !== 'workspace') this._persistPanelGeometry()
+      } catch { /* ignore */ }
+    }
+    window.addEventListener('beforeunload', this._beforeUnloadFlush)
 
     // 滚轮事件关闭所有悬浮面板/菜单（捕获阶段）
     // 注意：必须在捕获阶段判断目标归属，因为模板绑定的 (wheel) 冒泡阶段 stopPropagation()
@@ -1816,7 +2586,7 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
         if (this.showBookmarks) this.closeBookmarks()
         if (this.contextMenuVisible) this.contextMenuVisible = false
         if (this.headerMenuVisible) this.headerMenuVisible = false
-        this.cdr.detectChanges()
+        this._safeDetect()
       })
     }
     document.addEventListener('wheel', this._docWheelCapture, true)
@@ -1828,7 +2598,10 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     this.zone.runOutsideAngular(() => {
       this._termKeyShieldKeydown = (ev: KeyboardEvent) => this._shieldTerminalClipboardKeys(ev)
       this._termKeyShieldPaste = (ev: Event) => this._shieldTerminalPaste(ev as ClipboardEvent)
+      // ★ 2026-09-20：捕获阶段抢先消费已绑定的面板热键，避免 Tabby 全局热键（Alt+Enter=全屏）先触发
+      this._panelHotkeyCaptureKeydown = (ev: KeyboardEvent) => this._capturePanelHotkeysBeforeTabby(ev)
       window.addEventListener('keydown', this._termKeyShieldKeydown, true)
+      window.addEventListener('keydown', this._panelHotkeyCaptureKeydown, true)
       window.addEventListener('paste', this._termKeyShieldPaste, true)
 
       // ★ 2026-09-17：从其他窗口点回面板时，Electron 常在激活后把焦点还原到 xterm；
@@ -1861,6 +2634,7 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
   }
 
   ngOnDestroy(): void {
+    this._destroyed = true
     // 必须先中止拖拽预缓存下载，再 disconnect；否则后台 SFTP read 会继续占满 SSH 通道，
     // 关面板重开后进入文件夹仍会卡，直到重启 Tabby。
     this._cancelRemoteDragCache()
@@ -1868,6 +2642,7 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     this._fileDnd?.reset()
     this._headerReorder?.dispose()
     this._rubberBand.dispose()
+    this.clearTransfers()
     this._transferRuntime.dispose()
     if (this._geomInitTimer) {
       clearTimeout(this._geomInitTimer)
@@ -1885,10 +2660,19 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       document.removeEventListener('mouseup', this._splitUpHandler)
       this._splitUpHandler = null
     }
+    // ★ 2026-09-20 A3 审计修复：列宽拖拽的 document 监听器清理此前从未接线
+    //   （disposeColResize 只有定义无调用点）——拖拽列宽期间销毁面板时 mouseup 永不触发，
+    //   两个 document 监听器会残留并强引用整个面板实例，之后每次鼠标移动都在
+    //   已销毁组件上跑 zone.run 改写列宽字段。
+    this.disposeColResize()
     // 清理几何拖拽/缩放事件监听器（防止销毁时正在拖拽导致泄漏）
     document.removeEventListener('mousemove', this._onGeomMoveBound)
     document.removeEventListener('mouseup', this._onGeomUpBound)
     this.saveCurrentPath()
+    // ★ 2026-09-20：关面板/关 Tabby 前再落一次几何，防止最后一次拖拽后未 save 就退出
+    if (this.displayMode !== 'workspace') {
+      try { this._persistPanelGeometry() } catch { /* ignore */ }
+    }
     this._stopCwdSync()
     this.cwdSetupVisible = false
     this._cwdSetupPrompted = false
@@ -1899,6 +2683,10 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       document.removeEventListener('click', this._docClickCapture, true)
       this._docClickCapture = null
     }
+    if (this._beforeUnloadFlush) {
+      window.removeEventListener('beforeunload', this._beforeUnloadFlush)
+      this._beforeUnloadFlush = null
+    }
     if (this._docWheelCapture) {
       document.removeEventListener('wheel', this._docWheelCapture, true)
       this._docWheelCapture = null
@@ -1906,6 +2694,10 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     if (this._termKeyShieldKeydown) {
       window.removeEventListener('keydown', this._termKeyShieldKeydown, true)
       this._termKeyShieldKeydown = null
+    }
+    if (this._panelHotkeyCaptureKeydown) {
+      window.removeEventListener('keydown', this._panelHotkeyCaptureKeydown, true)
+      this._panelHotkeyCaptureKeydown = null
     }
     if (this._termKeyShieldPaste) {
       window.removeEventListener('paste', this._termKeyShieldPaste, true)
@@ -1947,6 +2739,8 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     }
     // P2-1: 清理远程拖拽缓存临时目录
     void fs.rm(path.join(os.tmpdir(), 'sftp-plus-dragout'), { recursive: true, force: true }).catch(() => {})
+    // ★ 2026-09-20 P2-2: 清理「拖入兜底」临时目录（仅本面板作用域内的副本，不误删其它面板的）
+    void fs.rm(dragDropTempDir(this._dropTmpScope), { recursive: true, force: true }).catch(() => {})
     // P2-2: 清理 _openPathInSystem 可能残留的 keyup 监听和定时器
     if (this._openPathKeyupHandler) {
       window.removeEventListener('keyup', this._openPathKeyupHandler, true)
@@ -1958,14 +2752,25 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     }
     void this._cleanupEditorTemp()
     void this._cleanupViewerTemp()
+    // ★ 2026-09-21 P2：清理「系统中打开」下载的临时文件（best-effort）
+    void this._cleanupSystemOpenTempFiles()
   }
 
   private _settingsChangedHandler: (() => void) | null = null
   private _themeSub: any = null
   private _docClickCapture: ((ev: MouseEvent) => void) | null = null
+  private _beforeUnloadFlush: (() => void) | null = null
   private _docWheelCapture: ((ev: WheelEvent) => void) | null = null
   /** ★ 2026-09-17 issue #21：捕获阶段剪贴板热键/粘贴屏蔽（防穿透终端） */
   private _termKeyShieldKeydown: ((ev: KeyboardEvent) => void) | null = null
+  private _panelHotkeyCaptureKeydown: ((ev: KeyboardEvent) => void) | null = null
+  /**
+   * ★ 2026-09-29：指针类面板热键（中键/滚轮）最近一次触发时间。
+   * 滚轮一次物理滑动会连发数十个 wheel 事件，动作必须节流（否则「删除」绑滚轮会连删一堆）。
+   */
+  private _pointerHotkeyLastFire = 0
+  /** 滚轮连发热键的节流窗口（ms） */
+  private static readonly _POINTER_WHEEL_THROTTLE_MS = 150
   private _termKeyShieldPaste: ((ev: Event) => void) | null = null
   /** ★ 2026-09-17：从其他窗口点回面板时，防止 xterm 抢回焦点 */
   private _panelFocusMouseDownCapture: ((ev: MouseEvent) => void) | null = null
@@ -1973,12 +2778,20 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
   private _panelWindowFocusGuard: (() => void) | null = null
   private _panelFocusWantedUntil = 0
   private _panelFocusStealTimers: ReturnType<typeof setTimeout>[] = []
-  /** 用户最近在面板内点击过：即使焦点仍卡在 xterm，剪贴板热键也归面板（点终端后清除） */
+  /**
+   * 用户最近在面板内点击过：即使焦点仍卡在 xterm，剪贴板热键也归面板。
+   * 清除时机只有三处：面板外任意 mousedown（含点终端区）/ 面板销毁 / owns 下焦点在终端且 C/X 无选中。
+   * ★ 2026-09-29：曾把它改成「4s 有效期」，经用户指出属过度修复后已回退 —— 焦点在面板里时面板
+   *   本就该接管剪贴板快捷键（选中文件 → Cmd/Ctrl+C/V），且这是**有意设计**：面板内按 Ctrl+C 不能
+   *   变成打进终端的 ^C（会杀掉对面命令）；点一下终端即清除标志，终端侧复制粘贴从未被抢。
+   */
   private _panelOwnsClipboardHotkeys = false
   private _ro: ResizeObserver | null = null
   /** 布局去重：上次 _scheduleLayoutRefresh 实测的 body 尺寸与窄屏标记 */
   private _lastLayoutBodyW = -1
   private _lastLayoutBodyH = -1
+  private _lastEffectiveLayout: 'horizontal' | 'vertical' | 'single' | '' = ''
+  private _lastOverrideReason: null | 'too-narrow' | 'too-short' | 'too-cramped' | undefined = undefined
   private _lastLayoutNarrow = false
   private _winResizeHandler: (() => void) | null = null
 
@@ -2155,7 +2968,7 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       el.style.setProperty('--_scroll-thumb-hover', 'rgba(0,0,0,0.3)', 'important')
     }
     // 强制 Angular 变更检测，确保子元素 CSS 变量重新计算
-    this.cdr.detectChanges()
+    this._safeDetect()
   }
 
   /** 格式化传输速度 */
@@ -2212,15 +3025,24 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       const dl = Number(cfg?.transferDownloadConcurrency)
       this._uploadConcurrency = this._clampConcurrency(Number.isFinite(up) ? up : 3)
       this._downloadConcurrency = this._clampConcurrency(Number.isFinite(dl) ? dl : 3)
-      // ★ 2026-08-11：快速模式（跳过目录预扫描，立即开传，代价是没有百分比进度）
-      this._transferFastMode = !!cfg?.transferFastMode
-      // ★ 2026-08-28：tar 打包加速开关
-      this._transferTarAcceleration = cfg?.transferTarAcceleration !== false
+      // ★ 2026-09-28：传输通道模式（含旧 transferTarAcceleration 开关迁移：false→sftpOnly，true/缺省→smart）
+      const legacy = (cfg as any)?.transferTarAcceleration
+      if ((cfg as any)?.transferChannelMode && ['smart', 'sftpOnly', 'tarOnly', 'preferSftp', 'preferTar'].includes((cfg as any).transferChannelMode)) {
+        this._transferChannelMode = (cfg as any).transferChannelMode
+      } else if (legacy === false) {
+        this._transferChannelMode = 'sftpOnly'
+      } else {
+        this._transferChannelMode = 'smart'
+      }
       // ★ 2026-09-07 issue #15：冲突内容摘要（关闭时行为与旧版完全一致：仅按 size+mtime 判定）
       this._conflictDigestEnabled = cfg?.conflictDigestEnabled !== false
       this._conflictAutoSkipSameContent = cfg?.conflictAutoSkipSameContent !== false
+      // ★ 2026-09-21 P2 修复：补上界 [1, 4096]MB —— 面板是摘要的实际消费方，
+      //   配置里被写入极大值时每次冲突检测都会对巨型文件求 hash
       const digestMaxMB = Number(cfg?.conflictDigestMaxSizeMB)
-      this._conflictDigestMaxSizeMB = Number.isFinite(digestMaxMB) && digestMaxMB > 0 ? digestMaxMB : 256
+      this._conflictDigestMaxSizeMB = Number.isFinite(digestMaxMB) && digestMaxMB > 0
+        ? Math.min(4096, Math.max(1, Math.floor(digestMaxMB)))
+        : 256
       this._conflictDigestAlgo = cfg?.conflictDigestAlgo === 'sha256' ? 'sha256' : 'sha1'
       this._pumpUploadQueue()
       this._pumpDownloadQueue()
@@ -2237,7 +3059,14 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
   private _loadPanelGeometry(): void {
     try {
       const cfg = this.configService?.store?.['tabby-sftp-plus']
-      const g = cfg?.panelGeometry
+      let g = cfg?.panelGeometry
+      // ★ 2026-09-20：config 为空时回退 localStorage（此前只写 store 不 save，重启易丢失）
+      if ((!g || typeof g !== 'object' || !(g.width || g.height)) && typeof localStorage !== 'undefined') {
+        try {
+          const raw = localStorage.getItem('sftp-plus-panel-geometry')
+          if (raw) g = JSON.parse(raw)
+        } catch { /* ignore */ }
+      }
       if (g && typeof g === 'object') {
         this._panelGeom = {
           left: typeof g.left === 'string' ? g.left : undefined,
@@ -2251,18 +3080,16 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     } catch { /* ignore */ }
   }
 
-  /** 持久化面板几何到内存 store（不立刻 save。Tabby 退出时自动落盘，
-   *  避免每次拖拽缩放频繁写 config.yaml 导致文件损坏——以前调 this.configService.save()
-   *  每次 save() 是整个 config.yaml 重写，中断即损坏，下次启动闪退。）
-   *
-   *  ★ 2026-08-25 修复（拆分窗口尺寸串味）：几何统一以「百分比」存储。
-   *    默认 96%×94% 居中；用户拖拽/缩放得到的 px 在落盘前归一化为相对父窗口的 %，
-   *    这样每个 Tabby 窗口（含较小的拆分窗口）都按自身大小自适应，
-   *    不会再因在某个窗口 clamp 出的固定 px 污染其它窗口。 */
+  /**
+   * 持久化面板几何。
+   * ★ 2026-09-20 核实：旧注释写「交给 Tabby 退出时统一落盘、勿 save()」，但实际只改
+   *   store 内存、不 save 时，直接关 Tabby 经常丢尺寸（ConfigService 未必把嵌套赋值标脏）。
+   *   缩放/拖拽结束本来就只调一次，立即 save() 安全；并双写 localStorage 兜底。
+   *   （历史「频繁 save 损坏 yaml」来自 mousemove 每帧 save，不是 mouseup 一次。）
+   */
   private _persistPanelGeometry(): void {
-    if (!this.configService?.store) return
+    if (!this.configService?.store && typeof localStorage === 'undefined') return
     try {
-      const target = this.configService.store['tabby-sftp-plus']
       // 最大化时宿主 style 是 100%，需存还原后的真实几何（已是百分比），否则重载无法复原
       const g = (this.panelMaximized && this._prevGeom)
         ? this._prevGeom
@@ -2273,7 +3100,7 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
             height: this._hostEl?.style.height || '',
           }
       // ★ 归一化为百分比：px → 相对父窗口的 %；已为 % 则原样保留
-      target.panelGeometry = {
+      const payload = {
         left: this._toPct(g.left as string, 'x'),
         top: this._toPct(g.top as string, 'y'),
         width: this._toPct(g.width as string, 'w'),
@@ -2282,8 +3109,24 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
         // 百分比几何始终跟随窗口缩放与多窗口适配
         followWindow: true,
       }
-      // ★ 不再显式 save()：交给 Tabby 退出时统一落盘，避免频繁写入导致 config.yaml 损坏
-    } catch { /* ignore */ }
+      this._panelGeom = { ...payload }
+
+      if (this.configService?.store) {
+        if (!this.configService.store['tabby-sftp-plus']) {
+          this.configService.store['tabby-sftp-plus'] = {}
+        }
+        const target = this.configService.store['tabby-sftp-plus']
+        target.panelGeometry = payload
+        try { this.configService.save() } catch (e) {
+          log.warn('[panel-geom] configService.save failed:', e)
+        }
+      }
+      try {
+        localStorage.setItem('sftp-plus-panel-geometry', JSON.stringify(payload))
+      } catch { /* ignore */ }
+    } catch (e) {
+      log.warn('[panel-geom] persist failed:', e)
+    }
   }
 
   /** 把几何值归一化为「相对父窗口的百分比」。
@@ -2381,7 +3224,7 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       host.style.height = h + 'px'
     }
     this.panelDraggable = true
-    this.cdr.detectChanges()
+    this._safeDetect()
   }
 
   /** 应用「跟随窗口」默认几何：96%×94% 居中，使用百分比定位 → Tabby 窗口缩放时面板自动跟随 */
@@ -2395,7 +3238,7 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     this._followWindow = true
     this.panelMaximized = false
     this._prevGeom = null
-    this.cdr.detectChanges()
+    this._safeDetect()
     this._scheduleLayoutRefresh()
   }
 
@@ -2460,7 +3303,7 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     // 先不置 panelDragging：未超过移动阈值前视为「点击」，不移动也不显示拖拽态
     this._dragThresholdPassed = false
     this.panelDragging = false
-    this.cdr.detectChanges()
+    this._safeDetect()
     // 防重复绑定：先移除再添加
     document.removeEventListener('mousemove', this._onGeomMoveBound)
     document.removeEventListener('mouseup', this._onGeomUpBound)
@@ -2484,7 +3327,7 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     this._resizeDir = dir
     this._resizeStart = { left: r.left - pr.left, top: r.top - pr.top, w: r.width, h: r.height, mx: e.clientX, my: e.clientY }
     this.panelResizing = true
-    this.cdr.detectChanges()
+    this._safeDetect()
     // 防重复绑定：先移除再添加
     document.removeEventListener('mousemove', this._onGeomMoveBound)
     document.removeEventListener('mouseup', this._onGeomUpBound)
@@ -2527,7 +3370,7 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
         if (dx < 4 && dy < 4) return
         this._dragThresholdPassed = true
         this.panelDragging = true
-        this.cdr.detectChanges()
+        this._safeDetect()
       }
       let nx = e.clientX - pr.left - this._dragOffsetX
       let ny = e.clientY - pr.top - this._dragOffsetY
@@ -2545,7 +3388,7 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     this._resizeDir = null
     this.panelDragging = false
     this.panelResizing = false
-    this.cdr.detectChanges()
+    this._safeDetect()
     // 拖拽 / 缩放结束：持久化几何到全局配置（落盘时已归一化为百分比，各窗口自动适配）
     this._persistPanelGeometry()
     // 还原为「跟随窗口」语义：百分比几何随窗口大小自适应，窗口缩放时不再 clamp
@@ -2581,14 +3424,16 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       this.panelMaximized = false
       // 还原时同步刷新布局：强制回流后立即应用正确的面板分割比例，
       // 避免下一帧才通过 requestAnimationFrame 修正导致视觉跳跃（#layout-delay）
-      if (this._layoutMode === 'horizontal') this._isNarrowLayout = false
-      else if (this._layoutMode === 'vertical') this._isNarrowLayout = true
-      else if (this._layoutMode === 'single') { this._isNarrowLayout = false; this.activePane = 'remote' }
-      else this._updateAutoLayout()
+      if (this._layoutMode === 'single') {
+        this._isNarrowLayout = false
+        this.activePane = 'remote'
+      } else {
+        this._syncNarrowLayout()
+      }
       void host.offsetHeight // 强制回流，确保 .sftp-body 尺寸已更新
       this._applyPaneSplit()
     }
-    this.cdr.detectChanges()
+    this._safeDetect()
     this._scheduleLayoutRefresh()
     this._persistPanelGeometry()
   }
@@ -2641,6 +3486,10 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     this._remoteError = false
     this._invalidateRemoteCache()
     this.remoteIdResolver.reset()
+    // ★ 2026-09-21 P0 修复：列表已清空，选中项不得留到重连后（否则重连回同一目录时
+    //   _lastRemoteListedPath 未变、不会触发 _dropSelection，残留项会「复活」）
+    this._dropSelection('remote')
+    this._lastRemoteListedPath = null
   }
 
   private _clearPanelTimers(): void {
@@ -2648,13 +3497,42 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     if (this._remoteLoadingTimer) { clearTimeout(this._remoteLoadingTimer); this._remoteLoadingTimer = null }
     if (this._remoteFlashTimer) { clearTimeout(this._remoteFlashTimer); this._remoteFlashTimer = null }
     if (this._localFlashTimer) { clearTimeout(this._localFlashTimer); this._localFlashTimer = null }
+    this._clearQueuedEntryTimers()
+  }
+
+  /** ★ 2026-09-20 A2：把「已跳过条目延迟移除」定时器收进可清理数组（原 setTimeout 无句柄、销毁后仍触发） */
+  private _scheduleQueuedEntryRemoval(entry: PanelTransferItem, delayMs = 4000): void {
+    const timer = setTimeout(() => {
+      this._queuedEntryTimers = this._queuedEntryTimers.filter(t => t !== timer)
+      if (!this._isAlive) return
+      this._removeQueuedEntry(entry)
+    }, delayMs)
+    this._queuedEntryTimers.push(timer)
+  }
+
+  private _clearQueuedEntryTimers(): void {
+    for (const timer of this._queuedEntryTimers) clearTimeout(timer)
+    this._queuedEntryTimers = []
   }
 
   /**
    * 冲突解决：将本地目录合并上传到远程目标路径（覆盖同名文件）
    */
   async mergeLocalDirToRemote(localSrc: string, remoteDest: string, reuseLogEntryId?: string): Promise<boolean> {
-    return this._transferCoordinator.mergeLocalDirToRemote(localSrc, remoteDest, reuseLogEntryId)
+    // ★ 2026-09-20 P1-2：合并覆盖同样是一个独立的目录任务，需自带任务 ref + 作用域，
+    //   否则其子文件流会被登记到别的任务的 ref 上（取消别的任务时被连带中断）
+    const cancelRef = { current: null as any, active: new Set<any>() }
+    this._cancelRefs.add(cancelRef)
+    const prevRef = this._cancelRef
+    this._cancelRef = cancelRef
+    try {
+      return await runInTaskScope(cancelRef, () =>
+        this._transferCoordinator.mergeLocalDirToRemote(localSrc, remoteDest, reuseLogEntryId))
+    } finally {
+      this._cancelRefs.delete(cancelRef)
+      if (this._cancelRef === cancelRef) this._cancelRef = prevRef
+      if (this._cancelRef && !this._cancelRef.current && !(this._cancelRef.active?.size)) this._cancelRef = null
+    }
   }
 
   private _remoteEnrichOptions(): SftpEnrichOptions {
@@ -2690,7 +3568,7 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
         if (refreshGen !== this._remoteRefreshGen || snapshotPath !== this.remotePath) return
         this.remoteEntries = entries
         this._invalidateRemoteCache()
-        this.cdr.detectChanges()
+        this._safeDetect()
       })
     }
 
@@ -2706,7 +3584,7 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
         if (refreshGen !== this._remoteRefreshGen || snapshotPath !== this.remotePath) return
         this.remoteEntries = entries
         this._invalidateRemoteCache()
-        this.cdr.detectChanges()
+        this._safeDetect()
       })
     }
 
@@ -2718,7 +3596,7 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       if (!this.connected || this.remotePath !== snapshotPath || refreshGen !== this._remoteRefreshGen) return
       this.remoteEntries = named
       this._invalidateRemoteCache()
-      this.cdr.detectChanges()
+      this._safeDetect()
     })
   }
 
@@ -2766,9 +3644,15 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     }
     const gen = ++this._localRefreshGen
     const requestedPath = this.localPath
+    // ★ 2026-09-21 P0 修复：目录切换即丢弃选择（详见 _dropSelection）。必须在 await 之前同步执行，
+    //   否则 listing 期间用户按 Delete 仍会命中上一个目录的残留项。
+    if (this._lastLocalListedPath !== requestedPath) {
+      this._lastLocalListedPath = requestedPath
+      this._dropSelection('local')
+    }
     // 刷新时不显示 loading 动画（避免布局 reflow 导致晃动），直接用闪烁反馈
     this._localFlash = false
-    // this.cdr.detectChanges()  // 去掉强制变更检测，避免重绘抖动
+    // this._safeDetect()  // 去掉强制变更检测，避免重绘抖动
     try {
       const names = await fs.readdir(requestedPath)
       if (gen !== this._localRefreshGen) return
@@ -2834,18 +3718,29 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       // 丢弃过期结果：路径已变更则不写入
       if (gen !== this._localRefreshGen) return
       if (this.localPath !== requestedPath) return
-      this.zone.run(() => { this.localEntries = entries; this._localError = false; this._invalidateLocalCache() })
+      this.zone.run(() => {
+        this.localEntries = entries
+        this._localError = false
+        this._invalidateLocalCache()
+        // 同目录刷新：外部已删除/重命名的条目从选择中剔除
+        this._pruneSelection('local')
+      })
       if (needOwner) {
         void this._enrichLocalOwnerNames(entries)
       }
     } catch (e) {
       if (gen !== this._localRefreshGen) return
       log.error('Local listing failed', e)
-      this.zone.run(() => { this.localEntries = []; this._localError = true; this._invalidateLocalCache() })
+      this.zone.run(() => {
+        this.localEntries = []
+        this._localError = true
+        this._invalidateLocalCache()
+        this._pruneSelection('local')
+      })
     }
     if (gen !== this._localRefreshGen) return
     this._localFlash = true
-    this.cdr.detectChanges()
+    this._safeDetect()
     if (this._localFlashTimer) clearTimeout(this._localFlashTimer)
     this._localFlashTimer = setTimeout(() => { this._localFlash = false; this._localFlashTimer = null }, 260)
   }
@@ -2867,7 +3762,7 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       if (this.localPath !== snapshotPath) return
       this.localEntries = enriched
       this._invalidateLocalCache()
-      this.cdr.detectChanges()
+      this._safeDetect()
     })
   }
 
@@ -2935,6 +3830,12 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
 
   // ========== 远程文件 ==========
   async refreshRemote(): Promise<boolean> {
+    // ★ 2026-09-29 issue #25：实现搬到 _refreshRemoteInternal，带上「是否已自愈重试过」标志，
+    //   使「通道已死 → 静默换通道 → 重试一次」不会递归成无限重试。
+    return this._refreshRemoteInternal(false)
+  }
+
+  private async _refreshRemoteInternal(retriedAfterReopen: boolean): Promise<boolean> {
     if (!this.connected || !this.sftpSession) return false
     const refreshGen = ++this._remoteRefreshGen
     this.remotePathInput = this.remotePath
@@ -2952,10 +3853,15 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     this._remoteLoadingTimer = setTimeout(() => {
       if (refreshGen !== this._remoteRefreshGen) return
       this._remoteLoading = true
-      this.cdr.detectChanges()
+      this._safeDetect()
     }, 150)
 
     const snapshotPath = this.remotePath
+    // ★ 2026-09-21 P0 修复：目录切换即丢弃选择（详见 _dropSelection），须在 await 之前同步执行
+    if (this._lastRemoteListedPath !== snapshotPath) {
+      this._lastRemoteListedPath = snapshotPath
+      this._dropSelection('remote')
+    }
     try {
       const entries = await this.sftpSession.readdir(snapshotPath)
       if (refreshGen !== this._remoteRefreshGen || snapshotPath !== this.remotePath) return true
@@ -2969,6 +3875,8 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
         this.remoteEntries = entries
         this._remoteError = false
         this._invalidateRemoteCache()
+        // 同目录刷新：远端已删除/重命名的条目从选择中剔除
+        this._pruneSelection('remote')
       })
       if (this._remoteNeedsEnrich()) {
         void this._enrichRemoteMetadata(snapshotPath, entries, refreshGen)
@@ -2980,19 +3888,34 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
         this._remoteLoadingTimer = null
       }
       this._remoteLoading = false
+      // ★ 2026-09-29 issue #25：通道已死（session closed / channel closed / 连接被重置）时，
+      //   先**静默换一条新的 SFTP 子通道再重试一次**，而不是把错误直接甩给用户并清空列表。
+      //   实测日志里 129 条 `Remote listing failed UnexpectedBehavior("session closed")`
+      //   就是这么刷出来的：弱网把通道关掉后，用户每点一次刷新/切一次目录就多一条 error。
+      //   只在第一次尝试时自愈（retriedAfterReopen=false），失败通道上绝不无限递归重试。
+      //   自愈本身不弹通知、不打断在途传输（有传输时交给心跳处理，见 recoverChannelForListing）。
+      if (!retriedAfterReopen && isChannelDeadError(e) && this._connLifecycle?.recoverChannelForListing) {
+        const healed = await this._connLifecycle.recoverChannelForListing()
+        // 期间可能已有更新的刷新在跑 / 面板已销毁 → 让那一次说了算
+        if (healed && refreshGen === this._remoteRefreshGen && this._isAlive) {
+          log.info('Remote listing retried on a freshly reopened SFTP session')
+          return this._refreshRemoteInternal(true)
+        }
+      }
       log.error('Remote listing failed', e)
       this.zone.run(() => {
         if (refreshGen !== this._remoteRefreshGen || snapshotPath !== this.remotePath) return
         this.remoteEntries = []
         this._remoteError = true
         this._invalidateRemoteCache()
+        this._pruneSelection('remote')
       })
-      this.cdr.detectChanges()
+      this._safeDetect()
       return false
     }
     if (refreshGen !== this._remoteRefreshGen || snapshotPath !== this.remotePath) return true
     this._remoteFlash = true
-    this.cdr.detectChanges()
+    this._safeDetect()
     if (this._remoteFlashTimer) clearTimeout(this._remoteFlashTimer)
     this._remoteFlashTimer = setTimeout(() => {
       this._remoteFlash = false
@@ -3081,30 +4004,96 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
   localForward(): void { this._paneNavToTarget('local', 'forward') }
 
   /**
-   * 鼠标侧键导航（本地/远程面板）
-   *  - button === 3：后退（XButton1）
-   *  - button === 4：前进（XButton2）
-   * ★ 2026-08-31：由硬编码改为配置驱动——依据 panelHotkeys.back/forward 的绑定列表
-   *   是否含 Mouse3/Mouse4 判定；用户清除绑定后侧键不再触发，也可改绑到其它动作。
-   * 仅当面板可见且非最小化时生效；左键(button 0)等不做处理并保留冒泡。
+   * 指针类面板热键的统一入口（鼠标中键 / 滚轮上滚下滚）（★ 2026-09-29）
+   *
+   * 背景：原 `onPaneMouseNav()` 挂在组件宿主元素的 mousedown 上，但只认 back/forward 两个动作，
+   *   中键与滚轮则完全录不进来。现改为「任何动作都能绑指针事件」的统一分发：
+   *   - 匹配与录制共用 `pointerSpecFromEvent()`，录得出来就一定匹配得上；
+   *   - 可执行性判定与键盘路径同源（`_contextHotkeyReady` 等），不另造一套；
+   *   - 命中即吞掉默认行为（中键自动滚动、滚轮滚动列表）——滚轮绑定后列表就不再滚动，
+   *     这是「要触发动作就必须吞默认滚动」的必然代价，设置页保存时会明确提示；
+   *   - 未命中一律不干预，列表滚动照旧。
+   * 返回 true 表示事件已被消费（调用方不应再继续默认处理）。
    */
-  onPaneMouseNav(side: 'local' | 'remote', event: MouseEvent): void {
-    if (!this._isPanelActive) return
-    const isBack = this._panelHotkeyEnabled('back')
-      && matchMouseHotkeySpecs(event.button, this._panelHotkeyKeys('back'))
-    const isForward = this._panelHotkeyEnabled('forward')
-      && matchMouseHotkeySpecs(event.button, this._panelHotkeyKeys('forward'))
-    if (!isBack && !isForward) return
+  private _consumePanePointerHotkey(side: 'local' | 'remote', event: MouseEvent | WheelEvent): boolean {
+    if (!this._isPanelActive) return false
+    if (this._isPanelModalOpen()) return false
+    // 先找命中的动作（PANEL_HOTKEY_ACTIONS 顺序 ⇒ back 先于 forward，与既有优先级一致）
+    let hit: PanelHotkeyAction | null = null
+    for (const a of PANEL_HOTKEY_ACTIONS) {
+      if (!this._panelHotkeyEnabled(a)) continue
+      if (matchPointerHotkeySpecs(event, this._panelHotkeyKeys(a))) { hit = a; break }
+    }
+    if (!hit) return false
     event.preventDefault()
     event.stopPropagation()
-    // 同一鼠标键若被 back/forward 重复绑定，back 优先
-    if (isBack) {
-      if (side === 'local') this.localBack()
-      else this.remoteBack()
-    } else {
-      if (side === 'local') this.localForward()
-      else this.remoteForward()
+    // 滚轮连发节流：一次触控板滑动会产生几十个 wheel 事件，动作只应触发一次；
+    // 但节流窗口内仍然拦截（继续返回 true）——否则列表会「滚一下停一下」，比完全不滚更别扭
+    if (typeof (event as WheelEvent).deltaY === 'number') {
+      const now = Date.now()
+      if (now - this._pointerHotkeyLastFire < SftpFloatingPanel._POINTER_WHEEL_THROTTLE_MS) return true
+      this._pointerHotkeyLastFire = now
     }
+    this._runPanePointerHotkey(hit, side)
+    return true
+  }
+
+  /**
+   * 执行指针热键命中的动作。
+   * 与键盘路径的差别只在「目标侧从哪来」：键盘靠 _resolveTargetPane()（最后交互侧），
+   * 指针事件本身带了落点信息（点/滚在哪一侧的列表上），直接用它更准。
+   */
+  private _runPanePointerHotkey(action: PanelHotkeyAction, side: 'local' | 'remote'): void {
+    switch (action) {
+      case 'up':
+        if (side === 'local') this.localUp(); else this.remoteUp()
+        return
+      case 'back':
+        if (side === 'local') this.localBack(); else this.remoteBack()
+        return
+      case 'forward':
+        if (side === 'local') this.localForward(); else this.remoteForward()
+        return
+      case 'refresh':
+        if (side === 'local') void this.refreshLocal(); else void this.refreshRemote()
+        return
+      case 'delete': {
+        const sel = side === 'local' ? this.selectedLocal : this.selectedRemote
+        if (!sel.length) return
+        // 指针路径没有 Shift 语义（指针 spec 里的 Shift 是匹配用的修饰键，不是「永久删除」）：
+        // 一律走回收站，永久删除仍只由 Shift+键盘触发
+        this._paneDelete(side, false)
+        return
+      }
+      case 'rename': {
+        const sel = side === 'local' ? this.selectedLocal : this.selectedRemote
+        if (sel.length !== 1) return
+        if (side === 'local') this.localRename(); else this.remoteRename()
+        return
+      }
+      default: {
+        // 右键菜单类动作（上传/下载/打开/查看/编辑/新建/属性/复制路径）：判定沿用键盘路径的 _contextHotkeyReady
+        const a = action as PanelHotkeyAction
+        if (!CONTEXT_ACTION_HOTKEYS.includes(a)) return
+        const pane: 'local' | 'remote' =
+          (a === 'upload' || a === 'openLocal') ? 'local'
+            : a === 'download' ? 'remote'
+              : side
+        if (!this._contextHotkeyReady(a, pane)) return
+        this.contextMenuPane = pane
+        if (SftpFloatingPanel._CTX_HOTKEYS_NEED_ENTRY.has(a)) {
+          const sel = pane === 'local' ? this.selectedLocal : this.selectedRemote
+          this.contextMenuEntry = (sel[0] as any) ?? null
+        }
+        this.onContextMenuAction(a as ContextMenuAction)
+        return
+      }
+    }
+  }
+
+  /** 文件列表上的滚轮：先让指针热键认领（命中则吞掉滚动），未命中保持原生滚动 */
+  onPaneWheel(event: WheelEvent, pane: 'local' | 'remote'): void {
+    this._consumePanePointerHotkey(pane, event)
   }
 
   // ========== 框选（委托 panel/panel-rubber-band） ==========
@@ -3114,6 +4103,8 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
 
   onPaneMouseDown(event: MouseEvent, pane: 'local' | 'remote'): void {
     this._commitAllPathInputs()
+    // ★ 2026-09-29：指针类热键（中键）优先认领——命中则吞掉，不再进入框选起手逻辑
+    if (this._consumePanePointerHotkey(pane, event)) return
     this._rubberBand.onPaneMouseDown(event, pane)
   }
 
@@ -3146,48 +4137,68 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     const panes: HTMLElement[] = Array.from(body.querySelectorAll(':scope > sftp-file-pane'))
     if (panes.length < 1) return
 
-    // 单栏模式：仅远程面板全宽
-    if (this._layoutMode === 'single') {
+    const splitterSize = 5
+    const { w: bodyW, h: bodyH } = this._measureBodySize(body)
+
+    // 以 body 实测宽高再判：过窄/过矮时临时回退，偏好（_layoutMode）不变
+    if (this._layoutMode !== 'single') {
+      this._syncNarrowLayout(bodyW > 0 ? bodyW : undefined, bodyH > 0 ? bodyH : undefined)
+    } else {
+      this._effectiveLayout = 'single'
+      this._layoutOverrideReason = null
+      this._isNarrowLayout = false
+    }
+
+    // 单栏（偏好或临时回退）：仅远程面板全宽
+    if (this._effectiveLayout === 'single') {
       body.style.flexDirection = 'row'
       body.classList.remove('narrow-layout')
-      const remote = panes[panes.length - 1]
-      remote.style.flex = '1'
-      remote.style.width = 'auto'
-      remote.style.minWidth = '0'
-      remote.style.height = ''
+      panes.forEach((p, i) => {
+        const isRemote = i === panes.length - 1
+        p.style.display = isRemote ? '' : 'none'
+        p.style.flex = isRemote ? '1' : ''
+        p.style.width = isRemote ? 'auto' : ''
+        p.style.height = ''
+        p.style.minWidth = isRemote ? '0' : ''
+        p.style.minHeight = ''
+      })
       return
     }
 
     if (panes.length < 2) return
 
-    // 设置 flex-direction：用 JS 控制，避免 CSS @media 使用视口宽度与元素宽度不同步
-    // （panelHost width:96% 导致元素宽度 < 视口宽度，阈值区 961-1000px 时会错位）
+    // 清除之前可能残留的内联样式（防止宽窄切换后样式残留）
+    panes.forEach(p => {
+      p.style.display = ''
+      p.style.flex = ''
+      p.style.width = ''
+      p.style.height = ''
+      p.style.minWidth = ''
+      p.style.minHeight = ''
+    })
+
+    // 用 JS 控制 flex-direction，避免 CSS @media 用视口宽度与元素宽度不同步
     body.style.flexDirection = this._isNarrowLayout ? 'column' : 'row'
-    // 窄屏 class 控制分割线样式（cursor、width/height），同步于布局而非视口
     body.classList.toggle('narrow-layout', this._isNarrowLayout)
 
-    // 清除之前可能残留的内联样式（防止宽窄切换后样式残留）
-    panes.forEach(p => { p.style.flex = ''; p.style.width = ''; p.style.height = '' })
-
-    const splitterSize = 5
-    const { w: bodyW, h: bodyH } = this._measureBodySize(body)
-
     if (this._isNarrowLayout) {
-      // 窄屏上下布局：按比例分配高度
+      // 窄屏上下布局：按比例分配高度；动态抬高两侧最小高度，避免远程半屏挤成「不可用」
+      const usable = Math.max(0, bodyH - splitterSize)
+      const minPaneH = Math.min(140, Math.max(88, Math.floor(usable * 0.3)))
+      let h0 = Math.round(usable * this._verticalSplitRatio)
+      h0 = Math.max(minPaneH, Math.min(h0, usable - minPaneH))
+      if (usable > 0) this._verticalSplitRatio = h0 / usable
       panes[0].style.flex = 'none'
-      panes[0].style.height = Math.max(80, (bodyH - splitterSize) * this._verticalSplitRatio) + 'px'
+      panes[0].style.height = h0 + 'px'
       panes[1].style.flex = '1'
-      panes[1].style.minHeight = '80px'
+      panes[1].style.minHeight = minPaneH + 'px'
     } else {
-      // 宽屏左右布局：按比例分配宽度，最小宽度 450px
-      const minPaneW = 450
-      // 先按比例计算本地面板宽度
-      let w0 = Math.round((bodyW - splitterSize) * this._horizontalSplitRatio)
-      // 约束两侧都不小于最小宽度
-      if (w0 < minPaneW) w0 = minPaneW
-      if (w0 > bodyW - splitterSize - minPaneW) w0 = bodyW - splitterSize - minPaneW
-      // 更新 ratio 使之与真实分配一致
-      this._horizontalSplitRatio = w0 / (bodyW - splitterSize)
+      // 宽屏左右布局：minPaneW 随可用宽度动态收缩，禁止固定 450 在窄窗把一侧挤成细条
+      const usable = Math.max(0, bodyW - splitterSize)
+      const minPaneW = Math.min(450, Math.max(160, Math.floor(usable / 2)))
+      let w0 = Math.round(usable * this._horizontalSplitRatio)
+      w0 = Math.max(minPaneW, Math.min(w0, usable - minPaneW))
+      if (usable > 0) this._horizontalSplitRatio = w0 / usable
       panes[0].style.flex = 'none'
       panes[0].style.width = w0 + 'px'
       panes[1].style.flex = '1'
@@ -3261,7 +4272,29 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
   }
 
   // ========== 选择 ==========
-  /** 将列表行 DOM 的 selected 类与当前选中模型对齐（框选会直接改 DOM，需兜底） */
+  /**
+   * ★ 2026-09-29：供模板绑定——某侧面板当前的方向键**焦点键**（条目行 = fullPath；
+   * 分组头行 = navHeaderKey(bucketKey)）；null = 该侧无键盘焦点。
+   *
+   * 用途：file-pane 用它给「游标所在行」加 .nav-focus，使 ↑/↓ 的停留位置始终可见。
+   * 背景（用户实测反馈）：单条目分组里「游标停在表头」与「游标停在那唯一一条文件上」
+   * 选中集完全相同（都是这 1 条），而表头高亮当时又被 groupAllSelected 的 ≥2 项门槛挡住
+   * （该门槛已于同日取消，改为按组内选中比例判定，见 file-pane 的 groupSelState），
+   * 于是屏幕毫无变化、像按键卡住。游标样式与「选中」实底分开表达，两个语义各归各位。
+   *
+   * 返回原始字符串：CD 期间按值比较，不会像返回对象/闭包那样让子组件 ngOnChanges 每轮都判变。
+   * 仅 _xxxNavCursorOn 为 true（最近一次是键盘操作）时才下发，鼠标点击不留游标。
+   */
+  navFocusKey(pane: 'local' | 'remote'): string | null {
+    const on = pane === 'local' ? this._localNavCursorOn : this._remoteNavCursorOn
+    if (!on) return null
+    return pane === 'local' ? this._localNavFocusKey : this._remoteNavFocusKey
+  }
+
+  /** 将列表行 DOM 的 selected 类与当前选中模型对齐（框选会直接改 DOM，需兜底）。
+   *  ★ 2026-09-29（性能）：本方法恒 O(n)（扫全表 + 逐行 getAttribute/classList，3000 行实测 ≈1.07ms），
+   *    只适合鼠标点击 / 框选 / 右键菜单这类**低频**入口；方向键连发（~30 次/秒）走
+   *    `_stripSelectionVisual` 的增量版本，勿在该路径改回本方法。 */
   syncPaneSelectionVisual(pane: 'local' | 'remote'): void {
     const listEl = this.elRef.nativeElement.querySelector(`.pane-list.${pane}-pane`) as HTMLElement | null
     if (!listEl) return
@@ -3273,12 +4306,46 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     })
   }
 
+  /**
+   * ★ 2026-09-29（性能）：方向键路径的「差异式」选中视觉兜底。
+   *
+   * 与 syncPaneSelectionVisual 的分工：后者恒 O(n)，适合低频入口；方向键连发每秒可达 30 步，
+   * 必须按差值来做。这里只处理**一个方向**：`prev` 里有、当前选择集里没有的行（即由选中变未选中），
+   * 逐路径用属性选择器直取行元素去类（3000 行实测：全表扫描 1.07ms/步 → 增量 0.001ms/步）。
+   *
+   * 为什么不需要手动「加类」：切换后紧跟 `_safeDetect()`，`[class.selected]` 绑定的值由 false 翻 true，
+   * Angular 必然写 DOM；只有「绑定值没变但 DOM 上残留了类」这种情况（框选拖拽期间的直接 DOM 操作）
+   * 才需要兜底 —— 那正是「由选中变未选中」这一侧。
+   *
+   * 差值过大（例如全选 3000 项后按一次无 Shift 的 ↓，只剩 1 项）时逐路径 querySelector 反而更慢，
+   * 直接退回全表扫描。
+   */
+  private _stripSelectionVisual(side: 'local' | 'remote', prevPaths: Set<string>): void {
+    if (!prevPaths.size) return
+    const cur = side === 'local' ? this._localSelectedPaths : this._remoteSelectedPaths
+    const stale: string[] = []
+    let overflow = false
+    for (const p of prevPaths) {
+      if (cur.has(p)) continue
+      if (stale.length >= STRIP_QUERY_MAX) { overflow = true; break }
+      stale.push(p)
+    }
+    if (overflow) { this.syncPaneSelectionVisual(side); return }
+    if (!stale.length) return
+    const listEl = this.elRef.nativeElement.querySelector(`.pane-list.${side}-pane`) as HTMLElement | null
+    if (!listEl) return
+    for (const p of stale) {
+      const el = this._findRowEl(listEl, 'data-path', p)
+      if (el) el.classList.remove('selected')
+    }
+  }
+
   selectLocal(entry: LocalEntry, event: MouseEvent, idx: number): void {
     if (this.selectedRemote.length > 0) this.selectedRemote = []
     const r = computeSelection(this.selectedLocal, entry, event, idx, this.localLastSelectedIndex, this.getFilteredLocalEntries(), this._localSelectedPaths)
     this.selectedLocal = r.selection; this.localLastSelectedIndex = r.lastIndex
     this.syncPaneSelectionVisual('local')
-    this.cdr.detectChanges()
+    this._safeDetect()
   }
 
   isLocalSelected(e: LocalEntry): boolean { return this._localSelectedPaths.has(e.fullPath) }
@@ -3290,18 +4357,67 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
    * 使用 scrollIntoView({block:'nearest'}) 会忽略表头遮挡——当行滚入"表头遮挡带"时
    * 被误判为已在可视区内而不滚动，导致选中项被表头盖住。故此处用 rect 精确计算，
    * 把表头高度排除在有效可见区之外。
+   * ★ 2026-09-29：参数由「列表下标」改为「条目对象」，改为按 data-path 精确定位行元素。
+   *   原实现取 rows[idx]，前提是「DOM 行序 === 列表序」——该前提只在扁平模式成立；
+   *   分组模式下列表按桶重排渲染（DOM 序 = 分组桶序），下标对位会滚到毫不相干的行。
+   * @param entry 目标条目（取 fullPath 匹配行），传空则不滚动
    * @param align nearest=方向键最小滚动；center=键入定位等跳跃时滚到可视区中部
    */
   private _scrollEntryIntoView(
     side: 'local' | 'remote',
-    idx: number,
+    entry: { fullPath?: string } | null | undefined,
+    align: 'nearest' | 'center' = 'nearest',
+  ): void {
+    const path = entry && entry.fullPath
+    if (!path) return
+    this._scrollRowElIntoView(side, 'data-path', path, align)
+  }
+
+  /**
+   * ★ 2026-09-29：按**导航行**滚动——分组头行没有 data-path，改按 data-group-key 定位。
+   * （分组模式下分组头也是导航中的一行，焦点停在表头时必须把它滚进可视区。）
+   */
+  private _scrollNavRowIntoView(side: 'local' | 'remote', row: NavRow | null, align: 'nearest' | 'center' = 'nearest'): void {
+    if (!row) return
+    if (row.kind === 'header') {
+      const gk = row.groupKey
+      if (!gk) return
+      this._scrollRowElIntoView(side, 'data-group-key', gk, align)
+      return
+    }
+    const path = row.entries[0] && row.entries[0].fullPath
+    if (!path) return
+    this._scrollRowElIntoView(side, 'data-path', path, align)
+  }
+
+  /**
+   * ★ 2026-09-29（性能）：按「属性名 + 值」定位行元素。
+   * 旧实现用 `querySelectorAll('.entry[data-path], .entry.header[data-group-key]')` + Array.from
+   * + find 逐行 getAttribute —— 3000 行实测 0.79ms/步；改成属性选择器直取后 0.024ms/步（≈33×）。
+   * 选择器语法出错（路径含 `"`、反斜杠或控制字符）时退回线性匹配，保证功能不丢。
+   */
+  private _findRowEl(listEl: HTMLElement, attr: 'data-path' | 'data-group-key', value: string): HTMLElement | null {
+    try {
+      // 属性值转义：反斜杠与双引号（Windows 路径必含反斜杠，Linux 文件名可能含双引号）
+      const escaped = value.replace(/["\\]/g, '\\$&')
+      return listEl.querySelector(`[${attr}="${escaped}"]`) as HTMLElement | null
+    } catch {
+      const els = Array.from(listEl.querySelectorAll(`.entry[${attr}]`)) as HTMLElement[]
+      return els.find(el => el.getAttribute(attr) === value) || null
+    }
+  }
+
+  /** 定位并滚动（分组模式下 DOM 序 = 显示序，一律按属性精确匹配而非下标） */
+  private _scrollRowElIntoView(
+    side: 'local' | 'remote',
+    attr: 'data-path' | 'data-group-key',
+    value: string,
     align: 'nearest' | 'center' = 'nearest',
   ): void {
     try {
       const listEl = this.elRef.nativeElement.querySelector(`.pane-list.${side}-pane`) as HTMLElement | null
       if (!listEl) return
-      const rows = listEl.querySelectorAll('.entry[data-path]')
-      const rowEl = rows[idx] as HTMLElement | null
+      const rowEl = this._findRowEl(listEl, attr, value)
       if (!rowEl) return
       const headerEl = listEl.querySelector('.entry.header') as HTMLElement | null
       const headerH = headerEl ? headerEl.getBoundingClientRect().height : 0
@@ -3329,15 +4445,246 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     } catch {}
   }
 
+  /**
+   * ★ 2026-09-29：方向键导航序列 = **显示序**（用户实测：分组模式下从文件夹组末行 uploads 按 ↓
+   * 跳到 TMP 组的 .tmp —— 因为旧实现走 getFilteredXxxEntries() 的「排序序」，而屏幕上是分组桶序）。
+   * 返回每行在原始扁平列表中的下标 listIndex，供 shift 连选 / 上次锚点沿用既有「列表序」语义。
+   * - 扁平模式（未分组）：显示序即列表序本身。
+   * - 分组模式：取 groupRows 的**全部行**（表头行 + 条目行）。表头行同样是一行，按 ↑/↓ 必须能停在
+   *   它上面（用户要求）；折叠组只有表头行、无条目行，故进入该组时焦点自然落在表头上。
+   */
+  private _navRows(side: 'local' | 'remote'): NavRow[] {
+    return this._navCacheFor(side).out
+  }
+
+  /**
+   * ★ 2026-09-29（性能）：导航序列缓存（方向键连发时不再每步重建）。
+   *
+   * 原实现每次按键都重建整个序列：为每行新建对象，还要给每个表头行 slice 一份 items
+   * （3000 条目实测 ≈0.16ms/步），而 _handleArrowNav 拿到数组后还要 findIndex 线性扫
+   * 2~3 遍定位焦点/锚点、并在 Shift 区间里对区间内所有条目做 Set 去重（≈0.34ms/步 @3000 项）。
+   * 改为缓存后每步只做 Map 查询 + 按区间拼数组。
+   *
+   * 失效条件：过滤列表引用 或 分组行引用变化。分组行本身已有缓存（引用稳定），
+   * 因此一次键盘连发期间命中率几乎 100%；换目录/刷新/改排序/改分组/折叠都会让引用变化。
+   */
+  private _navCacheFor(side: 'local' | 'remote'): NavCache {
+    const list = side === 'local' ? this.getFilteredLocalEntries() : this.getFilteredRemoteEntries()
+    const rows = side === 'local' ? this.getLocalGroupRows() : this.getRemoteGroupRows()
+    const cached = side === 'local' ? this._localNavCache : this._remoteNavCache
+    if (cached && cached.src === list && cached.rows === rows) return cached
+
+    const out: NavRow[] = []
+    if (!rows || !rows.length) {
+      const flat = list || []
+      for (let i = 0; i < flat.length; i++) {
+        const e = flat[i]
+        out.push({ kind: 'entry', key: e.fullPath, entries: [e], listIndex: i })
+      }
+    } else {
+      for (const r of rows) {
+        if (r.kind === 'header') {
+          if (r.bucketKey == null) continue
+          out.push({
+            kind: 'header',
+            key: navHeaderKey(r.bucketKey),
+            entries: ((r.items || []) as any[]).slice(),
+            listIndex: -1,
+            groupKey: r.bucketKey,
+          })
+        } else if (r.entry) {
+          out.push({
+            kind: 'entry',
+            key: r.entry.fullPath,
+            entries: [r.entry],
+            listIndex: typeof r.index === 'number' ? r.index : -1,
+          })
+        }
+      }
+    }
+
+    const index = new Map<string, number>()
+    const headerPrefix: number[] = new Array(out.length + 1)
+    headerPrefix[0] = 0
+    for (let i = 0; i < out.length; i++) {
+      index.set(out[i].key, i)
+      headerPrefix[i + 1] = headerPrefix[i] + (out[i].kind === 'header' ? 1 : 0)
+    }
+    const built: NavCache = { src: list, rows, out, index, headerPrefix }
+    if (side === 'local') this._localNavCache = built
+    else this._remoteNavCache = built
+    return built
+  }
+
+  /** ★ 2026-09-29：清理方向键导航的焦点/锚点（选择集被整体替换或列表内容变更时调用） */
+  private _resetNavFocus(side: 'local' | 'remote'): void {
+    if (side === 'local') {
+      this._localNavFocusKey = null
+      this._localNavAnchorKey = null
+      this._localNavCursorOn = false
+    } else {
+      this._remoteNavFocusKey = null
+      this._remoteNavAnchorKey = null
+      this._remoteNavCursorOn = false
+    }
+  }
+
+  /**
+   * ★ 2026-09-29：方向键导航（含 Shift 连续多选）。
+   * 序 = 显示序（_navRows），因此分组模式下也是「屏幕上相邻的一行」，不会跨组乱跳。
+   *
+   * - 无 Shift：焦点单点移动，锚点跟随焦点（下一次 Shift 从这里起算）；
+   *             焦点落在**分组头**行时选中集 = 该组全部条目（与鼠标点击分组头一致）；
+   *             移动后置亮**键盘游标**（_xxxNavCursorOn）——游标是「停留位置」的独立视觉语义，
+   *             否则单条目分组里「停在表头」与「停在唯一那条文件上」屏幕完全一样（用户实测像卡键）；
+   * - Shift  ：把可见区间 [锚点 … 焦点] **整体替换**为选择集（可来回扩展/收缩，同资源管理器）；
+   *             区间内的分组头行按其全部条目展开，与组内条目行重叠时按 fullPath 去重（保持显示序）。
+   *
+   * 状态回退顺序：记录的焦点 → 当前选中项首项 → 记录的锚点 → 列表端点（首次按键）。
+   * @returns 是否真的移动了（false = 已在端点/无可导航行，调用方不应消费按键）
+   */
+  private _handleArrowNav(side: 'local' | 'remote', down: boolean, extend: boolean): boolean {
+    const cache = this._navCacheFor(side)
+    const nav = cache.out
+    if (!nav.length) return false
+    // ★ 2026-09-29（性能）：抓住**移动前**的选择集引用 —— selectedLocal 的 setter 会换成新 Set，
+    //   故旧引用零成本即可留作「差异视觉清理」的 prev（见 _stripSelectionVisual）。
+    const prevPaths = side === 'local' ? this._localSelectedPaths : this._remoteSelectedPaths
+    const prevFocus = side === 'local' ? this._localNavFocusKey : this._remoteNavFocusKey
+    const prevAnchor = side === 'local' ? this._localNavAnchorKey : this._remoteNavAnchorKey
+
+    // 焦点定位：条目行 key = fullPath，故「选中集首项」（本身是 fullPath）可直接命中；
+    // 分组头行 key 带 NUL 前缀，绝不会与真实路径误配。
+    // ★ 2026-09-29（性能）：走缓存的 Map 定位（O(1)），不再每步 findIndex 线性扫 2~3 遍。
+    let focusIdx = -1
+    const candidates = [prevFocus, prevPaths.size ? [...prevPaths][0] : null, prevAnchor]
+    for (const probe of candidates) {
+      if (!probe) continue
+      const hit = cache.index.get(probe)
+      if (hit !== undefined) { focusIdx = hit; break }
+    }
+    const newIdx = down
+      ? (focusIdx < 0 ? 0 : Math.min(nav.length - 1, focusIdx + 1))
+      : (focusIdx < 0 ? nav.length - 1 : Math.max(0, focusIdx - 1))
+    if (newIdx < 0 || newIdx === focusIdx) return false
+
+    const focusRow = nav[newIdx]
+    const focusListIdx = focusRow.kind === 'entry' && focusRow.listIndex >= 0 ? focusRow.listIndex : null
+    let entries: any[]
+    let anchorKey: string
+    if (!extend) {
+      // 分组头行 → 整组条目；条目行 → 单条（同一行模型，无需分支）
+      entries = focusRow.entries.slice()
+      anchorKey = focusRow.key
+    } else {
+      // 首次 Shift+↓（无锚点记录）以「当前焦点」为锚点起点，即先扩一格
+      const startKey = prevAnchor || (focusIdx >= 0 ? nav[focusIdx].key : focusRow.key)
+      const startHit = cache.index.get(startKey)
+      const aIdx = startHit !== undefined ? startHit : newIdx
+      const lo = Math.min(aIdx, newIdx)
+      const hi = Math.max(aIdx, newIdx)
+      entries = []
+      // ★ 2026-09-29（性能）：区间内**没有表头行**时每行恰好 1 项 → 直接拼接。
+      //   只有含表头行才可能出现「表头携带的整组条目」与「组内条目行」重叠，才需要 Set 去重
+      //   （按 fullPath，保持显示序）。大目录连续多选时前者占绝对多数（3000 项区间实测
+      //   去重版 ≈0.34ms/步 → 直拼 ≈0.05ms/步）。
+      if (cache.headerPrefix[hi + 1] - cache.headerPrefix[lo] > 0) {
+        const seen = new Set<string>()
+        for (let k = lo; k <= hi; k++) {
+          for (const e of nav[k].entries) {
+            if (!e || seen.has(e.fullPath)) continue
+            seen.add(e.fullPath)
+            entries.push(e)
+          }
+        }
+      } else {
+        for (let k = lo; k <= hi; k++) entries.push(nav[k].entries[0])
+      }
+      anchorKey = startKey
+    }
+
+    if (side === 'local') {
+      if (this.selectedRemote.length) this.selectedRemote = []
+      this.selectedLocal = entries
+      this.localLastSelectedIndex = focusListIdx
+      this._localNavFocusKey = focusRow.key
+      this._localNavAnchorKey = anchorKey
+      this._localNavCursorOn = true
+    } else {
+      if (this.selectedLocal.length) this.selectedLocal = []
+      this.selectedRemote = entries
+      this.remoteLastSelectedIndex = focusListIdx
+      this._remoteNavFocusKey = focusRow.key
+      this._remoteNavAnchorKey = anchorKey
+      this._remoteNavCursorOn = true
+    }
+    // ★ 2026-09-29（性能，用户反馈「按住 Shift 连选有点延迟卡顿」）：收尾三步的顺序与做法都按
+    //   「每步都跑、且按住键会以 ~30 次/秒连发」来设计：
+    //   ① 先滚动定位：此刻尚未写选中类，而 selected / nav-focus 都不改布局（背景色 + inset 阴影）
+    //      → 先测量后写入，避免「写完类再读 rect」触发同步重排（旧顺序每步多一次强制布局）；
+    //   ② 再做差异视觉清理：只处理「上一轮选中、这轮不选」的行，不再全表扫描
+    //      （3000 行实测 1.07ms/步 → 0.001ms/步）；新选中的行交给紧随其后的 CD 写类；
+    //   ③ 最后 CD：方向键分支已在 _capturePanelHotkeysBeforeTabby 里改为**出 zone**执行，
+    //      因此这里的一次 _safeDetect() 就是本轮唯一一遍整树变更检测（不再叠加整站 tick）。
+    this._scrollNavRowIntoView(side, focusRow)
+    this._stripSelectionVisual(side, prevPaths)
+    this._safeDetect()
+    return true
+  }
+
   selectRemote(entry: SFTPFile, event: MouseEvent, idx: number): void {
     if (this.selectedLocal.length > 0) this.selectedLocal = []
     const r = computeSelection(this.selectedRemote, entry, event, idx, this.remoteLastSelectedIndex, this.getFilteredRemoteEntries(), this._remoteSelectedPaths)
     this.selectedRemote = r.selection; this.remoteLastSelectedIndex = r.lastIndex
     this.syncPaneSelectionVisual('remote')
-    this.cdr.detectChanges()
+    this._safeDetect()
   }
 
   isRemoteSelected(e: SFTPFile): boolean { return this._remoteSelectedPaths.has(e.fullPath) }
+
+  /**
+   * ★ 2026-09-21 P0 修复：目录切换后丢弃残留选择。
+   * selectedLocal/selectedRemote 按 fullPath 保存，此前所有导航入口（上一级 / 主目录 /
+   * 路径输入 / 双击进目录 / 历史前后退 / 书签跳转）都不清理，残留项仍指向已离开的目录——
+   * 状态栏照旧显示「已选 N 项」，但当前列表里没有任何高亮行，用户无从得知选的是什么；
+   * 此时按 Delete 会删掉上一个目录里的文件（confirmDelete 直接拿 fullPath 执行 fs.rm）。
+   * 收口点放在 refreshLocal/refreshRemote 而不是逐个导航入口，避免以后新增跳转路径漏改。
+   */
+  private _dropSelection(side: 'local' | 'remote'): void {
+    if (side === 'local') {
+      if (this._selectedLocal.length) this.selectedLocal = []
+      this.localLastSelectedIndex = null
+    } else {
+      if (this._selectedRemote.length) this.selectedRemote = []
+      this.remoteLastSelectedIndex = null
+    }
+    // ★ 2026-09-29：方向键的焦点/Shift 锚点一并失效（目录已换，路径不再存在）
+    this._resetNavFocus(side)
+  }
+
+  /**
+   * 同目录刷新后与新 listing 求交集：被外部删除/重命名的条目不得留在选择模型里，
+   * 否则后续删除/传输仍会按旧 fullPath 操作。锚点索引一并失效（列表下标已变）。
+   */
+  private _pruneSelection(side: 'local' | 'remote'): void {
+    if (side === 'local') {
+      if (!this._selectedLocal.length) return
+      const alive = new Set(this.localEntries.map(e => e.fullPath))
+      const kept = this._selectedLocal.filter(e => alive.has(e.fullPath))
+      if (kept.length === this._selectedLocal.length) return
+      this.selectedLocal = kept
+      this.localLastSelectedIndex = null
+    } else {
+      if (!this._selectedRemote.length) return
+      const alive = new Set(this.remoteEntries.map(e => e.fullPath))
+      const kept = this._selectedRemote.filter(e => alive.has(e.fullPath))
+      if (kept.length === this._selectedRemote.length) return
+      this.selectedRemote = kept
+      this.remoteLastSelectedIndex = null
+    }
+    // ★ 2026-09-29：选择集被裁剪过 → 方向键焦点/Shift 锚点可能指向已消失的条目，一并清掉
+    this._resetNavFocus(side)
+  }
 
   // ========== 排序 ==========
   setLocalSort(f: 'name' | 'size' | 'modified' | 'birthtime'): void {
@@ -3345,7 +4692,11 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     if (!r) return
     this.localSortBy = r.by; this.localSortAsc = r.asc
     this._invalidateLocalCache()
-    try { this._paneSet('sftp-plus-local-sort', JSON.stringify({ by: r.by, asc: r.asc })) } catch {}
+    // ★ 2026-09-20：存对象（非 JSON 字符串）+ 立即落盘，避免关窗未 destroy 时排序丢失
+    try {
+      this._paneSet('sftp-plus-local-sort', { by: r.by, asc: r.asc })
+      this._paneFlush()
+    } catch {}
   }
 
   setRemoteSort(f: 'name' | 'size' | 'modified' | 'birthtime'): void {
@@ -3354,7 +4705,10 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     if (!r) return
     this.remoteSortBy = r.by; this.remoteSortAsc = r.asc
     this._invalidateRemoteCache()
-    try { this._paneSet('sftp-plus-remote-sort', JSON.stringify({ by: r.by, asc: r.asc })) } catch {}
+    try {
+      this._paneSet('sftp-plus-remote-sort', { by: r.by, asc: r.asc })
+      this._paneFlush()
+    } catch {}
   }
 
   // ========== 过滤 ==========
@@ -3461,6 +4815,17 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     this.activePane = side
     this._arrowNavPane = side
     if (this._rubberBand.shouldSuppressEntryClick(entry.fullPath)) return
+    // ★ 2026-09-29：键盘焦点跟随鼠标点击，Shift+↑/↓ 才能从刚点的那一行开始扩展；
+    //   Shift+点击 时不动锚点（与 computeSelection 的 shift 语义一致：锚点保持在原处）
+    if (side === 'local') {
+      this._localNavFocusKey = entry.fullPath
+      this._localNavCursorOn = false
+      if (!event.shiftKey) this._localNavAnchorKey = entry.fullPath
+    } else {
+      this._remoteNavFocusKey = entry.fullPath
+      this._remoteNavCursorOn = false
+      if (!event.shiftKey) this._remoteNavAnchorKey = entry.fullPath
+    }
     if (side === 'local') {
       if (this.localClickTimer) { clearTimeout(this.localClickTimer); this.localClickTimer = null }
       this.localClickTimer = setTimeout(() => { this.localClickTimer = null }, 250)
@@ -3480,6 +4845,16 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
   /** 查看器不支持时系统打开开关：开启则对不支持的文件改用系统默认程序打开 */
   private get _openUnsupportedInSystem(): boolean {
     return this.configService?.store?.['tabby-sftp-plus']?.openUnsupportedInSystem === true
+  }
+
+  /** 查看/编辑器是否显示行号（默认 true） */
+  get showTextLineNumbers(): boolean {
+    return this.configService?.store?.['tabby-sftp-plus']?.showTextLineNumbers !== false
+  }
+
+  /** 查看器自绘插入光标形状（block/beam/underline，默认 beam）；编辑器为系统原生光标，不受此项影响 */
+  get textCaretShape(): CaretShape {
+    return normalizeCaretShape(this.configService?.store?.['tabby-sftp-plus']?.textCaretShape)
   }
 
   /** 设置页的可查看/编辑文本扩展名（已在 file-utils 中再次规范化，防御手工配置）。 */
@@ -3515,12 +4890,13 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
   /** 自定义图标规则：扩展名 → svg 文件名 */
   private get _fileTypeIcons(): { ext: string; svg: string; name?: string }[] {
     const v = this.configService?.store?.['tabby-sftp-plus']?.fileTypeIcons
-    return Array.isArray(v) ? v : []
+    // ★ A7：未配置时返回共享常量，避免每 CD 新数组引用（会恒定触发子组件 ngOnChanges）
+    return Array.isArray(v) ? v : EMPTY_ICON_RULES
   }
   /** 被禁用的内置图标 svg 文件名 */
   private get _disabledIconSvgs(): string[] {
     const v = this.configService?.store?.['tabby-sftp-plus']?.disabledIconSvgs
-    return Array.isArray(v) ? v : []
+    return Array.isArray(v) ? v : EMPTY_SVG_LIST
   }
   /** 文件夹图标 svg 文件名（默认 'folder.svg'，空/缺失时不再回退 emoji） */
   private get _folderIconSvg(): string {
@@ -3528,9 +4904,21 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     return (typeof v === 'string' && v) ? v : 'folder.svg'
   }
 
-  /** 插件内置图标目录：开发链接 / 手动安装 / 源码三种布局由 resolveSftpPlusBundledIconDir 统一解析 */
+  /**
+   * 插件内置图标目录：开发链接 / 手动安装 / 源码三种布局由 resolveSftpPlusBundledIconDir 统一解析。
+   * ★ 2026-09-20 A5 审计修复：本 getter 被模板绑定（[bundledIconDir] 与 effectiveIconBaseDir），
+   *   而 resolveBundledIconDir 内部对 3 个候选目录做同步 fs.existsSync（并遍历 installedPlugins）
+   *   → 单次变更检测最多 ~12 次同步系统调用（2 面板 × 2 处绑定）。传输中进度回调会高频
+   *   detectChanges，等于把磁盘 IO 塞进首屏/滚动路径。此处缓存解析结果：
+   *   bootstrapData（插件安装路径）在进程生命周期内不变，故一次解析即可。
+   */
+  private _bundledIconDirCache: string | null = null
+
   private get _bundledIconDir(): string {
-    return resolveSftpPlusBundledIconDir(this.bootstrapData)
+    if (this._bundledIconDirCache === null) {
+      this._bundledIconDirCache = resolveSftpPlusBundledIconDir(this.bootstrapData)
+    }
+    return this._bundledIconDirCache
   }
 
   /** 有效图标目录：用户指定优先；留空则回退插件内置目录 */
@@ -3738,31 +5126,52 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
   localSortArrowFn = (col: string) => this.sortArrow(col, 'local')
   remoteSortArrowFn = (col: string) => this.sortArrow(col, 'remote')
 
-  /** 右键菜单项顺序（数据驱动渲染）：读取设置；缺省回退默认顺序 */
-  get contextMenuOrder(): string[] {
+  /** 右键菜单项顺序（数据驱动渲染）：读取设置；缺省回退默认顺序。
+   *  ★ A9：返回类型收敛为 ContextMenuAction[]（此前声明 string[] 与子组件输入不一致，
+   *  靠 strict 关闭掩盖；现由 sanitizeMenuOrder 在入口过滤未知项并保证类型正确）。
+   *  结果按配置数组引用缓存，避免每轮变更检测重新 filter 出新的数组引用。 */
+  private _menuOrderCache: { src: unknown; out: ContextMenuAction[] } | null = null
+
+  get contextMenuOrder(): ContextMenuAction[] {
     const v = this.configService?.store?.['tabby-sftp-plus']?.contextMenuOrder
-    const fallback = ['upload', 'download', 'openLocal', 'viewFile', 'editFile', 'revealInExplorer', 'copy', 'cut', 'paste', 'rename', 'delete', 'chmod', 'details', 'newFolder', 'newFile', 'refresh', 'selectAll', 'selectInvert', 'copyPath']
-    return (Array.isArray(v) && v.length) ? v as string[] : fallback
+    if (this._menuOrderCache && this._menuOrderCache.src === v) return this._menuOrderCache.out
+    const out = sanitizeMenuOrder(v)
+    this._menuOrderCache = { src: v, out }
+    return out
+  }
+
+  /** ★ 2026-09-28：被停用的右键菜单项集合（设置页定制），含文件动作 + groupBy；
+   *  groupToggleAll 已并入分组依据子菜单、不再是独立定制项——历史配置残留值直接忽略 */
+  get contextMenuDisabledEntries(): Set<string> {
+    const v = this.configService?.store?.['tabby-sftp-plus']?.contextMenuDisabled
+    const arr = v && Array.isArray(v) ? (v as string[]).filter(a => a !== 'groupToggleAll') : []
+    return new Set<string>(arr)
   }
 
   /**
    * 右键菜单动态快捷键映射：action → key 字符串。
-   * 将面板热键配置（panelHotkeys）映射到菜单 action 名（delete/rename/refresh），
+   * 将面板热键配置（panelHotkeys）映射到菜单 action 名，
    * 供 context-menu 组件按需显示/隐藏快捷键文本。
-   * 用户清除某热键后对应值为哨兵 → _panelHotkeyKey 返回空串 → 菜单不显示该快捷键。
+   * 用户清除某热键后对应值为空串 → 菜单不显示该快捷键。
    */
   get contextMenuHotkeyShortcuts(): Record<string, string> {
-    return {
+    const out: Record<string, string> = {
       delete: this._panelHotkeyKey('delete'),
       rename: this._panelHotkeyKey('rename'),
       refresh: this._panelHotkeyKey('refresh'),
     }
+    // ★ 2026-09-20：属性/上传/下载等可配置动作也要显示在右键菜单
+    for (const a of CONTEXT_ACTION_HOTKEYS) {
+      out[a] = this._panelHotkeyKey(a)
+    }
+    return out
   }
 
   /**
    * ★ 2026-08-25：属性对话框图标复用与文件列表完全一致的映射逻辑
    *   —— 文件夹→folder.svg、文件→扩展名映射→default.svg 兜底，均为彩色 SVG（file://），
    *      取代原先 dialog 内部硬编码的线条 emoji 风 SVG，保证属性弹窗与列表图标统一。
+   * ★ 2026-09-21：冲突对话框文件名旁图标亦经此函数解析（conflictFileIconUrl）。
    */
   private resolveDetailsIcon(e: any): string | null {
     if (!e) return null
@@ -4252,7 +5661,8 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
 
     for (const entry of entries) {
       if (gen !== this._dragCacheGen || !this.sftpSession) return
-      const safeName = path.basename(entry.name).replace(/\.\./g, '')
+      // ★ 2026-09-20 N2 审计修复：统一用 safeEntryName 净化远程文件名（与全库一致，防 . / .. / 穿越 / 控制字符）
+      const safeName = safeEntryName(entry.name)
       if (!safeName || safeName === '.' || safeName === '..') continue
       if (entry.isDirectory) continue
       if ((entry.size ?? 0) > SftpFloatingPanel.DRAG_CACHE_MAX_BYTES) continue
@@ -4265,12 +5675,9 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
         const cached = await fs.stat(tmpPath).then(s => s.size === (entry.size ?? 0)).catch(() => false)
         if (cached || gen !== this._dragCacheGen) continue
 
-        // 独立 cancel 列表，不占用文件夹传输的共享 _cancelRef
+        // 独立 cancel 列表，不占用文件夹传输的共享 _cancelRef（★ 2026-09-20 P1-2：改用显式 ref 入参）
         const dragCancelRef: { current: { cancel?: () => void | Promise<void> } | null } = { current: null }
-        const ctx = {
-          ...this._byteTransferCtx(),
-          cancelRef: dragCancelRef,
-        }
+        const ctx = this._byteTransferCtx(dragCancelRef)
         await downloadRemoteFile(ctx, entry.fullPath, tmpPath, undefined, entry.size, {
           exposeCancel: true,
           onTransfer: (dl) => {
@@ -4297,7 +5704,21 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
   }
 
   async onDrop(ev: DragEvent, targetPane: 'local' | 'remote'): Promise<void> {
-    await this._fileDropRuntime.onDrop(ev, targetPane)
+    const destDir = this._resolveDropDestDir(ev, targetPane)
+    await this._fileDropRuntime.onDrop(ev, targetPane, destDir)
+  }
+
+  /** ★ 2026-09-20：拖放到文件夹行时解析落点目录；落到文件行则用其父目录 */
+  private _resolveDropDestDir(ev: DragEvent, targetPane: 'local' | 'remote'): string | undefined {
+    const el = (ev.target as HTMLElement | null)?.closest?.('[data-path]') as HTMLElement | null
+    if (!el) return undefined
+    const p = el.getAttribute('data-path')
+    if (!p) return undefined
+    const isDir = el.getAttribute('data-isdir') === '1'
+    if (targetPane === 'remote') {
+      return isDir ? p : path.posix.dirname(p)
+    }
+    return isDir ? p : path.dirname(p)
   }
 
   // ========== 文件夹传输进度 ==========
@@ -4363,6 +5784,30 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     return scan(remotePath)
   }
 
+  /**
+   * ★ 2026-09-25 P1：重复入队**只读预检**——真源是协调器的 `_activeTransferSlots`
+   *   （见 PanelTransferCoordinator._claimTransferSlot）。这里只查询、不认领，避免出现
+   *   两套槽位表互相误判；提前查一次是为了在请求刚发出、进度条目尚未创建时也能立刻提示。
+   *
+   * 用户实测场景：Ctrl+V 粘贴后界面未及时响应，以为没生效又点一次「下载」→ 生成两条完全相同的
+   *   传输（同远端、同本地）：并发在服务端 tar 打包/下载 tar 包、逐文件阶段两条流写同一批目标文件
+   *   （`activeDownloadTargets` 守卫互相 skip 且都被记为失败）→ **双双失败**，此前无任何提示。
+   *
+   * @returns true 表示已识别为重复并提示用户，调用方应直接判失败返回
+   */
+  private _blockDuplicateTransfer(
+    direction: 'upload' | 'download', remotePath: string, localPath: string, displayName: string,
+  ): boolean {
+    let active = false
+    try { active = this._transferCoordinator.isTransferSlotActive(direction, remotePath, localPath) } catch { /* ignore */ }
+    if (!active) return false
+    log.warn('[dup-transfer] ignored duplicate request:', direction, remotePath, localPath)
+    try {
+      this.showToast(this.i18n.t('notify.duplicateTransfer', { name: displayName }), 4200)
+    } catch { /* ignore */ }
+    return true
+  }
+
   /** 开始一个文件夹传输（创建进度条目和初始日志）；reuseLogEntryId 传入时复用既有
    *  传输记录（冲突覆盖合并场景，避免重复条目） */
   private _startFolderTransfer(
@@ -4371,6 +5816,10 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     totalSize: number, itemCount: number,
     reuseLogEntryId?: string,
   ): { transferEntry: typeof this.transfers[0]; startTime: number; logEntryId: string } {
+    // ★ 2026-09-20 P1-2：解析本条目所属任务的 cancelRef（优先当前任务作用域，其次面板「最近任务」字段）。
+    //   必须在此刻定死：任务运行期间面板的 _cancelRef 会被后续并发任务改写，
+    //   若取消时再去读 _cancelRef，广播就落到别的任务的在途子流上了。
+    const taskRef = currentTaskScope() ?? this._cancelRef
     // ★ 2026-08-10：认领预注册的排队占位条目（多选拖拽下载的目录），
     //   原地升级为文件夹条目并复用其日志，避免占位与文件夹条目重复显示
     // ★ 2026-09-14 F6：认领键补 remotePath（与 trackTransfer 同步），防同名 localPath 认领错条目
@@ -4388,7 +5837,8 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
           try { this.transferLog.remove(queuedEntry.logEntryId) } catch { /* ignore */ }
         }
         ;(queuedEntry as any)._aborted = true
-        this.cdr.detectChanges()
+        ;(queuedEntry as any)._taskCancelRef = taskRef
+        this._safeDetect()
         return { transferEntry: queuedEntry, startTime: Date.now(), logEntryId: queuedEntry.logEntryId! }
       }
       Object.assign(queuedEntry, {
@@ -4396,18 +5846,21 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
         percent: 0, speed: '', bytesDone: 0, bytesTotal: totalSize,
         paused: false, queued: false,
         isFolder: true, currentItem: '', itemCount, itemDone: 0,
+        _taskCancelRef: taskRef,
+        // ★ 2026-09-20：开传时先标方式；若随后走 tar 通道会再改成 'tar'
+        transferMode: 'sftp',
       })
       if (queuedEntry.logEntryId != null) {
-        // ★ 2026-09-03：回填目录传输模式与文件数（快速模式无预扫描计数，只标 fast）
+        // ★ 2026-09-03：回填目录传输模式与文件数（预扫描后记录真实文件数）
         this.transferLog.update(queuedEntry.logEntryId, {
           size: totalSize, startTime: Date.now(),
-          transferMode: this._transferFastMode ? 'fast' : undefined,
-          fileCount: this._transferFastMode ? 0 : (itemCount || 0),
+          transferMode: 'sftp',
+          fileCount: itemCount || 0,
         })
       }
       this.transfersMinimized = false
       this.transfersHidden = false
-      this.cdr.detectChanges()
+      this._safeDetect()
       return { transferEntry: queuedEntry, startTime: Date.now(), logEntryId: queuedEntry.logEntryId! }
     }
     const logEntry = reuseLogEntryId
@@ -4422,17 +5875,17 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
         duration: 0,
         startTime: Date.now(),
         pending: true,  // ★ 修复：标记进行中，避免日志误显示"下载成功 ✓ 0ms"
-        // ★ 2026-09-03：记录目录传输模式与文件数（快速模式无预扫描计数）
-        transferMode: this._transferFastMode ? 'fast' : undefined,
-        fileCount: this._transferFastMode ? 0 : (itemCount || 0),
+        // ★ 2026-09-03：记录目录传输模式与文件数（预扫描后记录真实文件数）
+        transferMode: 'sftp',
+        fileCount: itemCount || 0,
       })
     if (reuseLogEntryId) {
       // 复用既有记录：重置为进行中，完成后由 finish 回填结果
       try {
         this.transferLog.update(reuseLogEntryId, {
           pending: true, success: true, duration: 0, startTime: Date.now(),
-          transferMode: this._transferFastMode ? 'fast' : undefined,
-          fileCount: this._transferFastMode ? 0 : (itemCount || 0),
+          transferMode: 'sftp',
+          fileCount: itemCount || 0,
         })
       } catch { /* ignore */ }
     }
@@ -4441,11 +5894,13 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       percent: 0, speed: '', bytesDone: 0, bytesTotal: totalSize,
       paused: false, logEntryId: logEntry.id,
       isFolder: true, currentItem: '', itemCount, itemDone: 0,
+      _taskCancelRef: taskRef,
+      transferMode: 'sftp',
     } as typeof this.transfers[0]
     this.transfers.push(transferEntry)
     this.transfersMinimized = false  // 新文件夹传输自动展开面板
     this.transfersHidden = false
-    this.cdr.detectChanges()
+    this._safeDetect()
     return { transferEntry, startTime: Date.now(), logEntryId: logEntry.id }
   }
 
@@ -4468,15 +5923,45 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     if (now - lastUpdate >= 500) {
       const deltaBytes = bytesDone - lastBytes
       const deltaTime = Math.max(1, now - lastUpdate)
+      // ★ 2026-09-26 修复（用户截图实测）：**必须先有上一次采样时刻，才能把它当窗口左端**。
+      //   首次调用时 `_lastSpeedUpdate` 还是 0 ⇒ deltaTime = now − 0 = **纪元毫秒**（≈1.79e12，
+      //   即 55 年）⇒ 瞬时速率被压到 1e-9 量级：
+      //     · 速度显示成 "0 B/s"（用户截图里的 `0 B/s`）；
+      //     · 剩余时间 = 剩余字节 / 1e-9 ⇒ 显示 `剩余 3255876663332h01m`。
+      //   而且这个近 0 的毒值还会经 EMA(0.65/0.35) 污染随后几个窗口：
+      //     bps ≈ 0.35 × 真值 ⇒ 显示 `169.2 KB/s` 却报 `剩余 21m07s`
+      //     （按 169.2 KB/s 应约 7m24s，差 2.8 倍 ≈ 1/0.35）—— 两张截图同一个根因。
+      //   ⇒ 第一次采样（lastUpdate === 0）只建立基准、不产出速率；下一个窗口才是真测量。
+      //   ⚠ 这里**不能**再叠加「窗口上限」保护：文件夹通道的 bytesDone 只在「一个文件传完」
+      //     时跳变，一个 84.9MB 的文件传 8 分钟期间没有任何进度事件，长窗口正是该文件的
+      //     真实均速，必须照常使用（单文件通道相反，那边加了上限，见 transfer-coordinator）。
+      const baselineOk = lastUpdate > 0
+      // ★ 2026-09-26（用户：「这次似乎又完全不会动了」）：`_lastGrowAt` = **最后一次看到字节
+      //   增长的窗口时刻**。首次采样（只建基准那一次）也置它，等于「从开传开始计时」。
+      if (!baselineOk || deltaBytes > 0) (t as any)._lastGrowAt = now
       // 仅在有新进度时更新速率；delta=0 时保留上次速度（避免卡顿时闪烁为空）
-      if (deltaBytes > 0) {
+      if (baselineOk && deltaBytes > 0) {
         t.speed = this._formatSpeed(deltaBytes, deltaTime)
+        // ★ 2026-09-26：数值速率（EMA 平滑）供「剩余时间」使用，见 transfer-coordinator 同处注释
+        const inst = (deltaBytes * 1000) / deltaTime
+        const prevBps = Number(t.speedBps) || 0
+        t.speedBps = prevBps > 0 ? prevBps * 0.65 + inst * 0.35 : inst
+      } else if (baselineOk) {
+        // 连续零推进持续到阈值，就如实承认「现在没在动」——速度显示 0 B/s、speedBps 置 0
+        // （剩余时间随之显示 ∞）。阈值与单文件通道共用同一个常量。
+        // ⚠ 计时基准必须是**最后一次字节增长**，不能是「第一次空窗口」：后者会白饶一个窗口
+        //   （产物探针实测：真实零推进已 16s，却只从上一窗口算起 2s ⇒ 迟迟不显示停摆）。
+        const lastGrowAt = Number((t as any)._lastGrowAt) || now
+        if (now - lastGrowAt >= SPEED_STALL_ZERO_MS && t.speed !== SPEED_STALL_ZERO_TEXT) {
+          t.speed = SPEED_STALL_ZERO_TEXT
+          t.speedBps = 0
+        }
       }
       // 始终推进基准点，保证下次计算窗口正确
       ;(t as any)._lastSpeedUpdate = now
       ;(t as any)._lastBytes = bytesDone
     }
-    this.cdr.detectChanges()
+    this._safeDetect()
   }
 
   /** 完成文件夹传输 */
@@ -4485,7 +5970,7 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
   ): void {
     this.transfers = this.transfers.filter(x => x !== t)
     const now = Date.now()
-    // ★ 2026-08-11 快速模式：总量未知（bytesTotal=0）时，完成时用实际已传字节回填日志 size
+    // ★ 兜底：总量未知（预扫描失败等 bytesTotal=0）时，完成时用实际已传字节回填日志 size
     const patch: { success: boolean; duration: number; endTime: number; pending: boolean; size?: number } =
       { success, duration: now - startTime, endTime: now, pending: false }
     if (!(t.bytesTotal > 0) && t.bytesDone > 0) patch.size = t.bytesDone
@@ -4506,13 +5991,26 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     remoteDir: string, localPath: string,
     _top?: FolderTransferCtx,
   ): Promise<boolean> {
-    // ★ 2026-08-26：上传目录同样初始化 cancelRef（并发取消广播）
-    if (!this._cancelRef) this._cancelRef = { current: null, active: new Set() }
-try {
-    return await this._transferCoordinator.uploadPathToRemote(remoteDir, localPath, _top)
-  } finally {
-    if (this._cancelRef && !this._cancelRef.current && !(this._cancelRef.active?.size)) this._cancelRef = null
-  }
+    // ★ 2026-09-25 P1：仅顶层调用做重复入队只读预检（真正的槽位由协调器认领/释放；
+    //   嵌套子目录/冲突覆盖重入必须放行）。远端目标与 UploadPathUseCase 一致
+    const slotBaseName = path.basename(localPath)
+    const slotRemote = path.posix.join(remoteDir, slotBaseName)
+    if (!_top && this._blockDuplicateTransfer('upload', slotRemote, localPath, slotBaseName)) return false
+    // ★ BUG-2 修复：为每个传输任务创建独立的 cancelRef，避免并发任务互相影响
+    const cancelRef = { current: null as any, active: new Set<any>() }
+    this._cancelRefs.add(cancelRef)
+    const prevRef = this._cancelRef
+    this._cancelRef = cancelRef
+    try {
+      // ★ 2026-09-20 P1-2：把任务 ref 绑到异步调用链上——该任务（含递归子目录、并发子文件）
+      //   里所有叶子传输都经 currentTaskScope() 解析到这个 ref，不再被后启动任务覆盖
+      return await runInTaskScope(cancelRef, () =>
+        this._transferCoordinator.uploadPathToRemote(remoteDir, localPath, _top))
+    } finally {
+      this._cancelRefs.delete(cancelRef)
+      if (this._cancelRef === cancelRef) this._cancelRef = prevRef
+      if (this._cancelRef && !this._cancelRef.current && !(this._cancelRef.active?.size)) this._cancelRef = null
+    }
 }
 
   /**
@@ -4557,12 +6055,30 @@ try {
   }
 
   /** 下载文件（不记录传输日志，文件夹内部使用）
-   *  ☆ 通过 cancelRef 暴露 dl 引用，供暂停/取消时中断 */
-  private async _doDownloadRaw(remotePath: string, localPath: string, mode?: number, size?: number): Promise<boolean> {
+   *  ☆ 通过 cancelRef 暴露 dl 引用，供暂停/取消时中断
+   *  ★ 2026-09-26：新增 `onProgress`（本文件已落盘字节）——目录条目原先只在「文件传完」时
+   *    拿到一次进度，单个大文件期间整行静止（用户：「这次似乎又完全不会动了」）。
+   *    `downloadRemoteFile` 只在创建时通过 `onTransfer` 交出一次 dl 引用（与 tar 通道
+   *    `_downloadTarBall` 同一套路），故这里用 400ms 轮询其 `getCompletedBytes()`。
+   *    轮询在 finally 里清除；无 onProgress 时**不建定时器**（单文件顶层下载走
+   *    `_doDownload`/track 通道，由协调器 200ms tick 负责，不经此处）。 */
+  private async _doDownloadRaw(
+    remotePath: string, localPath: string, mode?: number, size?: number,
+    onProgress?: (bytes: number) => void,
+  ): Promise<boolean> {
     if (!this.sftpSession) return false
-    return downloadRemoteFile(this._byteTransferCtx(), remotePath, localPath, mode, size, {
-      exposeCancel: true,
-    })
+    let dl: LocalPathFileDownload | null = null
+    const timer = onProgress
+      ? setInterval(() => { if (dl) onProgress(Number(dl.getCompletedBytes?.()) || 0) }, 400)
+      : null
+    try {
+      return await downloadRemoteFile(this._byteTransferCtx(), remotePath, localPath, mode, size, {
+        exposeCancel: true,
+        onTransfer: (d) => { dl = d },
+      })
+    } finally {
+      if (timer !== null) clearInterval(timer)
+    }
   }
 
   /** ★ 2026-08-11：tar 打包通道下载 tar 包（不产生 UI 条目）；
@@ -4583,18 +6099,26 @@ try {
     try {
       return await downloadRemoteFile(this._byteTransferCtx(), remotePath, localPath, undefined, size, {
         onTransfer: (d) => { dl = d },
+        // ★ 2026-09-26：把 tar 通道的中止信号透传给下载层——分块通道每块检查，
+        //   用户取消/条目被 abort 时立刻停手（原先只能等下一次整文件超时才发现）
+        shouldAbort: () => shouldAbort?.() === true,
       })
     } finally {
       clearInterval(timer)
     }
   }
 
-  /** 组装字节级传输上下文（会话 + 守卫 + 进度回调） */
-  private _byteTransferCtx() {
+  /** 组装字节级传输上下文（会话 + 守卫 + 进度回调）
+   *  ★ 2026-09-20 P1-2：cancelRef 解析顺序 = 显式传入 → 所属任务作用域 → 面板「最近任务」字段。
+   *   中间一级是关键：并发多目录任务时，子文件流必须登记到**自己任务**的 ref，
+   *   此前直接用 this._cancelRef（=最后启动的任务）会导致登记归属错位、取消时互杀。 */
+  private _byteTransferCtx(taskRef?: TaskCancelRef | null) {
     return {
       session: this.sftpSession!,
       activeDownloadTargets: this._activeDownloadTargets,
-      cancelRef: this._cancelRef,
+      // ★ 2026-09-21 P1：同名并发上传守卫（uploadLocalFile 消费）
+      activeUploadTargets: this._activeUploadTargets,
+      cancelRef: taskRef ?? currentTaskScope() ?? this._cancelRef,
       trackTransfer: (
         t: LocalPathFileUpload | LocalPathFileDownload,
         direction: 'upload' | 'download',
@@ -4678,20 +6202,32 @@ try {
     })
   }
 
+  /**
+   * 取该条目所属任务的 cancelRef。
+   * ★ 2026-09-20 P1-2 审计修复：此前一律用 this._cancelRef 广播，而它永远指向
+   *   「最后启动且仍在跑」的任务 —— 取消旧任务时会把新任务的在途子流全部 cancel（误杀）。
+   *   改用条目自身记录的 _taskCancelRef；缺失时（旧数据/非目录任务）才退回面板字段。
+   */
+  private _taskRefOf(entry: any): TaskCancelRef | null {
+    return (entry?._taskCancelRef as TaskCancelRef | undefined) ?? this._cancelRef
+  }
+
   cancelTransfer(entry: { transfer: any; logEntryId?: string; paused?: boolean; isFolder?: boolean }): void {
     this._transferRuntime.cancelTransfer(entry)
     // ★ 2026-08-10：排队占位条目无底层流——不得碰 _cancelRef，
     //   否则可能误杀其它文件夹传输正在进行的子文件流
     if ((entry as any).queued) return
     // ★ 2026-08-26 H2：文件夹取消时广播全部在途子流（并发>1）
-    if (entry.isFolder) cancelAllInFlight(this._cancelRef)
+    // ★ 2026-09-20 P1-2：广播范围限定为「本条目所属任务」的 ref
+    if (entry.isFolder) cancelAllInFlight(this._taskRefOf(entry))
   }
 
   /** 取消当前文件（文件夹：跳过此文件，循环继续） */
   cancelCurrentFile(entry: { isFolder?: boolean }): void {
     this._transferRuntime.cancelCurrentFile(entry)
     // ★ 2026-08-26 H2：中断当前在途子流集合
-    if (entry.isFolder) cancelAllInFlight(this._cancelRef)
+    // ★ 2026-09-20 P1-2：同样是「本任务」的集合，不是面板最近任务的
+    if (entry.isFolder) cancelAllInFlight(this._taskRefOf(entry))
   }
 
   /** 暂停传输 */
@@ -4701,6 +6237,13 @@ try {
 
   /** 继续传输（断点续传） */
   async resumeTransfer(entry: any): Promise<void> {
+    // ★ 2026-09-26：文件夹条目恢复传输时**重置速度窗口基准**。
+    //   文件夹的进度只在「一个文件传完」时上报（见 _updateFolderProgress），暂停期间
+    //   `_lastSpeedUpdate` 不会推进；若照常按窗口左端算，暂停的整段时间会被并进 deltaTime，
+    //   速率被摊薄到暂停时长上（暂停 10 分钟 ⇒ 速率低几十倍 ⇒ 剩余时间虚高几十倍）。
+    //   置 0 即「无基准」⇒ 恢复后的第一次上报只重新建立基准、不产出速率（见 _updateFolderProgress）。
+    //   单文件条目的窗口基准在协调器里（resume 时已重置 meta.prevBytes/prevTime），此处不涉。
+    if (entry?.isFolder) (entry as any)._lastSpeedUpdate = 0
     await this._transferRuntime.resumeTransfer(entry)
   }
 
@@ -4724,16 +6267,45 @@ try {
 
   /** 关闭整个传输面板 */
   clearTransfers(): void {
-    this._transferRuntime.clearTransfers()
     // ★ 2026-08-26 H3：清空队列时广播取消所有在途子流
-    cancelAllInFlight(this._cancelRef)
+    // ★ 2026-09-20 P1-2：必须广播到**全部**在途任务的 ref（旧实现只播 _cancelRef = 最近任务，
+    //   其它并发目录任务的子流不会被中断——clearTransfers 之后仍继续往对端写文件）。
+    //   条目可能在 runtime.clearTransfers() 里被清空，故先快照 ref 集合。
+    const refs = new Set<TaskCancelRef>()
+    if (this._cancelRef) refs.add(this._cancelRef)
+    for (const r of this._cancelRefs) refs.add(r)
+    for (const t of this.transfers) {
+      const r = (t as any)._taskCancelRef as TaskCancelRef | undefined
+      if (r) refs.add(r)
+    }
+    this._transferRuntime.clearTransfers()
+    for (const r of refs) cancelAllInFlight(r)
   }
 
   // ========== 权限编辑对话框 ==========
   openPermDialog(entry: SFTPFile): void {
+    // ★ 2026-09-20：mode 缺失时 undefined&0o777===0，确认会 chmod 000；先拒绝或补 stat
+    const rawMode = entry.mode
+    if (rawMode == null || !Number.isFinite(Number(rawMode))) {
+      if (this.sftpSession && typeof (this.sftpSession as any).stat === 'function') {
+        void (this.sftpSession as any).stat(entry.fullPath).then((st: any) => {
+          const m = Number(st?.mode ?? st?.attrs?.permissions ?? st?.attrs?.mode)
+          if (!Number.isFinite(m)) {
+            this.showToast(this.i18n.t('perm.modeUnknown') || '无法读取权限，已取消')
+            return
+          }
+          this.openPermDialog({ ...entry, mode: m })
+        }).catch(() => {
+          this.showToast(this.i18n.t('perm.modeUnknown') || '无法读取权限，已取消')
+        })
+        return
+      }
+      this.showToast(this.i18n.t('perm.modeUnknown') || '无法读取权限，已取消')
+      return
+    }
     this.permTargetPath = entry.fullPath
     this.permTargetName = entry.name
-    const m = entry.mode & 0o777
+    const m = Number(rawMode) & 0o777
     this.permOwnerRead = (m & 0o400) !== 0
     this.permOwnerWrite = (m & 0o200) !== 0
     this.permOwnerExec = (m & 0o100) !== 0
@@ -4819,61 +6391,134 @@ try {
   /** 面板操作级热键：删除(Delete)/重命名(F2)/刷新(F5)/返回上级(Shift+Backspace)，均可在设置页开关或改键 */
   @HostListener('window:keydown', ['$event'])
   onWindowKeyDown(event: KeyboardEvent): void {
+    // 捕获阶段已处理过的事件：避免重复执行
+    if ((event as any).__sftpPlusPanelHotkeyHandled) return
+    this._handlePanelWindowHotkey(event)
+  }
+
+  /**
+   * ★ 2026-09-20：window 捕获阶段先于 Tabby HotkeysService 消费面板热键。
+   * Angular HostListener 在冒泡阶段，晚于 Tabby；仅 stopPropagation 挡不住 Alt+Enter 全屏等全局键。
+   */
+  private _capturePanelHotkeysBeforeTabby(event: KeyboardEvent): void {
+    if (!this._isPanelActive) return
+    if (this._isPanelModalOpen()) return
+    if (!this._isPanelDomFocused() && !this._panelOwnsClipboardHotkeys) return
+    if (this._isPanelTyping(event)) return
+    // ★ issue #24：焦点在终端时不抢 Tabby 全局键，避免吞掉终端按键（如空格）
+    if (this._isTerminalFocusTarget(event)) return
+    if (!this._eventWouldConsumePanelHotkey(event)) return
+    event.preventDefault()
+    event.stopImmediatePropagation()
+    ;(event as any).__sftpPlusPanelHotkeyHandled = true
+    // ★ 2026-09-29（性能，用户反馈「按住 Shift 连选卡顿」）：
+    //   方向键是**连发**键（按住 ~30 次/秒），而 zone.run 除了执行处理函数，还会在微任务清空时
+    //   触发 ApplicationRef.tick()——即整站变更检测。方向键分支（_handleArrowNav）本就在收尾处
+    //   显式调用 _safeDetect()，自己就能把面板视图刷好，于是每次按键白付一遍全量 CD。
+    //   这里对方向键改走 runOutsideAngular：每步只保留 1 遍面板 CD（其余热键仍走 zone.run，
+    //   它们依赖 tick 更新对话框等视图）。
+    if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+      this.zone.runOutsideAngular(() => this._handlePanelWindowHotkey(event))
+      return
+    }
+    this.zone.run(() => this._handlePanelWindowHotkey(event))
+  }
+
+  /**
+   * ★ 2026-09-20：右键菜单类热键的目标面板解析
+   * - 上传/打开：固定本地；下载：固定远程；其余跟当前选中侧
+   */
+  private _resolveContextHotkeyPane(a: PanelHotkeyAction): 'local' | 'remote' {
+    if (a === 'upload' || a === 'openLocal') return 'local'
+    if (a === 'download') return 'remote'
+    return this._resolveTargetPane()
+  }
+
+  /**
+   * ★ 2026-09-20：判断某右键菜单热键当前是否可执行（有选中 / 打开仅本地单选 / 查看编辑需文件可看可编）
+   */
+  private _contextHotkeyReady(a: PanelHotkeyAction, pane: 'local' | 'remote'): boolean {
+    if (a === 'upload') return this.selectedLocal.length > 0
+    if (a === 'download') return this.selectedRemote.length > 0
+    if (a === 'newFolder' || a === 'newFile') return true
+    const sel = pane === 'local' ? this.selectedLocal : this.selectedRemote
+    if (a === 'details' || a === 'copyPath') return sel.length > 0
+    if (a === 'openLocal') return pane === 'local' && sel.length === 1
+    if (a === 'viewFile' || a === 'editFile') {
+      if (sel.length !== 1) return false
+      const e = sel[0]
+      return a === 'viewFile' ? this.canViewEntry(e) : this.canEditEntry(e)
+    }
+    return true
+  }
+
+  /** 需要写入 contextMenuEntry 再分发的菜单热键 */
+  private static readonly _CTX_HOTKEYS_NEED_ENTRY: ReadonlySet<string> = new Set([
+    'openLocal', 'viewFile', 'editFile', 'details', 'copyPath',
+  ])
+
+  /** 与 onWindowKeyDown 相同的命中条件，但不执行动作（供捕获阶段判断是否要抢走 Tabby） */
+  private _eventWouldConsumePanelHotkey(event: KeyboardEvent): boolean {
+    // ★ 2026-09-29：Shift 也纳入 —— Shift+↑/↓ 现在是面板的连续多选，需在捕获阶段就认领，
+    //   否则宿主可能先消费掉组合键；Ctrl/Alt/Meta 组合仍不认领。
+    if ((event.key === 'ArrowUp' || event.key === 'ArrowDown')
+      && !event.ctrlKey && !event.metaKey && !event.altKey
+      && this._arrowNavPane) {
+      return true
+    }
+    if (this._panelHotkeyEnabled('up') && matchPanelHotkeyKeys(event, this._panelHotkeyKeys('up'))) {
+      return true
+    }
+    if (this._panelHotkeyEnabled('delete') && this._matchPanelHotkeyKeysIgnoreShift(event, this._panelHotkeyKeys('delete'))) {
+      const side = this._resolveTargetPane()
+      const sel = side === 'local' ? this._selectedLocal : this._selectedRemote
+      return !!(sel && sel.length > 0)
+    }
+    if (this._panelHotkeyEnabled('rename') && matchPanelHotkeyKeys(event, this._panelHotkeyKeys('rename'))) {
+      const pane = this._resolveTargetPane()
+      if (pane === 'local' && this.selectedLocal.length === 1) return true
+      if (pane === 'remote' && this.selectedRemote.length === 1) return true
+      return false
+    }
+    if (this._panelHotkeyEnabled('refresh') && matchPanelHotkeyKeys(event, this._panelHotkeyKeys('refresh'))) {
+      return true
+    }
+    for (const a of CONTEXT_ACTION_HOTKEYS) {
+      if (!this._panelHotkeyEnabled(a)) continue
+      if (!matchPanelHotkeyKeys(event, this._panelHotkeyKeys(a))) continue
+      const pane = this._resolveContextHotkeyPane(a)
+      if (!this._contextHotkeyReady(a, pane)) continue
+      return true
+    }
+    return false
+  }
+
+  private _handlePanelWindowHotkey(event: KeyboardEvent): void {
     // 面板不可见（最小化/所在 tab 未激活，如打开设置页或切到其它终端）时不响应
     if (!this._isPanelActive) return
     // ★ 2026-08-26 H9/C3：任意模态打开时短路面板热键，避免查看器下误删等
     if (this._isPanelModalOpen()) return
+    // ★ 2026-09-20：焦点不在面板 DOM 时不劫持 Delete/方向键/F2/F5（与 Backspace 历史一致）
+    //   否则点选文件后点回终端，Delete 会误删、方向键会改选中
+    if (!this._isPanelDomFocused() && !this._panelOwnsClipboardHotkeys) return
     // 仅面板自身输入框内才视为正在输入；终端 textarea 在面板之外不拦截
     if (this._isPanelTyping(event)) return
+    // ★ issue #24：焦点位于终端(xterm)时绝不劫持按键——空格/字母等必须正常输入终端
+    if (this._isTerminalFocusTarget(event)) return
 
     // 方向键上下移动选中项（仅在实际点击过的面板内生效，不受 mouseenter 悬停影响）
     if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
       this._clearTypeAhead()
-      // 带修饰键（Ctrl/Shift/Alt/Meta）时不拦截，留给其它组合功能
-      if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return
+      // Ctrl/Alt/Meta 组合仍不拦截，留给其它功能；
+      // ★ 2026-09-29：Shift 不再放行 —— Shift+↑/↓ = 连续多选（由 _handleArrowNav 的 extend 分支处理）
+      if (event.ctrlKey || event.metaKey || event.altKey) return
       // 未曾在任一面板点击过条目 → 不响应方向键（避免鼠标悬停切换面板后误触发）
       const side = this._arrowNavPane
       if (!side) return
-      const down = event.key === 'ArrowDown'
-      const resolveNewIndex = (len: number, currentIdx: number): number => {
-        if (down) return currentIdx < 0 ? 0 : Math.min(len - 1, currentIdx + 1)
-        return currentIdx < 0 ? len - 1 : Math.max(0, currentIdx - 1)
-      }
-      if (side === 'local') {
-        const list = this.getFilteredLocalEntries()
-        if (!list || list.length === 0) return
-        let currentIdx = -1
-        if (this._localSelectedPaths.size > 0) {
-          currentIdx = list.findIndex(e => e.fullPath === [...this._localSelectedPaths][0])
-        }
-        const newIdx = resolveNewIndex(list.length, currentIdx)
-        if (newIdx < 0 || newIdx === currentIdx) return
-        event.preventDefault()
-        event.stopPropagation()
-        if (this.selectedRemote.length) this.selectedRemote = []
-        this.selectedLocal = [list[newIdx]]
-        this.localLastSelectedIndex = newIdx
-        this.syncPaneSelectionVisual('local')
-        this.cdr.detectChanges()
-        this._scrollEntryIntoView('local', newIdx)
-      } else {
-        const list = this.getFilteredRemoteEntries()
-        if (!list || list.length === 0) return
-        let currentIdx = -1
-        if (this._remoteSelectedPaths.size > 0) {
-          currentIdx = list.findIndex(e => e.fullPath === [...this._remoteSelectedPaths][0])
-        }
-        const newIdx = resolveNewIndex(list.length, currentIdx)
-        if (newIdx < 0 || newIdx === currentIdx) return
-        event.preventDefault()
-        event.stopPropagation()
-        if (this.selectedLocal.length) this.selectedLocal = []
-        this.selectedRemote = [list[newIdx]]
-        this.remoteLastSelectedIndex = newIdx
-        this.syncPaneSelectionVisual('remote')
-        this.cdr.detectChanges()
-        this._scrollEntryIntoView('remote', newIdx)
-      }
+      // 仅在真的发生移动时消费按键（已在列表端点则把按键留给宿主）
+      if (!this._handleArrowNav(side, event.key === 'ArrowDown', event.shiftKey)) return
+      event.preventDefault()
+      event.stopPropagation()
       return
     }
 
@@ -4921,27 +6566,28 @@ try {
       else void this.refreshRemote()
       return
     }
-    // ★ 2026-08-31：右键菜单常用动作的可配置快捷键（默认留空，未绑定即不响应）
-    //   upload/download 方向固定（本地→远程 / 远程→本地），要求源面板存在选中项，
-    //   其余动作要求目标面板有选中项；不满足时不拦截该按键，避免抢走其它功能的键位。
+    // ★ 2026-08-31 / 2026-09-20：右键菜单常用动作的可配置快捷键（默认留空，未绑定即不响应）
+    //   上传/下载/打开/查看/编辑等按目标侧与选中态判断；不满足时不拦截，避免抢走其它键位。
     for (const a of CONTEXT_ACTION_HOTKEYS) {
       if (!this._panelHotkeyEnabled(a)) continue
       if (!matchPanelHotkeyKeys(event, this._panelHotkeyKeys(a))) continue
-      if (a === 'upload' && !this.selectedLocal.length) continue
-      if (a === 'download' && !this.selectedRemote.length) continue
-      if ((a === 'details' || a === 'copyPath') && !this.getContextSelection().length) continue
+      const pane = this._resolveContextHotkeyPane(a)
+      if (!this._contextHotkeyReady(a, pane)) continue
       event.preventDefault()
       event.stopPropagation()
-      // 设定上下文面板，使 getContextSelection() 取到正确一侧的选中项
-      this.contextMenuPane = a === 'upload' ? 'local'
-        : a === 'download' ? 'remote'
-          : this._resolveTargetPane()
+      this.contextMenuPane = pane
+      if (SftpFloatingPanel._CTX_HOTKEYS_NEED_ENTRY.has(a)) {
+        const sel = pane === 'local' ? this.selectedLocal : this.selectedRemote
+        this.contextMenuEntry = (sel[0] as any) ?? null
+      }
       this.onContextMenuAction(a as ContextMenuAction)
       return
     }
 
     // 键入定位：未命中其它热键时，按文件名前缀跳转选中
-    if (this._tryTypeAheadFind(event)) return
+    // ★ issue #24：仅当面板文件列表自身获得焦点时才消费空格/字母；
+    //   面板仅"拥有剪贴板热键"而未获焦点的场景（如刚点过面板又切回终端）不吞字符，交还终端。
+    if (this._isPanelDomFocused() && this._tryTypeAheadFind(event)) return
   }
 
   /** 清空键入定位缓冲区 */
@@ -5105,8 +6751,8 @@ try {
       this._arrowNavPane = 'local'
       this._typeAheadLastHitPrefix = prefix
       this.syncPaneSelectionVisual('local')
-      this.cdr.detectChanges()
-      this._scrollEntryIntoView('local', idx, 'center')
+      this._safeDetect()
+      this._scrollEntryIntoView('local', list[idx], 'center')
       return true
     }
 
@@ -5120,8 +6766,8 @@ try {
     this._arrowNavPane = 'remote'
     this._typeAheadLastHitPrefix = prefix
     this.syncPaneSelectionVisual('remote')
-    this.cdr.detectChanges()
-    this._scrollEntryIntoView('remote', idx, 'center')
+    this._safeDetect()
+    this._scrollEntryIntoView('remote', list[idx], 'center')
     return true
   }
 
@@ -5148,7 +6794,7 @@ try {
     this.deleteToTrash = side === 'local' && !(forcePermanent ?? false)
     if (side === 'local') this.pendingLocalDelete = sel.slice() as LocalEntry[]
     else this.pendingRemoteDelete = sel.slice() as SFTPFile[]
-    this.prepareDeleteConfirm(sel)
+    this.prepareDeleteConfirm(sel, side)
     this.deleteConfirmVisible = true
   }
   remoteChmod(): void {
@@ -5170,7 +6816,8 @@ try {
   cancelInputDialog(): void { this.inputDialogVisible = false; this.inputDialogMode = null; this.inputDialogValue = '' }
 
   /** 准备删除确认对话框的显示内容 */
-  private prepareDeleteConfirm(entries: Array<LocalEntry | SFTPFile>): void {
+  private prepareDeleteConfirm(entries: Array<LocalEntry | SFTPFile>, side: 'local' | 'remote'): void {
+    this.deleteItemLocation = this._deleteTargetsLocation(entries, side)
     if (entries.length === 1) {
       const e = entries[0]
       this.deleteConfirmBatch = false
@@ -5186,6 +6833,24 @@ try {
       const count = entries.length
       this.batchDeleteText = this.i18n.t('app.deleteConfirmMultiple').replace('{count}', String(count))
     }
+  }
+
+  /**
+   * ★ 2026-09-21 P0 修复：算出删除目标所在目录，供确认框展示。
+   * 不用 localPath/remotePath，而是从条目自身的 fullPath 反推——这样即使选择模型
+   * 与当前目录不一致（残留、外部改动），对话框显示的也是真实删除位置。
+   * 目录不唯一时并列展示，避免「看着像当前目录」而误删。
+   */
+  private _deleteTargetsLocation(entries: Array<LocalEntry | SFTPFile>, side: 'local' | 'remote'): string {
+    const dirname = side === 'local' ? path.dirname.bind(path) : path.posix.dirname.bind(path.posix)
+    const dirs: string[] = []
+    for (const e of entries) {
+      if (!e?.fullPath) continue
+      const d = dirname(e.fullPath)
+      if (!dirs.includes(d)) dirs.push(d)
+    }
+    if (!dirs.length) return ''
+    return dirs.length === 1 ? dirs[0] : dirs.join('  |  ')
   }
 
   /** 根据文件扩展名获取类型描述 */
@@ -5491,6 +7156,15 @@ try {
     }).length
   }
 
+  /**
+   * 可清除的记录数（该连接下**已结束**的记录，排除正在传输中的 pending）。
+   * ★ 2026-09-26：「清除」按钮据此禁用——没有记录、或只剩下正在传输中的条目时
+   *   都不该让按钮可点（点了也清不掉任何东西）。
+   */
+  get transferLogClearableCount(): number {
+    return this.transferLog.countClearable(this.profile?.name || undefined)
+  }
+
   get filteredTransferLogs(): TransferLogEntry[] {
     const filter: {
       operation?: TransferLogEntry['operation']
@@ -5546,7 +7220,7 @@ try {
     if (!this.showTransferLog) {
       // 即将打开 → 先从 localStorage 重新加载最新日志
       this.transferLog.reload()
-      this.cdr.detectChanges()
+      this._safeDetect()
     }
     this.showTransferLog = !this.showTransferLog
   }
@@ -5557,11 +7231,16 @@ try {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a'); a.href = url
     a.download = `sftp-plus-log-${new Date().toISOString().slice(0, 10)}.json`
-    a.click(); URL.revokeObjectURL(url)
+    a.click()
+    // ★ BUG-16 修复：延迟释放 Blob URL，确保浏览器有足够时间完成下载
+    setTimeout(() => URL.revokeObjectURL(url), 5000)
   }
 
   clearLog(): void {
     const profileName = this.profile?.name
+    // ★ 2026-09-26：没有「可清除记录」时直接返回（无记录 / 只剩下正在传输中的条目）。
+    //   按钮已 disabled，这里再兜一层：避免键盘触发或程序化调用弹出一个「什么都清不掉」的确认框。
+    if (this.transferLogClearableCount <= 0) return
     if (!confirm(this.i18n.t('transfer.clearConfirm'))) return
     if (profileName) {
       this.transferLog.clearProfile(profileName)
@@ -5603,7 +7282,7 @@ try {
       this.contextMenuX = ev.clientX
       this.contextMenuY = ev.clientY
       this.contextMenuVisible = true
-      this.cdr.detectChanges()
+      this._safeDetect()
       this.fixContextMenuPosition(ev.clientX, ev.clientY)
     })
   }
@@ -5619,13 +7298,18 @@ try {
       let x = anchorX
       let y = anchorY
 
+      // ★ BUG-12 修复：优先使用 visualViewport API（支持 DPI 缩放、多显示器、移动端键盘弹出等场景）
+      const vv = (window as any).visualViewport
+      const vw = vv ? vv.width : window.innerWidth
+      const vh = vv ? vv.height : window.innerHeight
+
       // 右边界：超出则向左偏移
-      if (x + rect.width > window.innerWidth - margin) {
-        x = Math.max(margin, window.innerWidth - rect.width - margin)
+      if (x + rect.width > vw - margin) {
+        x = Math.max(margin, vw - rect.width - margin)
       }
       // 下边界：超出则向上弹出
-      if (y + rect.height > window.innerHeight - margin) {
-        y = Math.max(margin, window.innerHeight - rect.height - margin)
+      if (y + rect.height > vh - margin) {
+        y = Math.max(margin, vh - rect.height - margin)
       }
       // 保卫左/上边界
       if (x < margin) x = margin
@@ -5634,7 +7318,7 @@ try {
       if (x !== this.contextMenuX || y !== this.contextMenuY) {
         this.contextMenuX = x
         this.contextMenuY = y
-        this.cdr.detectChanges()
+        this._safeDetect()
       }
     }, 0)
   }
@@ -5735,7 +7419,7 @@ try {
     this._toastDurationMs = base
     this._toastHovering = false
     this._armToastDismiss()
-    try { this.cdr.detectChanges() } catch {}
+    try { this._safeDetect() } catch {}
   }
 
   /**
@@ -5772,7 +7456,7 @@ try {
       if (this._toastHovering) return
       this.toastMessage = ''
       this.toastTimer = null
-      try { this.cdr.detectChanges() } catch {}
+      try { this._safeDetect() } catch {}
     }, this._toastDurationMs)
   }
 
@@ -5786,7 +7470,9 @@ try {
 
   /** 右键菜单 → 打开（文件夹：进入目录；文件：系统默认程序） */
   ctxOpenLocal(): void {
-    const entry = this.contextMenuEntry as LocalEntry | null
+    // ★ 2026-09-20：快捷键路径可能无右键 entry，回退到本地选中项
+    const entry = (this.contextMenuEntry as LocalEntry | null)
+      || (this.selectedLocal.length === 1 ? this.selectedLocal[0] : null)
     this.closeContextMenu()
     if (!entry?.fullPath) return
     if (entry.isDirectory || this.isDirByMode(entry.mode)) {
@@ -5819,16 +7505,6 @@ try {
   /** 检查当前右键菜单面板是否有选中项 */
   hasContextSelection(): boolean {
     return this.contextMenuPane === 'local' ? this.selectedLocal.length > 0 : this.selectedRemote.length > 0
-  }
-
-  /** 检查是否有文件级操作（打开/显示/权限/详细信息）可显示 */
-  hasFileActions(): boolean {
-    if (!this.contextMenuEntry) return false
-    if (this.contextMenuPane === 'local') {
-      return this.selectedLocal.length === 1
-    } else {
-      return this.selectedRemote.length === 1
-    }
   }
 
   /** 获取当前上下文的选中项列表 */
@@ -5890,9 +7566,14 @@ try {
 
   // ========== 详细信息 ==========
   ctxDetails(): void {
-    if (!this.contextMenuEntry) return
-    this.detailsEntry = this.contextMenuEntry
-    this.detailsIsLocal = this.contextMenuPane === 'local'
+    // ★ 2026-09-20：快捷键路径无右键 entry（关菜单会清空 contextMenuEntry），回退到当前侧选中项
+    const pane = this.contextMenuPane
+    const selected = pane === 'local' ? this.selectedLocal : this.selectedRemote
+    const entry = (this.contextMenuEntry as LocalEntry | SFTPFile | null)
+      || (selected.length ? selected[0] : null)
+    if (!entry) return
+    this.detailsEntry = entry
+    this.detailsIsLocal = pane === 'local'
     // ★ 2026-08-11：每次打开重置大小计算状态（token 递增使在途扫描作废）
     this.detailsCalcState = 'idle'
     this.detailsCalcResult = null
@@ -5910,7 +7591,7 @@ try {
     const token = ++this.detailsCalcToken
     this.detailsCalcState = 'calculating'
     this.detailsCalcResult = null
-    this.cdr.detectChanges()
+    this._safeDetect()
     try {
       const r = isLocal ? await this._scanLocalDir(target) : await this._scanRemoteDir(target)
       if (token !== this.detailsCalcToken || !this.detailsVisible) return
@@ -5920,7 +7601,7 @@ try {
       if (token !== this.detailsCalcToken || !this.detailsVisible) return
       this.detailsCalcState = 'error'
     }
-    this.cdr.detectChanges()
+    this._safeDetect()
   }
 
   canViewEntry(entry: LocalEntry | SFTPFile | null): boolean {
@@ -5945,6 +7626,102 @@ try {
     return !!this.editorLocalPath && !this.editorError && !this.editorLoading
   }
 
+  // ========== 传输目标目录预检（2026-09-28） ==========
+  // 用户反馈：默认上传/下载路径不存在时传输直接失败（远程 readdir 抛错 / 本地 ENOENT），
+  // 应在传输前检测并询问「是否创建」。每批传输只询问一次；目录存在时零打扰。
+
+  /**
+   * 传输前目标目录预检：存在且为目录 → 原样返回；不存在 → 弹三选一确认框。
+   * @returns 可用的目标目录；用户取消或创建失败时返回 null（调用方应放弃本批传输）
+   */
+  private async _ensureTransferTargetDir(direction: 'upload' | 'download', requestedDir: string): Promise<string | null> {
+    const isRemote = direction === 'upload'
+    const fallbackDir = isRemote ? this.remotePath : this.localPath
+    const dir = requestedDir?.trim() || fallbackDir
+    let exists = false
+    let isDir = false
+    try {
+      if (isRemote) {
+        // 远程走 statRemotePath（已处理 russh 数字 type / 包装层 stat 差异）
+        const st = this.sftpSession ? await statRemotePath(this.sftpSession, dir) : null
+        exists = !!st
+        isDir = !!st?.isDirectory
+      } else {
+        const st = await fs.stat(dir).catch(() => null)
+        exists = !!st
+        isDir = !!st?.isDirectory()
+      }
+    } catch {
+      exists = false
+    }
+    if (exists && isDir) return dir
+    if (exists && !isDir) {
+      // 路径存在但不是目录：无法「创建」，直接提示后取消
+      this.showToast(this.i18n.t('app.targetNotDir', { dir }), 4000)
+      return null
+    }
+    const choice = await this._askDirMissing(dir, isRemote, dir !== fallbackDir)
+    if (choice === 'cancel') return null
+    if (choice === 'fallback') return fallbackDir
+    // create：远程逐级创建，本地 recursive 一步到位
+    try {
+      if (isRemote) {
+        await this._remoteMkdirp(dir)
+      } else {
+        await fs.mkdir(dir, { recursive: true })
+      }
+      this.showToast(this.i18n.t('app.dirCreated', { dir }))
+      return dir
+    } catch (e) {
+      const reason = (e as Error)?.message || String(e)
+      log.error('create target dir failed:', dir, reason)
+      this.showToast(this.i18n.t('app.mkdirpFailed', { reason }), 4000)
+      return null
+    }
+  }
+
+  /** 弹出「目录不存在」三选一确认框并等待用户选择 */
+  private _askDirMissing(dir: string, isRemote: boolean, showFallback: boolean): Promise<'create' | 'fallback' | 'cancel'> {
+    return new Promise((resolve) => {
+      this.dirMissingDir = dir
+      this.dirMissingIsRemote = isRemote
+      this.dirMissingShowFallback = showFallback
+      this.dirMissingVisible = true
+      this._dirMissingResolve = resolve
+      this._safeDetect()
+    })
+  }
+
+  /** 目录不存在对话框选择回调（模板绑定） */
+  resolveDirMissing(c: 'create' | 'fallback' | 'cancel'): void {
+    this.dirMissingVisible = false
+    const resolve = this._dirMissingResolve
+    this._dirMissingResolve = null
+    resolve?.(c)
+    this._safeDetect()
+  }
+
+  /**
+   * 远程逐级创建目录（mkdir -p 语义）：逐段 stat，已存在的目录段跳过；
+   * 中间段存在但非目录、或最终复核失败均抛错。SFTP 服务端均为 POSIX 路径。
+   */
+  private async _remoteMkdirp(dir: string): Promise<void> {
+    const session = this.sftpSession
+    if (!session) throw new Error('no sftp session')
+    const norm = path.posix.normalize(String(dir).replace(/\/+$/, '') || '/')
+    if (!norm || norm === '/') return
+    const parts = norm.split('/').filter(Boolean)
+    let cur = ''
+    for (const seg of parts) {
+      cur += '/' + seg
+      const st = await statRemotePath(session, cur).catch(() => null)
+      if (st?.isDirectory) continue
+      if (st) throw new Error(`not a directory: ${cur}`)
+      await session.mkdir(cur)
+    }
+    const finalSt = await statRemotePath(session, norm).catch(() => null)
+    if (!finalSt?.isDirectory) throw new Error(`verify failed: ${norm}`)
+  }
 
   async ctxUpload(): Promise<void> {
     this.closeContextMenu()
@@ -5956,10 +7733,21 @@ try {
     if (!items.length) return
     // ★ 2026-08-10：并行入队（非串行 await），全部条目立即预注册到传输列表，
     //   实际并发由 _streamUploadOne 内部调度泵限制；默认上传路径（远程目标目录）优先
-    const uploadDir = this._defaultUploadPath || this.remotePath
+    // ★ 2026-09-28：入队前预检目标目录（默认路径可能不存在）——不存在时弹框询问
+    //   创建/回退当前目录/取消，避免整批上传直接失败（远程 readdir 抛错）
+    const requestedUploadDir = this._defaultUploadPath || this.remotePath
+    const uploadDir = await this._ensureTransferTargetDir('upload', requestedUploadDir)
+    if (!uploadDir) return
+    // ★ 2026-09-29（四）：多选先试「整批打一个包」。返回 true 表示已接管（含仅 TAR 下的硬失败），
+    //   此时**必须直接收工**——再走下面的逐项入队会把整批重传一遍。
+    if (await this._tryBatchUpload(items.map(e => e.fullPath), uploadDir)) {
+      await this.refreshRemote()
+      this._safeDetect()
+      return
+    }
     await Promise.all(items.map(e => this._streamUploadOne(e.fullPath, uploadDir)))
     await this.refreshRemote()
-    this.cdr.detectChanges()
+    this._safeDetect()
   }
 
   async ctxDownload(): Promise<void> {
@@ -5972,13 +7760,17 @@ try {
     if (!items.length) return
     // ★ 2026-08-10：并行入队（非串行 await），全部条目立即预注册到传输列表，
     //   实际并发由 _streamDownloadOne 内部调度泵限制；默认下载路径（本地目标目录）优先
-    const downloadDir = this._defaultDownloadPath || this.localPath
+    // ★ 2026-09-28：入队前预检目标目录（默认路径可能不存在，如 D:\Downloads 被删/换盘）
+    //   ——不存在时弹框询问 创建/回退当前目录/取消，避免整批下载 ENOENT 失败
+    const requestedDownloadDir = this._defaultDownloadPath || this.localPath
+    const downloadDir = await this._ensureTransferTargetDir('download', requestedDownloadDir)
+    if (!downloadDir) return
     await Promise.all(items.map(p => this._streamDownloadOne(p, downloadDir)))
     if (this._conflictQueue.length) this._showConflictDialog()
     // ★ 2026-08-11：与上传对称——下载完成后自动刷新本地面板（拖拽路径在 drop.ts 已刷新，
     //   菜单路径此前漏刷；冲突分支由冲突解决器 refreshPanes 兼顾）
     await this.refreshLocal()
-    this.cdr.detectChanges()
+    this._safeDetect()
   }
 
   // ========== 下载队列调度（多选拖拽/菜单下载） ==========
@@ -6024,7 +7816,7 @@ try {
     this.transfers.push(entry)
     this.transfersMinimized = false
     this.transfersHidden = false
-    this.cdr.detectChanges()
+    this._safeDetect()
     return new Promise<void>((resolve) => {
       const finish = () => {
         // 传输结束仍处排队态 ⇒ 未真正开始；自动跳过（skippedAsDuplicate）保留为「已跳过 · 内容相同」展示一段后再移除
@@ -6034,7 +7826,8 @@ try {
             entry.percent = 100
             entry.speed = ''
             // 短暂保留传输列表展示后自动移除（_removeQueuedEntry 保留日志不删）
-            setTimeout(() => this._removeQueuedEntry(entry), 4000)
+            // ★ 2026-09-20 A2：改走可清理的定时器（原裸 setTimeout 无句柄，面板销毁后仍会对已销毁视图 detectChanges）
+            this._scheduleQueuedEntryRemoval(entry)
           } else {
             this._removeQueuedEntry(entry)
           }
@@ -6070,21 +7863,24 @@ try {
     } catch (e) {
       log.error('Queued download failed for', item.file.fullPath, e)
     } finally {
+      // ★ BUG-7 修复：先递减计数器再启动调度泵，避免调度泵异常导致计数器不一致
       this._dlActiveCount--
       item.finish()
-      this._pumpDownloadQueue()
+      try { this._pumpDownloadQueue() } catch (e) { log.error('Pump download queue failed', e) }
     }
   }
 
   /** 移除未真正开始的排队占位条目及其占位日志 */
   private _removeQueuedEntry(entry: PanelTransferItem): void {
+    // ★ 2026-09-20 A2：面板已销毁时不得再碰视图/状态（延迟移除定时器与异步 finish 都可能晚到）
+    if (!this._isAlive) return
     if (!this.transfers.includes(entry)) return
     this.transfers = this.transfers.filter(x => x !== entry)
     // ★ 2026-09-07 issue #15+：已被标记为「自动跳过」的条目，日志保留（让传输记录 UI 能看到「已跳过 · 内容相同」）
     if (entry.logEntryId != null && !entry.skippedAsDuplicate) {
       try { this.transferLog.remove(entry.logEntryId) } catch { /* ignore */ }
     }
-    this.cdr.detectChanges()
+    this._safeDetect()
   }
 
   /**
@@ -6100,7 +7896,31 @@ try {
       && e.localPath === info.localPath,
     )
     if (!entry) {
+      // ★ 2026-09-21 P2 修复：右键单文件上传/下载走 uploadTopLevel/downloadTopLevel，
+      //   auto-skip 发生在 trackTransfer 之前 → 列表无占位条目可标，此前完全静默
+      //   （无条目、无日志、无提示）。落一条「已跳过 · 内容相同」日志让用户可见。
       log.warn('[auto-skip] no matching transfer entry for:', info.remotePath)
+      try {
+        const now = Date.now()
+        this.transferLog.add({
+          operation: info.direction,
+          localPath: info.localPath,
+          remotePath: info.remotePath,
+          profileName: this.profile?.name || undefined,
+          success: true,
+          duration: 0,
+          startTime: now,
+          endTime: now,
+          pending: false,
+          skippedAsDuplicate: {
+            reason: 'content-identical',
+            algo: this._conflictDigestAlgo,
+            at: now,
+          },
+        })
+      } catch (e) {
+        log.warn('[auto-skip] fallback log add failed:', e)
+      }
       return
     }
     entry.skippedAsDuplicate = true
@@ -6123,24 +7943,115 @@ try {
         log.warn('[auto-skip] transferLog.update failed:', e)
       }
     }
-    this.cdr.detectChanges()
+    this._safeDetect()
   }
 
   // ========== 上传队列调度（多选右键/拖拽上传） ==========
 
   /** 同时进行中的上传数上限（设置页可改，1-10） */
   private _uploadConcurrency = 3
-  /** ★ 2026-08-11：快速模式（设置页可改）：目录传输跳过预扫描直接开传 */
-  private _transferFastMode = false
-  /** ★ 2026-08-28：tar 打包加速开关 */
-  private _transferTarAcceleration = true
+  /** ★ 2026-09-28：传输通道模式（smart/sftpOnly/tarOnly/preferSftp/preferTar） */
+  private _transferChannelMode = 'smart'
   /** ★ 2026-09-07 issue #15：冲突内容摘要设置（识别「mtime 变了但内容没变」，避免误报冲突） */
   private _conflictDigestEnabled = true
   private _conflictAutoSkipSameContent = true
   private _conflictDigestMaxSizeMB = 256
   private _conflictDigestAlgo: 'sha1' | 'sha256' = 'sha1'
+  /** 面板侧摘要服务（粘贴冲突框补算）；配置变更时重建 */
+  private _panelDigestSvc: ContentDigestService | null = null
+  private _panelDigestSvcKey = ''
   private _upActiveCount = 0
   private _upQueue: Array<{ localPath: string; entry: PanelTransferItem; finish: () => void; remoteDir: string }> = []
+
+  /**
+   * ★ 2026-09-20：为冲突对话框补算两端内容摘要（粘贴/同栏冲突入队时通常未计算）。
+   *
+   * ★ 2026-09-29 修复「同栏冲突的源侧摘要永远是 —」：本方法原先把 localPath 一律当本地、remotePath
+   *   一律当远端（按**字段名**选通道），但**同栏粘贴**时这两个字段装的是**同一侧**的两个路径
+   *   （paste._buildFileConflictItem：localPath=目标、remotePath=源）——
+   *   - local→local：remotePath 是本地源路径 → 对 Windows 路径跑 `sha1sum`，远端必然报
+   *     `sha1sum: ...: No such file or directory`（实测 log：「execSshCommand empty output (retried)」
+   *     +「[digest] remote digest output parse failed」）→ 源侧显示「—」；
+   *   - remote→remote：localPath 是远端目标路径 → 本地读盘 ENOENT（实测 log：「[digest] local
+   *     digest failed」）→ 目标侧显示「—」。
+   *   两侧因此**必有一端**拿不到摘要。现按 samePaneSource 判定两端的**实际所在侧**再选通道；
+   *   跨栏（上传/下载）两字段天然分居两侧，行为与原先一致（samePaneSource 缺省即走原逻辑）。
+   */
+  private async _computeConflictDigests(args: {
+    localPath: string
+    remotePath: string
+    localSize?: number
+    localMtime?: number
+    remoteSize?: number
+    remoteMtime?: number
+    /** ★ 同栏冲突时的源侧：'local'/'remote' 表示两端同处本地或同处远端 */
+    samePaneSource?: 'local' | 'remote'
+  }): Promise<{ localDigest: string | null; remoteDigest: string | null }> {
+    if (!this._conflictDigestEnabled) return { localDigest: null, remoteDigest: null }
+    const key = `${this._conflictDigestAlgo}|${this._conflictDigestMaxSizeMB}`
+    if (!this._panelDigestSvc || this._panelDigestSvcKey !== key) {
+      this._panelDigestSvc = new ContentDigestService(() => this.sshSession ?? null, {
+        algo: this._conflictDigestAlgo,
+        maxBytes: this._conflictDigestMaxSizeMB * 1024 * 1024,
+      })
+      this._panelDigestSvcKey = key
+    }
+    const svc = this._panelDigestSvc
+    // 同栏：两端同侧 —— 源侧字段(remotePath)与目标侧字段(localPath)都按 samePaneSource 选通道；
+    // 跨栏（samePaneSource 缺省）：源侧走远端、目标侧走本地（原逻辑）。
+    const samePaneSource = args.samePaneSource
+    const hashSource = (p: string, size?: number, mtime?: number) =>
+      samePaneSource === 'local' ? svc.localDigest(p, size, mtime) : svc.remoteDigest(p, size, mtime)
+    const hashTarget = (p: string, size?: number, mtime?: number) =>
+      samePaneSource === 'remote' ? svc.remoteDigest(p, size, mtime) : svc.localDigest(p, size, mtime)
+    try {
+      const [localDigest, remoteDigest] = await Promise.all([
+        args.localPath ? hashTarget(args.localPath, args.localSize, args.localMtime) : Promise.resolve(null),
+        args.remotePath ? hashSource(args.remotePath, args.remoteSize, args.remoteMtime) : Promise.resolve(null),
+      ])
+      return { localDigest, remoteDigest }
+    } catch (e) {
+      log.warn('[conflict-digest] compute failed:', e)
+      return { localDigest: null, remoteDigest: null }
+    }
+  }
+  /**
+   * ★ 2026-09-29（四）：多选批量上传 —— 先试「整批打成**一个**归档」。
+   *
+   * 为什么需要这一层：多选在面板里被拆成 N 个独立任务（各自预注册占位条目、各自占队列槽），
+   * 于是选中的文件夹各自打一个包、散装文件恒走逐文件 ——
+   * 「一次选一批小文件」反而完全用不上打包通道，而它正是该通道的主场。
+   *
+   * 返回 true 表示本批已由打包通道处理（成功，或仅 TAR 模式下的硬失败），调用方**必须直接收工**
+   * ——绝不能继续逐项入队，否则整批会被重传一遍。返回 false 表示未接管，按原样逐项处理。
+   *
+   * 入口共三处（右键/菜单上传、拖拽的两个 payload 分支），全部经由本方法：
+   * 「多选」这个事实只有这一处被翻译成批量请求，避免三条链各自判断而行为不一致。
+   */
+  private async _tryBatchUpload(localPaths: string[], remoteDir: string): Promise<boolean> {
+    if (localPaths.length < 2) return false
+    // 危险条目名（. / .. / 含分隔符 / 控制字符）直接放弃整批 —— 不做「过滤掉危险项后凑一批」，
+    // 那会让用户以为整批都传了。逐项路径本来就会各自 skip 并留日志，交回给它更诚实。
+    for (const p of localPaths) {
+      if (!safeEntryName(path.basename(p))) return false
+    }
+    let label: string
+    try {
+      label = this.i18n.t('transfer.batchUpload', {
+        n: localPaths.length,
+        dir: path.basename(path.dirname(localPaths[0])) || path.dirname(localPaths[0]),
+      })
+    } catch {
+      // i18n 不可用不该阻断传输：退化成语言中性的「父目录名 (项数)」
+      label = `${path.basename(remoteDir)} (${localPaths.length})`
+    }
+    try {
+      return await this._transferCoordinator.uploadBatchToRemote(localPaths, remoteDir, label)
+    } catch (e) {
+      log.warn('[batch-upload] batch path unavailable, using per-file flow:', e)
+      return false
+    }
+  }
 
   /**
    * ★ 2026-08-10：与 _streamDownloadOne 对称——调用时先预注册 queued 占位条目，
@@ -6185,7 +8096,7 @@ try {
     this.transfers.push(entry)
     this.transfersMinimized = false
     this.transfersHidden = false
-    this.cdr.detectChanges()
+    this._safeDetect()
     return new Promise<void>((resolve) => {
       const finish = () => {
         // 传输结束仍处排队态 ⇒ 未真正开始；自动跳过（skippedAsDuplicate）保留为「已跳过 · 内容相同」展示一段后再移除
@@ -6195,7 +8106,8 @@ try {
             entry.percent = 100
             entry.speed = ''
             // 短暂保留传输列表展示后自动移除（_removeQueuedEntry 保留日志不删）
-            setTimeout(() => this._removeQueuedEntry(entry), 4000)
+            // ★ 2026-09-20 A2：改走可清理的定时器（原裸 setTimeout 无句柄，面板销毁后仍会对已销毁视图 detectChanges）
+            this._scheduleQueuedEntryRemoval(entry)
           } else {
             this._removeQueuedEntry(entry)
           }
@@ -6228,9 +8140,10 @@ try {
     } catch (e) {
       log.error('Queued upload failed for', item.localPath, e)
     } finally {
+      // ★ BUG-7 修复：先递减计数器再启动调度泵，避免调度泵异常导致计数器不一致
       this._upActiveCount--
       item.finish()
-      this._pumpUploadQueue()
+      try { this._pumpUploadQueue() } catch (e) { log.error('Pump upload queue failed', e) }
     }
   }
 
@@ -6320,14 +8233,32 @@ try {
     remoteSrc: string, localDest: string, destPane: 'local' | 'remote',
     _top?: FolderTransferCtx,
     _localName?: string,
+    /**
+     * ★ 2026-09-25 P0-2 修复：**此前漏了本形参**（且 TS 对「实参多、形参少」不报错，静默吞掉）——
+     *   用户选「覆盖」时 `forceOverwrite` 到不了用例层，`DownloadDirUseCase` 照常对每个子文件
+     *   做冲突检测：已存在的本地子文件重新入队 → `markHadConflict(ctx)` → 收尾
+     *   `finish(ctx, success && !hadConflict)` 把**整个目录记成失败**。
+     *   症状：远程→本地下载、目标文件夹已存在时选「覆盖」必失败。此参数须**原样转发**给协调器。
+     */
+    _forceOverwrite?: boolean,
   ): Promise<boolean> {
-    // ★ 准备取消引用，供暂停时中断正在下载的子文件
-    // 修复：不无条件覆盖，避免破坏并发单文件下载的 cancelRef
-    if (!this._cancelRef) this._cancelRef = { current: null, active: new Set() }
+    // ★ 2026-09-25 P1：仅顶层调用做重复入队只读预检（真正的槽位由协调器认领/释放；
+    //   嵌套子目录/冲突覆盖重入必须放行）。本地目标与 DownloadDirUseCase 一致
+    const slotName = _localName || path.posix.basename(remoteSrc)
+    const slotLocal = path.join(localDest, slotName)
+    if (!_top && this._blockDuplicateTransfer('download', remoteSrc, slotLocal, slotName)) return false
+    // ★ BUG-2 修复：为每个传输任务创建独立的 cancelRef，避免并发任务互相影响
+    const cancelRef = { current: null as any, active: new Set<any>() }
+    this._cancelRefs.add(cancelRef)
+    const prevRef = this._cancelRef
+    this._cancelRef = cancelRef
     try {
-      return await this._transferCoordinator.downloadRemoteDir(remoteSrc, localDest, _top, _localName)
+      // ★ 2026-09-20 P1-2：把任务 ref 绑到异步调用链上（子文件流/进度条目各自解析到自己的 ref）
+      return await runInTaskScope(cancelRef, () =>
+        this._transferCoordinator.downloadRemoteDir(remoteSrc, localDest, _top, _localName, _forceOverwrite))
     } finally {
-      // 只在没有并发操作时清理
+      this._cancelRefs.delete(cancelRef)
+      if (this._cancelRef === cancelRef) this._cancelRef = prevRef
       if (this._cancelRef && !this._cancelRef.current && !(this._cancelRef.active?.size)) this._cancelRef = null
     }
   }
@@ -6355,7 +8286,10 @@ try {
       this.showConflictDialog ||
       this.detailsVisible ||
       this.showTransferLog ||
-      this.showBookmarks
+      this.showBookmarks ||
+      // ★ 2026-09-20：权限/CWD 此前漏计，打开时 Delete/F5 仍会穿透
+      this.showPermDialog ||
+      this.cwdSetupVisible
     )
   }
 
@@ -6382,8 +8316,21 @@ try {
   /**
    * ★ 2026-09-17：捕获阶段拦截剪贴板类快捷键，避免 Tabby/xterm 先于面板收到。
    * - 查看/编辑器打开，或焦点在面板输入框：挡终端（可编辑时不 preventDefault，保留原生复制）
-   * - 焦点在面板文件列表/根节点，或刚在面板点过（owns hotkeys）：挡终端并执行面板复制/剪切/粘贴/全选
+   * - 焦点在面板文件列表/根节点，或**刚在面板点过（owns）**：
+   *   挡终端并执行面板复制/剪切/粘贴/全选
    *   （window 捕获阶段 stopImmediatePropagation 后，document 冒泡里的 onGlobalKeyDown 收不到事件）
+   *
+   * ★ 2026-09-20：owns + 焦点在 xterm 时按键分流，勿一刀切「无选中就清 owns」——
+   *   那会把随后的 Ctrl+V / Ctrl+A 一并废掉（点过面板但尚未选中、或粘贴前已取消选中时必现）。
+   *   - C/X：无选中 → 交还终端（^C 中断）；有选中 → 面板复制/剪切
+   *   - V：面板剪贴板有内容 → 粘贴；否则交还终端粘贴（不清 owns）
+   *   - A：owns 时始终面板全选
+   *
+   * ★ 2026-09-29：本函数的守卫**不引入时间窗口**。焦点在面板时面板必须接管剪贴板快捷键
+   *   （选中文件 → Cmd/Ctrl+C/V 是主要用法），而且这正是**有意设计**：焦点在面板里按 Ctrl+C
+   *   绝不该把 ^C 打进终端、杀掉对面正在跑的命令；要发 ^C 就先点回终端。
+   *   焦点在终端时由「面板外 mousedown 清 owns」+ `_isTerminalFocusTarget` 守卫保证终端侧完整可用。
+   *   曾试过 4s 短窗口 → 过度修复（还收窄了面板内「慢慢选文件再 Cmd+C」的窗口），已回退。
    */
   private _shieldTerminalClipboardKeys(ev: KeyboardEvent): void {
     if (!this._isPanelActive) return
@@ -6391,6 +8338,7 @@ try {
     if (!isMod) return
     const k = ev.key
     if (!['c', 'C', 'x', 'X', 'v', 'V', 'a', 'A'].includes(k)) return
+    const kLower = k.toLowerCase()
 
     const inPanelEditable = this._isFocusInPanelEditable()
     const textUiOpen = !!(this.editorVisible || this.viewerVisible || this.inputDialogVisible)
@@ -6400,17 +8348,31 @@ try {
     // 焦点在终端、未开文本 UI、且用户未在面板内操作：放行（终端里 Ctrl+C 中断等）
     if (!panelFocused && !panelOwns && !textUiOpen && !inPanelEditable) return
 
+    // owns 但焦点已在终端：仅 C/X 在无选中时交还；V/A 另判，绝不因「无选中」清掉 owns
+    if (!panelFocused && panelOwns && !textUiOpen && !inPanelEditable) {
+      if (kLower === 'c' || kLower === 'x') {
+        const hasSel = this.selectedLocal.length > 0 || this.selectedRemote.length > 0
+        if (!hasSel) {
+          this._panelOwnsClipboardHotkeys = false
+          return
+        }
+      } else if (kLower === 'v' && !this.clipboardEntries.length) {
+        // 面板无可粘贴项 → 交给终端粘贴系统剪贴板；保留 owns，避免后续 Ctrl+A 失效
+        return
+      }
+      // 'a' 或 'v'+有剪贴板：继续走面板
+    }
+
     // 面板内输入框/查看器文本区：只挡 Tabby，保留浏览器原生剪贴板
     if (inPanelEditable) {
       ev.stopImmediatePropagation()
       return
     }
 
-    // 文件列表 / 面板根，或文本 UI 开着但焦点仍在 xterm：必须挡住进终端的 ^C / 粘贴
+    // 必须在捕获阶段拦住，否则 xterm 先吃到 ^C，冒泡里再复制就变成「复制 + ^C」双触发
     ev.stopImmediatePropagation()
     ev.preventDefault()
 
-    // 文件面板热键：捕获拦截后 document 层收不到，在此直接执行
     if ((panelFocused || panelOwns) && !textUiOpen) {
       this.zone.run(() => this._runPanelClipboardHotkey(k))
     }
@@ -6419,12 +8381,17 @@ try {
   /** 面板文件列表侧的 Ctrl/Cmd+C/X/V/A（由捕获屏蔽器调用） */
   private _runPanelClipboardHotkey(key: string): void {
     if (this._isPanelModalOpen()) return
-    this.contextMenuPane = this._resolveTargetPane()
     const k = key.toLowerCase()
-    if (k === 'a') this.ctxSelectAll()
-    else if (k === 'c') this.ctxClipboardCopy()
+    // ★ V/A：目标 = activePane（悬停/最后点击的一侧），勿用「有选中优先」——那会把粘贴/全选锁回复制源面板
+    if (k === 'v' || k === 'a') {
+      this.contextMenuPane = this.activePane
+      if (k === 'v') void this.ctxClipboardPaste()
+      else this.ctxSelectAll()
+      return
+    }
+    this.contextMenuPane = this._resolveTargetPane()
+    if (k === 'c') this.ctxClipboardCopy()
     else if (k === 'x') this.ctxClipboardCut()
-    else if (k === 'v') void this.ctxClipboardPaste()
   }
 
   /**
@@ -6461,6 +8428,18 @@ try {
     // 面板之外：只有终端 xterm 的隐藏 textarea 例外（继续放行快捷键），
     // 其余任何输入框（设置页、其他插件等）一律视为正在输入，不得劫持按键
     return !(typeof el.closest === 'function' && el.closest('.xterm'))
+  }
+
+  /**
+   * ★ issue #24（2026-09-24）：判断按键事件是否落在终端 xterm 上。
+   * 落在终端的按键（空格/字母/方向键等）一律不应被面板热键或键入定位劫持，必须透传终端，
+   * 否则会出现「启用插件后无法在终端键入空格」等复现。
+   */
+  private _isTerminalFocusTarget(event: KeyboardEvent): boolean {
+    const el = (event.target as HTMLElement | null)
+      ?? (document.activeElement as HTMLElement | null)
+    if (!el) return false
+    return typeof el.closest === 'function' && !!el.closest('.xterm')
   }
 
   /** 智能判断快捷键/右键操作的目标面板
@@ -6516,8 +8495,16 @@ try {
       return
     }
 
-    // 焦点在面板外（如终端）→ 拉回面板根；或焦点在路径框等输入上且点击非交互区 → 也拉回根
-    if (focusOutside || (isFocusOnInput && !isInteractiveTarget && !!active && root.contains(active))) {
+    // 焦点在面板外（如终端）→ 拉回面板根
+    // ★ 2026-09-20：对话框/编辑器内焦点在 textarea 时，点标题等非交互区不再抢根焦点（否则无法继续键入）
+    if (focusOutside) {
+      this._stealFocusToPanelRoot()
+      this._markPanelFocusWanted()
+      this._scheduleEnsurePanelFocus()
+      return
+    }
+    const inDialog = !!target?.closest?.('.overlay, .file-dialog-shell, .dialog, .conflict-dialog, sftp-editor-dialog, sftp-viewer-dialog, sftp-input-dialog, sftp-perm-dialog')
+    if (isFocusOnInput && !isInteractiveTarget && !!active && root.contains(active) && !inDialog) {
       this._stealFocusToPanelRoot()
       this._markPanelFocusWanted()
       this._scheduleEnsurePanelFocus()
@@ -6601,7 +8588,7 @@ try {
     this.topBarMenuX = e.clientX
     this.topBarMenuY = e.clientY
     this.topBarMenuVisible = true
-    this.cdr.detectChanges()
+    this._safeDetect()
   }
 
   /** 关闭标题栏右键菜单 */
@@ -6725,6 +8712,10 @@ try {
           this.closeEditor()
           return
         }
+        // ★ 2026-09-21 P1 修复：冲突框此前不在 Esc 栈里 —— 它自己的 Esc 绑在 overlay 的
+        //   (keydown) 上、靠打开时 autofocus 维持，用户一旦点了文件列表焦点就转移，
+        //   Esc 冒泡到这里会直接 this.close() 关掉整个面板（连带在途批量传输）。
+        if (this.showConflictDialog) { event.preventDefault(); this.resolveConflict('cancel'); return }
         if (this.cwdSetupVisible) { this.onCwdSetupChoice('cancel'); return }
         if (this.inputDialogVisible) { this.cancelInputDialog(); return }
         if (this.showBookmarks) { this.closeBookmarks(); return }
@@ -6747,32 +8738,15 @@ try {
       return
     }
 
-    // 智能确定目标面板（优先使用有选中项的面板）
-    this.contextMenuPane = this._resolveTargetPane()
+    // ★ 2026-09-20：剪贴板热键必须带修饰键，且焦点在面板或 owns（点过面板）时才处理
+    //   避免捕获屏蔽失效时与终端双触发；也避免裸键 c/x/v/a 误触发复制
+    //   （主路径已是 window 捕获 _shieldTerminalClipboardKeys；此处仅兜底）
+    const isClipboardMod = os.platform() === 'darwin' ? event.metaKey : event.ctrlKey
+    if (!isClipboardMod || !['c', 'C', 'x', 'X', 'v', 'V', 'a', 'A'].includes(event.key)) return
+    if (!panelFocused && !this._panelOwnsClipboardHotkeys) return
 
-    if (event.key === 'a' || event.key === 'A') {
-      event.preventDefault()
-      event.stopImmediatePropagation()
-      this.ctxSelectAll()
-      return
-    }
-    if (event.key === 'c' || event.key === 'C') {
-      event.preventDefault()
-      event.stopImmediatePropagation()
-      this.ctxClipboardCopy()
-      return
-    }
-    if (event.key === 'x' || event.key === 'X') {
-      event.preventDefault()
-      event.stopImmediatePropagation()
-      this.ctxClipboardCut()
-      return
-    }
-    if (event.key === 'v' || event.key === 'V') {
-      event.preventDefault()
-      event.stopImmediatePropagation()
-      void this.ctxClipboardPaste()
-      return
-    }
+    event.preventDefault()
+    event.stopImmediatePropagation()
+    this._runPanelClipboardHotkey(event.key)
   }
 }

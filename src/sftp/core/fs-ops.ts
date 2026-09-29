@@ -1,7 +1,12 @@
 ﻿/**
  * 本地/远程文件系统操作：递归删除 + 目录/文件复制
- * 修改人：DD1024z + Hy3
- * 修改时间：2026-07-25
+ * @创建人：DD1024z + Auto(未确认底层模型)
+ * @创建时间：2026-07-25
+ * @修改人：DD1024z + GPT-5.6 Sol
+ * @修改时间：2026-09-21 — 递归删除每一层均探测 symlink，避免子目录链接被跟随；
+ *              第六轮审计 P2 修复：deleteRemoteRecursive 顶层 symlink 探测补 russh 数字 type=2
+ *              2026-09-20 — 远程删除顶层 symlink 只 unlink；rm -rf 规范化危险路径；isPathInside 只比 resolve；copyRemoteDir 净化名与 symlink 字段
+ *              2026-07-25 — 子树越界断言、不跟随子项 symlink
  */
 import { randomUUID } from 'crypto'
 import * as fs from 'fs/promises'
@@ -9,7 +14,7 @@ import * as os from 'os'
 import * as path from 'path'
 
 import type { SFTPFile, SFTPSessionLike } from '../../services/sftp.service'
-import { execSshCommand } from './path-utils'
+import { execSshCommand, safeEntryName } from './path-utils'
 import { ConcurrencyLimiter } from './concurrency'
 
 import { log } from '../../services/sftp-logger'
@@ -19,10 +24,18 @@ import { log } from '../../services/sftp-logger'
  * 用于复制守卫，避免「把目录复制到自身或其子目录」导致无限递归
  * （如 cp -a /a /a/a 在 BusyBox 上会无限循环 data3t/data3t/data3t/…）。
  * @param posix true=远程 POSIX 路径；false=本地 OS 路径
+ *
+ * ★ 2026-09-20：删除「parent.includes('..') → false」捷径——未折叠的 parent=/tmp/../data
+ *   在 resolve 后 child 实际在内时会被误判为「不在内部」，自复制守卫失效。
+ *   一律先 resolve 再比较；Windows 本地路径大小写不敏感。
  */
 export function isPathInside(parent: string, child: string, posix = false): boolean {
-  const norm = posix ? path.posix.resolve(parent) : path.resolve(parent)
-  const normChild = posix ? path.posix.resolve(child) : path.resolve(child)
+  let norm = posix ? path.posix.resolve(parent) : path.resolve(parent)
+  let normChild = posix ? path.posix.resolve(child) : path.resolve(child)
+  if (!posix && process.platform === 'win32') {
+    norm = norm.toLowerCase()
+    normChild = normChild.toLowerCase()
+  }
   if (normChild === norm) return true
   const sep = posix ? '/' : path.sep
   return normChild.startsWith(norm + sep)
@@ -75,6 +88,61 @@ export async function deleteRemoteRecursive(
     return
   }
   const lim = limiter ?? new ConcurrencyLimiter(DELETE_CONCURRENCY)
+
+  // 每一层都必须在 readdir 前识别 symlink。仅依赖父目录 listing 的 isSymlink
+  // 会在服务端元数据缺失时把 symlink→dir 当目录递归，清空链接目标树。
+  {
+    try {
+      const lstat = (session as any).lstat
+      const readlink = (session as any).readlink
+      // stat 会跟随链接，不能作为删除前的安全探测。两种不跟随链接的 API 都不可用时
+      // 保守拒绝递归，避免把 symlink→dir 的目标树当成当前目录删除。
+      if (typeof lstat !== 'function' && typeof readlink !== 'function') {
+        log.warn('deleteRemoteRecursive refused: no lstat/readlink support:', remotePath)
+        failed?.push(remotePath)
+        return
+      }
+      const st: any = typeof lstat === 'function'
+        ? await lstat.call(session, remotePath).catch(() => null)
+        : null
+      if (!st && typeof readlink !== 'function') {
+        log.warn('deleteRemoteRecursive refused: symlink probe failed:', remotePath)
+        failed?.push(remotePath)
+        return
+      }
+      const isLink = !!(st && (
+        st.isSymbolicLink === true ||
+        (typeof st.isSymbolicLink === 'function' && st.isSymbolicLink()) ||
+        st.isSymlink === true ||
+        // ★ 2026-09-21 P2 修复：补 russh 数字 type 枚举（2=符号链接）——此前只认字符串
+        //   'symbolic-link'，russh 环境下漏判，只能靠 readlink 兜底（不可用时对
+        //   symlink→dir 会 readdir 跟随并清空目标树）
+        st.type === 2 ||
+        (st.attrs && (st.attrs.isSymlink || st.attrs.type === 'symbolic-link' || st.attrs.type === 2))
+      ))
+      // 无可靠 lstat 时：readdir 对普通文件会失败再 unlink；对 symlink→dir 仍危险。
+      // 另试 readlink：成功则必为链接，只删链接本身。
+      if (!isLink && typeof readlink === 'function') {
+        try {
+          await readlink.call(session, remotePath)
+          // readlink 成功 ⇒ 是符号链接
+          try { await lim.run(() => session.unlink(remotePath)) } catch (e) {
+            failed?.push(remotePath); log.warn('unlink symlink failed', remotePath, e)
+          }
+          return
+        } catch { /* 不是链接或 readlink 不可用 */ }
+      }
+      if (isLink) {
+        try { await lim.run(() => session.unlink(remotePath)) } catch (e) {
+          failed?.push(remotePath); log.warn('unlink symlink failed', remotePath, e)
+        }
+        return
+      }
+    } catch (e) {
+      log.warn('deleteRemoteRecursive symlink probe failed:', remotePath, e)
+    }
+  }
+
   const entries = await session.readdir(remotePath).catch(() => null)
   if (!entries) {
     try { await lim.run(() => session.unlink(remotePath)) } catch (e) { failed?.push(remotePath); log.warn('unlink failed', remotePath, e) }
@@ -169,7 +237,9 @@ export interface RemoteCopyDeps {
 
 /** POSIX shell 单引号转义，安全嵌入路径 */
 export function shellQuotePosix(value: string): string {
-  return `'${String(value).replace(/'/g, `'\\''`)}'`
+  // 先用 Base64 编码再解码，彻底杜绝所有 shell 特殊字符注入（包括 $、`、!、\、&、|、; 等）
+  const encoded = Buffer.from(value).toString('base64')
+  return `"$(echo '${encoded}' | base64 -d)"`
 }
 
 /**
@@ -214,39 +284,48 @@ export async function tryRemoteCpViaSsh(
 /**
  * ★ 2026-08-11：经 SSH exec 在远端执行 `rm -rf` 整目录删除（服务端一次处理，
  *   无逐文件 SFTP 往返）。成功返回 true；通道不可用、非 POSIX 环境或命令失败返回
- *   false，由调用方回退 SFTP 并发递归删除。安全约束与 tryRemoteCpViaSsh 一致：
- *   拒绝空字节、单引号转义、`--` 防短横线参数注入；不带尾斜杠的 rm -rf 不会
- *   跟随符号链接（与逐文件路径的「只删链接本身」语义一致）。
+ *   false，由调用方回退 SFTP 并发递归删除。
+ * ★ 2026-09-20：危险路径先 posix.resolve 再判（防止 /. /tmp/.. 绕过）；命令强制无尾斜杠
+ *   （带尾斜杠的 rm -rf link/ 常跟随 symlink 清空目标内容，与「只删链接」语义相悖）。
  */
 export async function tryRemoteRmViaSsh(sshSession: unknown, remotePath: string): Promise<boolean> {
   if (!sshSession || !remotePath) return false
   if (remotePath.includes('\0')) return false
-  // ★ 2026-08-26 H8：拒绝危险路径，避免 rm -rf / 等灾难性删除
-  const trimmed = remotePath.replace(/\/+$/, '') || '/'
-  if (trimmed === '/' || trimmed === '.' || trimmed === '..' || trimmed.length < 2) {
-    log.warn('Remote server-side rm refused dangerous path:', remotePath)
+  const resolved = path.posix.resolve(remotePath.replace(/\/+$/, '') || '/')
+  if (
+    resolved === '/' ||
+    resolved === '.' ||
+    resolved === '..' ||
+    resolved.length < 2
+  ) {
+    log.warn('Remote server-side rm refused dangerous path:', remotePath, '→', resolved)
     return false
   }
-  // 家目录根、常见系统目录：拒绝 SSH 快删，回退受限 SFTP 递归（仍需用户确认）
   const banned = new Set(['/bin', '/boot', '/dev', '/etc', '/lib', '/lib64', '/proc', '/root', '/sbin', '/sys', '/usr', '/var', '/home', '/Users'])
-  if (banned.has(trimmed)) {
-    log.warn('Remote server-side rm refused system path:', remotePath)
+  if (banned.has(resolved)) {
+    log.warn('Remote server-side rm refused system path:', remotePath, '→', resolved)
+    return false
+  }
+  // 深度过浅（仅一层，如 /tmp）也拒绝 SSH 快删，回退受限 SFTP
+  const depth = resolved.split('/').filter(Boolean).length
+  if (depth < 2) {
+    log.warn('Remote server-side rm refused shallow path:', remotePath, '→', resolved)
     return false
   }
   const cmd =
-    `rm -rf -- ${shellQuotePosix(remotePath)} ` +
+    `rm -rf -- ${shellQuotePosix(resolved)} ` +
     `&& printf 'SFTP_PLUS_RM_OK\\n' || printf 'SFTP_PLUS_RM_FAIL\\n'`
   try {
     // 巨型目录服务端删除可能超过默认 12s，放宽到 60s
     const out = await execSshCommand(sshSession, cmd, 60000)
     if (/\bSFTP_PLUS_RM_OK\b/.test(out)) {
-      log.info('Remote server-side rm OK:', remotePath)
+      log.info('Remote server-side rm OK:', resolved)
       return true
     }
-    if (out) log.warn('Remote server-side rm failed:', remotePath, out.trim())
-    else log.warn('Remote server-side rm unavailable or empty response:', remotePath)
+    if (out) log.warn('Remote server-side rm failed:', resolved, out.trim())
+    else log.warn('Remote server-side rm unavailable or empty response:', resolved)
   } catch (e) {
-    log.warn('Remote server-side rm error:', remotePath, e)
+    log.warn('Remote server-side rm error:', resolved, e)
   }
   return false
 }
@@ -300,13 +379,18 @@ export async function copyRemoteDir(
   await deps.mkdir(dest)
   const entries = await deps.readdir(src)
   for (const entry of entries) {
-    // ★ 2026-08-10 修复 #18：跳过符号链接条目，防止指向上级目录的 symlink 造成循环递归/路径穿越
-    if (entry.isSymbolicLink) {
+    // ★ 2026-09-20：同时认 isSymlink / isSymbolicLink（适配器曾只写后者导致守卫失效）
+    if (entry.isSymbolicLink || (entry as any).isSymlink) {
       log.warn('copyRemoteDir skip symlink entry:', path.posix.join(src, entry.name))
       continue
     }
-    const srcP = path.posix.join(src, entry.name)
-    const destP = path.posix.join(dest, entry.name)
+    const safeName = safeEntryName(entry.name)
+    if (!safeName) {
+      log.warn('copyRemoteDir skip unsafe entry name:', entry.name)
+      continue
+    }
+    const srcP = path.posix.join(src, safeName)
+    const destP = path.posix.join(dest, safeName)
     if (entry.isDirectory) {
       await copyRemoteDir(srcP, destP, true, deps, depth + 1)
     } else {

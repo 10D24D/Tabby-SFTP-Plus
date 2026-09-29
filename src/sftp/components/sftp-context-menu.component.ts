@@ -1,11 +1,21 @@
 ﻿/**
  * SFTP+ 右键菜单（文件列表 + 表头列配置）
- * 修改人：DD1024z + Composer
- * 修改时间：2026-09-17 — 移除「以文本方式查看」菜单项（改由设置页「允许查看所有文件类型」承担）
+ * 修改人：DD1024z + Hy3
+ * 修改时间：2026-09-28 — 「分组依据」改为 Windows 风格侧边子菜单（悬停「分组依据」项展开、
+ *              ✓ 勾选当前模式，::before 桥接悬停间隙；悬停时测量视口边界——靠右翻转左侧、
+ *              靠底上移对齐）；此前为菜单内平铺五项：
+ *              无/名称/修改日期/类型/大小，经 groupByAction 通知父面板
+ *              2026-09-20 — A8/A9 审计修复：删除死输入 isZh / hasFileActions（模板均未使用）；
+ *              新增 sanitizeMenuOrder 收敛菜单顺序配置，消除 string[] 与 ContextMenuAction[] 的类型漂移并过滤未知 action
+ *              2026-09-17 — 移除「以文本方式查看」菜单项（改由设置页「允许查看所有文件类型」承担）
  */
 import { Component, EventEmitter, Input, Output, ViewChild, ElementRef, AfterViewInit, OnChanges, SimpleChanges } from '@angular/core'
 
 import { SftpI18nService } from '../../services/sftp-i18n.service'
+import { GroupByMode } from '../core/grouping'
+
+/** 分组依据可选值（右键菜单展示顺序：无 → 名称 → 修改日期 → 类型 → 大小） */
+export const GROUP_BY_MODES: GroupByMode[] = ['none', 'name', 'modified', 'type', 'size']
 
 export type ContextMenuAction =
   | 'newFolder' | 'newFile' | 'rename' | 'delete'
@@ -70,6 +80,20 @@ export const DEFAULT_FILE_MENU_ORDER: ContextMenuAction[] = [
   'newFolder', 'newFile', 'refresh', 'selectAll', 'selectInvert', 'copyPath',
 ]
 
+/**
+ * ★ 2026-09-20 A9 审计修复：把任意来源的菜单顺序配置收敛为合法的 ContextMenuAction[]。
+ *   此前父面板 getter 声明 string[]、本组件声明 ContextMenuAction[]，靠 strict 关闭掩盖了
+ *   类型漂移（配置里写错 action 名时，模板仍会走进 MENU_REGISTRY[a] 查表）。
+ *   现统一在入口做一次运行期收敛：过滤未知项、保留相对顺序；全非法/为空则回退默认顺序。
+ */
+export function sanitizeMenuOrder(value: unknown): ContextMenuAction[] {
+  if (!Array.isArray(value) || !value.length) return DEFAULT_FILE_MENU_ORDER
+  const valid = value.filter(
+    (a): a is ContextMenuAction => typeof a === 'string' && Object.prototype.hasOwnProperty.call(FILE_MENU_REGISTRY, a),
+  )
+  return valid.length ? valid : DEFAULT_FILE_MENU_ORDER
+}
+
 @Component({
   selector: 'sftp-context-menu',
   template: `
@@ -82,6 +106,24 @@ export const DEFAULT_FILE_MENU_ORDER: ContextMenuAction[] = [
           (click)="menuAction.emit(a)">
           {{ i18n.t(MENU_REGISTRY[a].labelKey) }}
           <span class="ctx-shortcut" *ngIf="effectiveShortcut(a)">{{ effectiveShortcut(a) }}</span>
+        </div>
+      </ng-container>
+
+      <!-- ★ 2026-09-28：分组依据（仅空白区域右键时显示，entry=null）——侧边子菜单（Windows 风格），悬停展开、✓ 勾选当前模式 -->
+      <ng-container *ngIf="groupByPane && !disabledMenuEntries.has('groupBy')">
+        <div class="ctx-sep"></div>
+        <div class="ctx-item ctx-submenu-trigger" (mouseenter)="positionGroupBySubmenu()">
+          {{ i18n.t('pane.groupBy') }}
+          <span class="ctx-submenu-arrow">▸</span>
+          <div class="ctx-submenu" #groupBySubEl>
+            <div class="ctx-item" *ngIf="!disabledMenuEntries.has('groupToggleAll')" (click)="groupToggleAll.emit()">
+              <span class="ctx-check"></span> {{ groupAllCollapsed ? i18n.t('group.expandAll') : i18n.t('group.collapseAll') }}
+            </div>
+            <div class="ctx-sep" *ngIf="!disabledMenuEntries.has('groupToggleAll')"></div>
+            <div class="ctx-item" *ngFor="let m of GROUP_BY_MODES" (click)="groupByAction.emit(m)">
+              <span class="ctx-check">{{ groupBy === m ? '✓' : '' }}</span> {{ i18n.t('group.' + m) }}
+            </div>
+          </div>
         </div>
       </ng-container>
     </div>
@@ -155,11 +197,29 @@ export const DEFAULT_FILE_MENU_ORDER: ContextMenuAction[] = [
     .ctx-item.ctx-disabled { cursor: default; opacity: 0.5; }
     .ctx-item.ctx-disabled:hover { background: transparent; }
     .ctx-shortcut { float: right; margin-left: 20px; opacity: 0.5; font-size: 11px; }
+    /* ★ 2026-09-28：分组依据侧边子菜单——悬停触发项展开（::before 桥接 6px 间隙防止 hover 断链） */
+    .ctx-submenu-trigger { position: relative; padding-right: 26px; }
+    .ctx-submenu-arrow { position: absolute; right: 10px; opacity: 0.55; font-size: 11px; }
+    .ctx-submenu {
+      display: none; position: absolute; left: 100%; top: -5px;
+      min-width: 128px; margin-left: -2px;
+      background: var(--_bg); border: 1px solid var(--_border);
+      border-radius: 6px; padding: 4px 0;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+    }
+    .ctx-submenu::before { content: ''; position: absolute; left: -3px; top: 0; width: 3px; height: 100%; }
+    /* ★ 2026-09-28：靠窗口右缘时翻转到触发项左侧展开（JS 悬停测量后加 flip-x），桥接伪元素同步换边；
+       贴边/微重叠（-2px）避免子菜单离主菜单太远 */
+    .ctx-submenu.flip-x { left: auto; right: 100%; margin-left: 0; margin-right: -2px; }
+    .ctx-submenu.flip-x::before { left: auto; right: -3px; }
+    .ctx-submenu-trigger:hover > .ctx-submenu { display: block; }
+    .ctx-submenu-trigger:hover { background: var(--_hover); }
   `],
 })
 export class SftpContextMenuComponent implements OnChanges {
   @ViewChild('menuEl') menuEl!: ElementRef<HTMLElement>
   @ViewChild('headerMenuEl') headerMenuEl!: ElementRef<HTMLElement>
+  @ViewChild('groupBySubEl') groupBySubEl?: ElementRef<HTMLElement>
 
   @Input() menuVisible = false
   @Input() menuX = 0
@@ -173,10 +233,8 @@ export class SftpContextMenuComponent implements OnChanges {
   @Input() canEdit = false
   @Input() canTransfer = false
   @Input() modKey = 'Ctrl'
-  @Input() isZh = true
-
-  /** @deprecated 仅保留兼容，菜单分组改由组件内 getter 计算 */
-  @Input() hasFileActions = false
+  // ★ 2026-09-20 A8 审计修复：删除两个死输入——isZh 从未被父模板传入且模板未使用；
+  //   hasFileActions 已 @deprecated 且模板从未读取（父组件却每轮变更检测都计算并传值，整条链路空转）。
 
   get hasLocalOpen(): boolean {
     return this.pane === 'local' && this.singleSelected && !!this.entry
@@ -291,6 +349,41 @@ export class SftpContextMenuComponent implements OnChanges {
   /** 供模板访问的菜单项注册表 */
   readonly MENU_REGISTRY = FILE_MENU_REGISTRY
 
+  /** ★ 2026-09-28：分组依据——非 null 时在菜单尾部显示「分组依据」区段（仅空白区右键） */
+  @Input() groupByPane: 'local' | 'remote' | null = null
+  /** 当前面板生效的分组依据（用于 ✓ 标记） */
+  @Input() groupBy: GroupByMode = 'none'
+  @Output() groupByAction = new EventEmitter<GroupByMode>()
+  /** 是否所有分组已折叠（用于「展开/收起所有分组」按钮文案切换；仅启用分组时由父面板计算传入） */
+  @Input() groupAllCollapsed = false
+  /** ★ 2026-09-28：展开/收起所有分组（子菜单顶部按钮） */
+  @Output() groupToggleAll = new EventEmitter<void>()
+  /** ★ 2026-09-28：被禁用的右键菜单项集合（设置页定制停用），含文件动作 + groupBy + groupToggleAll */
+  @Input() disabledMenuEntries: Set<string> = new Set<string>()
+
+  /** 供模板访问的分组模式列表 */
+  readonly GROUP_BY_MODES = GROUP_BY_MODES
+
+  /**
+   * ★ 2026-09-28：「分组依据」子菜单视口边界自适应（悬停触发时测量一次）。
+   * 默认贴触发项右侧展开（left:100%）；靠窗口右缘溢出 → 翻转到触发项左侧（.flip-x）；
+   * 靠窗口底缘溢出 → translateY 上移至底缘对齐。每次 mouseenter 先复位再测量，避免残留上次偏移。
+   */
+  positionGroupBySubmenu(): void {
+    const sub = this.groupBySubEl?.nativeElement
+    if (!sub) return
+    sub.classList.remove('flip-x')
+    sub.style.transform = ''
+    // 悬停态下 :hover 已生效、display:block，getBoundingClientRect 可测得真实尺寸
+    const r = sub.getBoundingClientRect()
+    if (!r.width) return
+    const vw = window.innerWidth
+    const vh = window.innerHeight
+    const M = 4
+    if (r.right > vw - M) sub.classList.add('flip-x')
+    if (r.bottom > vh - M) sub.style.transform = `translateY(${(vh - M) - r.bottom}px)`
+  }
+
   /** 判断某个菜单项当前是否应可见（复用原有 getter 逻辑） */
   isActionVisible(a: ContextMenuAction): boolean {
     switch (a) {
@@ -319,8 +412,9 @@ export class SftpContextMenuComponent implements OnChanges {
 
   /** 按 menuOrder 过滤出的当前可见菜单项（已排序） */
   get orderedVisibleActions(): ContextMenuAction[] {
-    const order = (this.menuOrder && this.menuOrder.length) ? this.menuOrder : DEFAULT_FILE_MENU_ORDER
-    return order.filter(a => this.isActionVisible(a))
+    // ★ A9：入口统一收敛，杜绝未知 action 进入 MENU_REGISTRY 查表
+    const order = sanitizeMenuOrder(this.menuOrder)
+    return order.filter(a => this.isActionVisible(a) && !this.disabledMenuEntries.has(a))
   }
 
   /** 相邻两项类别不同则插入分隔符 */

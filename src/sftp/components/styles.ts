@@ -1,6 +1,41 @@
 /** SFTP+ 面板样式（合并自 panel-main-styles + file-dialog-shared-styles）
- * 修改人：DD1024z + Composer
- * 修改时间：2026-09-17 — 编辑器未保存 * 紧挨文件名；支持 --sftp-font-size / --_fs；修复 .entry 字号
+ * 修改人：DD1024z + Deepseek-V4.1-Flash
+ * 修改时间：2026-09-29 — ⑨ 自绘光标 .file-dialog-vs-caret 支持三种形状：宽高与竖直位置改由组件按形状
+ *                 内联给出（CSS 里的 2×18 只剩兜底作用），并新增 .is-block（mix-blend-mode:difference
+ *                 —— 方块光标要的是终端那种**反色**效果，直接铺实心色会把字符盖掉）
+ *              ⑧ 链接角标 .link-badge 上移 2px（bottom -1px 改 1px）：用户截图反馈
+ *                 「快捷方式的图标超出行高」。实测口径（行高 30px 的列表行）：bottom:-1px 时角标
+ *                 **可见底边落在 y=509**，而该行行框下沿 y=508 ⇒ 角标越出行框 1px，且其圆心比同行
+ *                 emoji 图标中心低 8px（角标外形 14px，比 emoji 墨迹的 11px 还大，故必然向下探）。
+ *                 改为 1px 后底边回到 507（收在框内 1px）。⚠ 只挪角标：emoji 图标本体每行都精确居中
+ *                 （墨迹中心 = 行框中心，实测逐行相等），动它会破掉图标列的整列对齐。
+ *              ⑦ 新增分组头「部分选中」态 .entry.group-row.partial（主色 40% 半透明底 +
+ *                 子 span 转正文色）：配合 file-pane 的 groupSelState()——分组头「选中」高亮改为按
+ *                 组内选中比例判定（整组选中 = 原 .selected 77% 实底；部分选中 = 新的 .partial
+ *                 弱化表达），取消原先「组内 ≥2 项 / 列表全选」的条目数门槛
+ *              ⑥ 新增键盘游标 .entry.nav-focus（左侧 3px 主色竖条 + 未选中时轻底色）：
+ *                 把方向键的「停留位置」与「已选中」拆成两套视觉语义，解决单条目分组里
+ *                 游标停在表头时屏幕无任何变化的问题（详见样式块内注释）
+ *              文件列表分组样式收口：
+ *              ① 行高统一：分组头（.entry.header.group-row）自身竖直 padding 归零、子 span padding 2px→3px
+ *                 （与内容行一致）；图标 .icon 行框固定 line-height:1，消除 emoji 图标（📁/📄）撑出 1.512em
+ *                 行框、使"用 emoji 图标的行"整体偏高的问题 → 全列表行高一致；
+ *              ② 分组模式取消行间距：has-groups 下条目 / 组头 margin 归零，选中高亮连成整块（不再被缝隙切成一段段）；
+ *              ③ 分组头去背景、仅作加粗分隔；hover 轻高亮（与条目一致、文字转正文色）；
+ *                 收展箭头贴行首（分组头 padding-left 8→2px、chevron 14→12px）；
+ *              ④ 斑马纹 nth-child 在分组模式奇偶被分组头打乱 → has-groups 下整体禁用；
+ *              ⑤ 文件图标右移贴近文件名：.icon 由列内居中改为靠右（justify-self:end）且宽度收缩为
+ *                 max-content（图标盒=图标本身宽，链接角标继续贴住图标），图标到文件名仅剩列间 gap 4px；
+ *                 同日修订（回归修复）：.icon 命中 `.entry > span` 的 contain:inline-size + overflow:hidden，
+ *                 会把 max-content 解析为 0 致图标被裁掉不显示 → 以 `.entry > span.icon`（更高特异性）覆盖为
+ *                 contain:none / overflow:visible
+ *              2026-09-20 — 编辑器行号栏样式；查看器插入光标/行号可配置
+ *              2026-09-20 — 查看器插入光标略加粗（2px）
+ *              2026-09-20 — 查看器插入光标自绘；行号与正文间距加大
+ *              2026-09-20 — 行号 gutter 间距加大；查看器恢复 text 鼠标光标
+ *              2026-09-20 — 查看器虚拟滚动：inner 撑高 + 行号 gutter，减轻滚时空白
+ *              2026-09-17 — 编辑器未保存 * 紧挨文件名；支持 --sftp-font-size / --_fs；修复 .entry 字号
+ *              2026-09-20 — 编辑/查看焦点高亮统一（wrap:focus-within）
  */
 
 /* ───────── 主面板样式 ───────── */
@@ -398,6 +433,20 @@ export const SFTP_PANEL_STYLES = `
       overflow: hidden;
     }
     /* 分割线样式由 JS class 控制，避免 CSS @media 使用视口宽度与元素宽度不同步 */
+    .sftp-root .btn-layout { position: relative; }
+    .sftp-root .btn-layout.layout-overridden {
+      color: var(--_primary, #3b82f6);
+      opacity: 0.95;
+    }
+    .sftp-root .btn-layout.layout-overridden::after {
+      content: '';
+      position: absolute;
+      right: 1px; bottom: 1px;
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      background: var(--_primary, #3b82f6);
+      pointer-events: none;
+    }
     .sftp-root .sftp-body.narrow-layout .pane-splitter {
       width: auto;
       height: 5px;
@@ -690,6 +739,89 @@ export const SFTP_PANEL_STYLES = `
     }
     /* 强制表头所有列文字完全不透明 */
     .sftp-root .entry.header > span { opacity: 1 !important; }
+    /* ★ 2026-09-28 文件分组表头行：复用 .header 类以被 :not(.header) 选择器跳过（框选/右键/斑马纹），
+       但需覆写真表头的 sticky/边框/配色——分组头是普通行内分隔，不吸附、不高亮 */
+    /* ★ 2026-09-28（二次调整）：分组表头行去背景色——用户「不需要背景色会更好看」，
+       仅保留字重区分；但保留 hover 轻高亮（见下方 :hover 规则） */
+    .sftp-root .entry.group-row {
+      display: flex;
+      grid-template-columns: none;
+      position: static;
+      z-index: auto;
+      border-bottom: none;
+      background: transparent;
+      font-weight: 600;
+      /* ★ 2026-09-29：收紧箭头与名称间距，让分组名称贴到图标列，消除"被缩进"观感 */
+      gap: 2px;
+      /* ★ 2026-09-29（四次根治）：分组头自身的竖直内边距必须为 0。
+         根因：内容行盒模型 = 自身竖直 padding 0 + 子 span 的 3px 竖直内边距；
+         分组头原先在子 span 的 3px 之外又加了自身 2px+2px，导致比内容行高约 4px，
+         使「分组头↔内容」的行距永远大于「内容↔内容」，视觉上忽大忽小。
+         去掉自身竖直 padding 后，分组头与内容行等高，全列表行距完全一致。
+         水平内边距保留：左 2px（箭头贴行首）、右 8px（与条目一致） */
+      padding: 0 8px 0 2px;
+      cursor: pointer;
+    }
+    /* ★ 2026-09-29：分组头 hover——与文件条目一致的主色轻高亮；文字改回正文色保证对比度 */
+    .sftp-root .entry.group-row:hover:not(.selected) {
+      background: color-mix(in srgb, var(--_primary) 57%, transparent);
+    }
+    .sftp-root .entry.group-row:hover:not(.selected) > span {
+      color: var(--_text);
+    }
+    /* 分组头选中态：复用 .entry.selected 的 !important 主色背景；但表头 span 默认主色文字叠主色底对比度差，
+       选中时改回正文色（与条目选中一致） */
+    .sftp-root .entry.group-row.selected > span { color: var(--_text); opacity: 1; }
+    /* ★ 2026-09-29（五次，用户定稿）：分组模式下取消行间距——条目与组头之间不再留缝，
+       选中高亮连成整块（不再被 2px 缝隙切成一段段）；配合行高统一，视觉完全均匀 */
+    .sftp-root .pane-list.has-groups .entry:not(.header) { margin: 0; }
+    .sftp-root .pane-list.has-groups .entry.group-row { margin: 0; }
+    /* ★ 2026-09-29：斑马纹 nth-child 在分组模式下奇偶被分组头打乱 → 不规则底色带，
+       视觉上像间距不一；Windows 分组视图无斑马纹，分组模式整体禁用（选中/hover 不受影响） */
+    .sftp-root.has-zebra .pane-list.has-groups .entry:not(.header):nth-child(even) { background: transparent; }
+    .sftp-root.has-zebra .pane-list.has-groups .entry:not(.header):nth-child(even):hover {
+      background: color-mix(in srgb, var(--_primary) 57%, transparent);
+    }
+    .sftp-root .entry.group-row > span {
+      /* ★ 2026-09-29（五次）：与内容行子 span 的 3px 竖直内边距对齐（原为 2px，会让分组头比内容行矮 2px），
+         使分组头与内容行等高 */
+      padding: 3px 0;
+      contain: none;
+      overflow: visible;
+      text-overflow: clip;
+    }
+    /* ★ 2026-09-29（六）：键盘游标——方向键当前**停留**的那一行（条目行 / 分组头行共用同一语义）。
+       为何要独立语义：单条目分组里「游标停在表头」与「停在那唯一一条文件上」选中集完全相同，
+       而表头「选中」高亮当时又被 ≥2 项门槛挡住（该门槛已于同日取消，改为 groupSelState 按选中比例判定），
+       两者叠加的结果是屏幕毫无变化 → 用户以为 ↑/↓ 停不到表头（实测反馈）。
+       表达方式：左侧 3px 主色竖条（inset box-shadow，不占布局、不改行高，不破坏已定稿的行距）；
+       未选中时再叠一层轻底色。与「选中」的 77% 主色实底明确区分：
+       实底 = 已选中；细竖条 + 轻底 = 光标停在这里。选中行同时带游标时两者并存（竖条仍在）。 */
+    .sftp-root .pane-list .entry.nav-focus { box-shadow: inset 3px 0 0 0 var(--_primary); }
+    .sftp-root .pane-list .entry.nav-focus:not(.selected) {
+      background: color-mix(in srgb, var(--_primary) 30%, transparent);
+    }
+    /* 游标行的分组头文字转正文色：分组头默认主色文字，叠主色轻底后对比度不足（同 .selected 的处理） */
+    .sftp-root .pane-list .entry.group-row.nav-focus > span { color: var(--_text); opacity: 1; }
+    /* ★ 2026-09-29（七，用户定稿）：分组头「部分选中」态——组内有**部分**条目被选中（不是整组）。
+       分两档强度的理由：整组选中（.selected，77% 实底）时表头与组内条目连成一整块；部分选中若用同样
+       的实底，会被误读成「整组已选」，故用同色系半透明底表达「该组有选中内容」——
+       既能一眼看出「这一组里有东西被选了」，又与「整组已选」明确区分。子 span 转正文色保证对比度。
+       特异性 (0,5,0) 与 .nav-focus:not(.selected) 相同、且排在其后：键盘游标停在「部分选中」的组头时
+       底色保持 40%（不被降回 30%），游标另有左侧竖条可辨识。
+       注：与 .group-row:hover:not(.selected) 也同特异性，排后者胜 → 悬停在部分选中的组头上底色不跳变
+       （hover 反馈只在未选中的组头上体现）。 */
+    .sftp-root .pane-list .entry.group-row.partial {
+      background: color-mix(in srgb, var(--_primary) 40%, transparent);
+    }
+    .sftp-root .pane-list .entry.group-row.partial > span { color: var(--_text); opacity: 1; }
+    .sftp-root .group-chevron {
+      flex: none; width: 12px; text-align: center;
+      cursor: pointer; opacity: 0.8; user-select: none;
+    }
+    .sftp-root .group-chevron:hover { opacity: 1; color: var(--_primary); }
+    .sftp-root .group-label { flex: 0 1 auto; }
+    .sftp-root .group-count { flex: none; opacity: 0.55; font-weight: 400; }
     /* 列 resize handle 嵌入在各列 span 内部，position: absolute 始终对齐列边界 */
     .sftp-root .name, .sftp-root .size, .sftp-root .date, .sftp-root .perms, .sftp-root .mode, .sftp-root .access, .sftp-root .owner, .sftp-root .group, .sftp-root .path, .sftp-root .ext {
       position: relative;
@@ -714,11 +846,37 @@ export const SFTP_PANEL_STYLES = `
     }
     .sftp-root .entry.up-entry { opacity: 0.6; }
     .sftp-root .entry.dim { opacity: 0.5; }
-    .sftp-root .icon { text-align: center; font-size: 1.08em; width: 24px; display: flex; align-items: center; justify-content: center; position: relative; }
+    /* ★ 2026-09-29（五次）：统一行高——图标行框固定为 1 倍。原 font-size:1.08em 叠加继承的 line-height:1.4，
+       会让 emoji 图标（📁/📄）撑出 1.512em 的行框，高于文字行框 1.4em → "用 emoji 图标的行"整体偏高、行高不一；
+       固定 line-height:1 后图标盒恒小于文字行框，全部行高统一由文字行决定（自定义图标 <img> 亦如此） */
+    /* ★ 2026-09-29（六次）：图标在图标列内**靠右**——原先居中（列宽 24px）时图标左右各留 ~3-4px，
+       叠加列间 gap:4px 后图标到文件名约 7-8px，观感偏散。改为 justify-self:end 使图标右边缘贴住列右，
+       到文件名仅剩 gap 4px。同时 width 由固定 24px 收缩为 max-content → .icon 盒 = 图标本身宽度，
+       链接角标 .link-badge（绝对定位于 .icon 左下角）因此继续贴住图标、不再随列宽漂移。
+       注：列宽本身（colIconWidth 24px）与表头对齐不变，仅图标列内的水平对齐方式改变。 */
+    .sftp-root .icon {
+      text-align: center; font-size: 1.08em; line-height: 1;
+      display: flex; align-items: center; justify-content: center;
+      position: relative;
+      justify-self: end;
+      width: max-content;
+    }
+    /* ★ 2026-09-29（六次修订·回归修复）：上面 width:max-content 必须配这条覆盖规则才生效——
+       .icon 同时命中 .entry > span 的 contain:inline-size（内联尺寸**不依赖内容**）+ overflow:hidden，
+       会把 max-content 解析为 0 → 图标被裁掉、整个图标列空白（用户实测"图标都不显示"）。
+       又因 .entry > span（0,2,1）特异性高于 .icon（0,2,0），故此处用 .entry > span.icon（0,3,1）压过它：
+       contain:none 让宽度回到内容驱动；overflow:visible 顺带让 .link-badge 角标不被裁。
+       注：此处注释禁用反引号——本文件是 TS 模板字符串，反引号会提前截断样式字符串。 */
+    .sftp-root .entry > span.icon { contain: none; overflow: visible; }
     .sftp-root .icon .custom-file-icon { width: 1.23em; height: 1.23em; object-fit: contain; flex-shrink: 0; }
-    /* ★ 2026-09-08 issue #16：链接角标（符号链接 / 快捷方式），叠在图标左下角 */
+    /* ★ 2026-09-08 issue #16：链接角标（符号链接 / 快捷方式），叠在图标左下角。
+       ★ 2026-09-29（八次）：bottom 由 -1px 上移为 1px。实测口径（行高 30px 的列表行）：
+       bottom:-1px 时角标可见底边 y=509，该行行框下沿 y=508 ⇒ 越出行框 1px（即用户反馈的
+       「超出行高」）；上移 2px 后底边 y=507，收在框内 1px。角标外形 14px（12px + 1px 边框×2）。
+       ⚠ 只挪角标，不动 .icon 与图标本体 —— 本体每行都精确居中（墨迹中心 = 行框中心），动它会破
+       图标列的整列对齐；另注意角标直径 14px 本就大于 emoji 墨迹的 11px，叠在角上必然略微外露。 */
     .sftp-root .icon .link-badge {
-      position: absolute; left: -1px; bottom: -1px;
+      position: absolute; left: -1px; bottom: 1px;
       width: 12px; height: 12px;
       display: inline-flex; align-items: center; justify-content: center;
       background: var(--_bg, var(--body-bg, #1e1e1e));
@@ -963,6 +1121,7 @@ export const SFTP_PANEL_STYLES = `
       position: absolute;
       width: 320px;
       max-height: 420px;
+      box-sizing: border-box;
       display: flex; flex-direction: column;
       background: var(--_bg);
       border: 1px solid var(--_border);
@@ -1416,8 +1575,141 @@ export const FILE_DIALOG_SHARED_STYLES = `
     scrollbar-width: thin;
     scrollbar-color: var(--_scroll-thumb, rgba(128,128,128,0.4)) var(--_scroll-track, rgba(128,128,128,0.08));
   }
+  /* 单独 textarea（无行号包裹）时的焦点环 */
   .file-dialog-textarea:focus {
     box-shadow: inset 0 0 0 1px var(--_primary);
+  }
+  /* ★ 2026-09-20：编辑器行号 + textarea 并排；焦点环画在整块 wrap 上，与查看器一致 */
+  .file-dialog-editor-wrap {
+    display: flex;
+    flex: 1 1 auto;
+    width: 100%;
+    min-height: 0;
+    height: 100%;
+    overflow: hidden;
+    border-radius: 6px;
+  }
+  .file-dialog-editor-wrap:focus-within {
+    box-shadow: inset 0 0 0 1px var(--_primary);
+  }
+  .file-dialog-editor-gutter {
+    flex: 0 0 auto;
+    box-sizing: content-box;
+    height: 100%;
+    overflow: hidden;
+    padding: 12px 16px 12px 8px;
+    border-right: 1px solid var(--_border, rgba(128,128,128,0.5));
+    margin-right: 0;
+    text-align: right;
+    color: var(--_text-muted, rgba(128,128,128,0.85));
+    font-family: ui-monospace, 'Cascadia Code', 'Consolas', monospace;
+    font-size: 12px;
+    line-height: 18px;
+    white-space: pre;
+    user-select: none;
+    pointer-events: none;
+    background: transparent;
+  }
+  .file-dialog-editor-wrap .file-dialog-textarea {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+    padding-left: 16px;
+    white-space: pre;
+    overflow: auto;
+    border-radius: 0;
+  }
+  /* wrap 已画焦点环，避免 textarea 再叠一层 */
+  .file-dialog-editor-wrap .file-dialog-textarea:focus {
+    box-shadow: none;
+  }
+  /* ★ 2026-09-20：查看器文本虚拟滚动（inner 撑滚动高度 + 窗口 translate；左侧行号） */
+  .file-dialog-vs {
+    flex: 1 1 auto;
+    width: 100%;
+    min-height: 0;
+    height: 100%;
+    padding: 12px;
+    box-sizing: border-box;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--_text);
+    font-family: ui-monospace, 'Cascadia Code', 'Consolas', monospace;
+    font-size: 12px;
+    line-height: 18px;
+    outline: none;
+    overflow: auto;
+    overscroll-behavior: contain;
+    position: relative;
+    cursor: text !important;
+    caret-color: var(--_text, currentColor);
+    user-select: text !important;
+    scrollbar-width: thin;
+    scrollbar-color: var(--_scroll-thumb, rgba(128,128,128,0.4)) var(--_scroll-track, rgba(128,128,128,0.08));
+  }
+  .file-dialog-vs:focus {
+    box-shadow: inset 0 0 0 1px var(--_primary);
+  }
+  .file-dialog-vs-inner {
+    position: relative;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  /* 自绘插入光标：宽高与竖直位置由组件按形状（block/beam/underline）内联给出，
+     这里的 width/height 只是形状未传入时的兜底（beam 2x18） */
+  .file-dialog-vs-caret {
+    position: absolute;
+    z-index: 2;
+    width: 2px;
+    height: 18px;
+    background: var(--_text, #e5e5e5);
+    pointer-events: none;
+    animation: file-dialog-vs-caret-blink 1.06s step-end infinite;
+  }
+  /* 方块光标：与下方文字做差值混合，等价于终端里的「反色方块」——直接铺实心色会盖掉字符 */
+  .file-dialog-vs-caret.is-block {
+    mix-blend-mode: difference;
+  }
+  @keyframes file-dialog-vs-caret-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+  .file-dialog-vs-window {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    will-change: transform;
+  }
+  .file-dialog-vs-line {
+    display: flex;
+    align-items: stretch;
+    height: 18px;
+    line-height: 18px;
+  }
+  .file-dialog-vs-gutter {
+    flex: 0 0 auto;
+    /* content-box：min-width 只约束数字区，左右 padding 不会被吃掉贴死分隔线 */
+    box-sizing: content-box;
+    padding: 0 16px 0 8px;
+    border-right: 1px solid var(--_border, rgba(128,128,128,0.5));
+    text-align: right;
+    color: var(--_text-muted, rgba(128,128,128,0.85));
+    user-select: none;
+    pointer-events: none;
+  }
+  .file-dialog-vs-text {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding-left: 16px;
+    white-space: pre;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: text !important;
+  }
+  .file-dialog-vs-text-nogutter {
+    padding-left: 0;
   }
   .file-dialog-image-wrap {
     display: flex; align-items: center; justify-content: center;

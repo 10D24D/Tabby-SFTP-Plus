@@ -3,11 +3,12 @@
  * 创建人：DD1024z + Hy3
  * 创建时间：2026-08-18
  * 修改人：DD1024z + Composer
- * 修改时间：2026-09-18
- *   支持设置项：是否按连接/全局分组；分组顺序可定制；
- *   关闭分组后可跨范围自由拖拽，全局书签名称右侧显示「全局」标签
+ * 修改时间：2026-09-21 — 支持父级动态 width/maxHeight（多拆分窄窗 clamp）
+ *              2026-09-20 — 支持设置项：是否按连接/全局分组；分组顺序可定制；
+ *              关闭分组后可跨范围自由拖拽，全局书签名称右侧显示「全局」标签；
+ *              头部增加「定位当前书签」按钮，滚动到路径匹配项并短暂闪烁
  */
-import { Component, EventEmitter, Input, Output } from '@angular/core'
+import { Component, ElementRef, EventEmitter, Input, Output, ViewChild } from '@angular/core'
 
 import { Bookmark } from '../../services/sftp-bookmarks.service'
 import { SftpI18nService } from '../../services/sftp-i18n.service'
@@ -19,12 +20,24 @@ import type { BookmarkScope } from '../core/panel-types'
     <div class="bookmark-popup"
       [style.top.px]="top"
       [style.left.px]="left"
+      [style.width.px]="width"
+      [style.maxHeight.px]="maxHeight"
       (mousedown)="$event.stopPropagation()"
       (wheel)="$event.stopPropagation()">
       <div class="popup-arrow" [style.left.px]="arrowLeft"></div>
       <div class="popup-header">
         <div class="popup-title">{{ paneLabel }} {{ i18n.t('bookmark.title') }}</div>
         <div class="bookmark-header-actions">
+          <button class="header-action-btn header-locate-btn"
+                  type="button"
+                  (click)="locateCurrent()"
+                  [disabled]="!hasCurrentBookmark"
+                  [title]="hasCurrentBookmark ? i18n.t('bookmark.locate') : i18n.t('bookmark.locateNone')">
+            <svg viewBox="0 0 1024 1024" width="13" height="13" aria-hidden="true">
+              <path fill="currentColor"
+                d="M481.792 838.656a328.448 328.448 0 0 1-297.152-297.152H64v-59.712h120.704a328.448 328.448 0 0 1 297.152-297.152V64h59.712v120.704a328.448 328.448 0 0 1 297.152 297.152h120.704v59.712h-120.704a328.448 328.448 0 0 1-297.152 297.152v120.704h-59.776v-120.768z m0-59.968v-117.76h59.712v117.76a268.8 268.8 0 0 0 237.12-237.12h-117.76v-59.776h117.76a268.672 268.672 0 0 0-237.12-237.12v117.76h-59.712v-117.76a268.8 268.8 0 0 0-237.12 237.12h117.76v59.712h-117.76a268.864 268.864 0 0 0 237.12 237.184z"/>
+            </svg>
+          </button>
           <button class="header-action-btn"
                   (click)="addScopeClick.emit('connection')"
                   [class.active]="addScope === 'connection'"
@@ -47,7 +60,7 @@ import type { BookmarkScope } from '../core/panel-types'
           </button>
         </div>
       </div>
-      <div class="bookmark-list">
+      <div class="bookmark-list" #bookmarkList>
         <!-- 分组模式：按 groupOrder 渲染「当前连接 / 全局」块 -->
         <ng-container *ngIf="groupByScope">
           <ng-container *ngFor="let scope of groupOrder">
@@ -55,7 +68,9 @@ import type { BookmarkScope } from '../core/panel-types'
               {{ scopeLabel(scope) }}
             </div>
             <div class="bookmark-item" *ngFor="let b of bookmarksOf(scope); let i = index"
+              [attr.data-bm-id]="b.id"
               [class.current]="isCurrent(b)"
+              [class.locate-flash]="flashId === b.id"
               (click)="gotoBookmark.emit(b)"
               (contextmenu)="contextMenu.emit({ bookmark: b, event: $event })"
               draggable="true"
@@ -81,7 +96,9 @@ import type { BookmarkScope } from '../core/panel-types'
         <!-- 扁平模式：本地/全局混排，可跨范围拖拽；全局项左侧显示标签 -->
         <ng-container *ngIf="!groupByScope">
           <div class="bookmark-item" *ngFor="let b of allBookmarks; let i = index"
+            [attr.data-bm-id]="b.id"
             [class.current]="isCurrent(b)"
+            [class.locate-flash]="flashId === b.id"
             (click)="gotoBookmark.emit(b)"
             (contextmenu)="contextMenu.emit({ bookmark: b, event: $event })"
             draggable="true"
@@ -116,6 +133,7 @@ import type { BookmarkScope } from '../core/panel-types'
     .bookmark-popup {
       position: absolute;
       width: 320px; max-height: 420px;
+      box-sizing: border-box;
       display: flex; flex-direction: column;
       background: var(--_bg);
       border: 1px solid var(--_border);
@@ -175,6 +193,22 @@ import type { BookmarkScope } from '../core/panel-types'
       background: var(--_hover);
       color: var(--_primary);
     }
+    .header-locate-btn {
+      min-width: 22px;
+      width: 22px;
+      padding: 0;
+      color: var(--_text);
+      opacity: 0.75;
+    }
+    .header-locate-btn:hover:not(:disabled) {
+      opacity: 1;
+      color: var(--_primary);
+    }
+    .header-locate-btn:disabled {
+      opacity: 0.28;
+      cursor: default;
+    }
+    .header-locate-btn svg { display: block; }
     .popup-footer {
       display: flex; justify-content: flex-end;
       padding: 6px 10px; border-top: 1px solid var(--_border);
@@ -265,6 +299,14 @@ import type { BookmarkScope } from '../core/panel-types'
       box-shadow: inset 2px 0 0 var(--_primary);
     }
     .bookmark-item.current .bm-name { color: var(--_primary); }
+    .bookmark-item.locate-flash {
+      animation: bm-locate-flash 0.85s ease;
+    }
+    @keyframes bm-locate-flash {
+      0%, 100% { background: color-mix(in srgb, var(--_primary) 16%, transparent); }
+      35% { background: color-mix(in srgb, var(--_primary) 38%, transparent); }
+      70% { background: color-mix(in srgb, var(--_primary) 22%, transparent); }
+    }
     .bookmark-item.dragging { opacity: 0.4; }
     .bookmark-item.drag-over-top {
       border-top: 2px solid var(--_primary);
@@ -321,9 +363,15 @@ import type { BookmarkScope } from '../core/panel-types'
   `],
 })
 export class SftpBookmarkPopupComponent {
+  @ViewChild('bookmarkList') private bookmarkList?: ElementRef<HTMLElement>
+
   @Input() top = 0
   @Input() left = 0
   @Input() arrowLeft = 0
+  /** 弹层宽度（父级按面板可用空间 clamp） */
+  @Input() width = 320
+  /** 弹层最大高度（父级按面板剩余高度 clamp） */
+  @Input() maxHeight = 420
   @Input() paneLabel = ''
   @Input() pane: 'local' | 'remote' = 'local'
   @Input() addScope: 'connection' | 'global' | null = null
@@ -362,6 +410,11 @@ export class SftpBookmarkPopupComponent {
 
   @Input() i18n!: SftpI18nService
 
+  /** 定位闪烁中的书签 id */
+  flashId: string | null = null
+  private _locateCycleIdx = -1
+  private _flashTimer: ReturnType<typeof setTimeout> | null = null
+
   bookmarksOf(scope: 'connection' | 'global'): Bookmark[] {
     return scope === 'connection' ? this.connectionBookmarks : this.globalBookmarks
   }
@@ -384,5 +437,43 @@ export class SftpBookmarkPopupComponent {
   isCurrent(b: Bookmark): boolean {
     if (!this.currentPath) return false
     return this._normPath(b.path) === this._normPath(this.currentPath)
+  }
+
+  /** 列表中是否存在与当前路径匹配的书签（控制定位按钮可用性） */
+  get hasCurrentBookmark(): boolean {
+    return this._currentMatches().length > 0
+  }
+
+  /** 按当前 UI 顺序收集路径匹配的书签 */
+  private _currentMatches(): Bookmark[] {
+    if (!this.currentPath) return []
+    const list = this.groupByScope
+      ? this.groupOrder.flatMap(scope => this.bookmarksOf(scope))
+      : this.allBookmarks
+    return list.filter(b => this.isCurrent(b))
+  }
+
+  /**
+   * 滚动到当前路径对应的书签；若有多项同路径则循环定位。
+   */
+  locateCurrent(): void {
+    const matches = this._currentMatches()
+    if (!matches.length) return
+    this._locateCycleIdx = (this._locateCycleIdx + 1) % matches.length
+    const target = matches[this._locateCycleIdx]
+    const listEl = this.bookmarkList?.nativeElement
+    const item = listEl
+      ? Array.from(listEl.querySelectorAll<HTMLElement>('.bookmark-item[data-bm-id]'))
+          .find(el => el.getAttribute('data-bm-id') === target.id) ?? null
+      : null
+    if (item) {
+      item.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    }
+    if (this._flashTimer) clearTimeout(this._flashTimer)
+    this.flashId = target.id
+    this._flashTimer = setTimeout(() => {
+      this.flashId = null
+      this._flashTimer = null
+    }, 900)
   }
 }

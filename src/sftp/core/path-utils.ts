@@ -2,8 +2,9 @@
  * 功能描述：SFTP+ path-utils 逻辑聚合模块（由旧 core 多文件合并）
  * 创建人：DD1024z + Hy3
  * 创建时间：2026-07-16
- * 修改人：DD1024z + Hy3
- * 修改时间：2026-07-25 — 新增 safeEntryName 防路径穿越
+ * 修改人：DD1024z + Kimi-K3
+ * 修改时间：2026-09-21 — 第六轮审计 P2 修复：safeEntryName 删除 includes('..') 误杀（a..b 等合法名曾被静默跳过）
+ *              2026-09-20 — N3 审计修复：safeEntryName 拦截控制字符（含换行），防恶意服务器下发带换行文件名
  * 合并来源：panel-id-resolver
  */
 
@@ -139,7 +140,9 @@ export function resolveGroupDisplay(
  *    「幂等/只读」命令安全——cp -a / mv 等非幂等命令若首次已成功而标记输出
  *    丢失（通道竞争），重放会把源再复制/移动进已存在的目标 → 嵌套副本。
  *    故新增 retryOnEmpty 选项：默认 true（探测类命令保持旧行为），
- *    非幂等命令的调用方必须显式传 false——宁误报失败回退，不毁数据。 */
+ *    非幂等命令的调用方必须显式传 false——宁误报失败回退，不毁数据。
+ *  ★ 2026-09-20 P1-13 审计修复：默认值改为 false（安全优先），
+ *    只对确认幂等的探测类调用方显式传 true，避免未来新增非幂等调用时踩坑。 */
 export async function execSshCommand(
   sshSession: unknown,
   command: string,
@@ -219,9 +222,13 @@ export async function execSshCommand(
 
   const first = await execOnce()
   if (first !== '') return first
-  // 空输出重试：稍候重开通道再执行一次（仅幂等/只读命令可安全重放）
-  if (opts?.retryOnEmpty === false) {
-    log.warn(`execSshCommand empty output (retry disabled for non-idempotent command): ${command.slice(0, 80)}`)
+  // ★ 2026-09-20 P1-13 审计修复：默认不重试（安全优先）。
+  //   仅当调用方显式传入 retryOnEmpty=true 时才重试（确认幂等的探测类命令）。
+  //   非幂等命令（cp/mv/rm）不传 opts 即走安全路径，宁误报失败不毁数据。
+  if (opts?.retryOnEmpty !== true) {
+    if (opts?.retryOnEmpty === false) {
+      log.warn(`execSshCommand empty output (retry explicitly disabled): ${command.slice(0, 80)}`)
+    }
     return first
   }
   await new Promise(r => setTimeout(r, 300))
@@ -232,13 +239,18 @@ export async function execSshCommand(
 
 export async function loadRemoteIdMaps(sshSession: unknown): Promise<IdMaps> {
   // 顺序执行，避免同时开两个 SSH exec 通道导致 passwd 输出丢失
+  // ★ 2026-09-20 P1-13：幂等探测命令显式启用重试
   const passwdOut = await execSshCommand(
     sshSession,
     "getent passwd 2>/dev/null | awk -F: '{print $1\":\"$3}' || awk -F: '{print $1\":\"$3}' /etc/passwd 2>/dev/null",
+    12000,
+    { retryOnEmpty: true },
   )
   const groupOut = await execSshCommand(
     sshSession,
     "getent group 2>/dev/null | awk -F: '{print $1\":\"$3}' || awk -F: '{print $1\":\"$3}' /etc/group 2>/dev/null",
+    12000,
+    { retryOnEmpty: true },
   )
   return {
     uidToName: parsePasswd(passwdOut),
@@ -356,7 +368,13 @@ export function safeEntryName(name: string): string | null {
   if (typeof name !== 'string' || name.length === 0) return null
   const base = path.basename(name) // path.basename 同时处理 / 与 \ 分隔符
   if (base === '' || base === '.' || base === '..') return null
-  if (base.includes('..') || base.includes('/') || base.includes('\\') || base.includes('\0')) return null
+  // ★ 2026-09-20 N3 审计修复：拦截控制字符（含换行 \n / \r 与所有 C0/C1 控制符），
+  //   恶意服务器下发带换行文件名时本地不应创建带真实换行的怪异文件（Linux 合法、Windows 抛错）。
+  //   注：\0 已被 \x00 覆盖。
+  // ★ 2026-09-21 P2 修复：删除 base.includes('..') 误杀——basename 之后已无路径语义，
+  //   `..` 单独成段不可能出现（上一行已拦 base === '..'），含双点的合法文件名
+  //   （如 a..b、report..txt、..foo）此前被静默跳过（下载/上传该文件直接消失）
+  if (/[\x00-\x1f\x7f]/.test(base) || base.includes('/') || base.includes('\\')) return null
   // ★ 2026-08-26：拦截 Windows 保留设备名与尾随点/空格
   if (process.platform === 'win32') {
     if (WIN_RESERVED_NAME.test(base)) return null

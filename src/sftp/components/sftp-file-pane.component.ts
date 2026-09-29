@@ -1,10 +1,44 @@
 ﻿/**
  * SFTP+ 文件列表面板（本地/远程共用）
  * 功能描述：本地/远程文件列表面板，负责路径栏、工具栏、文件列表渲染与交互
- * 创建人：DD1024z + Hy3
- * 创建时间：2026-07-29
- * 修改人：DD1024z + Hy3
- * 修改时间：2026-08-24
+ * @创建人：DD1024z + Hy3
+ * @创建时间：2026-07-29
+ * @修改人：DD1024z + Deepseek-V4.1-Flash
+ * @修改时间：2026-09-29 — 新增 listWheel 输出（列表滚轮事件）：面板侧据此实现「滚轮上滚/下滚」
+ *              类面板快捷键（录制格式 WheelUp / WheelDown）。只转发事件，不做任何拦截 ——
+ *              是否吞掉滚动由面板侧按「该滚轮是否已绑到某动作」决定，未绑定时列表滚动完全不受影响。
+ *              2026-09-29 — 分组表头「选中」高亮改为**通用规则**：组内有任意条目被选中即高亮，
+ *              并按选中比例分两档强度 —— 整组选中 = .selected 实底（与条目选中同色，视觉连成整块）；
+ *              部分选中 = .partial 半透明底（表达「该组有选中内容」，又不至于被误读成整组已选）。
+ *              用户连续两次实测反馈：① Ctrl+A 全选后，组内只有 1 个文件的分组头不亮，而 ≥2 项的
+ *              组头全亮；② 非全选、只选中部分内容时同一问题依旧（其中被选中的单条目分组头不亮）。
+ *              根因是原 groupAllSelected 的「items.length > 1」≥2 门槛（当初为避免「只选中唯一条目时
+ *              表头跟着亮、像选了两项」）——它把「表头亮」错误地绑在条目数上，导致同屏两套表现。
+ *              新规则下单条目分组只有「选中 / 未选中」两态（选中即实底亮），多条目分组的部分选中
+ *              由 .partial 弱化表达，两者的信息量都不丢。同步删除上一轮为此新增的 allEntriesSelected
+ *              输入、父组件 _allEntriesSelected 判定与 local/remoteAllEntriesSelected 两个 getter
+ *              （新规则不再需要「列表全选」这一附加条件）。
+ *              2026-09-29 — 新增 navFocusKey 输入 + .nav-focus 键盘游标（方向键停留位置可见化）：
+ *              分组头行的「选中」高亮当时仍受 ≥2 项门槛约束（groupAllSelected，该门槛已于同日取消，
+ *              见下方 groupSelState），而单条目分组里
+ *              游标停在表头与停在唯一那条文件上选中集相同 → 屏幕毫无变化、像按键卡住（用户实测）。
+ *              故新增与「选中」并列的游标语义：游标所在行 = navFocusKey 命中的行（条目=fullPath、
+ *              分组头=NAV_HEADER_KEY_PREFIX+bucketKey），由 CSS .nav-focus 单独表达
+ *              2026-09-29 — 分组表头行新增 data-group-key 属性（供键盘导航按表头定位/滚动）；
+ *              groupAllSelected 增加 items.length > 1 条件：组内只有 1 个条目时不再高亮表头
+ *              （用户实测：只选中该唯一条目时表头跟着亮，视觉上像选了两项）
+ *              2026-09-29 — 列表容器新增 has-groups 类绑定（分组模式行距样式开关）
+ *              2026-09-28 — 修复：分组表头 [class.selected] 绑定里的箭头函数
+ *              （Angular 9 模板表达式不支持 → 运行时 JIT Parser Error 连环报错），
+ *              改为组件方法 groupAllSelected(row)
+ *              2026-09-28 — 新增文件列表分组（类似 Windows「分组依据」）：groupRows 输入 +
+ *              分组表头行渲染（箭头收展 / 点击其余区域全选该组）、groupToggle/groupSelect 输出、
+ *              trackGroupRowFn；分组关闭时维持原扁平渲染路径不变
+ *              2026-09-21 — P2 修复：图标 URL 按扩展名 memo（_iconSrcMemo / _folderIconMemo）——
+ *              数据列早已预计算，图标列仍在模板里按行调用，大目录下每轮变更检测都要为每一行
+ *              重跑规则匹配链；图标相关 Input 变化或图标目录变化时失效
+ *              2026-09-20 — A8 审计修复：删除死输入 isZh（父模板从未传入、模板亦未使用）
+ *              2026-08-24
  */
 
 import { Component, ElementRef, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges } from '@angular/core'
@@ -13,6 +47,7 @@ import * as fs from 'fs'
 
 import { SftpI18nService } from '../../services/sftp-i18n.service'
 import { DEFAULT_ICON_MAP } from '../core/icon-defaults'
+import { NAV_HEADER_KEY_PREFIX } from '../core/grouping'
 
 export type PaneNavAction =
   | 'back' | 'forward' | 'up' | 'home' | 'refresh'
@@ -72,13 +107,14 @@ export type PaneSortAction = { col: string }
         </button>
       </div>
       <div class="pane-list-wrap" [class.pane-drag-over]="dragOver">
-        <div class="pane-list" [class]="listClass" [class.pane-flash]="flash"
+        <div class="pane-list" [class]="listClass" [class.pane-flash]="flash" [class.has-groups]="!!groupRows"
           (dragover)="listDragOver.emit($event)"
           (dragenter)="listDragEnter.emit($event)"
           (dragleave)="listDragLeave.emit($event)"
           (drop)="listDrop.emit($event)"
           (mousedown)="listMouseDown.emit($event)"
           (mouseenter)="listMouseEnter.emit()"
+          (wheel)="listWheel.emit($event)"
           (scroll)="listScroll.emit()"
           (click)="listClick.emit($event)"
           (contextmenu)="listContextMenu.emit($event)">
@@ -112,34 +148,88 @@ export type PaneSortAction = { col: string }
                 (dblclick)="onColResizeDblClick(col, $event)"></div>
             </span>
           </div>
-          <div class="entry" *ngFor="let e of entries; let i = index; trackBy: trackByFn"
+          <!-- 分组模式关闭：维持原有扁平渲染（性能路径不变） -->
+          <ng-container *ngIf="!groupRows">
+            <div class="entry" *ngFor="let e of entries; let i = index; trackBy: trackByFn"
             [attr.data-path]="e.fullPath"
+            [attr.data-isdir]="e.isDirectory ? '1' : '0'"
             (click)="entryClick.emit({ entry: e, event: $event, index: i })"
             (dblclick)="entryDblClick.emit({ entry: e, event: $event })"
             (contextmenu)="entryContextMenu.emit({ entry: e, event: $event })"
             [class.selected]="isSelected(e)"
+            [class.nav-focus]="isNavFocusedEntry(e)"
             [class.hidden-entry]="isHiddenEntry(e)"
             [draggable]="draggable && isSelected(e)"
             (dragstart)="entryDragStart.emit({ entry: e, event: $event })"
             (dragend)="entryDragEnd.emit()"
             [style.gridTemplateColumns]="colWidths">
             <span class="icon">
+              <!-- ★ 2026-09-21 P2：iconSrc/folderIcon 的结果已按扩展名 memo（见 _iconSrcMemo），
+                   这里的多次求值只是 Map 查表，不再重跑规则匹配链 -->
               <ng-container *ngIf="e.isDirectory">
-                <img *ngIf="folderIconSrc() as src" class="custom-file-icon" [src]="src" alt="folder" draggable="false" />
-                <ng-container *ngIf="!folderIconSrc()">📁</ng-container>
+                <img *ngIf="folderIcon as src" class="custom-file-icon" [src]="src" alt="folder" draggable="false" />
+                <ng-container *ngIf="!folderIcon">📁</ng-container>
               </ng-container>
               <ng-container *ngIf="!e.isDirectory">
                 <img *ngIf="iconSrc(e) as src" class="custom-file-icon" [src]="src" [alt]="e.name" draggable="false" />
                 <ng-container *ngIf="!iconSrc(e)">📄</ng-container>
               </ng-container>
-              <!-- ★ 2026-09-08 issue #16：符号链接 / 快捷方式在图标右下角叠加 ↗ 角标 -->
+              <!-- ★ 2026-09-08 issue #16：符号链接 / 快捷方式在图标**左下角**叠加 ↗ 角标
+                   （2026-09-29 修正注释：实际是左下角，见 styles.ts 的 .link-badge） -->
               <span class="link-badge" *ngIf="isLinkEntry(e)" [title]="linkBadgeTitle(e)">
                 <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 10.5 L10.5 5.5 M7 5.5 H10.5 V9"/></svg>
               </span>
             </span>
             <span class="name" [attr.title]="e.name">{{ inaccessiblePrefix(e) }}{{ displayName(e) }}</span>
             <span *ngFor="let col of visibleCols; trackBy: trackByCol" class="{{col}}" [attr.title]="colValue(col, e)">{{ colValue(col, e) }}</span>
-          </div>
+            </div>
+          </ng-container>
+          <!-- 分组模式开启：分组表头行（点击箭头收展 / 点击其余区域全选该组）+ 条目行。
+               表头行带 .header 类 → 框选/右键/空白判定等既有的 :not(.header) 选择器自动跳过 -->
+          <ng-container *ngIf="groupRows">
+            <ng-container *ngFor="let row of groupRows; trackBy: trackGroupRowFn">
+              <div class="entry header group-row" *ngIf="row.kind === 'header'"
+                [attr.data-group-key]="row.bucketKey"
+                [class.selected]="groupSelState(row) === 'all'"
+                [class.partial]="groupSelState(row) === 'partial'"
+                [class.nav-focus]="isNavFocusedHeader(row)"
+                (click)="groupSelect.emit(row.bucketKey)">
+                <span class="group-chevron" [title]="row.collapsed ? labels.groupExpand : labels.groupCollapse"
+                  (click)="groupToggle.emit(row.bucketKey); $event.stopPropagation()">{{ row.collapsed ? '▸' : '▾' }}</span>
+                <span class="group-label" [attr.title]="row.label">{{ row.label }}</span>
+                <span class="group-count">({{ row.count }})</span>
+              </div>
+              <div class="entry" *ngIf="row.kind === 'entry'"
+                [attr.data-path]="row.entry.fullPath"
+                [attr.data-isdir]="row.entry.isDirectory ? '1' : '0'"
+                (click)="entryClick.emit({ entry: row.entry, event: $event, index: row.index })"
+                (dblclick)="entryDblClick.emit({ entry: row.entry, event: $event })"
+                (contextmenu)="entryContextMenu.emit({ entry: row.entry, event: $event })"
+                [class.selected]="isSelected(row.entry)"
+                [class.nav-focus]="isNavFocusedEntry(row.entry)"
+                [class.hidden-entry]="isHiddenEntry(row.entry)"
+                [draggable]="draggable && isSelected(row.entry)"
+                (dragstart)="entryDragStart.emit({ entry: row.entry, event: $event })"
+                (dragend)="entryDragEnd.emit()"
+                [style.gridTemplateColumns]="colWidths">
+                <span class="icon">
+                  <ng-container *ngIf="row.entry.isDirectory">
+                    <img *ngIf="folderIcon as src" class="custom-file-icon" [src]="src" alt="folder" draggable="false" />
+                    <ng-container *ngIf="!folderIcon">📁</ng-container>
+                  </ng-container>
+                  <ng-container *ngIf="!row.entry.isDirectory">
+                    <img *ngIf="iconSrc(row.entry) as src" class="custom-file-icon" [src]="src" [alt]="row.entry.name" draggable="false" />
+                    <ng-container *ngIf="!iconSrc(row.entry)">📄</ng-container>
+                  </ng-container>
+                  <span class="link-badge" *ngIf="isLinkEntry(row.entry)" [title]="linkBadgeTitle(row.entry)">
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 10.5 L10.5 5.5 M7 5.5 H10.5 V9"/></svg>
+                  </span>
+                </span>
+                <span class="name" [attr.title]="row.entry.name">{{ inaccessiblePrefix(row.entry) }}{{ displayName(row.entry) }}</span>
+                <span *ngFor="let col of visibleCols; trackBy: trackByCol" class="{{col}}" [attr.title]="colValue(col, row.entry)">{{ colValue(col, row.entry) }}</span>
+              </div>
+            </ng-container>
+          </ng-container>
           <div class="pane-empty" *ngIf="showEmpty">
             <ng-container *ngIf="hasError">{{ labels.errorAccess }}</ng-container>
             <ng-container *ngIf="!hasError">{{ filterActive ? labels.noMatch : labels.empty }}</ng-container>
@@ -179,6 +269,8 @@ export class SftpFilePaneComponent {
   @Input() showHeader = true
   @Input() showEmpty = false
   @Input() entries: any[] = []
+  /** ★ 2026-09-28：分组显示行（null=未启用分组，走扁平渲染路径）；由父组件按 GroupByMode 构建并缓存 */
+  @Input() groupRows: import('../core/grouping').GroupDisplayRow[] | null = null
   /** 自定义图标：用户指定的 SVG 资源目录（本地绝对路径，可空） */
   @Input() iconBaseDir = ''
   /** 自定义图标规则：扩展名（含点，如 .pdf）→ 资源目录内的 svg 文件名 */
@@ -199,7 +291,7 @@ export class SftpFilePaneComponent {
   @Input() sortAsc = true
   @Input() draggable = true
   @Input() selectionInfo = ''
-  @Input() isZh = true
+  // ★ 2026-09-20 A8 审计修复：删除死输入 isZh（从未被父模板传入，模板也未使用）
   @Input() isLocal = true
   @Input() paneCustomOrder: Array<'label' | 'path' | 'back' | 'forward' | 'up' | 'refresh' | 'home' | 'filter' | 'bookmark' | 'hidden'> = ['label', 'back', 'forward', 'up', 'refresh', 'home', 'path', 'hidden', 'filter', 'bookmark']
   /** 被隐藏的工具栏项（设置页定制工具栏中取消勾选的项） */
@@ -209,6 +301,14 @@ export class SftpFilePaneComponent {
   @Input() colHeaderLabelFn: (col: string) => string = (c) => c
   @Input() colValueFn: (col: string, e: any) => string = () => ''
   @Input() isSelectedFn: (e: any) => boolean = () => false
+  /**
+   * ★ 2026-09-29：方向键**焦点键**（父组件 navFocusKey(pane) 传入）。
+   * 条目行 = fullPath；分组头行 = NAV_HEADER_KEY_PREFIX + bucketKey；null / '' = 无键盘焦点。
+   * 命中哪一行，哪一行就带 .nav-focus（键盘游标）——与「选中」(.selected) 是两套语义：
+   * 选中 = 该条目已入选（可能有多行同时亮）；游标 = ↑/↓ 当前停在哪一行（全列表至多一行）。
+   * 单条目分组必须有游标，否则「停在表头」与「停在唯一那条文件上」屏幕完全一样。
+   */
+  @Input() navFocusKey: string | null = null
   @Input() sortArrowFn: (col: string) => string = () => ''
   @Input() trackByFn: (index: number, e: any) => any = (i) => i
   /** 父组件正在拖拽调整的列名（用于高亮表头与分隔线） */
@@ -244,6 +344,9 @@ export class SftpFilePaneComponent {
   private _refreshValidIconFiles(): Set<string> {
     const dir = this.effectiveIconBaseDir
     if (this._validIconFiles && this._validIconDirCache === dir) return this._validIconFiles
+    // ★ 2026-09-21 P2：目录变了，按旧目录算出的图标 URL 全部失效（兜住数组 Input
+    //   被原地修改、ngOnChanges 不触发的情况）。清在赋值之前，调用方随后写回的是新值。
+    this._clearIconMemo()
     const set = new Set<string>()
     if (dir) {
       try {
@@ -263,7 +366,23 @@ export class SftpFilePaneComponent {
     return this._refreshValidIconFiles().has(svg)
   }
 
+  /**
+   * ★ 2026-09-21 P2 修复：图标 URL 按扩展名 memo。
+   * 数据列早已用 _cells 预计算，图标列却还在模板里按行调用 —— 每轮变更检测（传输进度
+   * tick、ResizeObserver 布局刷新都会触发）都要为每一行重跑规则匹配链。
+   * 结果只取决于扩展名与图标相关 Input，因此按 ext 缓存；Input 变化时在 ngOnChanges 清空。
+   */
+  private _iconSrcMemo = new Map<string, string | null>()
+  private _folderIconMemo: { v: string | null } | null = null
+
+  private _clearIconMemo(): void {
+    this._iconSrcMemo.clear()
+    this._folderIconMemo = null
+  }
+
   iconSrc(e: any): string | null {
+    // ★ 2026-09-20 P0-1 审计修复：无图标配置时提前短路，避免无谓走完整匹配链（含 readdirSync 缓存查询）
+    if (!this.bundledIconDir && !this.iconBaseDir) return null
     if (!e || e.isDirectory) return null
     const name: string = e.name || ''
     // ★ 2026-09-08 issue #16：Windows .lnk 快捷方式文件名后缀是 .lnk，需改用 linkTarget 的扩展名去匹配目标类型图标
@@ -273,6 +392,15 @@ export class SftpFilePaneComponent {
     // ★ 2026-08-25 修复：不再对无扩展名文件提前返回 null——应让其走到步骤3 default.svg 兜底，统一显示彩色 SVG 而非回退 emoji
     const ext = (dot > 0) ? iconName.slice(dot).toLowerCase() : ''
 
+    const memoHit = this._iconSrcMemo.get(ext)
+    if (memoHit !== undefined) return memoHit
+    const resolved = this._resolveIconSrcForExt(ext)
+    this._iconSrcMemo.set(ext, resolved)
+    return resolved
+  }
+
+  /** 按扩展名解析图标 URL（iconSrc 的实际匹配链，结果由 _iconSrcMemo 缓存） */
+  private _resolveIconSrcForExt(ext: string): string | null {
     // 1) 用户自定义规则（最高优先级）；svg 必须真实存在于图标目录（缓存校验），否则跳过以避免 404
     if (ext && this.fileTypeIcons && this.fileTypeIcons.length) {
       const validSet = this._refreshValidIconFiles()
@@ -306,6 +434,18 @@ export class SftpFilePaneComponent {
    * 文件夹图标 URL：folderIconSvg 优先（指向有效目录且文件真实存在且未禁用），否则返回 null（模板回退 📁）
    */
   folderIconSrc(): string | null {
+    if (this._folderIconMemo) return this._folderIconMemo.v
+    const v = this._computeFolderIconSrc()
+    this._folderIconMemo = { v }
+    return v
+  }
+
+  /** 模板用：与行无关，缓存后每轮 CD 只读字段（原先每个目录行都要调 2 次方法） */
+  get folderIcon(): string | null {
+    return this.folderIconSrc()
+  }
+
+  private _computeFolderIconSrc(): string | null {
     const svg = (this.folderIconSvg || '').trim()
     if (!svg || this.disabledIconSvgs.includes(svg)) return null
     if (!this.svgFileExists(svg)) return null
@@ -328,6 +468,8 @@ export class SftpFilePaneComponent {
   @Output() listMouseDown = new EventEmitter<MouseEvent>()
   @Output() listMouseEnter = new EventEmitter<void>()
   @Output() listScroll = new EventEmitter<void>()
+  /** ★ 2026-09-29：列表滚轮事件（面板侧据此实现「滚轮上滚/下滚」类面板快捷键） */
+  @Output() listWheel = new EventEmitter<WheelEvent>()
   @Output() listClick = new EventEmitter<MouseEvent>()
   @Output() listContextMenu = new EventEmitter<MouseEvent>()
   @Output() headerContextMenu = new EventEmitter<MouseEvent>()
@@ -341,6 +483,10 @@ export class SftpFilePaneComponent {
   @Output() entryDragStart = new EventEmitter<{ entry: any; event: DragEvent }>()
   @Output() entryDragEnd = new EventEmitter<void>()
   @Output() toggleBookmarks = new EventEmitter<MouseEvent>()
+  /** ★ 2026-09-28：分组表头行箭头点击（收/展该分组，参数=分组 key） */
+  @Output() groupToggle = new EventEmitter<string>()
+  /** ★ 2026-09-28：分组表头行其余区域点击（全选该分组下条目，参数=分组 key） */
+  @Output() groupSelect = new EventEmitter<string>()
 
   @Input() i18n!: SftpI18nService
 
@@ -406,7 +552,7 @@ export class SftpFilePaneComponent {
    * 创建人：DD1024z + Hy3
    * 创建时间：2026-07-23
    */
-  labels = { filter: '', filterApply: '', filterClear: '', noSession: '', name: '', errorAccess: '', noMatch: '', empty: '' }
+  labels = { filter: '', filterApply: '', filterClear: '', noSession: '', name: '', errorAccess: '', noMatch: '', empty: '', groupExpand: '', groupCollapse: '' }
   private _toolbarTitles: Record<string, string> = {}
   colHeaderLabels: Record<string, string> = {}
 
@@ -421,6 +567,8 @@ export class SftpFilePaneComponent {
       errorAccess: t('pane.errorAccess'),
       noMatch: t('pane.noMatch'),
       empty: t('pane.empty'),
+      groupExpand: t('group.expand'),
+      groupCollapse: t('group.collapse'),
     }
     this._toolbarTitles = {
       back: t('pane.back'), forward: t('pane.forward'), up: t('pane.up'),
@@ -452,6 +600,11 @@ export class SftpFilePaneComponent {
     if (changes.iconBaseDir || changes.bundledIconDir) {
       this._validIconFiles = null
       this._validIconDirCache = ''
+    }
+    // ★ 2026-09-21 P2：图标 memo 依赖这几个 Input，任一变化都要清空
+    if (changes.iconBaseDir || changes.bundledIconDir || changes.fileTypeIcons
+      || changes.disabledIconSvgs || changes.folderIconSvg) {
+      this._clearIconMemo()
     }
   }
 
@@ -517,9 +670,54 @@ export class SftpFilePaneComponent {
 
   trackByCol = (_: number, col: string): string => col
 
+  /** ★ 2026-09-28：分组行 trackBy——表头行按 key+折叠态（折叠变化强制重建行），条目行按完整路径 */
+  trackGroupRowFn = (_: number, row: any): string => {
+    if (!row) return ''
+    return row.kind === 'header'
+      ? `h|${row.bucketKey}|${row.collapsed ? 1 : 0}`
+      : `e|${row.entry?.fullPath || ''}`
+  }
+
   colHeaderLabel(col: string): string { return this.colHeaderLabelFn(col) }
   colValue(col: string, e: any): string { return this.colValueFn(col, e) }
   isSelected(e: any): boolean { return this.isSelectedFn(e) }
+
+  /**
+   * ★ 2026-09-28：分组表头的「选中」态——模板不支持箭头函数，逻辑收进组件方法。
+   * ★ 2026-09-29（七，用户定稿）：**去掉条目数门槛**，通用规则 = 「组内有任意条目被选中即高亮」，
+   *   并给出两档强度（模板据此分别绑定 .selected / .partial）：
+   *     'all'     组内**全部**条目都在选中集 → 与条目选中同色的实底（.selected），整组连成一块；
+   *     'partial' 组内**部分**条目被选中 → 同色半透明底（.partial），表达「该组有选中内容」，
+   *               同时与组内未选中条目区分开，不会被误读成「整组已选」；
+   *     'none'    组内无选中 → 不高亮。
+   *   单条目分组只可能 all / none，故「选中唯一那条文件 → 表头实底亮」。
+   *   历史：原实现是「items.length > 1 且整组选中」的 ≥2 门槛（2026-09-29 为避免「选中唯一条目时
+   *   表头跟着亮、像选了两项」而加），随后在全选场景又放宽为「>1 项 或 列表全选」——两次都把
+   *   「表头亮」绑在条目数 / 全选这类旁证上。用户实测：全选、非全选只选部分，两种场景都认为表头该亮
+   *   → 判定依据彻底改为「组内选中比例」。（.nav-focus 键盘游标是另一套语义，见 isNavFocusedHeader。）
+   *   性能：单趟遍历组内条目计数（不选中的组也要遍历完才知道 selected === 0）；组内条目数 =
+   *   同扩展名文件数，量级远小于整个列表。模板侧两次求值各遍历一遍，如需再省可改 ngClass 单次调用。
+   */
+  groupSelState(row: any): 'all' | 'partial' | 'none' {
+    const items = row && row.kind === 'header' ? row.items : null
+    if (!items || !items.length) return 'none'
+    let selected = 0
+    for (const e of items) if (this.isSelectedFn(e)) selected++
+    if (selected === 0) return 'none'
+    return selected === items.length ? 'all' : 'partial'
+  }
+
+  /** ★ 2026-09-29：方向键游标是否停在该条目行（条目行的导航键就是 fullPath） */
+  isNavFocusedEntry(e: any): boolean {
+    return !!this.navFocusKey && !!e && this.navFocusKey === e.fullPath
+  }
+
+  /** ★ 2026-09-29：方向键游标是否停在该分组头行（导航键 = NAV_HEADER_KEY_PREFIX + bucketKey） */
+  isNavFocusedHeader(row: any): boolean {
+    return !!this.navFocusKey
+      && !!row && row.kind === 'header' && row.bucketKey != null
+      && this.navFocusKey === NAV_HEADER_KEY_PREFIX + row.bucketKey
+  }
   sortArrow(col: string): string { return this.sortArrowFn(col) }
 
   inaccessiblePrefix(e: any): string {

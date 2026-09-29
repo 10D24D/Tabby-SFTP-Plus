@@ -4,8 +4,9 @@
  *            支持 复制选中 / 复制全部 / 复制图片 / 复制地址 / 全选 / 剪切 / 粘贴。
  * 创建人：DD1024z + Hy3
  * 创建时间：2026-08-24
- * 修改人：DD1024z + Hy3
- * 修改时间：2026-08-26 — 关闭机制最终定案：overlay 模板 (click)；本组件只保留 Esc/滚轮/缩放
+ * @修改人：DD1024z + Claude Opus 5
+ * @修改时间：2026-09-21 — P2 修复：菜单坐标经视口 clamp，靠窗口右/下边缘打开时不再被裁切
+ *              2026-08-26 — 关闭机制最终定案：overlay 模板 (click)；本组件只保留 Esc/滚轮/缩放
  *              2026-08-26 — OnPush + 仅在 visible 时挂 document 监听，避免无菜单时每个
  *                            keydown/wheel 都脏检查；配合父对话框区外打开菜单消卡顿
  */
@@ -34,7 +35,7 @@ export type TextMenuAction =
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="text-ctx-menu" #menuEl *ngIf="visible"
-      [style.left]="x + 'px'" [style.top]="y + 'px'">
+      [style.left]="left + 'px'" [style.top]="top + 'px'">
       <!-- 文本模式 -->
       <ng-container *ngIf="mode === 'text'">
         <div class="tctx-item" [class.tctx-disabled]="!hasSelection"
@@ -127,15 +128,58 @@ export class SftpTextContextMenuComponent implements OnChanges, OnDestroy {
     private readonly cdr: ChangeDetectorRef,
   ) {}
 
+  /**
+   * ★ 2026-09-21 P2 修复：实际渲染坐标（经视口 clamp）。
+   * 原先直接用 clientX/clientY 定位，在窗口右/下边缘打开菜单会被裁切掉一部分项。
+   * 文件列表菜单早有 _clampMenu，这里补齐同样处理。
+   */
+  left = 0
+  top = 0
+  private _clampTimer: ReturnType<typeof setTimeout> | null = null
+
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['visible']) {
-      if (this.visible) this._attachDocListeners()
-      else this._detachDocListeners()
+      if (this._clampTimer) { clearTimeout(this._clampTimer); this._clampTimer = null }
+      if (this.visible) {
+        this.left = this.x
+        this.top = this.y
+        this._attachDocListeners()
+        // 渲染后量实际尺寸再回收到视口内（此时 *ngIf 已生成节点）
+        this.zone.runOutsideAngular(() => {
+          this._clampTimer = setTimeout(() => {
+            this._clampTimer = null
+            this._clampIntoViewport()
+          })
+        })
+      } else {
+        this._detachDocListeners()
+      }
+    } else if (changes['x'] || changes['y']) {
+      this.left = this.x
+      this.top = this.y
     }
     this.cdr.markForCheck()
   }
 
+  private _clampIntoViewport(): void {
+    const el = this.menuEl?.nativeElement
+    if (!el) return
+    const PAD = 6
+    const rect = el.getBoundingClientRect()
+    let left = this.x
+    let top = this.y
+    if (left + rect.width > window.innerWidth - PAD) left = Math.max(PAD, window.innerWidth - rect.width - PAD)
+    if (top + rect.height > window.innerHeight - PAD) top = Math.max(PAD, window.innerHeight - rect.height - PAD)
+    if (left === this.left && top === this.top) return
+    this.zone.run(() => {
+      this.left = left
+      this.top = top
+      this.cdr.markForCheck()
+    })
+  }
+
   ngOnDestroy(): void {
+    if (this._clampTimer) { clearTimeout(this._clampTimer); this._clampTimer = null }
     this._detachDocListeners()
   }
 

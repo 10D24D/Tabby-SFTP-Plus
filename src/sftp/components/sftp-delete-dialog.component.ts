@@ -1,7 +1,11 @@
 ﻿/**
  * SFTP+ 删除确认对话框（从主面板抽离）
- * 修改人：DD1024z + Hy3
- * 修改时间：2026-07-24
+ * @创建人：DD1024z + Auto(未确认底层模型)
+ * @创建时间：2026-07-07
+ * @修改人：DD1024z + Claude Opus 5
+ * @修改时间：2026-09-21 — 单项与批量删除都显示目标所在目录（此前只显示文件名，
+ *              选择残留跨目录时用户无法判断删的是哪个目录下的文件）
+ *              2026-09-21 — visible 切换时清理过期焦点定时器，避免隐藏对话框抢焦点
  */
 import { Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, Output, SimpleChanges, ViewChild } from '@angular/core'
 
@@ -22,6 +26,13 @@ import { SftpI18nService } from '../../services/sftp-i18n.service'
             <span class="delete-title">{{ i18n.t('app.deleteMultiple') }}</span>
           </div>
           <div class="delete-text">{{ batchText }}</div>
+          <!-- 批量删除也必须显示所在目录：仅靠「共 N 项」无法判断删的是哪个目录下的文件 -->
+          <div class="delete-preview" *ngIf="location">
+            <div class="delete-preview-row">
+              <span class="delete-preview-label">{{ i18n.t('file.location') }}:</span>
+              <span class="delete-preview-value delete-preview-path">{{ location }}</span>
+            </div>
+          </div>
         </ng-container>
         <ng-template #singleDelete>
           <div class="delete-header">
@@ -53,6 +64,10 @@ import { SftpI18nService } from '../../services/sftp-i18n.service'
                 </svg>
               </span>
               <span class="delete-preview-name">{{ name }}</span>
+            </div>
+            <div class="delete-preview-row" *ngIf="location">
+              <span class="delete-preview-label">{{ i18n.t('file.location') }}:</span>
+              <span class="delete-preview-value delete-preview-path">{{ location }}</span>
             </div>
             <div class="delete-preview-row" *ngIf="!isDir">
               <span class="delete-preview-label">{{ i18n.t('file.type') }}:</span>
@@ -117,6 +132,8 @@ import { SftpI18nService } from '../../services/sftp-i18n.service'
     .delete-preview-name { font-weight: 500; color: var(--_text); }
     .delete-preview-label { color: var(--_text); opacity: 0.5; min-width: 60px; }
     .delete-preview-value { color: var(--_text); }
+    /* 长路径折行显示，不挤压对话框宽度 */
+    .delete-preview-path { word-break: break-all; }
     .dialog-buttons { display: flex; justify-content: flex-end; gap: 8px; padding-top: 10px; }
     .dialog-buttons button {
       padding: 4px 12px; border-radius: 6px;
@@ -139,6 +156,8 @@ export class SftpDeleteDialogComponent implements OnChanges, OnDestroy {
   @Input() batchText = ''
   @Input() isDir = false
   @Input() name = ''
+  /** 目标所在目录（单项与批量共用） */
+  @Input() location = ''
   @Input() type = ''
   @Input() size: string | null = null
   @Input() date = ''
@@ -156,11 +175,17 @@ export class SftpDeleteDialogComponent implements OnChanges, OnDestroy {
   // ★ 修复：对话框显示时把焦点移入 overlay（tabindex=-1 可聚焦但不进入 Tab 序列），
   //   确保回车/Esc 的 keydown 能落到 overlay 的 onKeyDown（此前 overlay 不可聚焦、焦点在面板外，回车无法确认）
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['visible'] && this.visible) {
-      this._focusTimer = setTimeout(() => {
+    if (changes['visible']) {
+      if (this._focusTimer) {
+        clearTimeout(this._focusTimer)
         this._focusTimer = null
-        this.overlayEl?.nativeElement?.focus()
-      })
+      }
+      if (this.visible) {
+        this._focusTimer = setTimeout(() => {
+          this._focusTimer = null
+          this.overlayEl?.nativeElement?.focus()
+        })
+      }
     }
   }
 

@@ -2,8 +2,10 @@
  * 功能描述：SFTP+ file-utils 逻辑聚合模块（由旧 core 多文件合并）
  * 创建人：DD1024z + Hy3
  * 创建时间：2026-07-16
- * 修改人：DD1024z + Composer
- * 修改时间：2026-09-17 — 可查看/编辑扩展名统一白名单；allowViewAllAsText；空格分隔与 .ext/ext 兼容
+ * 修改人：DD1024z + Kimi-K3
+ * 修改时间：2026-09-21 — 第六轮审计修复：formatSize 对负值「大小未知」哨兵返回空串（不显示 "-1 B"）
+ *              2026-09-20 — issue #23：查看器改虚拟滚动，移除 VIEW_TEXT_RENDER_MAX_CHARS 截断常量
+ *              2026-09-17 — 可查看/编辑扩展名统一白名单；allowViewAllAsText；空格分隔与 .ext/ext 兼容
  * 合并来源：file-type-utils, panel-list-utils, panel-format
  */
 
@@ -63,7 +65,7 @@ const IMAGE_MIME: Record<string, string> = {
   svg: 'image/svg+xml',
 }
 
-/** 文本查看上限（字节） */
+/** 文本查看上限（字节）：允许下载/解码到内存的上限 */
 export const VIEW_TEXT_MAX_BYTES = 2 * 1024 * 1024
 /** 图片查看上限（字节） */
 export const VIEW_IMAGE_MAX_BYTES = 15 * 1024 * 1024
@@ -318,12 +320,24 @@ export function isUploadLikeOperation(op: TransferLogEntry['operation']): boolea
   return op === 'upload' || op === 'edit-upload'
 }
 
-export function formatSize(bytes?: number): string {
+export function formatSize(bytes?: number | bigint | string): string {
   if (bytes == null) return ''
+  // ★ BUG-9 修复：支持 BigInt，避免超大文件精度丢失
+  if (typeof bytes === 'bigint') {
+    const n = bytes
+    if (n === BigInt(0)) return '0 B'
+    const u = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
+    let v: bigint = n, i = 0
+    const k = BigInt(1024)
+    while (v >= k && i < u.length - 1) { v = v / k; i++ }
+    return `${v.toString()} ${u[i]}`
+  }
   // 强转 Number：旧 config.yaml/JSON 导入的日志 size 可能被序列化成字符串，
   // 字符串 < 1024 时 v.toFixed 会抛 TypeError，导致 *ngFor 该行渲染失败被丢弃
   const n = Number(bytes)
   if (!isFinite(n)) return ''
+  // ★ 2026-09-21：负值是「大小未知」哨兵（stat 失败的下载），不显示 "-1 B" 误导
+  if (n < 0) return ''
   if (n === 0) return '0 B'
   const u = ['B', 'KB', 'MB', 'GB', 'TB']
   let v = n, i = 0
