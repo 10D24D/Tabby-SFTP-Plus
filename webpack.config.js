@@ -5,8 +5,9 @@
  *           （原配置误用 raw-loader 但未安装，属隐藏债；2026-07-11 抽模板时发现并改为 webpack5 内置 asset/source，零新依赖）
  * 创建人：DD1024z + Claude
  * 创建时间：2026-06-21
- * 修改人：DD1024z + Hy3
- * 修改时间：2026-07-11
+ * 修改人：DD1024z + Deepseek-V4.1-Flash
+ * 修改时间：2026-09-29 — 构建模式默认改为 production（原默认 development，而 npm run build 未设 NODE_ENV，
+ *              导致发布产物长期是未压缩的开发模式，index.js 体积偏大）；需开发构建时设 NODE_ENV=development
  */
 
 const path = require('path')
@@ -17,7 +18,8 @@ module.exports = {
   entry: 'src/index.ts',
   devtool: 'source-map',
   context: __dirname,
-  mode: process.env.NODE_ENV === 'production' ? 'production' : 'development',
+  // ★ 2026-09-29：默认 production（压缩 + 去开发期运行时，发布更小）；需开发构建时设 NODE_ENV=development
+  mode: process.env.NODE_ENV === 'development' ? 'development' : 'production',
   output: {
     path: path.resolve(__dirname, 'dist'),
     filename: 'index.js',
