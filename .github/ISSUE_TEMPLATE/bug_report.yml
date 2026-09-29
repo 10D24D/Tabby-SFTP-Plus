@@ -1,6 +1,6 @@
 # 创建人: DD1024z + Composer; 创建时间: 2026-09-18
-# 修改人: DD1024z + Hy3; 修改时间: 2026-09-24 — 新增 tabby_frontend / installed_plugins 两个可选字段，
-#   供插件「意见反馈」入口经 URL query 参数（按字段 id）自动预填
+# 修改人: DD1024z + Deepseek-V4.1-Flash; 修改时间: 2026-09-29 — 「复现步骤」与「实际现象」合并为一个
+#   字段（id: steps_actual），表单只保留「期望结果」；字段 id 变更须同步 bug_report_en.yml
 name: 缺陷报告
 description: 报告 Bug（请尽量填全环境与复现步骤）
 title: "[Bug]: "
@@ -58,22 +58,16 @@ body:
       required: false
 
   - type: textarea
-    id: steps
+    id: steps_actual
     attributes:
-      label: 复现步骤
-      description: 你做了哪些操作后出现问题？
+      label: 复现步骤与实际现象
+      description: 你做了哪些操作，以及现在实际发生了什么？（可贴报错文案、截图说明）
       placeholder: |
         1. 打开……
         2. 点击……
         3. 输入……
-    validations:
-      required: true
 
-  - type: textarea
-    id: actual
-    attributes:
-      label: 实际现象
-      description: 现在发生了什么？（可贴报错文案、截图说明）
+        结果：……
     validations:
       required: true
 

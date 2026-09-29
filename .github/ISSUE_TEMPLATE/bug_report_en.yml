@@ -1,9 +1,11 @@
 # 创建人: DD1024z + Hy3; 创建时间: 2026-09-24
+# 修改人: DD1024z + Deepseek-V4.1-Flash; 修改时间: 2026-09-29 — 与 bug_report.yml 同步，把
+#   「Steps to reproduce」与「Actual behaviour」合并为一个字段（id: steps_actual）
 #
 # 英文版缺陷报告模板（bug_report.yml 的英文对应版）
 # 用途：插件「意见反馈」入口按界面语言路由 —— 非中文语言用本模板，中文用 bug_report.yml
 # 注意：本文件与 bug_report.yml 的**字段 id 必须完全一致**（os_version / tabby_version /
-#   sftp_plus_version / tabby_frontend / installed_plugins / steps / actual / expected / logs），
+#   sftp_plus_version / tabby_frontend / installed_plugins / steps_actual / expected / logs），
 #   否则插件侧同一套 URL query 预填参数在切语言后会失效。
 name: Bug report (English)
 description: Report a bug (please fill in the environment and steps as completely as possible)
@@ -62,22 +64,16 @@ body:
       required: false
 
   - type: textarea
-    id: steps
+    id: steps_actual
     attributes:
-      label: Steps to reproduce
-      description: What did you do before the problem appeared?
+      label: Steps to reproduce & actual behaviour
+      description: What did you do, and what actually happens now? (error messages and screenshots welcome)
       placeholder: |
         1. Open ...
         2. Click ...
         3. Type ...
-    validations:
-      required: true
 
-  - type: textarea
-    id: actual
-    attributes:
-      label: Actual behaviour
-      description: What happens now? (error messages and screenshots welcome)
+        Result: ...
     validations:
       required: true
 
