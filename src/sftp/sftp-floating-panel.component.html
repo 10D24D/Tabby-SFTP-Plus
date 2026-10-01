@@ -115,7 +115,13 @@
               <rect x="6.5" y="6.5" width="7" height="7" rx="1"/>
             </svg>
           </button>
-          <button class="btn-close" (click)="close()">✕</button>
+          <!-- ★ 2026-09-30：mousedown 时 preventDefault —— 不让 ✕ 拿到键盘焦点。
+               成因：Chrome 对未 preventDefault 的 mousedown 一律把焦点交给按钮，而按钮一旦获得焦点
+               就会在盒子外侧画出聚焦环（顶栏 ✕ 位于最右侧、上沿与 .sftp-main 的裁切边界重合，
+               那圈环的上边会被削平，用户实测「按下后浮出蓝环、拖开仍残留、且没有封顶」）。
+               preventDefault 不影响 click（鼠标在按钮内抬起时 click 照常触发），也不影响事件冒泡到
+               .top-bar 的拖拽处理（该处理本就会对 button 提前 return）。 -->
+          <button class="btn-close" (mousedown)="$event.preventDefault()" (click)="close()">✕</button>
         </div>
       </div>
 

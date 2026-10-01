@@ -4,7 +4,13 @@
  * @创建人：DD1024z + Auto(未确认底层模型)
  * @创建时间：2026-07-07
  * @修改人：DD1024z + Deepseek-V4.1-Flash
- * @修改时间：2026-09-29 — ★ issue #25（心跳恢复 / 目录刷新反复失败、日志噪声）：
+ * @修改时间：2026-09-30 — ★ 心跳探针改走**底层 russh stat**（绕开宿主包装层）：
+ *              现象：空闲时 Tabby 的 `log.txt` 每 10s 多一条 `debug: stat`（用户问「这行是不是
+ *              你的、能不能去掉」）；采样 60s 精确 +7、期间零操作零我们自己的日志 ⇒ 确认触发者
+ *              就是本文件的探针，而那行日志是宿主 `SFTPSession.stat` 代打的（每个调用者都会打）。
+ *              修法：探针直接调底层客户端 —— **语义/频率/判死逻辑全部不变**，只是不再经过会打
+ *              日志的包装层；回退链保持「底层 stat → 包装层 stat → 包装层 readdir」。
+ *              历史：2026-09-29 ★ issue #25（心跳恢复 / 目录刷新反复失败、日志噪声）：
  *              ① 新增 `recoverChannelForListing()`：目录刷新撞上「通道已死」错误时**静默重建
  *                 子通道并重试一次**（不弹通知、不中断在途传输），不再每刷一次就刷一条 error；
  *              ② 心跳恢复成功后**不再无条件弹提示**——只有在途传输真的被中断才提示用户重试；
@@ -21,7 +27,7 @@
 import { ChangeDetectorRef, NgZone } from '@angular/core'
 import { NotificationsService } from 'tabby-core'
 
-import { SftpConnectionService, SFTPSessionLike, SSHSessionLike } from '../../services/sftp.service'
+import { SftpConnectionService, SFTPSessionLike, SSHSessionLike, getRusshSftp } from '../../services/sftp.service'
 import { SftpI18nService } from '../../services/sftp-i18n.service'
 import { getTransferProgressAgeMs } from '../core/transfer-progress'
 
@@ -436,13 +442,32 @@ export class PanelConnectionLifecycle {
         )
       })
 
-      const probe = typeof sftp.stat === 'function'
-        ? sftp.stat(probePath).then(() => {
-          if (timeoutId !== undefined) clearTimeout(timeoutId)
-        })
-        : sftp.readdir(probePath).then(() => {
-          if (timeoutId !== undefined) clearTimeout(timeoutId)
-        })
+      // ★ 2026-09-30：探测改走**底层 russh 客户端**，绕开宿主包装层。
+      //   为什么：宿主 `SFTPSession.stat` 第一行就是 `this.logger.debug('stat', p)`（`tabby-ssh/
+      //   dist/index.js:5329`）—— **每个调用者都会打这行，包括我们**。于是空闲时 Tabby 的
+      //   `log.txt` 每 10s 多一条 `debug: stat`（实测采样 60s 精确 +7、期间零操作零我们的日志），
+      //   看起来像「宿主的噪声」，实则是本探针触发的。宿主 `constructor(sftp, injector){ this.sftp = sftp }`
+      //   （dist:5307）⇒ TS 的 `private` 在运行时只是普通实例属性，`getRusshSftp()` 稳定可解。
+      //   为什么安全：探针只判「这次往返成没成」，返回值**恒丢弃**，不依赖包装层的类型映射 /
+      //   错误归一化 ⇒ 直接用底层客户端**语义等价**，只是不再经过会打日志的那层。
+      //   频率（10s）、超时（6s）、连击判死、退避全都不变。
+      //   回退链与改动前一致：底层 `stat` → 包装层 `stat` → 包装层 `readdir`（缺哪级用哪级）。
+      //   构造期同步抛错（napi 客户端已关等）也当作「本次探测失败」，交由下方 catch 累计连击。
+      const clearProbeTimeout = (): void => {
+        if (timeoutId !== undefined) clearTimeout(timeoutId)
+      }
+      const buildProbe = (): Promise<unknown> => {
+        const raw = getRusshSftp(sftp)
+        if (raw?.stat) return Promise.resolve(raw.stat(probePath)).then(clearProbeTimeout)
+        if (typeof sftp.stat === 'function') return Promise.resolve(sftp.stat(probePath)).then(clearProbeTimeout)
+        return Promise.resolve(sftp.readdir(probePath)).then(clearProbeTimeout)
+      }
+      let probe: Promise<unknown>
+      try {
+        probe = buildProbe()
+      } catch {
+        probe = Promise.reject(new Error('heartbeat-probe-construct-failed'))
+      }
 
       this._heartbeatProbeInFlight = true
       Promise.race([probe, timeoutPromise]).then(() => {

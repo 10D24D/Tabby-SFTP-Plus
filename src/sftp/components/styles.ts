@@ -1,6 +1,30 @@
 /** SFTP+ 面板样式（合并自 panel-main-styles + file-dialog-shared-styles）
  * 修改人：DD1024z + Deepseek-V4.1-Flash
- * 修改时间：2026-09-29 — ⑨ 自绘光标 .file-dialog-vs-caret 支持三种形状：宽高与竖直位置改由组件按形状
+ * 修改时间：2026-09-30 — ⑬ 顶栏 ✕ 的「蓝色光圈」根治，三处并改：
+ *                 ① 模板给 .btn-close 加 mousedown preventDefault —— 鼠标点按不再让按钮获得焦点
+ *                 （焦点正是那个环的成因：它是聚焦态画的、松开鼠标后仍残留），click 行为不变；
+ *                 ② 图标按钮的聚焦态收口由 :focus / :focus-visible 扩到 :active，并补
+ *                 box-shadow:none !important 与 -webkit-tap-highlight-color:transparent
+ *                 （堵住非 outline 机制的聚焦环）；
+ *                 ③ .sftp-main 改 overflow:clip + overflow-clip-margin:4px —— 聚焦环画在按钮盒
+ *                 外侧 3~4px，而 .sftp-main 的裁切边界正好压在顶栏上沿，导致环的**上边被削平**。
+ *                 现象（用户实测）：按下 ✕ 后外圈浮出一圈蓝环、长按后拖开仍残留，且环没有封顶。
+ *              ⑫ 顶栏窄面板抗挤压：.title 锁定不收缩（flex-shrink:0 + nowrap）、
+ *                 .host-info 改「唯一可压缩项 + 省略号」（flex:0 1 auto / min-width:0 /
+ *                 overflow:hidden / text-overflow:ellipsis / white-space:nowrap），.top-actions
+ *                 与 .disconnect-indicator 维持 flex-shrink:0。现象：面板拖到最小时顶栏溢出右缘，
+ *                 最大化按钮只剩一半、关闭按钮完全不见（实测 ≈374 CSS px 面板需 ≈410 px）。
+ *              ⑪ 工具栏图标按钮禁用浏览器原生聚焦环（.pane-toolbar-btn / .filter-btn 的
+ *                 :focus / :focus-visible → outline:none !important）：点击按钮后再按方向键会触发
+ *                 Chromium 的 :focus-visible，画出 2px 强调色（#E59700）圆角环，非本项目样式、很突兀。
+ *              ⑩ 分组头行宽度对齐（缺口根治）：.entry.group-row 由 display:flex 改回 grid
+ *                 （列模板由 file-pane 的 [style.gridTemplateColumns]="colWidths" 绑定，与条目行同一份），
+ *                 padding 由 0 8px 0 2px 改为 0 8px、不再声明 gap（继承 .entry 的 4px），
+ *                 内容收进新的 .group-inner（跨全部列 + margin-left:-6px 让箭头仍贴行首）。
+ *                 根因与取舍详见块内注释：条目行 width:max-content 会随列宽合计溢出面板内容宽，
+ *                 分组头没有列模板时宽度只剩 min-width:100%，两者相差「列宽合计 − 面板内容宽」，
+ *                 整组选中时分组头右上角露出缺口（用户实测：远程面板显形，本地面板加宽列 5px 同样显形）。
+ *              2026-09-29 — ⑨ 自绘光标 .file-dialog-vs-caret 支持三种形状：宽高与竖直位置改由组件按形状
  *                 内联给出（CSS 里的 2×18 只剩兜底作用），并新增 .is-block（mix-blend-mode:difference
  *                 —— 方块光标要的是终端那种**反色**效果，直接铺实心色会把字符盖掉）
  *              ⑧ 链接角标 .link-badge 上移 2px（bottom -1px 改 1px）：用户截图反馈
@@ -170,7 +194,15 @@ export const SFTP_PANEL_STYLES = `
       display: flex;
       flex-direction: column;
       gap: 6px;
+      /* ★ 2026-09-30（⑬）：裁切区域外扩 4px —— 让顶栏按钮的聚焦环有地方画。
+         现象：顶栏 ✕ 聚焦时浮出的圆角环画在按钮盒外侧 3~4px，而 .sftp-main 的 padding box
+         上沿正好压在按钮上沿（顶栏是它的第一个子元素、padding-top 为 0）⇒ 环的**上边被削平**，
+         呈现「没有封顶的光圈」（用户实测）。overflow:clip + overflow-clip-margin 既保住裁切
+         （外扩 4px 仍落在 .sftp-root 的 8px 内边距之内，不会漏出面板底色），又给聚焦环留出空间。
+         不支持 clip 的老内核自然回退到上一行的 overflow:hidden（= 改动前的行为）。 */
       overflow: hidden;
+      overflow: clip;
+      overflow-clip-margin: 4px;
     }
     /* 浮层容器：绝对定位，不参与 flex 布局，避免撑开双栏 */
     .sftp-root .sftp-overlays {
@@ -226,8 +258,18 @@ export const SFTP_PANEL_STYLES = `
       flex-shrink: 0;
       border-bottom: 1px solid var(--_border);
     }
-    .sftp-root .title { font-weight: 700; color: var(--_primary); font-size: 1.15em; }
-    .sftp-root .host-info { font-size: 0.92em; opacity: 0.6; margin-left: 4px; flex-shrink: 0; }
+    .sftp-root .title { font-weight: 700; color: var(--_primary); font-size: 1.15em; flex-shrink: 0; white-space: nowrap; }
+    /* ★ 2026-09-30：.host-info 是顶栏里唯一「内容长度不可控」的元素（user@host，长域名 30+ 字符）。
+       原先 flex-shrink:0 ⇒ 面板变窄时它一分不让，而右侧 .top-actions 也无法收缩
+       （7 个 28px 按钮 + 6 个 2px gap = 208px）⇒ 顶栏整体溢出面板右缘被裁掉，
+       最后两个按钮（最大化 / 关闭）直接消失（用户实测：窄面板下 ✕ 完全不见、最大化只剩一半）。
+       改为「唯一可压缩项 + 省略号」：先牺牲主机名文字，按钮永不被裁。
+       配套：最小宽度已抬到 420px（见 sftp-floating-panel.component.ts 的 _geomMinW）。 */
+    .sftp-root .host-info {
+      font-size: 0.92em; opacity: 0.6; margin-left: 4px;
+      flex: 0 1 auto; min-width: 0; overflow: hidden;
+      text-overflow: ellipsis; white-space: nowrap;
+    }
     /* 断开连接指示器 - 嵌入标题栏 */
     .sftp-root .disconnect-indicator {
       display: inline-flex; align-items: center; gap: 6px;
@@ -533,6 +575,43 @@ export const SFTP_PANEL_STYLES = `
       background: var(--_hover);
       color: var(--_primary);
     }
+    /* ★ 2026-09-30：面板上的图标按钮一律禁用浏览器原生聚焦环 —— 覆盖「面板顶栏」与「两侧面板工具栏」两排：
+         顶栏 .top-actions button（路径模式/布局/传输日志/设置/最小化/最大化）、.btn-close、.reconnect-btn；
+         两侧工具栏 .pane-toolbar-btn（‹ › ↑ ⟳ ⌂ ▽ ★ 👁）、过滤行 .filter-btn。
+       现象：点击任意这类按钮后，再按一下方向键，按钮外圈就冒出一圈 2px 主色圆角环，很突兀
+             （用户实测：纯点击不出现，点击后再按键才出现）。
+       成因：这是 Chromium 的 :focus-visible —— 鼠标点击时原本不算「键盘交互」故不画环，
+             但只要之后按任意键就重新判定、立刻把环画出来；环色取 UA 的 -webkit-focus-ring-color，
+             本主题下解析为强调色 #E59700（非本项目样式，宿主 asar 内亦无对应规则：
+             实测环是 26px 按钮盒外侧的 2px outline + 1px 白色对比边）。
+       这些按钮只需鼠标/程序化操作，不需要键盘焦点提示 —— 与文件内 :host / .sftp-root /
+       各输入框既有的 outline:none 收口保持一致。⚠ 刻意不写裸 button：对话框按钮的键盘焦点提示要留着。
+       ★ 2026-09-30（⑬ 追加）：**鼠标按下同样会聚焦按钮**（Chrome 对未 preventDefault 的 mousedown
+         一律把焦点交给按钮）⇒ 顶栏 ✕ 上也会浮出这圈环，而且因为它位于顶栏最右侧、上沿与
+         .sftp-main 裁切边界重合，「环的上边被削平」。双重收口：
+         ① 顶栏 ✕ 改为 mousedown 时 preventDefault（不再获得焦点，点按仍正常触发 click，见模板注释）；
+         ② 本组再补 box-shadow:none !important 与 :active —— 实测本机 UA 的 :focus-visible 环是
+            3px 白色 outline（用户机器上呈蓝色，颜色随平台/主题派生），但宿主与平台差异下
+            不排除有非 outline 机制的聚焦环（如 box-shadow），一并堵死。 */
+    .sftp-root .pane-toolbar-btn:focus,
+    .sftp-root .pane-toolbar-btn:focus-visible,
+    .sftp-root .pane-toolbar-btn:active,
+    .sftp-root .filter-btn:focus,
+    .sftp-root .filter-btn:focus-visible,
+    .sftp-root .filter-btn:active,
+    .sftp-root .top-actions button:focus,
+    .sftp-root .top-actions button:focus-visible,
+    .sftp-root .top-actions button:active,
+    .sftp-root .btn-close:focus,
+    .sftp-root .btn-close:focus-visible,
+    .sftp-root .btn-close:active,
+    .sftp-root .reconnect-btn:focus,
+    .sftp-root .reconnect-btn:focus-visible,
+    .sftp-root .reconnect-btn:active {
+      outline: none !important;
+      box-shadow: none !important;
+      -webkit-tap-highlight-color: transparent;
+    }
     .sftp-root .pane-actions button {
       padding: 2px 5px; border-radius: 4px;
       border: none;
@@ -743,24 +822,47 @@ export const SFTP_PANEL_STYLES = `
        但需覆写真表头的 sticky/边框/配色——分组头是普通行内分隔，不吸附、不高亮 */
     /* ★ 2026-09-28（二次调整）：分组表头行去背景色——用户「不需要背景色会更好看」，
        仅保留字重区分；但保留 hover 轻高亮（见下方 :hover 规则） */
+    /* ★ 2026-09-30（缺口根治）：分组头行必须与条目行「同列模板 + 同盒模型」。
+       根因：条目行是 grid，列模板由父级 colWidths 绑定，width:max-content ⇒ 列宽合计超过面板内容宽时
+       会向右溢出（有意为之：整行底色/边框要盖住横向滚动区）；而分组头行此前固定 display:flex
+       且 grid-template-columns:none ⇒ 没有列模板、max-content 只剩箭头+名称那几个字宽，
+       宽度退化到 min-width:100%（= 面板内容宽）⇒ 两者相差「列宽合计 − 面板内容宽」那一截，
+       整组选中时分组头右上角就露出一个缺口。用户实测：远程面板（列更宽）明显；本地面板把列加宽到
+       溢出 5px 后同样显形 —— 与「是否显示某列」无关，只取决于列宽合计有没有超出面板。
+       修法：分组头也用父级绑定的同一份列模板（grid，见 file-pane 模板的 [style.gridTemplateColumns]），
+       内容统一收进 .group-inner 做 flex 紧凑排列 ⇒ 宽度与条目行逐像素一致，视觉完全不变。
+       ⚠ 下面 padding 必须保留 shorthand 形态：一是要与条目行的 0 8px 逐字一致（max-content 含行内边距，
+       差 1px 缺口就回来），二是要压掉 .entry.header 的 padding-top:6px + border-bottom ——
+       分组头自身竖直内边距必须为 0（行高 = 子 span 的 3px + 行框），否则会比内容行高约 4px，
+       出现「分组头↔内容」间距永远大于「内容↔内容」的忽大忽小观感（2026-09-29 四次根治的结论）。
+       ⚠ 同理不能在此声明 gap —— 条目行用的是 .entry 的 gap:4px，分组头跟着继承才不会差宽度。 */
     .sftp-root .entry.group-row {
-      display: flex;
-      grid-template-columns: none;
+      display: grid;
       position: static;
       z-index: auto;
       border-bottom: none;
       background: transparent;
       font-weight: 600;
-      /* ★ 2026-09-29：收紧箭头与名称间距，让分组名称贴到图标列，消除"被缩进"观感 */
-      gap: 2px;
-      /* ★ 2026-09-29（四次根治）：分组头自身的竖直内边距必须为 0。
-         根因：内容行盒模型 = 自身竖直 padding 0 + 子 span 的 3px 竖直内边距；
-         分组头原先在子 span 的 3px 之外又加了自身 2px+2px，导致比内容行高约 4px，
-         使「分组头↔内容」的行距永远大于「内容↔内容」，视觉上忽大忽小。
-         去掉自身竖直 padding 后，分组头与内容行等高，全列表行距完全一致。
-         水平内边距保留：左 2px（箭头贴行首）、右 8px（与条目一致） */
-      padding: 0 8px 0 2px;
+      padding: 0 8px;
       cursor: pointer;
+    }
+    /* 分组头内容层：跨全部列 + 内部 flex 紧凑排列（等价于旧的「箭头 / 名称 / 计数」三个直接子元素）
+       ★ 2026-09-29：箭头与名称间距收到 2px，让分组名称贴到图标列，消除"被缩进"观感
+       ★ 2026-09-29（五次）：与内容行子 span 的 3px 竖直内边距对齐，使分组头与内容行等高
+       ★ 2026-09-30：margin-left:-6px 抵消行内左边距（padding 8px）中的 6px，使箭头仍落在行首 2px 处
+       —— 负外边距不影响行宽（列模板全是固定 px，max-content 与子项无关），只挪内容起点；
+       min-width:0 同样是为了「不被内容撑宽」，否则长分组名会把分组头撑得比条目行还宽。 */
+    .sftp-root .entry.group-row > .group-inner {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      margin-left: -6px;
+      padding: 3px 0;
+      min-width: 0;
+      contain: none;
+      overflow: visible;
+      text-overflow: clip;
     }
     /* ★ 2026-09-29：分组头 hover——与文件条目一致的主色轻高亮；文字改回正文色保证对比度 */
     .sftp-root .entry.group-row:hover:not(.selected) {
@@ -782,14 +884,8 @@ export const SFTP_PANEL_STYLES = `
     .sftp-root.has-zebra .pane-list.has-groups .entry:not(.header):nth-child(even):hover {
       background: color-mix(in srgb, var(--_primary) 57%, transparent);
     }
-    .sftp-root .entry.group-row > span {
-      /* ★ 2026-09-29（五次）：与内容行子 span 的 3px 竖直内边距对齐（原为 2px，会让分组头比内容行矮 2px），
-         使分组头与内容行等高 */
-      padding: 3px 0;
-      contain: none;
-      overflow: visible;
-      text-overflow: clip;
-    }
+    /* ★ 2026-09-29（五次）的分组头子 span 规则（padding 3px 0 / contain:none / overflow:visible）
+       已于 2026-09-30 并入上方 .group-inner —— 内容层下移后，直接子元素只剩它一个。 */
     /* ★ 2026-09-29（六）：键盘游标——方向键当前**停留**的那一行（条目行 / 分组头行共用同一语义）。
        为何要独立语义：单条目分组里「游标停在表头」与「停在那唯一一条文件上」选中集完全相同，
        而表头「选中」高亮当时又被 ≥2 项门槛挡住（该门槛已于同日取消，改为 groupSelState 按选中比例判定），

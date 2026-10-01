@@ -3,8 +3,16 @@
  * 功能描述：承载列可见性/列宽/重排/自适应/表头右键菜单等逻辑与状态，供浮动面板组件继承
  * @创建人：DD1024z + Hy3
  * @创建时间：2026-07-11
- * @修改人：DD1024z + Claude Opus 5
- * @修改时间：2026-09-21 — P2 修复：列顺序加载经 _normalizeColOrder 补齐缺失列（原先只 filter，
+ * @修改人：DD1024z + Deepseek-V4.1-Flash
+ * @修改时间：2026-09-30 — ★ 列可见性 / 列顺序 / 列宽补齐「变更即落盘」（saveLocalColSettings /
+ *              saveRemoteColSettings / saveLocalColWidths / saveRemoteColWidths 末尾加 _paneFlush）。
+ *              原先这四处只写内存（_paneSet），仅靠面板销毁 / beforeunload 兜底——用户「改完列直接关
+ *              Tabby 窗口」时渲染进程随即销毁：ngOnDestroy 不执行，beforeunload 里 configService.save()
+ *              又是异步 IPC（yield platform.saveConfig），写盘不落地 ⇒ 重启后列设置回退（用户实测：
+ *              远程面板隐藏「权限」列，重启后该列又出现，config.yaml 里仍是旧值 perms:true）。
+ *              与 2026-09-20 排序的「立即 flush 防关窗丢失」同款处理；四处调用点均为低频离散动作
+ *              （表头菜单勾选 / 列拖拽 mouseup / 双击自适应），不会造成高频写盘。
+ *              2026-09-21 — P2 修复：列顺序加载经 _normalizeColOrder 补齐缺失列（原先只 filter，
  *              配置里存的是子集时缺失列会从表头彻底消失，且没有任何 UI 途径能加回来）；
  *              列宽校验改用 Number.isFinite 排除 Infinity（写进 gridTemplateColumns 会让网格失效）
  *              2026-09-21 — 表头菜单及列操作统一走销毁安全的视图刷新入口；
@@ -144,7 +152,7 @@ export abstract class SftpPanelColumnController {
   protected formatOctalMode(mode: number): string { return '' }
   protected _paneGet(key: string, def?: any): any { return def }
   protected _paneSet(key: string, val: any): void {}
-  /** 子类覆盖：将 _paneSet 写入落盘（排序等低频变更应立即 flush） */
+  /** 子类覆盖：将 _paneSet 写入落盘（排序 / 列可见性 / 列顺序 / 列宽等低频变更应立即 flush） */
   protected _paneFlush(): void {}
 
   /** 兼容：历史存 JSON 字符串，ConfigProxy/YAML 回读可能已是对象 */
@@ -337,6 +345,8 @@ export abstract class SftpPanelColumnController {
         ext: this.localShowColExt,
       }))
       this._paneSet(SftpPanelColumnController.LOCAL_COL_ORDER_KEY, JSON.stringify(this.localColOrder))
+      // ★ 2026-09-30：列可见性 / 列顺序变更立即落盘（与 2026-09-20 排序同款处理）
+      this._paneFlush()
     } catch {}
   }
 
@@ -355,6 +365,8 @@ export abstract class SftpPanelColumnController {
         ext: this.remoteShowColExt,
       }))
       this._paneSet(SftpPanelColumnController.REMOTE_COL_ORDER_KEY, JSON.stringify(this.remoteColOrder))
+      // ★ 2026-09-30：列可见性 / 列顺序变更立即落盘（与 2026-09-20 排序同款处理）
+      this._paneFlush()
     } catch {}
   }
 
@@ -714,6 +726,8 @@ export abstract class SftpPanelColumnController {
         name: w.name, size: w.size, date: w.date, created: w.created, perms: w.perms, mode: w.mode,
         access: w.access, owner: w.owner, group: w.group, path: w.path, ext: w.ext,
       }))
+      // ★ 2026-09-30：列宽变更立即落盘（拖拽 mouseup / 双击自适应都会走到这里，均为低频动作）
+      this._paneFlush()
     } catch {}
   }
 
@@ -724,6 +738,8 @@ export abstract class SftpPanelColumnController {
         name: w.name, size: w.size, date: w.date, created: w.created, perms: w.perms, mode: w.mode,
         access: w.access, owner: w.owner, group: w.group, path: w.path, ext: w.ext,
       }))
+      // ★ 2026-09-30：列宽变更立即落盘（拖拽 mouseup / 双击自适应都会走到这里，均为低频动作）
+      this._paneFlush()
     } catch {}
   }
 

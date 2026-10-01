@@ -3,8 +3,11 @@
  * 功能描述：承载书签弹窗、增删改、按连接/全局筛选、书签拖拽排序等逻辑与状态，供浮动面板组件继承
  * 创建人：DD1024z + Hy3
  * 创建时间：2026-07-11
- * 修改人：DD1024z + Composer
- * 修改时间：2026-09-21 — Tabby 多拆分窄窗：书签宽高按触发面板可用空间 clamp，避免远程半屏被固定 320×420 挤爆
+ * 修改人：DD1024z + Deepseek-V4.1-Flash
+ * 修改时间：2026-09-30 — 左右布局下本地面板书签弹层的右缘偏移量由 1px 改为 2px（远程保持 1px）：
+ *              本地面板右邻分割线，弹层右缘贴到自己面板外框内 1px 时仍压住分割线那一侧（用户实测反馈）；
+ *              同日远程书签弹层右缘偏移量由 2px 改为 1px（原先本地 -1、远程 -2，并排对比时远程比本地少贴 1px）。
+ *              2026-09-21 — Tabby 多拆分窄窗：书签宽高按触发面板可用空间 clamp，避免远程半屏被固定 320×420 挤爆
  */
 import * as path from 'path'
 import { Bookmark, SftpBookmarksService, normalizeBookmarkPath } from '../../services/sftp-bookmarks.service'
@@ -105,10 +108,14 @@ export abstract class SftpPanelBookmarkController extends SftpPanelViewerControl
     let left = btnRect.left - rootRect.left
     if (!this._isNarrowLayout && pane === 'local') {
       // 左右布局：本地书签弹层右缘贴齐本地面板右缘（遮住列表滚动条），向左展开
+      // ★ 2026-09-30：偏移量 1px → 2px。本地面板的右邻是分割线，弹层右缘落在自己面板外框内 1px 时
+      //   仍压住分割线那一侧，并排对比下肉眼可见（用户实测：「本地的还得再往左 1px」）。
+      //   远程分支保持 1px —— 远程面板右缘就是整根面板右缘，贴 1px 即对齐。
+      //   两侧各自贴合自己面板的视觉内缘，允许彼此差 1px。
       if (paneRect) {
         const paneLeft = paneRect.left - rootRect.left
         const paneRight = paneRect.right - rootRect.left
-        left = paneRight - popupW - 1
+        left = paneRight - popupW - 2
         left = Math.max(paneLeft + margin, left)
       } else {
         left = btnRect.right - rootRect.left - popupW
@@ -117,11 +124,14 @@ export abstract class SftpPanelBookmarkController extends SftpPanelViewerControl
       left = Math.max(2, Math.min(left, rootW - popupW - 2))
     } else if (!this._isNarrowLayout && pane === 'remote') {
       // 左右布局：远程书签弹层右缘贴齐远程面板右缘，向左展开，遮住文件列表滚动条
+      // ★ 2026-09-30：偏移量与本地分支统一为 1px。原先本地是 -1、远程是 -2，两侧少贴的那 1px 在并排
+      //   对比下肉眼可见（用户实测：「本地面板的书签面板右边刚好对齐，远程的没对齐，还要向右多 1px」）。
+      //   语义：弹层右缘落在面板外框内 1px 处 ⇒ 正好盖住面板自身的 1px 边框，与本地完全一致。
       const paneRight = paneRect ? (paneRect.right - rootRect.left) : rootW
       const paneLeft = paneRect ? (paneRect.left - rootRect.left) : 0
-      left = paneRight - popupW - 2
+      left = paneRight - popupW - 1
       left = Math.max(paneLeft + margin, left)
-      left = Math.max(2, Math.min(left, rootW - popupW - 2))
+      left = Math.max(2, Math.min(left, rootW - popupW - 1))
     } else {
       // 窄布局（上下）：同样贴齐触发面板右缘，宽度已按面板 clamp，避免固定 320 盖住整半屏
       if (paneRect) {

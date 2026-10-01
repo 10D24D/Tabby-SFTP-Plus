@@ -4,7 +4,13 @@
  * @创建人：DD1024z + Hy3
  * @创建时间：2026-07-29
  * @修改人：DD1024z + Deepseek-V4.1-Flash
- * @修改时间：2026-09-29 — 新增 listWheel 输出（列表滚轮事件）：面板侧据此实现「滚轮上滚/下滚」
+ * @修改时间：2026-09-30 — 分组表头行改用与条目行**同一份列模板**（[style.gridTemplateColumns]="colWidths"
+ *              + 样式侧 display:grid），内容收进新的 .group-inner 里做 flex 紧凑排列。修复用户实测的
+ *              「整组选中后分组头右上角露出一个缺口」：条目行 width:max-content 会被列宽合计撑得比
+ *              面板内容宽（有意为之——整行底色/边框要盖住横向滚动区），而分组头此前是 display:flex、
+ *              没有列模板，max-content 只剩箭头+名称那几个字宽，宽度退化到 min-width:100%，
+ *              于是两者相差「列宽合计 − 面板内容宽」那一截。见 styles.ts 同名注释 + 产物探针。
+ *              2026-09-29 — 新增 listWheel 输出（列表滚轮事件）：面板侧据此实现「滚轮上滚/下滚」
  *              类面板快捷键（录制格式 WheelUp / WheelDown）。只转发事件，不做任何拦截 ——
  *              是否吞掉滚动由面板侧按「该滚轮是否已绑到某动作」决定，未绑定时列表滚动完全不受影响。
  *              2026-09-29 — 分组表头「选中」高亮改为**通用规则**：组内有任意条目被选中即高亮，
@@ -189,15 +195,22 @@ export type PaneSortAction = { col: string }
           <ng-container *ngIf="groupRows">
             <ng-container *ngFor="let row of groupRows; trackBy: trackGroupRowFn">
               <div class="entry header group-row" *ngIf="row.kind === 'header'"
+                [style.gridTemplateColumns]="colWidths"
                 [attr.data-group-key]="row.bucketKey"
                 [class.selected]="groupSelState(row) === 'all'"
                 [class.partial]="groupSelState(row) === 'partial'"
                 [class.nav-focus]="isNavFocusedHeader(row)"
                 (click)="groupSelect.emit(row.bucketKey)">
-                <span class="group-chevron" [title]="row.collapsed ? labels.groupExpand : labels.groupCollapse"
-                  (click)="groupToggle.emit(row.bucketKey); $event.stopPropagation()">{{ row.collapsed ? '▸' : '▾' }}</span>
-                <span class="group-label" [attr.title]="row.label">{{ row.label }}</span>
-                <span class="group-count">({{ row.count }})</span>
+                <!-- ★ 2026-09-30：内容包一层 .group-inner（跨全部列后内部 flex 排列）。
+                     这一层是「宽度对齐」与「紧凑视觉」能同时成立的关键：行本身用父级绑定的
+                     同一份列模板撑宽（与条目行逐像素一致），紧凑排列交给内层 flex。
+                     详见 styles.ts 的 .entry.group-row / .group-inner 注释。 -->
+                <span class="group-inner">
+                  <span class="group-chevron" [title]="row.collapsed ? labels.groupExpand : labels.groupCollapse"
+                    (click)="groupToggle.emit(row.bucketKey); $event.stopPropagation()">{{ row.collapsed ? '▸' : '▾' }}</span>
+                  <span class="group-label" [attr.title]="row.label">{{ row.label }}</span>
+                  <span class="group-count">({{ row.count }})</span>
+                </span>
               </div>
               <div class="entry" *ngIf="row.kind === 'entry'"
                 [attr.data-path]="row.entry.fullPath"

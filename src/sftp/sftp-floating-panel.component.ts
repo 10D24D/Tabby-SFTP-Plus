@@ -5,7 +5,13 @@
  * @创建人：DD1024z + Claude
  * @创建时间：2026-06-21
  * @修改人：DD1024z + Deepseek-V4.1-Flash
- * @修改时间：2026-09-29 — ★ 查看器自绘光标改为「形状三档」：textCaretWidth(number) → textCaretShape
+ * @修改时间：2026-09-30 — ★ 最小宽度 360 → 420（_geomMinW）：顶栏「标题 + 完整 user@host +
+ *              7 个 28px 图标按钮」实测需要 ≈410px，360px 时顶栏整体溢出面板右缘被裁，
+ *              最大化按钮只剩一半、关闭按钮完全不见。配套 styles.ts 让 .host-info 先省称。
+ *              ★ auto 布局判定次序修正：过矮(tooShort) 提到「偏窄(≤_AUTO_NARROW_WIDTH)」之前。
+ *              原判定先返回上下堆叠，使 ≈895×322 这类面板两半各只剩「列头 + 计数」行、看不到数据；
+ *              改为过矮直接走左右并排。过窄且过矮仍走单栏（too-cramped）不变。
+ *              2026-09-29 — ★ 查看器自绘光标改为「形状三档」：textCaretWidth(number) → textCaretShape
  *              ('block'|'beam'|'underline')，getter 改名 + normalizeCaretShape() 归一化
  *              （配置被手工改坏时回落 beam，不抛错），模板 [caretWidth] → [caretShape]
  *              同日 — ★ 面板快捷键支持鼠标中键与滚轮上/下滚（用户：快捷键录制无法录制滚轮的点击
@@ -488,7 +494,9 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
   private _resizeDir: 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw' | null = null
   private _resizeStart = { left: 0, top: 0, w: 0, h: 0, mx: 0, my: 0 }
   private _prevGeom: { left: string; top: string; width: string; height: string; followWindow?: boolean } | null = null
-  private readonly _geomMinW = 360
+  /** 面板最小几何（px）。宽 420：顶栏「标题 + 完整 user@host + 7 个 28px 按钮」实测需要 ≈410px
+   *  （374px 时顶栏溢出面板右缘，最大化 / 关闭按钮被裁掉，见 2026-09-30 修订） */
+  private readonly _geomMinW = 420
   private readonly _geomMinH = 240
   private _onGeomMoveBound = (e: MouseEvent): void => this._onGeomMove(e)
   private _onGeomUpBound = (): void => this._onGeomUp()
@@ -1472,6 +1480,8 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
    * - horizontal + 过窄 → 上下（too-narrow）
    * - vertical + 过矮 → 左右（too-short）；若同时过窄 → 单栏（too-cramped）
    * - auto：按宽高自适应，不算「违背偏好」，不弹强制回退提示
+   *   ★ 优先级：过矮(too-short) > 偏窄(≤_AUTO_NARROW_WIDTH) —— 矮面板里上下堆叠会把两侧
+   *   列表压到看不见数据行，只有左右并排两边都留得下可滚动区域（2026-09-30 用户实测）
    */
   private _resolveEffectiveLayout(measuredW?: number, measuredH?: number): {
     split: 'horizontal' | 'vertical' | 'single'
@@ -1508,8 +1518,12 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
 
     // auto：按空间选最合适；过窄且过矮时单栏更可用
     if (tooNarrow && tooShort) return { split: 'single', reason: 'too-cramped' }
-    if (tooNarrow || w <= SftpFloatingPanel._AUTO_NARROW_WIDTH) return { split: 'vertical', reason: null }
+    // ★ 2026-09-30：过矮优先于「偏窄」。原判定把 `w <= _AUTO_NARROW_WIDTH`（960）放在过矮之前，
+    //   于是 ≈895×322 这类「略窄又过矮」的面板被短路成上下堆叠：堆叠要占两份工具栏 + 两份状态行，
+    //   竖直空间再一分为二，两侧列表各只剩「列头 + 计数」行、一条数据都看不到（用户截图实测）。
+    //   矮面板里只有左右并排能给两边都留下可滚动的数据行，故把 tooShort 提到窄判之前。
     if (tooShort) return { split: 'horizontal', reason: null }
+    if (tooNarrow || w <= SftpFloatingPanel._AUTO_NARROW_WIDTH) return { split: 'vertical', reason: null }
     return { split: 'horizontal', reason: null }
   }
 
