@@ -4,6 +4,23 @@ All notable changes to **tabby-sftp-plus** will be documented in this file.
 
 **[中文](https://github.com/10D24D/Tabby-SFTP-Plus/blob/main/CHANGELOG.md) | English**
 
+## [2.4.1] — 2026-10-01
+
+### 🐛 Fixed
+
+- **Column settings were lost when Tabby was closed right after editing** — visibility, order and column width now save to config immediately instead of only on exit (previously they reverted after a restart).
+- **Grouped views left a gap at the right edge of a group header row** — header rows now line up with file rows when the combined column width exceeds the pane.
+- **The bookmark popup's inset was reversed on one side** — the local popup overlapped the splitter and the remote one fell 1 px short, so side-by-side views did not line up; the two offsets are now swapped.
+- **The top bar overflowed at the minimum pane size** — the maximize button was half cut off and the close button disappeared entirely; the minimum width is now 420 px (was 360 px) and top-bar buttons yield first.
+- **A slightly narrow, very short pane was misdetected as stacked** — e.g. an 895×322 pane left both halves with a single row of content; "too short" is now evaluated first.
+- **A focus ring appeared after clicking an icon button and then pressing an arrow key** — the close button also kept a clipped ring after being dragged away; all focus states are now suppressed.
+- **Plugin log lines had no marker in the shared log.txt and were split apart by extra arguments** — each line now starts with `[SFTP+]`, is merged into a single line, and errors carry their location plus the first stack frame.
+- **A `debug: stat` line appeared in log.txt every 10 seconds while idle** — the heartbeat probe now goes through the lower-level channel and no longer triggers host logging.
+
+### 🔧 Build
+
+- Version bumped to **2.4.1**.
+
 ## [2.4.0] — 2026-09-29
 
 ### ✨ Added
