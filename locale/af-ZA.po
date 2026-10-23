@@ -141,6 +141,9 @@ msgstr "Laai Op"
 msgid "app.download"
 msgstr "Laai Af"
 
+msgid "app.transfer"
+msgstr "Oordra"
+
 msgid "app.newFolder"
 msgstr "Nuwe Vouer"
 
@@ -267,6 +270,9 @@ msgstr "Nee matching files"
 
 msgid "pane.empty"
 msgstr "Leë vouer"
+msgid "pane.connLost"
+msgstr "Verbinding verlore"
+
 msgid "pane.errorAccess"
 msgstr "Kan nie toegang verkry nie (toestemming geweier of pad nie gevind nie)"
 msgid "pane.loading"
@@ -277,6 +283,12 @@ msgid "path.modeRemember"
 msgstr "Padmodus: Onthou (herstel volgende keer)"
 msgid "path.modeSync"
 msgstr "Padmodus: Sinchroniseer met terminaal (afgeleë volg cwd)"
+
+msgid "path.modeMirror"
+msgstr "Padmodus: Spieëlpad (beide panele wys dieselfde gids)"
+
+msgid "path.mirrorUnavailable"
+msgstr "Spieëlpad vereis dat beide panele plaaslik of beide afgeleë is"
 msgid "path.syncNoCwd"
 msgstr "Terminaal cwd nie gerapporteer nie. Wissel na Sinchroniseer weer om te konfigureer"
 msgid "path.cwdSetupTitle"
@@ -482,7 +494,7 @@ msgid "transfer.deleteTitle"
 msgstr "Bevestig Vee Uit"
 
 msgid "bookmark.title"
-msgstr "Boekmerke"
+msgstr "{pane} Boekmerke"
 msgid "bookmark.add"
 msgstr "Voeg Boekmerk By"
 msgid "bookmark.addLocal"
@@ -546,6 +558,9 @@ msgid "notify.connecting"
 msgstr "Verbind aan"
 msgid "notify.sftpConnectFailed"
 msgstr "SFTP-verbinding misluk. Maak seker SSH is gekoppel en die bediener ondersteun SFTP."
+msgid "notify.paneConnClosed"
+msgstr "Hierdie verbinding is gesluit. Kies 'n ander verbinding uit die lys."
+
 msgid "notify.reconnectNoTerminal"
 msgstr "Terminaal ontkoppel. Klik of druk enige sleutel in die terminaal om weer te koppel."
 msgid "notify.reconnectFailed"
@@ -810,6 +825,11 @@ msgstr "{n} item(e) gekopieer"
 msgid "notify.cut"
 msgstr "{n} item(e) uitgesny"
 
+msgid "status.connecting"
+msgstr "Verbind tans"
+msgid "status.waitingConn"
+msgstr "Wag vir verbinding"
+
 msgid "status.disconnected"
 msgstr "Ontkoppel"
 
@@ -894,6 +914,12 @@ msgstr "Onthou pad"
 
 msgid "settings.pathModeSync"
 msgstr "Sinkroniseer met terminaal"
+
+msgid "settings.pathModeMirror"
+msgstr "Spieëlpad"
+
+msgid "settings.pathModeMirrorHint"
+msgstr "Beide panele wys altyd dieselfde gids; slegs beskikbaar wanneer beide plaaslik of beide afgeleë is"
 
 msgid "settings.defaultShowHidden"
 msgstr "Wys verborge lêers by verstek"
@@ -1080,7 +1106,7 @@ msgid "settings.occupied.closeDialog"
 msgstr "Sluit dialoog / kyker / paneel"
 
 msgid "settings.occupied.confirmDelete"
-msgstr "Bevestig skraping"
+msgstr "Bevestig"
 
 msgid "log.modeFast"
 msgstr "Vinnige modus"
@@ -1335,7 +1361,7 @@ msgid "app.targetNotDir"
 msgstr "Doelpad is nie 'n gids nie: {dir}"
 
 msgid "pane.groupBy"
-msgstr "Groepeer volgens"
+msgstr "Groepeer"
 
 msgid "group.none"
 msgstr "Geen"
@@ -1548,3 +1574,327 @@ msgid "settings.caretShapeBeam"
 msgstr "Vertikale streep"
 msgid "settings.caretShapeUnderline"
 msgstr "Onderstreep"
+msgid "settings.showTextWordWrap"
+msgstr "Woordomvou (kyker/redigeerder)"
+msgid "settings.showTextWordWrapHint"
+msgstr "Vou lang reëls in die kyker en redigeerder eerder as om horisontaal te rol."
+msgid "viewer.wordWrap"
+msgstr "Vou"
+msgid "viewer.lineNumbers"
+msgstr "Lynnommers"
+msgid "viewer.lineNumbersOffByWrap"
+msgstr "Lynnommers is nie beskikbaar wanneer vou aan is nie"
+
+msgid "editor.encodingNotEditable"
+msgstr "Hierdie lêer gebruik 'n enkode wat nie veilig gestoor kan word nie (bv. GBK/GB18030). Wysig dit asse in die stelselredigeerder."
+
+# ★ 2026-10-13：对齐 en-US 新增的 15 个 msgid（审计修复：缺失时这些语言回退英文）
+msgid "layout.override.tooNarrow"
+msgstr "Paneel te smal vir sy-aan-sy; gebruik tydelik bo-onder-uitleg"
+
+msgid "layout.override.tooShort"
+msgstr "Paneel te kort vir bo-onder; gebruik tydelik sy-aan-sy-uitleg"
+
+msgid "layout.override.tooCramped"
+msgstr "Paneel te klein vir twee panele; gebruik tydelik enkele paneel"
+
+msgid "layout.override.reasonNarrow"
+msgstr "te smal"
+
+msgid "layout.override.reasonShort"
+msgstr "te kort"
+
+msgid "layout.override.reasonCramped"
+msgstr "te klein"
+
+msgid "layout.override.title"
+msgstr "{preferred} → {actual} ({reason})"
+
+msgid "settings.occupied.typeAhead"
+msgstr "Tik 'n naamvoorvoegsel om na die passende item te spring"
+
+msgid "log.modeSftp"
+msgstr "SFTP"
+
+msgid "editor.remoteChanged"
+msgstr "Die afgeleë lêer is gewysig. Oorskryf die weergawe op die bediener?"
+
+msgid "notify.sftpRecovered"
+msgstr "SFTP-sessie herstel; probeer onderbroke oorplasinge weer"
+
+msgid "perm.modeUnknown"
+msgstr "Kan nie toestemminge lees nie; gekanselleer"
+
+msgid "permission.chmodFailed"
+msgstr "Kon nie toestemminge verander nie"
+
+msgid "conflict.contentDiffers"
+msgstr "Inhoud is anders — oorweeg oorskryf"
+
+msgid "viewer.truncatedPreview"
+msgstr "Lêer is groot; wys die eerste {limit}. Gebruik “Open in System” vir die volledige lêer."
+
+# ★ 2026-10-13：传输日志操作名（对齐 en-US 新增，缺失时这些语言回退英文）
+msgid "transfer.delete"
+msgstr "Verwyder"
+
+msgid "transfer.rename"
+msgstr "Hernoem"
+
+msgid "transfer.mkdir"
+msgstr "Nuwe gids"
+
+msgid "transfer.chmod"
+msgstr "Toestemmings"
+
+msgid "viewer.selectAllLimited"
+msgstr "Lêer te groot: net die sigbare deel is gekies. Gebruik Kopieer alles vir die volledige inhoud."
+
+# ★ 2026-10-14：复制反馈区分「全部 / 选中」（原都显示 file.copied，看不出复制了哪一份）
+msgid "file.copiedAll"
+msgstr "Alles gekopieer"
+
+msgid "file.copiedSelection"
+msgstr "Seleksie gekopieer"
+
+# ★ 2026-10-16：设置页新增「键入定位」开关（默认开）
+msgid "settings.typeAhead"
+msgstr "Spring volgens naamvoorvoegsel"
+
+msgid "settings.typeAheadHint"
+msgstr "Tik 'n letter of syfer in die lêerlys om na die inskrywing met daardie naamvoorvoegsel te spring; druk weer om deur die treffers te sirkel"
+
+msgid "conn.switchHint"
+msgstr "Click to switch remote connection"
+
+msgid "conn.pickerTitle"
+msgstr "Wissel verbinding"
+
+msgid "conn.notOpened"
+msgstr "(nie oop nie)"
+
+msgid "conn.current"
+msgstr "(current)"
+msgid "conn.otherPane"
+msgstr "(ander paneel)"
+
+msgid "conn.disconnect"
+msgstr "Disconnect"
+
+msgid "conn.leftPickerTitle"
+msgstr "Wissel verbinding"
+
+msgid "notify.leftEndpointNotRestored"
+msgstr "Die vorige afstandverbinding ({host}) is nie verbind nie. Dit bly as ontkoppel getoon - klik herverbind om weer te probeer."
+
+msgid "notify.connPanelTabKept"
+msgstr "Hierdie oortjie huisves die SFTP+-paneel: paneel ontkoppel, oortjie behou"
+
+msgid "notify.connOpenFailed"
+msgstr "Kon nie die gekonfigureerde verbinding oopmaak nie: {host}"
+
+msgid "notify.leftRemoteSwitchFailed"
+msgstr "Kon nie na die afgeleë verbinding skakel nie"
+
+msgid "notify.leftRemoteViewUnsupported"
+msgstr "Die opening van afgeleë lêers direk word nie deur hierdie eindpunt ondersteun nie"
+
+msgid "transfer.remote-copy"
+msgstr "Server↔Server"
+
+msgid "transfer.local-copy"
+msgstr "Local copy"
+
+msgid "notify.remoteToRemoteFailed"
+msgstr "Remote-to-remote transfer failed"
+
+msgid "notify.dropTargetNotLocal"
+msgstr "Hierdie eindpunt is nie 'n plaaslike skyf nie; loslating hier word nie ondersteun nie"
+
+msgid "conflict.digestUnavailableRemote"
+msgstr "Digest unavailable (sizes differ, or the remote server does not support it)"
+
+msgid "conflict.digestUnavailableLocal"
+msgstr "Digest unavailable (sizes differ, or the local file could not be read)"
+
+msgid "transfer.skippedAsDuplicateHint"
+msgstr "Content is identical on both sides, so the transfer was not executed"
+
+msgid "app.invalidNameChars"
+msgstr "The name cannot contain a path separator (slash or backslash) or control characters"
+
+msgid "settings.exportNothing"
+msgstr "Niks om uit te voer nie: die gekose kategorieë bevat geen data nie (bv. geen oordraglogboeke op hierdie rekenaar nie). Geen rugsteunlêer is geskep nie."
+
+msgid "notify.pasteSkippedExists"
+msgstr "{n} item oorgeslaan — teiken bestaan reeds"
+
+msgid "settings.customTopBar"
+msgstr "Pas boonste balk-knoppies aan"
+
+msgid "settings.topBarOverflow"
+msgstr "Aktiveer oorloopkieslys (⋯)"
+
+msgid "settings.topBarPinned"
+msgstr "Vasgepen"
+
+msgid "settings.topBarInMenu"
+msgstr "In ⋯-kieslys"
+
+msgid "settings.topBarPin"
+msgstr "Pen aan boonste balk"
+
+msgid "settings.topBarUnpin"
+msgstr "Ontpen (skuif na ⋯)"
+
+msgid "settings.topBarCloseNeedsHotkey"
+msgstr "Altyd sigbaar totdat 'n paneel-kortpad gestel is"
+
+msgid "settings.resetTopBar"
+msgstr "Herstel verstek boonste balk"
+
+msgid "topbar.pathMode"
+msgstr "Padmodus"
+
+msgid "topbar.minimize"
+msgstr "Minimeer"
+
+msgid "settings.connPickerTrigger"
+msgstr "Sneller vir verbindingskeuse"
+
+msgid "settings.connPickerTriggerHint"
+msgstr "Kies hoe die verbindingsneller oopgemaak word: die titel in die balk of die plaaslik/afgeleë etiket in elke paneel se nutsbalk"
+
+msgid "settings.connPickerTopbar"
+msgstr "Balktitel"
+
+msgid "settings.connPickerBadge"
+msgstr "Nutsbalketiket"
+
+msgid "settings.connPickerBoth"
+msgstr "Beide"
+msgid "settings.connLabelStyle"
+msgstr "Verbindingsvertoning"
+
+msgid "settings.connLabelAccount"
+msgstr "Rekening@gasheer"
+
+msgid "settings.connLabelAlias"
+msgstr "Alias"
+
+msgid "settings.connLabelStyleHint"
+msgstr "Wat die boonste balk wys: rekening@gasheer of die Tabby-profielnaam. Die verbindingskeuse word nie geraak nie."
+
+
+msgid "settings.panelOpacity"
+msgstr "Paneel-deursigtigheid"
+
+msgid "settings.panelOpacityHint"
+msgstr "Pas die algehele deursigtigheid van die paneel aan. Minimum 50 persent, heeltemal deursigtig is nie toegelaat nie"
+
+msgid "bookmark.resetSize"
+msgstr "Dubbelklik om na verstekgrootte te herstel"
+
+msgid "settings.bookmarkLink"
+msgstr "Gekoppelde boekmerke"
+
+msgid "settings.bookmarkLinkHint"
+msgstr "Wanneer dit aangeskakel is, kan n boekmerk n gekoppelde pad kry; as jy daarop klik, spring die ander paneel ook na daardie pad"
+
+msgid "bookmark.linkPath"
+msgstr "Gekoppelde pad (ander paneel, opsioneel)"
+
+msgid "bookmark.linkBadge"
+msgstr "Gekoppel"
+
+msgid "bookmark.sortManual"
+msgstr "Sleep-volgorde"
+
+msgid "bookmark.sortUsage"
+msgstr "Gebruik-volgorde"
+
+msgid "bookmark.sortName"
+msgstr "Volgens naam"
+
+msgid "bookmark.sortHint"
+msgstr "Klik om na die ander sorteervolgorde te skakel"
+
+msgid "bookmark.dragHint"
+msgstr "Sleep om boekmerke te herrangskik, regskliek om te wysig"
+
+msgid "bookmark.dragHintSorted"
+msgstr "Volgens gebruik gesorteer — sleep gedeaktiveer; regskliek om te wysig"
+
+msgid "settings.bookmarkSortByUsage"
+msgstr "Sorteer volgens gebruik"
+
+msgid "settings.bookmarkSortByUsageHint"
+msgstr "Af: handmatige sleep-volgorde. Aan: gesorteer volgens hoe gereeld n boekmerk geklik is"
+
+msgid "settings.bookmarkSortHint"
+msgstr "Sleep-volgorde: handmatig. Volgens gebruik: mees gekliek eerste. Volgens naam: alfabeties (getalle in natuurlike volgorde)"
+
+msgid "settings.bookmarkSort"
+msgstr "Boekmerk-sortering"
+
+msgid "settings.bookmarkResetUsage"
+msgstr "Herstel statistieke"
+
+msgid "settings.bookmarkResetUsageDone"
+msgstr "Statistieke van {count} boekmerke is herstel"
+
+msgid "bookmark.linkMissing"
+msgstr "Gekoppelde pad bestaan nie; die ander paneel is nie verskuif nie"
+
+msgid "bookmark.resetWidth"
+msgstr "Dubbelklik om verstekbreedte te herstel"
+
+msgid "bookmark.resetHeight"
+msgstr "Dubbelklik om verstekhoogte te herstel"
+
+
+msgid "editor.externalChanged"
+msgstr "Local changes not yet uploaded to server"
+
+msgid "editor.uploadNow"
+msgstr "Upload now"
+
+msgid "settings.editorAutoUploadExternal"
+msgstr "Auto-upload on external edit"
+
+msgid "settings.editorAutoUploadExternalHint"
+msgstr "Automatically upload to server after saving in an external editor. Off by default; when on, if the remote file was changed by someone else, it prompts for confirmation instead of overwriting silently."
+
+msgid "settings.applyInstant"
+msgstr "Pas veranderinge onmiddellik toe"
+
+msgid "settings.applyInstantHint"
+msgstr "Wanneer aan, word veranderinge op hierdie bladsy dadelik na oop SFTP+ panele gestuur. Wanneer af, moet jy die paneel toemaak en weer oopmaak"
+
+msgid "settings.buyCoffee"
+msgstr "Trakteer my op koffie"
+
+msgid "bookmark.pinOn"
+msgstr "Paneel bly oop"
+
+msgid "bookmark.pinOff"
+msgstr "Maak toe na keuse"
+
+msgid "bookmark.pinHint"
+msgstr "Klik om te wissel: bly oop (klik elders sluit nie) / maak toe na keuse"
+
+msgid "settings.conflictRenameStyle"
+msgstr "Hername-styl vir botsings"
+
+msgid "settings.conflictRenameStyleHint"
+msgstr "Hoe nuwe name geskep word wanneer jy Rename op n botsing kies (nommers by verstek)"
+
+msgid "settings.renameStyleSeq"
+msgstr "Genomnommer"
+
+msgid "settings.renameStyleTime"
+msgstr "Tydstempel"
+
+msgid "settings.renameStyleRandom"
+msgstr "Lukrake agtervoegsel"
+

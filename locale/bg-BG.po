@@ -141,6 +141,9 @@ msgstr "Качи"
 msgid "app.download"
 msgstr "Изтегли"
 
+msgid "app.transfer"
+msgstr "Прехвърли"
+
 msgid "app.newFolder"
 msgstr "Нова Папка"
 
@@ -267,6 +270,9 @@ msgstr "Не matching files"
 
 msgid "pane.empty"
 msgstr "Празна папка"
+msgid "pane.connLost"
+msgstr "Връзката е прекъсната"
+
 msgid "pane.errorAccess"
 msgstr "Няма достъп (отказано право или пътят не е намерен)"
 msgid "pane.loading"
@@ -277,6 +283,12 @@ msgid "path.modeRemember"
 msgstr "Режим на път: Запомни (възстанови следващия път)"
 msgid "path.modeSync"
 msgstr "Режим на път: Синхронизирай с терминала (отдалеченото следва cwd)"
+
+msgid "path.modeMirror"
+msgstr "Режим на път: Огледален път (двата панела показват една папка)"
+
+msgid "path.mirrorUnavailable"
+msgstr "Огледалният път изисква двата панела да са локални или двата отдалечени"
 msgid "path.syncNoCwd"
 msgstr "Терминалният cwd не е докладван. Превключете на Синхронизирай отново за настройка"
 msgid "path.cwdSetupTitle"
@@ -482,7 +494,7 @@ msgid "transfer.deleteTitle"
 msgstr "Потвърди Изтрий"
 
 msgid "bookmark.title"
-msgstr "Отметки"
+msgstr "{pane} Отметки"
 msgid "bookmark.add"
 msgstr "Добави отметка"
 msgid "bookmark.addLocal"
@@ -546,6 +558,9 @@ msgid "notify.connecting"
 msgstr "Свързване с"
 msgid "notify.sftpConnectFailed"
 msgstr "SFTP връзката неуспешна. Уверете се, че SSH е свързан и сървърът поддържа SFTP."
+msgid "notify.paneConnClosed"
+msgstr "Тази връзка беше затворена. Изберете друга връзка от списъка."
+
 msgid "notify.reconnectNoTerminal"
 msgstr "Терминалът е прекъснат. Щракнете или натиснете клавиш в терминала, за да се свържете отново."
 msgid "notify.reconnectFailed"
@@ -810,6 +825,11 @@ msgstr "Копирани {n} елемента"
 msgid "notify.cut"
 msgstr "Изрязани {n} елемента"
 
+msgid "status.connecting"
+msgstr "Свързване"
+msgid "status.waitingConn"
+msgstr "Изчакване на връзка"
+
 msgid "status.disconnected"
 msgstr "Прекъснато"
 
@@ -894,6 +914,12 @@ msgstr "Запомняне на пътя"
 
 msgid "settings.pathModeSync"
 msgstr "Синхронизиране с терминала"
+
+msgid "settings.pathModeMirror"
+msgstr "Огледален път"
+
+msgid "settings.pathModeMirrorHint"
+msgstr "Двата панела винаги показват една и съща папка; достъпно само когато и двата са локални или отдалечени"
 
 msgid "settings.defaultShowHidden"
 msgstr "Показване на скритите файлове по подразбиране"
@@ -1080,7 +1106,7 @@ msgid "settings.occupied.closeDialog"
 msgstr "Затваряне на диалог / преглед / панел"
 
 msgid "settings.occupied.confirmDelete"
-msgstr "Потвърждаване на изтриването"
+msgstr "Потвърждаване"
 
 msgid "log.modeFast"
 msgstr "Бърз режим"
@@ -1335,7 +1361,7 @@ msgid "app.targetNotDir"
 msgstr "Целевият път не е директория: {dir}"
 
 msgid "pane.groupBy"
-msgstr "Групиране по"
+msgstr "Групиране"
 
 msgid "group.none"
 msgstr "Няма"
@@ -1548,3 +1574,327 @@ msgid "settings.caretShapeBeam"
 msgstr "Вертикална линия"
 msgid "settings.caretShapeUnderline"
 msgstr "Подчертаване"
+msgid "settings.showTextWordWrap"
+msgstr "Пренасяне на редове (преглед/редактор)"
+msgid "settings.showTextWordWrapHint"
+msgstr "Пренася дълги редове в прегледа и редактора вместо хоризонтално превъртане."
+msgid "viewer.wordWrap"
+msgstr "Пренасяне"
+msgid "viewer.lineNumbers"
+msgstr "Номера на редове"
+msgid "viewer.lineNumbersOffByWrap"
+msgstr "Номерата на редовете не са налични при включено пренасяне"
+
+msgid "editor.encodingNotEditable"
+msgstr "Този файл използва кодиране, което не може да бъде записано безопасно (напр. GBK/GB18030). Моля, редактирайте го в системния редактор."
+
+# ★ 2026-10-13：对齐 en-US 新增的 15 个 msgid（审计修复：缺失时这些语言回退英文）
+msgid "layout.override.tooNarrow"
+msgstr "Панелът е твърде тесен за страничен изглед; временно се използва горен-долен изглед"
+
+msgid "layout.override.tooShort"
+msgstr "Панелът е твърде нисък за горен-долен изглед; временно се използва страничен изглед"
+
+msgid "layout.override.tooCramped"
+msgstr "Панелът е твърде малък за два панела; временно се използва единичен панел"
+
+msgid "layout.override.reasonNarrow"
+msgstr "твърде тесен"
+
+msgid "layout.override.reasonShort"
+msgstr "твърде нисък"
+
+msgid "layout.override.reasonCramped"
+msgstr "твърде малък"
+
+msgid "layout.override.title"
+msgstr "{preferred} → {actual} ({reason})"
+
+msgid "settings.occupied.typeAhead"
+msgstr "Въведете представка на името, за да прескочите до съвпадението"
+
+msgid "log.modeSftp"
+msgstr "SFTP"
+
+msgid "editor.remoteChanged"
+msgstr "Отдалеченият файл е променен. Да се презапише ли версията на сървъра?"
+
+msgid "notify.sftpRecovered"
+msgstr "SFTP сесията е възстановена; моля, повторете прекъснатите трансфери"
+
+msgid "perm.modeUnknown"
+msgstr "Не могат да се прочетат правата; отменено"
+
+msgid "permission.chmodFailed"
+msgstr "Неуспешна смяна на правата"
+
+msgid "conflict.contentDiffers"
+msgstr "Съдържанието е различно — обмислете презаписване"
+
+msgid "viewer.truncatedPreview"
+msgstr "Файлът е голям; показват се първите {limit}. Използвайте “Open in System” за пълния файл."
+
+# ★ 2026-10-13：传输日志操作名（对齐 en-US 新增，缺失时这些语言回退英文）
+msgid "transfer.delete"
+msgstr "Изтриване"
+
+msgid "transfer.rename"
+msgstr "Преименуване"
+
+msgid "transfer.mkdir"
+msgstr "Нова папка"
+
+msgid "transfer.chmod"
+msgstr "Права за достъп"
+
+msgid "viewer.selectAllLimited"
+msgstr "Файлът е твърде голям: избрана е само видимата част. Използвайте Копиране на всичко за цялото съдържание."
+
+# ★ 2026-10-14：复制反馈区分「全部 / 选中」（原都显示 file.copied，看不出复制了哪一份）
+msgid "file.copiedAll"
+msgstr "Копирано всичко"
+
+msgid "file.copiedSelection"
+msgstr "Копирано избраното"
+
+# ★ 2026-10-16：设置页新增「键入定位」开关（默认开）
+msgid "settings.typeAhead"
+msgstr "Прескачане по начало на името"
+
+msgid "settings.typeAheadHint"
+msgstr "Въведете буква или цифра в списъка, за да прескочите към елемента с това начало на името; натиснете отново, за да преминете към следващото съвпадение"
+
+msgid "conn.switchHint"
+msgstr "Click to switch remote connection"
+
+msgid "conn.pickerTitle"
+msgstr "Смяна на връзка"
+
+msgid "conn.notOpened"
+msgstr "(не е отворена)"
+
+msgid "conn.current"
+msgstr "(current)"
+msgid "conn.otherPane"
+msgstr "(друг панел)"
+
+msgid "conn.disconnect"
+msgstr "Disconnect"
+
+msgid "conn.leftPickerTitle"
+msgstr "Смяна на връзка"
+
+msgid "notify.leftEndpointNotRestored"
+msgstr "Предишната отдалечена връзка ({host}) не е свързана. Остава показана като прекъсната — щракнете върху „Повторно свързване“, за да опитате отново."
+
+msgid "notify.connPanelTabKept"
+msgstr "Този раздел хоства панела SFTP+: панелът е прекъснат, разделът е запазен"
+
+msgid "notify.connOpenFailed"
+msgstr "Конфигурираната връзка не може да бъде отворена: {host}"
+
+msgid "notify.leftRemoteSwitchFailed"
+msgstr "Неуспешно превключване към отдалечена връзка"
+
+msgid "notify.leftRemoteViewUnsupported"
+msgstr "Директното отваряне на отдалечени файлове не се поддържа от тази крайна точка"
+
+msgid "transfer.remote-copy"
+msgstr "Server↔Server"
+
+msgid "transfer.local-copy"
+msgstr "Local copy"
+
+msgid "notify.remoteToRemoteFailed"
+msgstr "Remote-to-remote transfer failed"
+
+msgid "notify.dropTargetNotLocal"
+msgstr "Тази крайна точка не е локален диск; пускането тук не се поддържа"
+
+msgid "conflict.digestUnavailableRemote"
+msgstr "Digest unavailable (sizes differ, or the remote server does not support it)"
+
+msgid "conflict.digestUnavailableLocal"
+msgstr "Digest unavailable (sizes differ, or the local file could not be read)"
+
+msgid "transfer.skippedAsDuplicateHint"
+msgstr "Content is identical on both sides, so the transfer was not executed"
+
+msgid "app.invalidNameChars"
+msgstr "The name cannot contain a path separator (slash or backslash) or control characters"
+
+msgid "settings.exportNothing"
+msgstr "Няма данни за експорт: избраните категории не съдържат данни (напр. няма журнал за трансфери на този компютър). Не е създаден резервен файл."
+
+msgid "notify.pasteSkippedExists"
+msgstr "Пропуснати {n} елемента — целта вече съществува"
+
+msgid "settings.customTopBar"
+msgstr "Персонализиране на бутоните на горната лента"
+
+msgid "settings.topBarOverflow"
+msgstr "Активиране на меню за препълване (⋯)"
+
+msgid "settings.topBarPinned"
+msgstr "Фиксиран"
+
+msgid "settings.topBarInMenu"
+msgstr "В меню ⋯"
+
+msgid "settings.topBarPin"
+msgstr "Закачи на горната лента"
+
+msgid "settings.topBarUnpin"
+msgstr "Откачи (премести в ⋯)"
+
+msgid "settings.topBarCloseNeedsHotkey"
+msgstr "Винаги се показва, докато не се зададе клавишна комбинация за панела"
+
+msgid "settings.resetTopBar"
+msgstr "Възстанови горната лента по подразбиране"
+
+msgid "topbar.pathMode"
+msgstr "Режим на пътя"
+
+msgid "topbar.minimize"
+msgstr "Минимизиране"
+
+msgid "settings.connPickerTrigger"
+msgstr "Извикване на превключвателя за връзки"
+
+msgid "settings.connPickerTriggerHint"
+msgstr "Изберете как се отваря превключвателят: заглавието в горната лента или етикетът локално/отдалечено в лентата на всеки панел"
+
+msgid "settings.connPickerTopbar"
+msgstr "Заглавие в лентата"
+
+msgid "settings.connPickerBadge"
+msgstr "Етикет в лентата"
+
+msgid "settings.connPickerBoth"
+msgstr "И двете"
+msgid "settings.connLabelStyle"
+msgstr "Показване на връзката"
+
+msgid "settings.connLabelAccount"
+msgstr "Акаунт@хост"
+
+msgid "settings.connLabelAlias"
+msgstr "Псевдоним"
+
+msgid "settings.connLabelStyleHint"
+msgstr "Какво показва горната лента: акаунт@хост или името на профила в Tabby. Изборът на връзка не се променя."
+
+
+msgid "settings.panelOpacity"
+msgstr "Прозрачност на панела"
+
+msgid "settings.panelOpacityHint"
+msgstr "Настройте общата прозрачност на панела. Минимум 50 процента, напълно прозрачно не е разрешено"
+
+msgid "bookmark.resetSize"
+msgstr "Двукратно щракване за възстановяване на размера"
+
+msgid "settings.bookmarkLink"
+msgstr "Свързани отметки"
+
+msgid "settings.bookmarkLinkHint"
+msgstr "Когато е включено, отметка може да има свързан път; при щракване другият панел също отива там"
+
+msgid "bookmark.linkPath"
+msgstr "Свързан път (друг панел, по избор)"
+
+msgid "bookmark.linkBadge"
+msgstr "Свързан"
+
+msgid "bookmark.sortManual"
+msgstr "Ред на плъзгане"
+
+msgid "bookmark.sortUsage"
+msgstr "По използване"
+
+msgid "bookmark.sortName"
+msgstr "По име"
+
+msgid "bookmark.sortHint"
+msgstr "Щракнете за превключване на другия ред"
+
+msgid "bookmark.dragHint"
+msgstr "Плъзнете, за да пренаредите отметки; десен клик за редактиране"
+
+msgid "bookmark.dragHintSorted"
+msgstr "Сортирано по използване — плъзгането е изключено; десен клик за редактиране"
+
+msgid "settings.bookmarkSortByUsage"
+msgstr "Сортиране по използване"
+
+msgid "settings.bookmarkSortByUsageHint"
+msgstr "Изкл.: ръчен ред. Вкл.: по брой щраквания върху отметката"
+
+msgid "settings.bookmarkSortHint"
+msgstr "Ред на плъзгане: ръчен. По използване: най-кликваните първи. По име: азбучен ред (числата в естествен ред)"
+
+msgid "settings.bookmarkSort"
+msgstr "Сортиране на отметки"
+
+msgid "settings.bookmarkResetUsage"
+msgstr "Нулиране на статистиката"
+
+msgid "settings.bookmarkResetUsageDone"
+msgstr "Статистиката на {count} отметки е нулирана"
+
+msgid "bookmark.linkMissing"
+msgstr "Свързаният път не съществува; другият панел не е преместен"
+
+msgid "bookmark.resetWidth"
+msgstr "Двукратно щракване за възстановяване на ширината"
+
+msgid "bookmark.resetHeight"
+msgstr "Двукратно щракване за възстановяване на височината"
+
+
+msgid "editor.externalChanged"
+msgstr "Local changes not yet uploaded to server"
+
+msgid "editor.uploadNow"
+msgstr "Upload now"
+
+msgid "settings.editorAutoUploadExternal"
+msgstr "Auto-upload on external edit"
+
+msgid "settings.editorAutoUploadExternalHint"
+msgstr "Automatically upload to server after saving in an external editor. Off by default; when on, if the remote file was changed by someone else, it prompts for confirmation instead of overwriting silently."
+
+msgid "settings.applyInstant"
+msgstr "Прилагай промените веднага"
+
+msgid "settings.applyInstantHint"
+msgstr "Когато е включено, промените от тази страница се изпращат веднага към отворените SFTP+ панели. Когато е изключено, трябва да затворите и отворите панела отново"
+
+msgid "settings.buyCoffee"
+msgstr "Почерпете ме с кафе"
+
+msgid "bookmark.pinOn"
+msgstr "Панелът остава отворен"
+
+msgid "bookmark.pinOff"
+msgstr "Затваряне при избор"
+
+msgid "bookmark.pinHint"
+msgstr "Щракнете за превключване: остава отворен (клик другаде не затваря) / затваря при избор"
+
+msgid "settings.conflictRenameStyle"
+msgstr "Стил на преименуване при конфликт"
+
+msgid "settings.conflictRenameStyleHint"
+msgstr "Как се създават нови имена при избор на Преименуване (по подразбиране номера)"
+
+msgid "settings.renameStyleSeq"
+msgstr "С номера"
+
+msgid "settings.renameStyleTime"
+msgstr "С времеви печат"
+
+msgid "settings.renameStyleRandom"
+msgstr "Случаен наставка"
+

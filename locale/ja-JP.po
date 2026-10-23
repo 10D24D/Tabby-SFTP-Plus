@@ -181,6 +181,9 @@ msgstr "アップロード"
 msgid "app.download"
 msgstr "ダウンロード"
 
+msgid "app.transfer"
+msgstr "転送"
+
 msgid "app.newFolder"
 msgstr "新規フォルダ"
 
@@ -339,6 +342,9 @@ msgstr "一致するファイルがありません"
 msgid "pane.empty"
 msgstr "空のフォルダ"
 
+msgid "pane.connLost"
+msgstr "接続が切断されました"
+
 msgid "pane.errorAccess"
 msgstr "アクセス不可（権限不足またはパスが見つかりません）"
 
@@ -353,6 +359,12 @@ msgstr "パスモード：記憶（次回復元）"
 
 msgid "path.modeSync"
 msgstr "パスモード：ターミナルと同期（リモートが cwd を追従）"
+
+msgid "path.modeMirror"
+msgstr "パスモード：パスを同期（両ペインが同じディレクトリを表示）"
+
+msgid "path.mirrorUnavailable"
+msgstr "パスの同期は両ペインがともにローカル、またはともにリモートのときのみ使えます"
 
 msgid "path.syncNoCwd"
 msgstr "ターミナルの cwd が報告されていません。再度同期に切り替えて設定してください"
@@ -613,7 +625,7 @@ msgid "transfer.deleteTitle"
 msgstr "削除を確認"
 
 msgid "bookmark.title"
-msgstr "ブックマーク"
+msgstr "{pane}ブックマーク"
 
 msgid "bookmark.add"
 msgstr "ブックマークを追加"
@@ -700,6 +712,9 @@ msgstr "接続中"
 
 msgid "notify.sftpConnectFailed"
 msgstr "SFTP 接続に失敗しました。SSH が接続されており、サーバーが SFTP をサポートしていることを確認してください。"
+
+msgid "notify.paneConnClosed"
+msgstr "この接続は閉じられました。一覧から別の接続を選択してください。"
 
 msgid "notify.reconnectNoTerminal"
 msgstr "ターミナルが切断されました。ターミナルをクリックするか任意のキーを押して再接続してください。"
@@ -1025,6 +1040,11 @@ msgstr "{n} 項目をコピーしました"
 msgid "notify.cut"
 msgstr "{n} 項目を切り取りました"
 
+msgid "status.connecting"
+msgstr "接続中"
+msgid "status.waitingConn"
+msgstr "接続を待機中"
+
 msgid "status.disconnected"
 msgstr "切断されました"
 
@@ -1109,6 +1129,12 @@ msgstr "パス記憶"
 
 msgid "settings.pathModeSync"
 msgstr "ターミナルと同期"
+
+msgid "settings.pathModeMirror"
+msgstr "パスを同期"
+
+msgid "settings.pathModeMirrorHint"
+msgstr "両ペインが常に同じディレクトリを表示します。両ペインがともにローカル、またはともにリモートのときのみ有効"
 
 msgid "settings.defaultShowHidden"
 msgstr "隠しファイルをデフォルトで表示"
@@ -1295,7 +1321,7 @@ msgid "settings.occupied.closeDialog"
 msgstr "ダイアログ / ビューア / パネルを閉じる"
 
 msgid "settings.occupied.confirmDelete"
-msgstr "削除を確定"
+msgstr "確定"
 
 msgid "log.modeFast"
 msgstr "高速モード"
@@ -1763,3 +1789,327 @@ msgid "settings.caretShapeBeam"
 msgstr "縦線"
 msgid "settings.caretShapeUnderline"
 msgstr "下線"
+msgid "settings.showTextWordWrap"
+msgstr "ビューア/エディタの折り返し"
+msgid "settings.showTextWordWrapHint"
+msgstr "ビューアとエディタで長い行を折り返して表示し、横スクロールを不要にします。"
+msgid "viewer.wordWrap"
+msgstr "折り返し"
+msgid "viewer.lineNumbers"
+msgstr "行番号"
+msgid "viewer.lineNumbersOffByWrap"
+msgstr "折り返し中は行番号を表示できません"
+
+msgid "editor.encodingNotEditable"
+msgstr "このファイルのエンコーディングは安全に保存できません（GBK/GB18030 など）。システムエディタで編集してください。"
+
+# ★ 2026-10-13：对齐 en-US 新增的 15 个 msgid（审计修复：缺失时这些语言回退英文）
+msgid "layout.override.tooNarrow"
+msgstr "パネルが狭すぎて左右レイアウトにできません。一時的に上下レイアウトに切り替えます"
+
+msgid "layout.override.tooShort"
+msgstr "パネルが低すぎて上下レイアウトにできません。一時的に左右レイアウトに切り替えます"
+
+msgid "layout.override.tooCramped"
+msgstr "パネルが小さすぎて2ペイン表示にできません。一時的に単一ペインに切り替えます"
+
+msgid "layout.override.reasonNarrow"
+msgstr "狭すぎます"
+
+msgid "layout.override.reasonShort"
+msgstr "低すぎます"
+
+msgid "layout.override.reasonCramped"
+msgstr "小さすぎます"
+
+msgid "layout.override.title"
+msgstr "{preferred} → {actual}（{reason}）"
+
+msgid "settings.occupied.typeAhead"
+msgstr "名前のプレフィックスを入力して一致項目へジャンプ"
+
+msgid "log.modeSftp"
+msgstr "SFTP"
+
+msgid "editor.remoteChanged"
+msgstr "リモートファイルが変更されました。サーバー上のバージョンを上書きしますか？"
+
+msgid "notify.sftpRecovered"
+msgstr "SFTPセッションが復旧しました。中断された転送を再試行してください"
+
+msgid "perm.modeUnknown"
+msgstr "権限を読み取れません。キャンセルしました"
+
+msgid "permission.chmodFailed"
+msgstr "権限の変更に失敗しました"
+
+msgid "conflict.contentDiffers"
+msgstr "内容が異なります。上書きを検討してください"
+
+msgid "viewer.truncatedPreview"
+msgstr "ファイルが大きいため、先頭 {limit} のみ表示しています。完全なファイルは「Open in System」を使用してください"
+
+# ★ 2026-10-13：传输日志操作名（对齐 en-US 新增，缺失时这些语言回退英文）
+msgid "transfer.delete"
+msgstr "削除"
+
+msgid "transfer.rename"
+msgstr "名前変更"
+
+msgid "transfer.mkdir"
+msgstr "新規フォルダ"
+
+msgid "transfer.chmod"
+msgstr "権限"
+
+msgid "viewer.selectAllLimited"
+msgstr "ファイルが大きすぎます。表示中の範囲のみ選択しました。全文は「すべてコピー」をご利用ください。"
+
+# ★ 2026-10-14：复制反馈区分「全部 / 选中」（原都显示 file.copied，看不出复制了哪一份）
+msgid "file.copiedAll"
+msgstr "すべてコピーしました"
+
+msgid "file.copiedSelection"
+msgstr "選択範囲をコピーしました"
+
+# ★ 2026-10-16：设置页新增「键入定位」开关（默认开）
+msgid "settings.typeAhead"
+msgstr "名前の先頭一致でジャンプ"
+
+msgid "settings.typeAheadHint"
+msgstr "ファイル一覧で文字や数字を入力すると、その名前で始まる項目に移動します。同じキーを続けて押すと次の一致へ移動します"
+
+msgid "conn.switchHint"
+msgstr "Click to switch remote connection"
+
+msgid "conn.pickerTitle"
+msgstr "接続を切り替え"
+
+msgid "conn.notOpened"
+msgstr "(未接続)"
+
+msgid "conn.current"
+msgstr "(current)"
+msgid "conn.otherPane"
+msgstr "(別のペイン)"
+
+msgid "conn.disconnect"
+msgstr "Disconnect"
+
+msgid "conn.leftPickerTitle"
+msgstr "接続を切り替え"
+
+msgid "notify.leftEndpointNotRestored"
+msgstr "前回のリモート接続 ({host}) に接続できませんでした。切断状態のまま保持しています。再接続をクリックしてください。"
+
+msgid "notify.connPanelTabKept"
+msgstr "このタブは SFTP+ パネルをホストしています: パネルを切断しました（タブは保持）"
+
+msgid "notify.connOpenFailed"
+msgstr "設定済みの接続を開けませんでした: {host}"
+
+msgid "notify.leftRemoteSwitchFailed"
+msgstr "リモート接続への切り替えに失敗しました"
+
+msgid "notify.leftRemoteViewUnsupported"
+msgstr "このエンドポイントではリモートファイルを直接開くことはサポートされていません"
+
+msgid "transfer.remote-copy"
+msgstr "Server↔Server"
+
+msgid "transfer.local-copy"
+msgstr "Local copy"
+
+msgid "notify.remoteToRemoteFailed"
+msgstr "Remote-to-remote transfer failed"
+
+msgid "notify.dropTargetNotLocal"
+msgstr "このエンドポイントはローカルディスクではないため、ここへのドロップはサポートされていません"
+
+msgid "conflict.digestUnavailableRemote"
+msgstr "Digest unavailable (sizes differ, or the remote server does not support it)"
+
+msgid "conflict.digestUnavailableLocal"
+msgstr "Digest unavailable (sizes differ, or the local file could not be read)"
+
+msgid "transfer.skippedAsDuplicateHint"
+msgstr "Content is identical on both sides, so the transfer was not executed"
+
+msgid "app.invalidNameChars"
+msgstr "The name cannot contain a path separator (slash or backslash) or control characters"
+
+msgid "settings.exportNothing"
+msgstr "書き出すデータがありません。選択したカテゴリにデータが存在しません（例：この端末に転送ログがない）。バックアップファイルは作成されませんでした。"
+
+msgid "notify.pasteSkippedExists"
+msgstr "{n} 件をスキップしました — 同名の項目が既に存在します"
+
+msgid "settings.customTopBar"
+msgstr "上部バーのボタンをカスタマイズ"
+
+msgid "settings.topBarOverflow"
+msgstr "オーバーフローメニューを有効にする（⋯）"
+
+msgid "settings.topBarPinned"
+msgstr "固定中"
+
+msgid "settings.topBarInMenu"
+msgstr "⋯ メニュー内"
+
+msgid "settings.topBarPin"
+msgstr "トップバーに固定"
+
+msgid "settings.topBarUnpin"
+msgstr "固定を解除（⋯ に移動）"
+
+msgid "settings.topBarCloseNeedsHotkey"
+msgstr "パネルのショートカットを設定するまで常に表示"
+
+msgid "settings.resetTopBar"
+msgstr "上部バーを初期化"
+
+msgid "topbar.pathMode"
+msgstr "パスモード"
+
+msgid "topbar.minimize"
+msgstr "最小化"
+
+msgid "settings.connPickerTrigger"
+msgstr "接続切り替えの呼び出し方"
+
+msgid "settings.connPickerTriggerHint"
+msgstr "接続切り替えを開く方法を選択します。上部バーのタイトル、または各ペインのツールバーにあるローカル/リモートの表示"
+
+msgid "settings.connPickerTopbar"
+msgstr "上部バーのタイトル"
+
+msgid "settings.connPickerBadge"
+msgstr "ツールバーのバッジ"
+
+msgid "settings.connPickerBoth"
+msgstr "両方"
+msgid "settings.connLabelStyle"
+msgstr "接続表示"
+
+msgid "settings.connLabelAccount"
+msgstr "アカウント@ホスト"
+
+msgid "settings.connLabelAlias"
+msgstr "別名"
+
+msgid "settings.connLabelStyleHint"
+msgstr "トップバーの接続表示を「アカウント@ホスト」または「Tabby の接続名」に切り替えます。接続選択画面には影響しません。"
+
+
+msgid "settings.panelOpacity"
+msgstr "パネルの透明度"
+
+msgid "settings.panelOpacityHint"
+msgstr "パネル全体の透明度を調整します。最小 50 パーセントで、完全な透明にはできません"
+
+msgid "bookmark.resetSize"
+msgstr "ダブルクリックで既定のサイズに戻す"
+
+msgid "settings.bookmarkLink"
+msgstr "連動ブックマーク"
+
+msgid "settings.bookmarkLinkHint"
+msgstr "オンにすると、ブックマークに連動パスを設定でき、クリック時に反対側のペインもそのパスへ移動します"
+
+msgid "bookmark.linkPath"
+msgstr "連動パス（反対側のペイン、任意）"
+
+msgid "bookmark.linkBadge"
+msgstr "連動"
+
+msgid "bookmark.sortManual"
+msgstr "ドラッグ順"
+
+msgid "bookmark.sortUsage"
+msgstr "使用回数順"
+
+msgid "bookmark.sortName"
+msgstr "名前順"
+
+msgid "bookmark.sortHint"
+msgstr "クリックで並び順を切り替え"
+
+msgid "bookmark.dragHint"
+msgstr "ドラッグでブックマークを並べ替え、右クリックで編集"
+
+msgid "bookmark.dragHintSorted"
+msgstr "使用頻度順のためドラッグ不可。右クリックで編集"
+
+msgid "settings.bookmarkSortByUsage"
+msgstr "使用回数で並べ替え"
+
+msgid "settings.bookmarkSortByUsageHint"
+msgstr "オフ: 手動の並び順。オン: ブックマークのクリック回数順"
+
+msgid "settings.bookmarkSortHint"
+msgstr "ドラッグ順：手動の並び順。使用回数順：クリック回数の多い順。名前順：名前の昇順（数字は自然順）"
+
+msgid "settings.bookmarkSort"
+msgstr "ブックマークの並び順"
+
+msgid "settings.bookmarkResetUsage"
+msgstr "統計をリセット"
+
+msgid "settings.bookmarkResetUsageDone"
+msgstr "{count} 件のブックマークの統計をリセットしました"
+
+msgid "bookmark.linkMissing"
+msgstr "連動パスが存在しないため、反対側のペインは移動していません"
+
+msgid "bookmark.resetWidth"
+msgstr "ダブルクリックで既定の幅に戻す"
+
+msgid "bookmark.resetHeight"
+msgstr "ダブルクリックで既定の高さに戻す"
+
+
+msgid "editor.externalChanged"
+msgstr "Local changes not yet uploaded to server"
+
+msgid "editor.uploadNow"
+msgstr "Upload now"
+
+msgid "settings.editorAutoUploadExternal"
+msgstr "Auto-upload on external edit"
+
+msgid "settings.editorAutoUploadExternalHint"
+msgstr "Automatically upload to server after saving in an external editor. Off by default; when on, if the remote file was changed by someone else, it prompts for confirmation instead of overwriting silently."
+
+msgid "settings.applyInstant"
+msgstr "変更をすぐに反映"
+
+msgid "settings.applyInstantHint"
+msgstr "オン：この画面の変更は開いている SFTP+ パネルへ即座に反映されます。オフ：パネルを閉じて開き直すと反映されます"
+
+msgid "settings.buyCoffee"
+msgstr "コーヒーをおごる"
+
+msgid "bookmark.pinOn"
+msgstr "パネルを常時表示"
+
+msgid "bookmark.pinOff"
+msgstr "選択後に閉じる"
+
+msgid "bookmark.pinHint"
+msgstr "クリックで切り替え：常時表示（外側をクリックしても閉じません）／選択後に閉じる"
+
+msgid "settings.conflictRenameStyle"
+msgstr "競合時の名前変更スタイル"
+
+msgid "settings.conflictRenameStyleHint"
+msgstr "競合で「名前を変更」を選んだときの新しい名前の作り方（既定は連番）"
+
+msgid "settings.renameStyleSeq"
+msgstr "連番"
+
+msgid "settings.renameStyleTime"
+msgstr "タイムスタンプ"
+
+msgid "settings.renameStyleRandom"
+msgstr "ランダム接尾辞"
+

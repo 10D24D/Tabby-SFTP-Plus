@@ -179,6 +179,9 @@ msgstr "Enviar"
 msgid "app.download"
 msgstr "Baixar"
 
+msgid "app.transfer"
+msgstr "Transferir"
+
 msgid "app.newFolder"
 msgstr "Nova Pasta"
 
@@ -334,6 +337,9 @@ msgstr "Nenhum arquivo correspondente"
 msgid "pane.empty"
 msgstr "Pasta Vazia"
 
+msgid "pane.connLost"
+msgstr "Conexão perdida"
+
 msgid "pane.errorAccess"
 msgstr "Não é possível acessar (permissão negada ou caminho não encontrado)"
 
@@ -348,6 +354,12 @@ msgstr "Modo Caminho: Lembrar (restaurar próxima vez)"
 
 msgid "path.modeSync"
 msgstr "Modo Caminho: Sincronizar com Terminal (remoto segue cwd)"
+
+msgid "path.modeMirror"
+msgstr "Modo Caminho: Caminho espelhado (os dois painéis mostram a mesma pasta)"
+
+msgid "path.mirrorUnavailable"
+msgstr "O caminho espelhado requer os dois painéis locais ou os dois remotos"
 
 msgid "path.syncNoCwd"
 msgstr "cwd do terminal não reportado. Mude para Sincronizar novamente para configurar"
@@ -601,7 +613,7 @@ msgid "transfer.deleteTitle"
 msgstr "Confirmar Exclusão"
 
 msgid "bookmark.title"
-msgstr "Favoritos"
+msgstr "{pane} Favoritos"
 
 msgid "bookmark.add"
 msgstr "Adicionar Favorito"
@@ -686,6 +698,9 @@ msgstr "Conectando a"
 
 msgid "notify.sftpConnectFailed"
 msgstr "Falha na conexão SFTP. Certifique-se de que SSH está conectado e que o servidor suporta SFTP."
+
+msgid "notify.paneConnClosed"
+msgstr "Esta conexão foi fechada. Escolha outra conexão na lista."
 
 msgid "notify.reconnectNoTerminal"
 msgstr "Terminal desconectado. Clique ou pressione qualquer tecla no terminal para reconectar."
@@ -1016,6 +1031,11 @@ msgstr "{n} item(ns) copiado(s)"
 msgid "notify.cut"
 msgstr "{n} item(ns) recortado(s)"
 
+msgid "status.connecting"
+msgstr "Conectando"
+msgid "status.waitingConn"
+msgstr "Aguardando conexão"
+
 msgid "status.disconnected"
 msgstr "Desconectado"
 
@@ -1100,6 +1120,12 @@ msgstr "Lembrar caminho"
 
 msgid "settings.pathModeSync"
 msgstr "Sincronizar com o terminal"
+
+msgid "settings.pathModeMirror"
+msgstr "Caminho espelhado"
+
+msgid "settings.pathModeMirrorHint"
+msgstr "Os dois painéis mostram sempre a mesma pasta; disponível só quando ambos são locais ou remotos"
 
 msgid "settings.defaultShowHidden"
 msgstr "Mostrar arquivos ocultos por padrão"
@@ -1286,7 +1312,7 @@ msgid "settings.occupied.closeDialog"
 msgstr "Fechar diálogo / visualizador / painel"
 
 msgid "settings.occupied.confirmDelete"
-msgstr "Confirmar exclusão"
+msgstr "Confirmar"
 
 msgid "log.modeFast"
 msgstr "Modo rápido"
@@ -1541,7 +1567,7 @@ msgid "app.targetNotDir"
 msgstr "O caminho de destino não é um diretório: {dir}"
 
 msgid "pane.groupBy"
-msgstr "Agrupar por"
+msgstr "Agrupar"
 
 msgid "group.none"
 msgstr "Nenhum"
@@ -1754,3 +1780,327 @@ msgid "settings.caretShapeBeam"
 msgstr "Barra vertical"
 msgid "settings.caretShapeUnderline"
 msgstr "Sublinhado"
+msgid "settings.showTextWordWrap"
+msgstr "Quebra de linha (visualizador/editor)"
+msgid "settings.showTextWordWrapHint"
+msgstr "Quebra linhas longas no visualizador e editor em vez de rolar na horizontal."
+msgid "viewer.wordWrap"
+msgstr "Quebrar"
+msgid "viewer.lineNumbers"
+msgstr "Números de linha"
+msgid "viewer.lineNumbersOffByWrap"
+msgstr "Os números de linha ficam ocultos com a quebra de linha ativada"
+
+msgid "editor.encodingNotEditable"
+msgstr "Este arquivo usa uma codificação que não pode ser salva com segurança (ex.: GBK/GB18030). Edite-o no editor do sistema."
+
+# ★ 2026-10-13：对齐 en-US 新增的 15 个 msgid（审计修复：缺失时这些语言回退英文）
+msgid "layout.override.tooNarrow"
+msgstr "Painel muito estreito para o layout lado a lado; usando temporariamente o layout superior-inferior"
+
+msgid "layout.override.tooShort"
+msgstr "Painel muito baixo para o layout superior-inferior; usando temporariamente o layout lado a lado"
+
+msgid "layout.override.tooCramped"
+msgstr "Painel muito pequeno para dois painéis; usando temporariamente painel único"
+
+msgid "layout.override.reasonNarrow"
+msgstr "muito estreito"
+
+msgid "layout.override.reasonShort"
+msgstr "muito baixo"
+
+msgid "layout.override.reasonCramped"
+msgstr "muito pequeno"
+
+msgid "layout.override.title"
+msgstr "{preferred} → {actual} ({reason})"
+
+msgid "settings.occupied.typeAhead"
+msgstr "Digite um prefixo de nome para ir até a correspondência"
+
+msgid "log.modeSftp"
+msgstr "SFTP"
+
+msgid "editor.remoteChanged"
+msgstr "O arquivo remoto foi modificado. Sobrescrever a versão no servidor?"
+
+msgid "notify.sftpRecovered"
+msgstr "Sessão SFTP recuperada; tente novamente as transferências interrompidas"
+
+msgid "perm.modeUnknown"
+msgstr "Não foi possível ler as permissões; cancelado"
+
+msgid "permission.chmodFailed"
+msgstr "Falha ao alterar as permissões"
+
+msgid "conflict.contentDiffers"
+msgstr "O conteúdo é diferente — considere sobrescrever"
+
+msgid "viewer.truncatedPreview"
+msgstr "O arquivo é grande; mostrando os primeiros {limit}. Use “Open in System” para o arquivo completo."
+
+# ★ 2026-10-13：传输日志操作名（对齐 en-US 新增，缺失时这些语言回退英文）
+msgid "transfer.delete"
+msgstr "Excluir"
+
+msgid "transfer.rename"
+msgstr "Renomear"
+
+msgid "transfer.mkdir"
+msgstr "Nova pasta"
+
+msgid "transfer.chmod"
+msgstr "Permissões"
+
+msgid "viewer.selectAllLimited"
+msgstr "Arquivo muito grande: apenas a parte visível foi selecionada. Use Copiar tudo para o conteúdo completo."
+
+# ★ 2026-10-14：复制反馈区分「全部 / 选中」（原都显示 file.copied，看不出复制了哪一份）
+msgid "file.copiedAll"
+msgstr "Tudo copiado"
+
+msgid "file.copiedSelection"
+msgstr "Seleção copiada"
+
+# ★ 2026-10-16：设置页新增「键入定位」开关（默认开）
+msgid "settings.typeAhead"
+msgstr "Ir para pelo prefixo do nome"
+
+msgid "settings.typeAheadHint"
+msgstr "Digite uma letra ou número na lista para ir ao item com esse prefixo de nome; pressione de novo para percorrer as correspondências"
+
+msgid "conn.switchHint"
+msgstr "Click to switch remote connection"
+
+msgid "conn.pickerTitle"
+msgstr "Trocar conexão"
+
+msgid "conn.notOpened"
+msgstr "(não aberta)"
+
+msgid "conn.current"
+msgstr "(current)"
+msgid "conn.otherPane"
+msgstr "(outro painel)"
+
+msgid "conn.disconnect"
+msgstr "Disconnect"
+
+msgid "conn.leftPickerTitle"
+msgstr "Trocar conexão"
+
+msgid "notify.leftEndpointNotRestored"
+msgstr "A conexão remota anterior ({host}) não está conectada. Ela permanece como desconectada; clique em reconectar para tentar novamente."
+
+msgid "notify.connPanelTabKept"
+msgstr "Esta aba hospeda o painel SFTP+: painel desconectado, aba mantida"
+
+msgid "notify.connOpenFailed"
+msgstr "Não foi possível abrir a conexão configurada: {host}"
+
+msgid "notify.leftRemoteSwitchFailed"
+msgstr "Falha ao alternar para a conexão remota"
+
+msgid "notify.leftRemoteViewUnsupported"
+msgstr "Abrir arquivos remotos diretamente não é suportado neste endpoint"
+
+msgid "transfer.remote-copy"
+msgstr "Server↔Server"
+
+msgid "transfer.local-copy"
+msgstr "Local copy"
+
+msgid "notify.remoteToRemoteFailed"
+msgstr "Remote-to-remote transfer failed"
+
+msgid "notify.dropTargetNotLocal"
+msgstr "Este endpoint não é um disco local; soltar aqui não é suportado"
+
+msgid "conflict.digestUnavailableRemote"
+msgstr "Digest unavailable (sizes differ, or the remote server does not support it)"
+
+msgid "conflict.digestUnavailableLocal"
+msgstr "Digest unavailable (sizes differ, or the local file could not be read)"
+
+msgid "transfer.skippedAsDuplicateHint"
+msgstr "Content is identical on both sides, so the transfer was not executed"
+
+msgid "app.invalidNameChars"
+msgstr "The name cannot contain a path separator (slash or backslash) or control characters"
+
+msgid "settings.exportNothing"
+msgstr "Nada a exportar: as categorias selecionadas não contêm dados (por exemplo, não há registros de transferência nesta máquina). Nenhum arquivo de backup foi criado."
+
+msgid "notify.pasteSkippedExists"
+msgstr "{n} item(ns) ignorado(s) — o destino já existe"
+
+msgid "settings.customTopBar"
+msgstr "Personalizar botões da barra superior"
+
+msgid "settings.topBarOverflow"
+msgstr "Ativar menu de excedente (⋯)"
+
+msgid "settings.topBarPinned"
+msgstr "Fixado"
+
+msgid "settings.topBarInMenu"
+msgstr "No menu ⋯"
+
+msgid "settings.topBarPin"
+msgstr "Fixar na barra"
+
+msgid "settings.topBarUnpin"
+msgstr "Desafixar (mover para ⋯)"
+
+msgid "settings.topBarCloseNeedsHotkey"
+msgstr "Sempre visível até definir um atalho do painel"
+
+msgid "settings.resetTopBar"
+msgstr "Restaurar barra superior"
+
+msgid "topbar.pathMode"
+msgstr "Modo de caminho"
+
+msgid "topbar.minimize"
+msgstr "Minimizar"
+
+msgid "settings.connPickerTrigger"
+msgstr "Acionador do seletor de conexões"
+
+msgid "settings.connPickerTriggerHint"
+msgstr "Escolha como o seletor de conexões abre: o título da barra superior ou o rótulo local/remoto na barra de cada painel"
+
+msgid "settings.connPickerTopbar"
+msgstr "Título superior"
+
+msgid "settings.connPickerBadge"
+msgstr "Selo da barra"
+
+msgid "settings.connPickerBoth"
+msgstr "Ambos"
+msgid "settings.connLabelStyle"
+msgstr "Exibição da conexão"
+
+msgid "settings.connLabelAccount"
+msgstr "Conta@host"
+
+msgid "settings.connLabelAlias"
+msgstr "Apelido"
+
+msgid "settings.connLabelStyleHint"
+msgstr "O que a barra superior mostra: conta@host ou o nome do perfil do Tabby. O seletor de conexão não é afetado."
+
+
+msgid "settings.panelOpacity"
+msgstr "Opacidade do painel"
+
+msgid "settings.panelOpacityHint"
+msgstr "Ajuste a opacidade geral do painel. Mínimo de 50 por cento, totalmente transparente não é permitido"
+
+msgid "bookmark.resetSize"
+msgstr "Clique duplo para restaurar o tamanho"
+
+msgid "settings.bookmarkLink"
+msgstr "Favoritos vinculados"
+
+msgid "settings.bookmarkLinkHint"
+msgstr "Quando ativado, um favorito pode ter um caminho vinculado; ao clicar, o outro painel também vai para lá"
+
+msgid "bookmark.linkPath"
+msgstr "Caminho vinculado (outro painel, opcional)"
+
+msgid "bookmark.linkBadge"
+msgstr "Vinculado"
+
+msgid "bookmark.sortManual"
+msgstr "Ordem manual"
+
+msgid "bookmark.sortUsage"
+msgstr "Por uso"
+
+msgid "bookmark.sortName"
+msgstr "Por nome"
+
+msgid "bookmark.sortHint"
+msgstr "Clique para alternar a ordenação"
+
+msgid "bookmark.dragHint"
+msgstr "Arraste para reordenar favoritos, clique com o botão direito para editar"
+
+msgid "bookmark.dragHintSorted"
+msgstr "Ordenado por uso — arrastar desativado; clique com o botão direito para editar"
+
+msgid "settings.bookmarkSortByUsage"
+msgstr "Ordenar por uso"
+
+msgid "settings.bookmarkSortByUsageHint"
+msgstr "Desligado: ordem manual. Ligado: pela frequência de cliques no favorito"
+
+msgid "settings.bookmarkSortHint"
+msgstr "Ordem manual: arrastar. Por uso: mais clicados primeiro. Por nome: alfabética (números em ordem natural)"
+
+msgid "settings.bookmarkSort"
+msgstr "Ordenação dos favoritos"
+
+msgid "settings.bookmarkResetUsage"
+msgstr "Redefinir estatísticas"
+
+msgid "settings.bookmarkResetUsageDone"
+msgstr "Estatísticas de {count} favoritos redefinidas"
+
+msgid "bookmark.linkMissing"
+msgstr "O caminho vinculado não existe; o outro painel não foi movido"
+
+msgid "bookmark.resetWidth"
+msgstr "Clique duplo para restaurar a largura"
+
+msgid "bookmark.resetHeight"
+msgstr "Clique duplo para restaurar a altura"
+
+
+msgid "editor.externalChanged"
+msgstr "Local changes not yet uploaded to server"
+
+msgid "editor.uploadNow"
+msgstr "Upload now"
+
+msgid "settings.editorAutoUploadExternal"
+msgstr "Auto-upload on external edit"
+
+msgid "settings.editorAutoUploadExternalHint"
+msgstr "Automatically upload to server after saving in an external editor. Off by default; when on, if the remote file was changed by someone else, it prompts for confirmation instead of overwriting silently."
+
+msgid "settings.applyInstant"
+msgstr "Aplicar alterações imediatamente"
+
+msgid "settings.applyInstantHint"
+msgstr "Ativado: as alterações chegam imediatamente aos painéis SFTP+ abertos. Desativado: feche e reabra o painel"
+
+msgid "settings.buyCoffee"
+msgstr "Me pague um café"
+
+msgid "bookmark.pinOn"
+msgstr "Painel sempre aberto"
+
+msgid "bookmark.pinOff"
+msgstr "Fechar ao selecionar"
+
+msgid "bookmark.pinHint"
+msgstr "Clique para alternar: sempre aberto (clique fora não fecha) / fechar ao selecionar"
+
+msgid "settings.conflictRenameStyle"
+msgstr "Estilo de renomeação em conflito"
+
+msgid "settings.conflictRenameStyleHint"
+msgstr "Como o novo nome é criado ao escolher Renomear em um conflito (numerado por padrão)"
+
+msgid "settings.renameStyleSeq"
+msgstr "Numerado"
+
+msgid "settings.renameStyleTime"
+msgstr "Data e hora"
+
+msgid "settings.renameStyleRandom"
+msgstr "Sufixo aleatório"
+

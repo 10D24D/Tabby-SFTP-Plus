@@ -141,6 +141,9 @@ msgstr "Ladda Upp"
 msgid "app.download"
 msgstr "Ladda Ner"
 
+msgid "app.transfer"
+msgstr "Överför"
+
 msgid "app.newFolder"
 msgstr "Ny Mapp"
 
@@ -267,6 +270,9 @@ msgstr "Nej matching files"
 
 msgid "pane.empty"
 msgstr "Tom mapp"
+msgid "pane.connLost"
+msgstr "Anslutningen har tappats"
+
 msgid "pane.errorAccess"
 msgstr "Kan inte komma åt (åtkomst nekad eller sökväg hittades inte)"
 msgid "pane.loading"
@@ -277,6 +283,12 @@ msgid "path.modeRemember"
 msgstr "Sökvägsläge: Kom ihåg (återställ nästa gång)"
 msgid "path.modeSync"
 msgstr "Sökvägsläge: Synkronisera med terminal (fjärr följer cwd)"
+
+msgid "path.modeMirror"
+msgstr "Sökvägsläge: Spegla sökväg (båda panelerna visar samma mapp)"
+
+msgid "path.mirrorUnavailable"
+msgstr "Spegling av sökväg kräver att båda panelerna är lokala eller båda fjärr"
 msgid "path.syncNoCwd"
 msgstr "Terminal cwd rapporterades inte. Växla till Synkronisera igen för att konfigurera"
 msgid "path.cwdSetupTitle"
@@ -482,7 +494,7 @@ msgid "transfer.deleteTitle"
 msgstr "Bekräfta Ta Bort"
 
 msgid "bookmark.title"
-msgstr "Bokmärken"
+msgstr "{pane} Bokmärken"
 msgid "bookmark.add"
 msgstr "Lägg till bokmärke"
 msgid "bookmark.addLocal"
@@ -546,6 +558,9 @@ msgid "notify.connecting"
 msgstr "Ansluter till"
 msgid "notify.sftpConnectFailed"
 msgstr "SFTP-anslutningen misslyckades. Se till att SSH är ansluten och att servern stöder SFTP."
+msgid "notify.paneConnClosed"
+msgstr "Den här anslutningen stängdes. Välj en annan anslutning i listan."
+
 msgid "notify.reconnectNoTerminal"
 msgstr "Terminalen frånkopplad. Klicka eller tryck på valfri tangent i terminalen för att återansluta."
 msgid "notify.reconnectFailed"
@@ -809,6 +824,11 @@ msgstr "{n} objekt kopierade"
 msgid "notify.cut"
 msgstr "{n} objekt klippta"
 
+msgid "status.connecting"
+msgstr "Ansluter"
+msgid "status.waitingConn"
+msgstr "Väntar på anslutning"
+
 msgid "status.disconnected"
 msgstr "Frånkopplad"
 
@@ -893,6 +913,12 @@ msgstr "Kom ihåg sökväg"
 
 msgid "settings.pathModeSync"
 msgstr "Synka med terminalen"
+
+msgid "settings.pathModeMirror"
+msgstr "Spegla sökväg"
+
+msgid "settings.pathModeMirrorHint"
+msgstr "Båda panelerna visar alltid samma mapp; endast när båda är lokala eller båda fjärr"
 
 msgid "settings.defaultShowHidden"
 msgstr "Visa dolda filer som standard"
@@ -1079,7 +1105,7 @@ msgid "settings.occupied.closeDialog"
 msgstr "Stäng dialog / visare / panel"
 
 msgid "settings.occupied.confirmDelete"
-msgstr "Bekräfta borttagning"
+msgstr "Bekräfta"
 
 msgid "log.modeFast"
 msgstr "Snabbläge"
@@ -1334,7 +1360,7 @@ msgid "app.targetNotDir"
 msgstr "Målsökvägen är inte en katalog: {dir}"
 
 msgid "pane.groupBy"
-msgstr "Gruppera efter"
+msgstr "Gruppera"
 
 msgid "group.none"
 msgstr "Ingen"
@@ -1547,3 +1573,327 @@ msgid "settings.caretShapeBeam"
 msgstr "Lodrät streck"
 msgid "settings.caretShapeUnderline"
 msgstr "Understrykning"
+msgid "settings.showTextWordWrap"
+msgstr "Radbrytning (visare/redigerare)"
+msgid "settings.showTextWordWrapHint"
+msgstr "Radbryt långa rader i visaren och redigeraren i stället för vågrät rullning."
+msgid "viewer.wordWrap"
+msgstr "Radbryt"
+msgid "viewer.lineNumbers"
+msgstr "Radnummer"
+msgid "viewer.lineNumbersOffByWrap"
+msgstr "Radnummer döljs när radbrytning är på"
+
+msgid "editor.encodingNotEditable"
+msgstr "Den här filen använder en kodning som inte kan sparas säkert (t.ex. GBK/GB18030). Redigera den i systemredigeraren i stället."
+
+# ★ 2026-10-13：对齐 en-US 新增的 15 个 msgid（审计修复：缺失时这些语言回退英文）
+msgid "layout.override.tooNarrow"
+msgstr "Panel för smal för sidledes layout; använder tillfälligt över-under-layout"
+
+msgid "layout.override.tooShort"
+msgstr "Panel för kort för över-under-layout; använder tillfälligt sidledes layout"
+
+msgid "layout.override.tooCramped"
+msgstr "Panel för liten för två paneler; använder tillfälligt enkel panel"
+
+msgid "layout.override.reasonNarrow"
+msgstr "för smal"
+
+msgid "layout.override.reasonShort"
+msgstr "för kort"
+
+msgid "layout.override.reasonCramped"
+msgstr "för liten"
+
+msgid "layout.override.title"
+msgstr "{preferred} → {actual} ({reason})"
+
+msgid "settings.occupied.typeAhead"
+msgstr "Skriv ett namnprefix för att hoppa till träffen"
+
+msgid "log.modeSftp"
+msgstr "SFTP"
+
+msgid "editor.remoteChanged"
+msgstr "Fjärrfilen har ändrats. Skriva över versionen på servern?"
+
+msgid "notify.sftpRecovered"
+msgstr "SFTP-session återställd; försök igen med avbrutna överföringar"
+
+msgid "perm.modeUnknown"
+msgstr "Kan inte läsa behörigheter; avbruten"
+
+msgid "permission.chmodFailed"
+msgstr "Kunde inte ändra behörigheter"
+
+msgid "conflict.contentDiffers"
+msgstr "Innehållet är annorlunda — överväg att skriva över"
+
+msgid "viewer.truncatedPreview"
+msgstr "Filen är stor; visar de första {limit}. Använd “Open in System” för hela filen."
+
+# ★ 2026-10-13：传输日志操作名（对齐 en-US 新增，缺失时这些语言回退英文）
+msgid "transfer.delete"
+msgstr "Ta bort"
+
+msgid "transfer.rename"
+msgstr "Byt namn"
+
+msgid "transfer.mkdir"
+msgstr "Ny mapp"
+
+msgid "transfer.chmod"
+msgstr "Behörigheter"
+
+msgid "viewer.selectAllLimited"
+msgstr "Filen är för stor: endast den synliga delen är markerad. Använd Kopiera allt för hela innehållet."
+
+# ★ 2026-10-14：复制反馈区分「全部 / 选中」（原都显示 file.copied，看不出复制了哪一份）
+msgid "file.copiedAll"
+msgstr "Allt kopierat"
+
+msgid "file.copiedSelection"
+msgstr "Markering kopierad"
+
+# ★ 2026-10-16：设置页新增「键入定位」开关（默认开）
+msgid "settings.typeAhead"
+msgstr "Hoppa efter namnprefix"
+
+msgid "settings.typeAheadHint"
+msgstr "Skriv en bokstav eller siffra i listan för att hoppa till posten med det namnprefixet; tryck igen för att gå vidare bland träffar"
+
+msgid "conn.switchHint"
+msgstr "Click to switch remote connection"
+
+msgid "conn.pickerTitle"
+msgstr "Byt anslutning"
+
+msgid "conn.notOpened"
+msgstr "(inte öppnad)"
+
+msgid "conn.current"
+msgstr "(current)"
+msgid "conn.otherPane"
+msgstr "(annan panel)"
+
+msgid "conn.disconnect"
+msgstr "Disconnect"
+
+msgid "conn.leftPickerTitle"
+msgstr "Byt anslutning"
+
+msgid "notify.leftEndpointNotRestored"
+msgstr "Den tidigare fjärranslutningen ({host}) är inte ansluten. Den visas kvar som frånkopplad – klicka på återanslut för att försöka igen."
+
+msgid "notify.connPanelTabKept"
+msgstr "Den här fliken är värd för SFTP+-panelen: panelen är frånkopplad, fliken behålls"
+
+msgid "notify.connOpenFailed"
+msgstr "Kunde inte öppna den konfigurerade anslutningen: {host}"
+
+msgid "notify.leftRemoteSwitchFailed"
+msgstr "Misslyckades att växla till fjärranslutningen"
+
+msgid "notify.leftRemoteViewUnsupported"
+msgstr "Att öppna fjärrfiler direkt stöds inte av den här slutpunkten"
+
+msgid "transfer.remote-copy"
+msgstr "Server↔Server"
+
+msgid "transfer.local-copy"
+msgstr "Local copy"
+
+msgid "notify.remoteToRemoteFailed"
+msgstr "Remote-to-remote transfer failed"
+
+msgid "notify.dropTargetNotLocal"
+msgstr "Den här slutpunkten är inte en lokal disk; att släppa här stöds inte"
+
+msgid "conflict.digestUnavailableRemote"
+msgstr "Digest unavailable (sizes differ, or the remote server does not support it)"
+
+msgid "conflict.digestUnavailableLocal"
+msgstr "Digest unavailable (sizes differ, or the local file could not be read)"
+
+msgid "transfer.skippedAsDuplicateHint"
+msgstr "Content is identical on both sides, so the transfer was not executed"
+
+msgid "app.invalidNameChars"
+msgstr "The name cannot contain a path separator (slash or backslash) or control characters"
+
+msgid "settings.exportNothing"
+msgstr "Inget att exportera: de valda kategorierna innehåller inga data (t.ex. inga överföringsloggar på den här datorn). Ingen säkerhetskopia skapades."
+
+msgid "notify.pasteSkippedExists"
+msgstr "{n} objekt hoppades över — målet finns redan"
+
+msgid "settings.customTopBar"
+msgstr "Anpassa knappar i översta fältet"
+
+msgid "settings.topBarOverflow"
+msgstr "Aktivera överflödesmeny (⋯)"
+
+msgid "settings.topBarPinned"
+msgstr "Fäst"
+
+msgid "settings.topBarInMenu"
+msgstr "I ⋯-menyn"
+
+msgid "settings.topBarPin"
+msgstr "Fäst i verktygsfältet"
+
+msgid "settings.topBarUnpin"
+msgstr "Lossa (flytta till ⋯)"
+
+msgid "settings.topBarCloseNeedsHotkey"
+msgstr "Alltid synlig tills en kortkommando för panelen är inställd"
+
+msgid "settings.resetTopBar"
+msgstr "Återställ översta fältet"
+
+msgid "topbar.pathMode"
+msgstr "Söklägesläge"
+
+msgid "topbar.minimize"
+msgstr "Minimera"
+
+msgid "settings.connPickerTrigger"
+msgstr "Utlösare för anslutningsväxlare"
+
+msgid "settings.connPickerTriggerHint"
+msgstr "Välj hur anslutningsväxlaren öppnas: titeln i det översta fältet eller lokal/fjärr etiketten i varje panels verktygsfält"
+
+msgid "settings.connPickerTopbar"
+msgstr "Titel i fältet"
+
+msgid "settings.connPickerBadge"
+msgstr "Märke i fältet"
+
+msgid "settings.connPickerBoth"
+msgstr "Båda"
+msgid "settings.connLabelStyle"
+msgstr "Anslutningsvisning"
+
+msgid "settings.connLabelAccount"
+msgstr "Konto@värd"
+
+msgid "settings.connLabelAlias"
+msgstr "Alias"
+
+msgid "settings.connLabelStyleHint"
+msgstr "Vad den övre raden visar: konto@värd eller Tabby-profilnamnet. Anslutningsväljaren påverkas inte."
+
+
+msgid "settings.panelOpacity"
+msgstr "Panelens opacitet"
+
+msgid "settings.panelOpacityHint"
+msgstr "Justera panelens totala opacitet. Minst 50 procent, helt genomskinlig tillåts inte"
+
+msgid "bookmark.resetSize"
+msgstr "Dubbelklicka för att återställa storleken"
+
+msgid "settings.bookmarkLink"
+msgstr "Länkade bokmärken"
+
+msgid "settings.bookmarkLinkHint"
+msgstr "När det är på kan ett bokmärke ha en länkad sökväg; vid klick går även andra panelen dit"
+
+msgid "bookmark.linkPath"
+msgstr "Länkad sökväg (andra panelen, valfritt)"
+
+msgid "bookmark.linkBadge"
+msgstr "Länkad"
+
+msgid "bookmark.sortManual"
+msgstr "Dra ordning"
+
+msgid "bookmark.sortUsage"
+msgstr "Efter användning"
+
+msgid "bookmark.sortName"
+msgstr "Efter namn"
+
+msgid "bookmark.sortHint"
+msgstr "Klicka för att byta sortering"
+
+msgid "bookmark.dragHint"
+msgstr "Dra för att ordna om bokmärken, högerklicka för att redigera"
+
+msgid "bookmark.dragHintSorted"
+msgstr "Sorterat efter användning – dra inaktiverat; högerklicka för att redigera"
+
+msgid "settings.bookmarkSortByUsage"
+msgstr "Sortera efter användning"
+
+msgid "settings.bookmarkSortByUsageHint"
+msgstr "Av: manuell ordning. På: efter antal klick på bokmärket"
+
+msgid "settings.bookmarkSortHint"
+msgstr "Dra ordning: manuell. Efter användning: mest klickade först. Efter namn: alfabetiskt (siffror i naturlig ordning)"
+
+msgid "settings.bookmarkSort"
+msgstr "Sortering av bokmärken"
+
+msgid "settings.bookmarkResetUsage"
+msgstr "Återställ statistik"
+
+msgid "settings.bookmarkResetUsageDone"
+msgstr "Statistik för {count} bokmärken återställd"
+
+msgid "bookmark.linkMissing"
+msgstr "Den länkade sökvägen finns inte; andra panelen flyttades inte"
+
+msgid "bookmark.resetWidth"
+msgstr "Dubbelklicka för att återställa bredden"
+
+msgid "bookmark.resetHeight"
+msgstr "Dubbelklicka för att återställa höjden"
+
+
+msgid "editor.externalChanged"
+msgstr "Local changes not yet uploaded to server"
+
+msgid "editor.uploadNow"
+msgstr "Upload now"
+
+msgid "settings.editorAutoUploadExternal"
+msgstr "Auto-upload on external edit"
+
+msgid "settings.editorAutoUploadExternalHint"
+msgstr "Automatically upload to server after saving in an external editor. Off by default; when on, if the remote file was changed by someone else, it prompts for confirmation instead of overwriting silently."
+
+msgid "settings.applyInstant"
+msgstr "Tillämpa ändringar direkt"
+
+msgid "settings.applyInstantHint"
+msgstr "På: ändringar når öppna SFTP+ paneler direkt. Av: stäng och öppna panelen igen"
+
+msgid "settings.buyCoffee"
+msgstr "Bjud mig på kaffe"
+
+msgid "bookmark.pinOn"
+msgstr "Panelen förblir öppen"
+
+msgid "bookmark.pinOff"
+msgstr "Stäng vid val"
+
+msgid "bookmark.pinHint"
+msgstr "Klicka för att växla: förblir öppen (klick utanför stänger inte) / stäng vid val"
+
+msgid "settings.conflictRenameStyle"
+msgstr "Namnstil vid konflikt"
+
+msgid "settings.conflictRenameStyleHint"
+msgstr "Hur nya namn skapas när du väljer Byt namn vid en konflikt (numreras som standard)"
+
+msgid "settings.renameStyleSeq"
+msgstr "Numrerat"
+
+msgid "settings.renameStyleTime"
+msgstr "Tidsstämpel"
+
+msgid "settings.renameStyleRandom"
+msgstr "Slumpmässigt suffix"
+

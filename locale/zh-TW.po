@@ -181,6 +181,9 @@ msgstr "上傳"
 msgid "app.download"
 msgstr "下載"
 
+msgid "app.transfer"
+msgstr "傳輸"
+
 msgid "app.newFolder"
 msgstr "新建資料夾"
 
@@ -340,6 +343,9 @@ msgstr "無匹配檔案"
 msgid "pane.empty"
 msgstr "空資料夾"
 
+msgid "pane.connLost"
+msgstr "連線已中斷"
+
 msgid "pane.errorAccess"
 msgstr "無法訪問（許可權不足或路徑不存在）"
 
@@ -354,6 +360,12 @@ msgstr "路徑模式：路徑記憶（下次開啟恢復）"
 
 msgid "path.modeSync"
 msgstr "路徑模式：與終端同步（遠端跟隨終端目錄）"
+
+msgid "path.modeMirror"
+msgstr "路徑模式：同步路徑（兩欄顯示同一目錄）"
+
+msgid "path.mirrorUnavailable"
+msgstr "同步路徑僅在兩欄同為本機或同為遠端時可用"
 
 msgid "path.syncNoCwd"
 msgstr "未檢測到終端目錄上報。可再次切換到「與終端同步」以配置"
@@ -641,19 +653,19 @@ msgid "transfer.deleteTitle"
 msgstr "確認刪除"
 
 msgid "bookmark.title"
-msgstr "書籤"
+msgstr "{pane}書籤"
 
 msgid "bookmark.add"
 msgstr "新增書籤"
 
 msgid "bookmark.addLocal"
-msgstr "當前新增"
+msgstr "局部新增：僅目前分頁的連線可見"
 
 msgid "bookmark.addGlobal"
-msgstr "全域性新增"
+msgstr "全域新增：任何分頁都可見"
 
 msgid "bookmark.addCurrentShort"
-msgstr "+本地"
+msgstr "+局部"
 
 msgid "bookmark.addGlobalShort"
 msgstr "+全域性"
@@ -680,7 +692,7 @@ msgid "bookmark.global"
 msgstr "全域性書籤"
 
 msgid "bookmark.forConnection"
-msgstr "目前書籤"
+msgstr "局部"
 msgid "permission.title"
 msgstr "修改許可權"
 
@@ -728,6 +740,9 @@ msgstr "正在連線到"
 
 msgid "notify.sftpConnectFailed"
 msgstr "SFTP 連線失敗，請確認 SSH 已連線且伺服器支援 SFTP 子系統。"
+
+msgid "notify.paneConnClosed"
+msgstr "該連線已關閉，請從清單中選擇其他連線。"
 
 msgid "notify.reconnectNoTerminal"
 msgstr "終端連線已斷開，請在終端中點選或按任意鍵重新連線。"
@@ -931,7 +946,6 @@ msgid "settings.iconResourceDir"
 msgstr "圖示目錄"
 msgid "settings.iconResourceDirPh"
 msgstr "存放 svg 圖示的本機目錄，如 C:\\icons"
-msgstr "副檔名"
 msgid "settings.iconSvgFile"
 msgstr "SVG 檔案"
 msgid "settings.iconPreview"
@@ -1215,6 +1229,11 @@ msgstr "已複製 {n} 個項目"
 msgid "notify.cut"
 msgstr "已剪下 {n} 個項目"
 
+msgid "status.connecting"
+msgstr "連線中"
+msgid "status.waitingConn"
+msgstr "等待連線"
+
 msgid "status.disconnected"
 msgstr "已中斷連線"
 
@@ -1299,6 +1318,12 @@ msgstr "路徑記憶"
 
 msgid "settings.pathModeSync"
 msgstr "與終端同步"
+
+msgid "settings.pathModeMirror"
+msgstr "同步路徑"
+
+msgid "settings.pathModeMirrorHint"
+msgstr "兩欄始終顯示同一目錄；僅當兩欄同為本機或同為遠端時可用"
 
 msgid "settings.defaultShowHidden"
 msgstr "預設顯示隱藏檔案"
@@ -1411,7 +1436,7 @@ msgid "settings.occupied.closeDialog"
 msgstr "關閉對話方塊 / 檢視器 / 面板"
 
 msgid "settings.occupied.confirmDelete"
-msgstr "確認刪除"
+msgstr "確認"
 
 msgid "log.modeFast"
 msgstr "快速模式"
@@ -1487,7 +1512,7 @@ msgstr "還原預設書籤面板"
 msgid "settings.bookmarkGroupByScope"
 msgstr "書籤分組"
 msgid "settings.bookmarkGroupByScopeHint"
-msgstr "開啟後書籤依「目前書籤 / 全域書籤」分塊顯示；關閉後混排並可跨範圍拖曳排序"
+msgstr "開啟後書籤依「局部 / 全域」分塊顯示；關閉後混排並可跨範圍拖曳排序"
 msgid "settings.bookmarkGroupOrderHint"
 msgstr "拖曳調整「目前連線」與「全域」分組塊的先後順序"
 
@@ -1539,7 +1564,7 @@ msgid "app.targetNotDir"
 msgstr "目標路徑不是目錄：{dir}"
 
 msgid "pane.groupBy"
-msgstr "分組依據"
+msgstr "分組"
 
 msgid "group.none"
 msgstr "無"
@@ -1752,3 +1777,306 @@ msgid "settings.caretShapeBeam"
 msgstr "直線"
 msgid "settings.caretShapeUnderline"
 msgstr "底線"
+msgid "settings.showTextWordWrap"
+msgstr "檢視編輯器自動換行"
+msgid "settings.showTextWordWrapHint"
+msgstr "長行在內建檢視器與編輯器中自動折行顯示，不再橫向捲動。"
+msgid "viewer.wordWrap"
+msgstr "自動換行"
+msgid "viewer.lineNumbers"
+msgstr "行號"
+msgid "viewer.lineNumbersOffByWrap"
+msgstr "自動換行開啟時行號不可用（折行後無法與邏輯行對齊）"
+
+msgid "editor.encodingNotEditable"
+msgstr "此檔案的編碼無法安全儲存（如 GBK/GB18030），請改用系統編輯器編輯。"
+
+# ★ 2026-10-13：对齐 en-US 新增的 15 个 msgid（审计修复：缺失时这些语言回退英文）
+msgid "settings.occupied.typeAhead"
+msgstr "鍵入名稱前綴即可跳至符合項目"
+
+msgid "log.modeSftp"
+msgstr "SFTP"
+
+msgid "editor.remoteChanged"
+msgstr "遠端檔案已被修改。確定要覆蓋伺服器上的版本嗎？"
+
+msgid "notify.sftpRecovered"
+msgstr "SFTP 工作階段已恢復，請重試被中斷的傳輸"
+
+msgid "perm.modeUnknown"
+msgstr "無法讀取權限，已取消"
+
+msgid "permission.chmodFailed"
+msgstr "權限修改失敗"
+
+msgid "conflict.contentDiffers"
+msgstr "內容實際不同，建議覆蓋"
+
+msgid "viewer.truncatedPreview"
+msgstr "檔案較大，僅預覽前 {limit}；完整內容請用「在系統中開啟」"
+
+# ★ 2026-10-13：传输日志操作名（对齐 en-US 新增，缺失时这些语言回退英文）
+msgid "transfer.delete"
+msgstr "刪除"
+
+msgid "transfer.rename"
+msgstr "重新命名"
+
+msgid "transfer.mkdir"
+msgstr "新增資料夾"
+
+msgid "transfer.chmod"
+msgstr "權限"
+
+msgid "viewer.selectAllLimited"
+msgstr "檔案過大：僅選取目前畫面內容，需要全文請用「複製全部」"
+
+# ★ 2026-10-14：复制反馈区分「全部 / 选中」（原都显示 file.copied，看不出复制了哪一份）
+msgid "file.copiedAll"
+msgstr "已複製全部"
+
+msgid "file.copiedSelection"
+msgstr "已複製選取"
+
+# ★ 2026-10-16：设置页新增「键入定位」开关（默认开）
+msgid "settings.typeAhead"
+msgstr "鍵入檔名前綴定位"
+
+msgid "settings.typeAheadHint"
+msgstr "在檔案清單裡直接敲字母/數字，跳轉選取名稱以該前綴開頭的項目；連按同一字母可在多個符合項之間循環"
+
+msgid "conn.switchHint"
+msgstr "点击切换远程连接"
+
+msgid "conn.pickerTitle"
+msgstr "切換連線"
+
+msgid "conn.notOpened"
+msgstr "(未開啟)"
+
+msgid "conn.current"
+msgstr "(当前)"
+msgid "conn.otherPane"
+msgstr "(另一欄)"
+
+msgid "conn.disconnect"
+msgstr "断开连接"
+
+msgid "conn.leftPickerTitle"
+msgstr "切換連線"
+
+msgid "notify.leftEndpointNotRestored"
+msgstr "上次的遠端連線 ({host}) 未連上，已保留為中斷狀態，可點擊重連"
+
+msgid "notify.connPanelTabKept"
+msgstr "此分頁承載著 SFTP+ 面板：已中斷面板，分頁保留"
+
+msgid "notify.connOpenFailed"
+msgstr "無法開啟設定連線 {host}"
+
+msgid "notify.leftRemoteSwitchFailed"
+msgstr "切換到遠端連線失敗"
+
+msgid "notify.leftRemoteViewUnsupported"
+msgstr "目前端點不支援直接開啟遠端檔案"
+
+msgid "transfer.remote-copy"
+msgstr "遠端互傳"
+
+msgid "transfer.local-copy"
+msgstr "本地複製"
+
+msgid "notify.remoteToRemoteFailed"
+msgstr "遠端↔遠端傳輸失敗"
+
+msgid "notify.dropTargetNotLocal"
+msgstr "目前端點不是本機磁碟，不支援拖曳至此"
+
+msgid "conflict.digestUnavailableRemote"
+msgstr "摘要不可用（檔案大小不同，或遠端伺服器不支援）"
+
+msgid "conflict.digestUnavailableLocal"
+msgstr "摘要不可用（檔案大小不同，或本機檔案讀取失敗）"
+
+msgid "transfer.skippedAsDuplicateHint"
+msgstr "兩側內容完全相同，本次未實際傳輸"
+
+msgid "app.invalidNameChars"
+msgstr "名稱不能包含路徑分隔符（正斜線或反斜線）或控制字元"
+
+msgid "settings.exportNothing"
+msgstr "沒有可匯出的資料：勾選的類別中沒有內容（例如本機沒有傳輸記錄）。未產生備份檔案。"
+
+msgid "notify.pasteSkippedExists"
+msgstr "{n} 項已存在，已略過"
+
+msgid "settings.customTopBar"
+msgstr "自訂頂欄按鈕"
+
+msgid "settings.topBarOverflow"
+msgstr "啟用收合選單（⋯）"
+
+msgid "settings.topBarPinned"
+msgstr "已固定"
+
+msgid "settings.topBarInMenu"
+msgstr "在 ⋯ 選單"
+
+msgid "settings.topBarPin"
+msgstr "固定到頂欄"
+
+msgid "settings.topBarUnpin"
+msgstr "取消固定（收進 ⋯）"
+
+msgid "settings.topBarCloseNeedsHotkey"
+msgstr "未設定面板快速鍵時始終顯示"
+
+msgid "settings.resetTopBar"
+msgstr "恢復預設頂欄"
+
+msgid "topbar.pathMode"
+msgstr "路徑模式"
+
+msgid "topbar.minimize"
+msgstr "最小化"
+
+msgid "settings.connPickerTrigger"
+msgstr "連線切換器喚起方式"
+
+msgid "settings.connPickerTriggerHint"
+msgstr "選擇連線切換器的彈出方式：面板頂欄的連線標題，或每欄工具列上的本機/遠端標識"
+
+msgid "settings.connPickerTopbar"
+msgstr "頂欄標題"
+
+msgid "settings.connPickerBadge"
+msgstr "工具列標識"
+
+msgid "settings.connPickerBoth"
+msgstr "兩者都"
+msgid "settings.connLabelStyle"
+msgstr "頂端連線顯示"
+
+msgid "settings.connLabelAccount"
+msgstr "帳號@位址"
+
+msgid "settings.connLabelAlias"
+msgstr "別名"
+
+msgid "settings.connLabelStyleHint"
+msgstr "頂端連線顯示「帳號@位址」或「Tabby 設定連線名稱」；連線選擇器不受影響"
+
+
+msgid "settings.panelOpacity"
+msgstr "面板透明度"
+
+msgid "settings.panelOpacityHint"
+msgstr "調整面板整體透明度；最低 50%，不允許全透明"
+
+msgid "bookmark.resetSize"
+msgstr "雙擊還原預設大小"
+
+msgid "settings.bookmarkLink"
+msgstr "聯動書籤"
+
+msgid "settings.bookmarkLinkHint"
+msgstr "開啟後書籤可設定聯動路徑；點擊該書籤時另一欄也會跳到該路徑"
+
+msgid "bookmark.linkPath"
+msgstr "聯動路徑（另一欄，可選）"
+
+msgid "bookmark.linkBadge"
+msgstr "聯動"
+
+msgid "bookmark.sortManual"
+msgstr "拖曳排序"
+
+msgid "bookmark.sortUsage"
+msgstr "頻率排序"
+
+msgid "bookmark.sortName"
+msgstr "名稱排序"
+
+msgid "bookmark.sortHint"
+msgstr "點擊切換排序方式"
+
+msgid "bookmark.dragHint"
+msgstr "拖曳排序書籤，右鍵編輯書籤"
+
+msgid "bookmark.dragHintSorted"
+msgstr "依使用頻率排序中，無法拖曳；右鍵編輯書籤"
+
+msgid "settings.bookmarkSortByUsage"
+msgstr "按使用頻率排序"
+
+msgid "settings.bookmarkSortByUsageHint"
+msgstr "關閉時按手動拖曳順序；開啟後按書籤被點擊的次數降序"
+
+msgid "settings.bookmarkSortHint"
+msgstr "拖曳順序：手動排序；使用頻率：依點擊次數遞減；名稱排序：依名稱遞增（數字依自然順序）"
+
+msgid "settings.bookmarkSort"
+msgstr "書籤排序"
+
+msgid "settings.bookmarkResetUsage"
+msgstr "重置統計"
+
+msgid "settings.bookmarkResetUsageDone"
+msgstr "已重置 {count} 條書籤的使用次數"
+
+msgid "bookmark.linkMissing"
+msgstr "聯動路徑不存在，已跳過另一欄跳轉"
+
+msgid "bookmark.resetWidth"
+msgstr "雙擊還原預設寬度"
+
+msgid "bookmark.resetHeight"
+msgstr "雙擊還原預設高度"
+
+
+msgid "editor.externalChanged"
+msgstr "本機已改動，尚未上傳到伺服器"
+
+msgid "editor.uploadNow"
+msgstr "立即上傳"
+
+msgid "settings.editorAutoUploadExternal"
+msgstr "外部編輯自動上傳"
+
+msgid "settings.editorAutoUploadExternalHint"
+msgstr "在系統中編輯並儲存後自動上傳到伺服器。預設關閉；開啟後若遠端檔案已被他人修改，將改為提示確認，而非靜默覆蓋。"
+
+msgid "settings.applyInstant"
+msgstr "調整設定立即生效"
+
+msgid "settings.applyInstantHint"
+msgstr "開啟後設定頁的修改會立即推送到已開啟的 SFTP+ 面板；關閉後需關閉並重開面板才生效"
+
+msgid "settings.buyCoffee"
+msgstr "請喝咖啡"
+
+msgid "bookmark.pinOn"
+msgstr "面板常駐"
+
+msgid "bookmark.pinOff"
+msgstr "選取後關閉"
+
+msgid "bookmark.pinHint"
+msgstr "點擊切換：常駐（點其它位置不關閉）/ 選取後關閉"
+
+msgid "settings.conflictRenameStyle"
+msgstr "衝突重新命名風格"
+
+msgid "settings.conflictRenameStyleHint"
+msgstr "衝突時選「重新命名」的新名稱怎麼起（預設按序號堆疊）"
+
+msgid "settings.renameStyleSeq"
+msgstr "序號堆疊"
+
+msgid "settings.renameStyleTime"
+msgstr "時間戳記"
+
+msgid "settings.renameStyleRandom"
+msgstr "隨機後綴"
+

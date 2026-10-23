@@ -175,6 +175,9 @@ msgid "app.upload"
 msgstr "Upload"
 msgid "app.download"
 msgstr "Download"
+
+msgid "app.transfer"
+msgstr "Overfør"
 msgid "app.newFolder"
 msgstr "Ny Mappe"
 
@@ -332,6 +335,9 @@ msgstr "Ingen matchende filer"
 msgid "pane.empty"
 msgstr "Tom mappe"
 
+msgid "pane.connLost"
+msgstr "Forbindelsen er mistet"
+
 msgid "pane.errorAccess"
 msgstr "Kan ikke tilgå (adgang nægtet eller sti ikke fundet)"
 
@@ -346,6 +352,12 @@ msgstr "Sti-tilstand: Husk (gendan næste gang)"
 
 msgid "path.modeSync"
 msgstr "Sti-tilstand: Sync med terminal (fjern følger cwd)"
+
+msgid "path.modeMirror"
+msgstr "Sti-tilstand: Spejl sti (begge paneler viser samme mappe)"
+
+msgid "path.mirrorUnavailable"
+msgstr "Spejling af sti kræver, at begge paneler er lokale eller begge fjern"
 
 msgid "path.syncNoCwd"
 msgstr "Terminal cwd ikke rapporteret. Skift til Sync igen for at konfigurere"
@@ -598,7 +610,7 @@ msgid "transfer.deleteTitle"
 msgstr "Bekræft Slet"
 
 msgid "bookmark.title"
-msgstr "Bogmærker"
+msgstr "{pane} Bogmærker"
 
 msgid "bookmark.add"
 msgstr "Tilføj Bogmærke"
@@ -684,6 +696,9 @@ msgstr "Forbinder til"
 
 msgid "notify.sftpConnectFailed"
 msgstr "SFTP-forbindelse fejlede. Sikr at SSH er forbundet og serveren understøtter SFTP."
+
+msgid "notify.paneConnClosed"
+msgstr "Denne forbindelse blev lukket. Vælg en anden forbindelse på listen."
 
 msgid "notify.reconnectNoTerminal"
 msgstr "Terminal afbrudt. Klik eller tryk på en tast i terminalen for at forbinde igen."
@@ -999,6 +1014,11 @@ msgstr "{n} element(er) kopieret"
 msgid "notify.cut"
 msgstr "{n} element(er) klippet ud"
 
+msgid "status.connecting"
+msgstr "Forbinder"
+msgid "status.waitingConn"
+msgstr "Venter på forbindelse"
+
 msgid "status.disconnected"
 msgstr "Afbrudt"
 
@@ -1083,6 +1103,12 @@ msgstr "Husk sti"
 
 msgid "settings.pathModeSync"
 msgstr "Synkroniser med terminal"
+
+msgid "settings.pathModeMirror"
+msgstr "Spejl sti"
+
+msgid "settings.pathModeMirrorHint"
+msgstr "Begge paneler viser altid samme mappe; kun når begge er lokale eller begge fjern"
 
 msgid "settings.defaultShowHidden"
 msgstr "Vis skjulte filer som standard"
@@ -1269,7 +1295,7 @@ msgid "settings.occupied.closeDialog"
 msgstr "Luk dialogboks / fremviser / panel"
 
 msgid "settings.occupied.confirmDelete"
-msgstr "Bekræft sletning"
+msgstr "Bekræft"
 
 msgid "log.modeFast"
 msgstr "Hurtig tilstand"
@@ -1524,7 +1550,7 @@ msgid "app.targetNotDir"
 msgstr "Målstien er ikke en mappe: {dir}"
 
 msgid "pane.groupBy"
-msgstr "Gruppér efter"
+msgstr "Gruppér"
 
 msgid "group.none"
 msgstr "Ingen"
@@ -1737,3 +1763,327 @@ msgid "settings.caretShapeBeam"
 msgstr "Lodret streg"
 msgid "settings.caretShapeUnderline"
 msgstr "Understregning"
+msgid "settings.showTextWordWrap"
+msgstr "Tekstombrydning (viser/editor)"
+msgid "settings.showTextWordWrapHint"
+msgstr "Ombrud af lange linjer i viseren og editoren i stedet for vandret rulning."
+msgid "viewer.wordWrap"
+msgstr "Ombryd"
+msgid "viewer.lineNumbers"
+msgstr "Linjenumre"
+msgid "viewer.lineNumbersOffByWrap"
+msgstr "Linjenumre er utilgængelige, når ombrydning er slået til"
+
+msgid "editor.encodingNotEditable"
+msgstr "Denne fil bruger en kodning, der ikke kan gemmes sikkert (f.eks. GBK/GB18030). Rediger den i systemets editor i stedet."
+
+# ★ 2026-10-13：对齐 en-US 新增的 15 个 msgid（审计修复：缺失时这些语言回退英文）
+msgid "layout.override.tooNarrow"
+msgstr "Panelet er for smalt til side-om-side-layout; bruger midlertidigt top-bund-layout"
+
+msgid "layout.override.tooShort"
+msgstr "Panelet er for kort til top-bund-layout; bruger midlertidigt side-om-side-layout"
+
+msgid "layout.override.tooCramped"
+msgstr "Panelet er for lille til to ruder; bruger midlertidigt enkelt rude"
+
+msgid "layout.override.reasonNarrow"
+msgstr "for smalt"
+
+msgid "layout.override.reasonShort"
+msgstr "for kort"
+
+msgid "layout.override.reasonCramped"
+msgstr "for lille"
+
+msgid "layout.override.title"
+msgstr "{preferred} → {actual} ({reason})"
+
+msgid "settings.occupied.typeAhead"
+msgstr "Skriv et navnepræfiks for at springe til matchet"
+
+msgid "log.modeSftp"
+msgstr "SFTP"
+
+msgid "editor.remoteChanged"
+msgstr "Den eksterne fil er blevet ændret. Overskriv versionen på serveren?"
+
+msgid "notify.sftpRecovered"
+msgstr "SFTP-session genskabt; prøv afbrudte overførsler igen"
+
+msgid "perm.modeUnknown"
+msgstr "Kan ikke læse tilladelser; annulleret"
+
+msgid "permission.chmodFailed"
+msgstr "Kunne ikke ændre tilladelser"
+
+msgid "conflict.contentDiffers"
+msgstr "Indholdet er forskelligt — overvej at overskrive"
+
+msgid "viewer.truncatedPreview"
+msgstr "Filen er stor; viser de første {limit}. Brug “Open in System” for hele filen."
+
+# ★ 2026-10-13：传输日志操作名（对齐 en-US 新增，缺失时这些语言回退英文）
+msgid "transfer.delete"
+msgstr "Slet"
+
+msgid "transfer.rename"
+msgstr "Omdøb"
+
+msgid "transfer.mkdir"
+msgstr "Ny mappe"
+
+msgid "transfer.chmod"
+msgstr "Rettigheder"
+
+msgid "viewer.selectAllLimited"
+msgstr "Filen er for stor: kun den synlige del er valgt. Brug Kopiér alt for hele indholdet."
+
+# ★ 2026-10-14：复制反馈区分「全部 / 选中」（原都显示 file.copied，看不出复制了哪一份）
+msgid "file.copiedAll"
+msgstr "Alt kopieret"
+
+msgid "file.copiedSelection"
+msgstr "Markering kopieret"
+
+# ★ 2026-10-16：设置页新增「键入定位」开关（默认开）
+msgid "settings.typeAhead"
+msgstr "Spring til efter navnepræfiks"
+
+msgid "settings.typeAheadHint"
+msgstr "Skriv et bogstav eller tal på fillisten for at springe til posten med det navnepræfiks; tryk igen for at gennemgå træffere"
+
+msgid "conn.switchHint"
+msgstr "Click to switch remote connection"
+
+msgid "conn.pickerTitle"
+msgstr "Skift forbindelse"
+
+msgid "conn.notOpened"
+msgstr "(ikke åben)"
+
+msgid "conn.current"
+msgstr "(current)"
+msgid "conn.otherPane"
+msgstr "(andet panel)"
+
+msgid "conn.disconnect"
+msgstr "Disconnect"
+
+msgid "conn.leftPickerTitle"
+msgstr "Skift forbindelse"
+
+msgid "notify.leftEndpointNotRestored"
+msgstr "Den forrige fjernforbindelse ({host}) er ikke forbundet. Den vises fortsat som afbrudt – klik på genopret forbindelse for at prøve igen."
+
+msgid "notify.connPanelTabKept"
+msgstr "Denne fane rummer SFTP+-panelet: panelet er afbrudt, fanen bevares"
+
+msgid "notify.connOpenFailed"
+msgstr "Kunne ikke åbne den konfigurerede forbindelse: {host}"
+
+msgid "notify.leftRemoteSwitchFailed"
+msgstr "Kunne ikke skifte til fjernforbindelsen"
+
+msgid "notify.leftRemoteViewUnsupported"
+msgstr "Åbning af fjernfiler direkte understøttes ikke af dette endepunkt"
+
+msgid "transfer.remote-copy"
+msgstr "Server↔Server"
+
+msgid "transfer.local-copy"
+msgstr "Local copy"
+
+msgid "notify.remoteToRemoteFailed"
+msgstr "Remote-to-remote transfer failed"
+
+msgid "notify.dropTargetNotLocal"
+msgstr "Dette endepunkt er ikke en lokal disk; drop understøttes ikke her"
+
+msgid "conflict.digestUnavailableRemote"
+msgstr "Digest unavailable (sizes differ, or the remote server does not support it)"
+
+msgid "conflict.digestUnavailableLocal"
+msgstr "Digest unavailable (sizes differ, or the local file could not be read)"
+
+msgid "transfer.skippedAsDuplicateHint"
+msgstr "Content is identical on both sides, so the transfer was not executed"
+
+msgid "app.invalidNameChars"
+msgstr "The name cannot contain a path separator (slash or backslash) or control characters"
+
+msgid "settings.exportNothing"
+msgstr "Intet at eksportere: de valgte kategorier indeholder ingen data (f.eks. ingen overførselslog på denne maskine). Der blev ikke oprettet nogen sikkerhedskopifil."
+
+msgid "notify.pasteSkippedExists"
+msgstr "{n} elementer sprunget over — målet findes allerede"
+
+msgid "settings.customTopBar"
+msgstr "Tilpas knapper i øverste bjælke"
+
+msgid "settings.topBarOverflow"
+msgstr "Aktivér overflydningsmenu (⋯)"
+
+msgid "settings.topBarPinned"
+msgstr "Fastgjort"
+
+msgid "settings.topBarInMenu"
+msgstr "I ⋯-menu"
+
+msgid "settings.topBarPin"
+msgstr "Fastgør til værktøjslinjen"
+
+msgid "settings.topBarUnpin"
+msgstr "Frigør (flyt til ⋯)"
+
+msgid "settings.topBarCloseNeedsHotkey"
+msgstr "Altid synlig, indtil der er angivet en genvej til panelet"
+
+msgid "settings.resetTopBar"
+msgstr "Gendan standard øverste bjælke"
+
+msgid "topbar.pathMode"
+msgstr "Stitilstand"
+
+msgid "topbar.minimize"
+msgstr "Minimer"
+
+msgid "settings.connPickerTrigger"
+msgstr "Udløser for forbindelsesskifter"
+
+msgid "settings.connPickerTriggerHint"
+msgstr "Vælg hvordan forbindelsesskifteren åbnes: titlen i den øverste bjælke eller lokal/fjern mærket i hvert panels værktøjslinje"
+
+msgid "settings.connPickerTopbar"
+msgstr "Titel i bjælke"
+
+msgid "settings.connPickerBadge"
+msgstr "Mærke i værktøjslinje"
+
+msgid "settings.connPickerBoth"
+msgstr "Begge"
+msgid "settings.connLabelStyle"
+msgstr "Visning af forbindelse"
+
+msgid "settings.connLabelAccount"
+msgstr "Konto@vært"
+
+msgid "settings.connLabelAlias"
+msgstr "Alias"
+
+msgid "settings.connLabelStyleHint"
+msgstr "Hvad den øverste bjælke viser: konto@vært eller Tabby-profilnavnet. Forbindelsesvælgeren påvirkes ikke."
+
+
+msgid "settings.panelOpacity"
+msgstr "Panelgennemsigtighed"
+
+msgid "settings.panelOpacityHint"
+msgstr "Justér panelens samlede gennemsigtighed. Minimum 50 procent, helt gennemsigtig er ikke tilladt"
+
+msgid "bookmark.resetSize"
+msgstr "Dobbeltklik for at gendanne standardstørrelse"
+
+msgid "settings.bookmarkLink"
+msgstr "Knyttede bogmærker"
+
+msgid "settings.bookmarkLinkHint"
+msgstr "Når det er slået til, kan et bogmærke have en knyttet sti; ved klik springer det andet panel også dertil"
+
+msgid "bookmark.linkPath"
+msgstr "Knyttet sti (andet panel, valgfrit)"
+
+msgid "bookmark.linkBadge"
+msgstr "Knyttet"
+
+msgid "bookmark.sortManual"
+msgstr "Trækrækkefølge"
+
+msgid "bookmark.sortUsage"
+msgstr "Efter brug"
+
+msgid "bookmark.sortName"
+msgstr "Efter navn"
+
+msgid "bookmark.sortHint"
+msgstr "Klik for at skifte sortering"
+
+msgid "bookmark.dragHint"
+msgstr "Træk for at omarrangere bogmærker, højreklik for at redigere"
+
+msgid "bookmark.dragHintSorted"
+msgstr "Sorteret efter brug – træk deaktiveret; højreklik for at redigere"
+
+msgid "settings.bookmarkSortByUsage"
+msgstr "Sortér efter brug"
+
+msgid "settings.bookmarkSortByUsageHint"
+msgstr "Fra: manuel rækkefølge. Til: efter antal klik på bogmærket"
+
+msgid "settings.bookmarkSortHint"
+msgstr "Trækrækkefølge: manuel. Efter brug: flest klik først. Efter navn: alfabetisk (tal i naturlig rækkefølge)"
+
+msgid "settings.bookmarkSort"
+msgstr "Sortering af bogmærker"
+
+msgid "settings.bookmarkResetUsage"
+msgstr "Nulstil statistik"
+
+msgid "settings.bookmarkResetUsageDone"
+msgstr "Statistik for {count} bogmærker er nulstillet"
+
+msgid "bookmark.linkMissing"
+msgstr "Den knyttede sti findes ikke; det andet panel blev ikke flyttet"
+
+msgid "bookmark.resetWidth"
+msgstr "Dobbeltklik for at gendanne standardbredde"
+
+msgid "bookmark.resetHeight"
+msgstr "Dobbeltklik for at gendanne standardhøjde"
+
+
+msgid "editor.externalChanged"
+msgstr "Local changes not yet uploaded to server"
+
+msgid "editor.uploadNow"
+msgstr "Upload now"
+
+msgid "settings.editorAutoUploadExternal"
+msgstr "Auto-upload on external edit"
+
+msgid "settings.editorAutoUploadExternalHint"
+msgstr "Automatically upload to server after saving in an external editor. Off by default; when on, if the remote file was changed by someone else, it prompts for confirmation instead of overwriting silently."
+
+msgid "settings.applyInstant"
+msgstr "Anvend ændringer med det samme"
+
+msgid "settings.applyInstantHint"
+msgstr "Til: ændringer her sendes straks til åbne SFTP+ paneler. Fra: du skal lukke og genåbne panelet"
+
+msgid "settings.buyCoffee"
+msgstr "Giv mig en kop kaffe"
+
+msgid "bookmark.pinOn"
+msgstr "Panelet forbliver åbent"
+
+msgid "bookmark.pinOff"
+msgstr "Luk ved valg"
+
+msgid "bookmark.pinHint"
+msgstr "Klik for at skifte: forbliv åben (klik andre steder lukker ikke) / luk ved valg"
+
+msgid "settings.conflictRenameStyle"
+msgstr "Omdøbningsstil ved konflikt"
+
+msgid "settings.conflictRenameStyleHint"
+msgstr "Hvordan nye navne dannes, når du vælger Omdøb ved en konflikt (nummerering som standard)"
+
+msgid "settings.renameStyleSeq"
+msgstr "Nummereret"
+
+msgid "settings.renameStyleTime"
+msgstr "Tidsstempel"
+
+msgid "settings.renameStyleRandom"
+msgstr "Tilfældig endelse"
+

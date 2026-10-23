@@ -141,6 +141,9 @@ msgstr "Učitaj"
 msgid "app.download"
 msgstr "Preuzmi"
 
+msgid "app.transfer"
+msgstr "Prenos"
+
 msgid "app.newFolder"
 msgstr "Novi Folder"
 
@@ -266,6 +269,9 @@ msgstr "Ne matching files"
 
 msgid "pane.empty"
 msgstr "Prazna fascikla"
+msgid "pane.connLost"
+msgstr "Veza je izgubljena"
+
 msgid "pane.errorAccess"
 msgstr "Nije moguće pristupiti (dozvola odbijena ili putanja nije pronađena)"
 msgid "pane.loading"
@@ -276,6 +282,12 @@ msgid "path.modeRemember"
 msgstr "Režim putanje: Zapamti (obnovi sledeći put)"
 msgid "path.modeSync"
 msgstr "Režim putanje: Sinhronizuj sa terminalom (udaljeno prati cwd)"
+
+msgid "path.modeMirror"
+msgstr "Režim putanje: Zrcalna putanja (oba okna prikazuju isti direktorijum)"
+
+msgid "path.mirrorUnavailable"
+msgstr "Zrcalna putanja zahteva da oba okna budu lokalna ili oba udaljena"
 msgid "path.syncNoCwd"
 msgstr "Terminalni cwd nije prijavljen. Prebacite na Sinhronizuj ponovo za podešavanje"
 msgid "path.cwdSetupTitle"
@@ -481,7 +493,7 @@ msgid "transfer.deleteTitle"
 msgstr "Potvrdi Izbriši"
 
 msgid "bookmark.title"
-msgstr "Obeleživači"
+msgstr "{pane} Obeleživači"
 msgid "bookmark.add"
 msgstr "Dodaj obeleživač"
 msgid "bookmark.addLocal"
@@ -545,6 +557,9 @@ msgid "notify.connecting"
 msgstr "Povezivanje sa"
 msgid "notify.sftpConnectFailed"
 msgstr "SFTP veza nije uspela. Proverite da li je SSH povezan i da li server podržava SFTP."
+msgid "notify.paneConnClosed"
+msgstr "Ova veza je zatvorena. Izaberite drugu vezu sa liste."
+
 msgid "notify.reconnectNoTerminal"
 msgstr "Terminal je prekinut. Kliknite ili pritisnite bilo koji taster u terminalu za ponovno povezivanje."
 msgid "notify.reconnectFailed"
@@ -808,6 +823,11 @@ msgstr "Kopirano {n} stavki"
 msgid "notify.cut"
 msgstr "Isečeno {n} stavki"
 
+msgid "status.connecting"
+msgstr "Povezivanje"
+msgid "status.waitingConn"
+msgstr "Čekanje veze"
+
 msgid "status.disconnected"
 msgstr "Prekinuto"
 
@@ -892,6 +912,12 @@ msgstr "Zapamti putanju"
 
 msgid "settings.pathModeSync"
 msgstr "Sinhronizacija sa terminalom"
+
+msgid "settings.pathModeMirror"
+msgstr "Zrcalna putanja"
+
+msgid "settings.pathModeMirrorHint"
+msgstr "Oba okna uvek prikazuju isti direktorijum; dostupno samo kada su oba lokalna ili oba udaljena"
 
 msgid "settings.defaultShowHidden"
 msgstr "Podrazumevano prikaži skrivene datoteke"
@@ -1078,7 +1104,7 @@ msgid "settings.occupied.closeDialog"
 msgstr "Zatvori dijalog / pregledač / panel"
 
 msgid "settings.occupied.confirmDelete"
-msgstr "Potvrdi brisanje"
+msgstr "Potvrdi"
 
 msgid "log.modeFast"
 msgstr "Brzi režim"
@@ -1333,7 +1359,7 @@ msgid "app.targetNotDir"
 msgstr "Ciljna putanja nije direktorijum: {dir}"
 
 msgid "pane.groupBy"
-msgstr "Grupiši po"
+msgstr "Grupiši"
 
 msgid "group.none"
 msgstr "Nema"
@@ -1546,3 +1572,327 @@ msgid "settings.caretShapeBeam"
 msgstr "Vertikalna crta"
 msgid "settings.caretShapeUnderline"
 msgstr "Donja crta"
+msgid "settings.showTextWordWrap"
+msgstr "Prelamanje redova (pregledač/uređivač)"
+msgid "settings.showTextWordWrapHint"
+msgstr "Prelomi duge redove u pregledaču i uređivaču umesto vodoravnog pomeranja."
+msgid "viewer.wordWrap"
+msgstr "Prelom"
+msgid "viewer.lineNumbers"
+msgstr "Brojevi redova"
+msgid "viewer.lineNumbersOffByWrap"
+msgstr "Brojevi redova su skriveni dok je prelamanje uključeno"
+
+msgid "editor.encodingNotEditable"
+msgstr "Ova datoteka koristi kodiranje koje se ne može bezbedno sačuvati (npr. GBK/GB18030). Izmenite je u sistemskom editoru."
+
+# ★ 2026-10-13：对齐 en-US 新增的 15 个 msgid（审计修复：缺失时这些语言回退英文）
+msgid "layout.override.tooNarrow"
+msgstr "Panel preuzak za vodoravni raspored; privremeno se koristi uspravni raspored"
+
+msgid "layout.override.tooShort"
+msgstr "Panel prenizak za uspravni raspored; privremeno se koristi vodoravni raspored"
+
+msgid "layout.override.tooCramped"
+msgstr "Panel premali za dva panela; privremeno se koristi jedan panel"
+
+msgid "layout.override.reasonNarrow"
+msgstr "preuzak"
+
+msgid "layout.override.reasonShort"
+msgstr "prenizak"
+
+msgid "layout.override.reasonCramped"
+msgstr "premali"
+
+msgid "layout.override.title"
+msgstr "{preferred} → {actual} ({reason})"
+
+msgid "settings.occupied.typeAhead"
+msgstr "Ukucajte prefiks imena da biste prešli na podudaranje"
+
+msgid "log.modeSftp"
+msgstr "SFTP"
+
+msgid "editor.remoteChanged"
+msgstr "Udaljena datoteka je izmenjena. Prepisati verziju na serveru?"
+
+msgid "notify.sftpRecovered"
+msgstr "SFTP sesija je obnovljena; pokušajte ponovo prekinute transfere"
+
+msgid "perm.modeUnknown"
+msgstr "Nije moguće pročitati dozvole; otkazano"
+
+msgid "permission.chmodFailed"
+msgstr "Neuspešna promena dozvola"
+
+msgid "conflict.contentDiffers"
+msgstr "Sadržaj je drugačiji — razmislite o prepisivanju"
+
+msgid "viewer.truncatedPreview"
+msgstr "Datoteka je velika; prikazani su prvi {limit}. Za celu datoteku koristite “Open in System”."
+
+# ★ 2026-10-13：传输日志操作名（对齐 en-US 新增，缺失时这些语言回退英文）
+msgid "transfer.delete"
+msgstr "Izbriši"
+
+msgid "transfer.rename"
+msgstr "Preimenuj"
+
+msgid "transfer.mkdir"
+msgstr "Nova fascikla"
+
+msgid "transfer.chmod"
+msgstr "Dozvole"
+
+msgid "viewer.selectAllLimited"
+msgstr "Datoteka je prevelika: izabran je samo vidljivi deo. Za ceo sadržaj koristite Kopiraj sve."
+
+# ★ 2026-10-14：复制反馈区分「全部 / 选中」（原都显示 file.copied，看不出复制了哪一份）
+msgid "file.copiedAll"
+msgstr "Sve kopirano"
+
+msgid "file.copiedSelection"
+msgstr "Selekcija kopirana"
+
+# ★ 2026-10-16：设置页新增「键入定位」开关（默认开）
+msgid "settings.typeAhead"
+msgstr "Skok po početku naziva"
+
+msgid "settings.typeAheadHint"
+msgstr "Unesite slovo ili broj u listi da skočite na stavku s tim početkom naziva; pritisnite ponovo za kretanje kroz poklapanja"
+
+msgid "conn.switchHint"
+msgstr "Click to switch remote connection"
+
+msgid "conn.pickerTitle"
+msgstr "Promeni vezu"
+
+msgid "conn.notOpened"
+msgstr "(nije otvoreno)"
+
+msgid "conn.current"
+msgstr "(current)"
+msgid "conn.otherPane"
+msgstr "(drugi panel)"
+
+msgid "conn.disconnect"
+msgstr "Disconnect"
+
+msgid "conn.leftPickerTitle"
+msgstr "Promeni vezu"
+
+msgid "notify.leftEndpointNotRestored"
+msgstr "Prethodna udaljena veza ({host}) nije povezana. Ostaje prikazana kao prekinuta — kliknite ponovno povezivanje da pokušate ponovo."
+
+msgid "notify.connPanelTabKept"
+msgstr "Ovaj tab hostuje SFTP+ panel: panel je isključen, tab je zadržan"
+
+msgid "notify.connOpenFailed"
+msgstr "Nije moguće otvoriti konfigurisanu vezu: {host}"
+
+msgid "notify.leftRemoteSwitchFailed"
+msgstr "Neuspeo prelazak na udaljenu vezu"
+
+msgid "notify.leftRemoteViewUnsupported"
+msgstr "Direktno otvaranje udaljenih fajlova nije podržano na ovoj krajnjoj tački"
+
+msgid "transfer.remote-copy"
+msgstr "Server↔Server"
+
+msgid "transfer.local-copy"
+msgstr "Local copy"
+
+msgid "notify.remoteToRemoteFailed"
+msgstr "Remote-to-remote transfer failed"
+
+msgid "notify.dropTargetNotLocal"
+msgstr "Ova krajnja tačka nije lokalni disk; ispuštanje ovde nije podržano"
+
+msgid "conflict.digestUnavailableRemote"
+msgstr "Digest unavailable (sizes differ, or the remote server does not support it)"
+
+msgid "conflict.digestUnavailableLocal"
+msgstr "Digest unavailable (sizes differ, or the local file could not be read)"
+
+msgid "transfer.skippedAsDuplicateHint"
+msgstr "Content is identical on both sides, so the transfer was not executed"
+
+msgid "app.invalidNameChars"
+msgstr "The name cannot contain a path separator (slash or backslash) or control characters"
+
+msgid "settings.exportNothing"
+msgstr "Nema podataka za izvoz: izabrane kategorije ne sadrže podatke (npr. nema zapisa prenosa na ovom računaru). Datoteka rezervne kopije nije napravljena."
+
+msgid "notify.pasteSkippedExists"
+msgstr "Preskočeno {n} stavki — cilj već postoji"
+
+msgid "settings.customTopBar"
+msgstr "Prilagodi dugmad gornje trake"
+
+msgid "settings.topBarOverflow"
+msgstr "Omogući meni prelivanja (⋯)"
+
+msgid "settings.topBarPinned"
+msgstr "Prikačeno"
+
+msgid "settings.topBarInMenu"
+msgstr "U meniju ⋯"
+
+msgid "settings.topBarPin"
+msgstr "Prikvači na traku"
+
+msgid "settings.topBarUnpin"
+msgstr "Otkači (premjesti u ⋯)"
+
+msgid "settings.topBarCloseNeedsHotkey"
+msgstr "Uvek vidljivo dok se ne postavi prečica panela"
+
+msgid "settings.resetTopBar"
+msgstr "Vrati gornju traku na podrazumevano"
+
+msgid "topbar.pathMode"
+msgstr "Režim putanje"
+
+msgid "topbar.minimize"
+msgstr "Minimizuj"
+
+msgid "settings.connPickerTrigger"
+msgstr "Okidač prebacivanja veza"
+
+msgid "settings.connPickerTriggerHint"
+msgstr "Izaberite kako se otvara prebacivač veza: naslov u gornjoj traci ili oznaka lokalno/udaljeno na traci svakog panela"
+
+msgid "settings.connPickerTopbar"
+msgstr "Naslov u traci"
+
+msgid "settings.connPickerBadge"
+msgstr "Oznaka u traci"
+
+msgid "settings.connPickerBoth"
+msgstr "Oba"
+msgid "settings.connLabelStyle"
+msgstr "Prikaz veze"
+
+msgid "settings.connLabelAccount"
+msgstr "Nalog@host"
+
+msgid "settings.connLabelAlias"
+msgstr "Alias"
+
+msgid "settings.connLabelStyleHint"
+msgstr "Šta prikazuje gornja traka: nalog@host ili naziv Tabby profila. Izbor veze nije promenjen."
+
+
+msgid "settings.panelOpacity"
+msgstr "Prozirnost panela"
+
+msgid "settings.panelOpacityHint"
+msgstr "Prilagodite ukupnu prozirnost panela. Najmanje 50 posto, potpuno prozirno nije dozvoljeno"
+
+msgid "bookmark.resetSize"
+msgstr "Dvoklik za vraćanje podrazumevane veličine"
+
+msgid "settings.bookmarkLink"
+msgstr "Povezane oznake"
+
+msgid "settings.bookmarkLinkHint"
+msgstr "Kada je uključeno, oznaka može imati povezanu putanju; klikom se i drugi panel prebacuje tamo"
+
+msgid "bookmark.linkPath"
+msgstr "Povezana putanja (drugi panel, opciono)"
+
+msgid "bookmark.linkBadge"
+msgstr "Povezano"
+
+msgid "bookmark.sortManual"
+msgstr "Redosled prevlačenja"
+
+msgid "bookmark.sortUsage"
+msgstr "Po upotrebi"
+
+msgid "bookmark.sortName"
+msgstr "Po nazivu"
+
+msgid "bookmark.sortHint"
+msgstr "Kliknite za promenu sortiranja"
+
+msgid "bookmark.dragHint"
+msgstr "Prevuci da promeniš redosled obeleživača, desni klik za uređivanje"
+
+msgid "bookmark.dragHintSorted"
+msgstr "Sortirano po upotrebi — prevlačenje onemogućeno; desni klik za uređivanje"
+
+msgid "settings.bookmarkSortByUsage"
+msgstr "Sortiraj po upotrebi"
+
+msgid "settings.bookmarkSortByUsageHint"
+msgstr "Isključeno: ručni redosled. Uključeno: prema broju klikova na oznaku"
+
+msgid "settings.bookmarkSortHint"
+msgstr "Redosled prevlačenja: ručno. Po upotrebi: najčešće kliknuti prvi. Po nazivu: azbučno (brojevi u prirodnom redu)"
+
+msgid "settings.bookmarkSort"
+msgstr "Sortiranje oznaka"
+
+msgid "settings.bookmarkResetUsage"
+msgstr "Poništi statistiku"
+
+msgid "settings.bookmarkResetUsageDone"
+msgstr "Statistika {count} oznaka poništena"
+
+msgid "bookmark.linkMissing"
+msgstr "Povezana putanja ne postoji; drugi panel nije pomeren"
+
+msgid "bookmark.resetWidth"
+msgstr "Dvoklik za vraćanje podrazumevane širine"
+
+msgid "bookmark.resetHeight"
+msgstr "Dvoklik za vraćanje podrazumevane visine"
+
+
+msgid "editor.externalChanged"
+msgstr "Local changes not yet uploaded to server"
+
+msgid "editor.uploadNow"
+msgstr "Upload now"
+
+msgid "settings.editorAutoUploadExternal"
+msgstr "Auto-upload on external edit"
+
+msgid "settings.editorAutoUploadExternalHint"
+msgstr "Automatically upload to server after saving in an external editor. Off by default; when on, if the remote file was changed by someone else, it prompts for confirmation instead of overwriting silently."
+
+msgid "settings.applyInstant"
+msgstr "Primeni izmene odmah"
+
+msgid "settings.applyInstantHint"
+msgstr "Uključeno: izmene odmah stižu u otvorene SFTP+ panele. Isključeno: zatvorite i ponovo otvorite panel"
+
+msgid "settings.buyCoffee"
+msgstr "Časti me kafom"
+
+msgid "bookmark.pinOn"
+msgstr "Panel ostaje otvoren"
+
+msgid "bookmark.pinOff"
+msgstr "Zatvori nakon izbora"
+
+msgid "bookmark.pinHint"
+msgstr "Kliknite za prebacivanje: ostaje otvoren (klik drugde ne zatvara) / zatvori nakon izbora"
+
+msgid "settings.conflictRenameStyle"
+msgstr "Stil preimenovanja pri sukobu"
+
+msgid "settings.conflictRenameStyleHint"
+msgstr "Kako se sastavlja novo ime kad izaberete Preimenuj pri sukobu (brojevi po podrazumevanom)"
+
+msgid "settings.renameStyleSeq"
+msgstr "Numerisano"
+
+msgid "settings.renameStyleTime"
+msgstr "Vremenska oznaka"
+
+msgid "settings.renameStyleRandom"
+msgstr "Slučajni sufiks"
+

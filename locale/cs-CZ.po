@@ -178,6 +178,9 @@ msgstr "Nahrát"
 msgid "app.download"
 msgstr "Stáhnout"
 
+msgid "app.transfer"
+msgstr "Přenést"
+
 msgid "app.newFolder"
 msgstr "Nová Složka"
 
@@ -335,6 +338,9 @@ msgstr "Žádné odpovídající soubory"
 msgid "pane.empty"
 msgstr "Prázdná složka"
 
+msgid "pane.connLost"
+msgstr "Připojení bylo ztraceno"
+
 msgid "pane.errorAccess"
 msgstr "Nelze přistoupit (oprávnění zamítnuto nebo cesta nenalezena)"
 
@@ -349,6 +355,12 @@ msgstr "Režim cesty: Zapamatovat (obnovit příště)"
 
 msgid "path.modeSync"
 msgstr "Režim cesty: Synchronizovat s terminálem (vzdálený sleduje cwd)"
+
+msgid "path.modeMirror"
+msgstr "Režim cesty: Zrcadlit cestu (oba panely zobrazují stejný adresář)"
+
+msgid "path.mirrorUnavailable"
+msgstr "Zrcadlení cesty vyžaduje, aby oba panely byly místní nebo oba vzdálené"
 
 msgid "path.syncNoCwd"
 msgstr "cwd terminálu není hlášeno. Přepněte znovu na Synchronizovat pro konfiguraci"
@@ -606,7 +618,7 @@ msgid "transfer.deleteTitle"
 msgstr "Potvrdit Smazání"
 
 msgid "bookmark.title"
-msgstr "Záložky"
+msgstr "{pane} Záložky"
 
 msgid "bookmark.add"
 msgstr "Přidat Záložku"
@@ -693,6 +705,9 @@ msgstr "Připojování k"
 
 msgid "notify.sftpConnectFailed"
 msgstr "SFTP připojení selhalo. Ujistěte se, že SSH je připojeno a server podporuje SFTP."
+
+msgid "notify.paneConnClosed"
+msgstr "Toto připojení bylo uzavřeno. Vyberte jiné připojení ze seznamu."
 
 msgid "notify.reconnectNoTerminal"
 msgstr "Terminál odpojen. Prosím klikněte nebo stiskněte libovolnou klávesu v terminálu pro opětovné připojení."
@@ -1013,6 +1028,11 @@ msgstr "Zkopírováno {n} položek"
 msgid "notify.cut"
 msgstr "Vyjmuto {n} položek"
 
+msgid "status.connecting"
+msgstr "Připojování"
+msgid "status.waitingConn"
+msgstr "Čekání na připojení"
+
 msgid "status.disconnected"
 msgstr "Odpojeno"
 
@@ -1097,6 +1117,12 @@ msgstr "Zapamatovat cestu"
 
 msgid "settings.pathModeSync"
 msgstr "Synchronizovat s terminálem"
+
+msgid "settings.pathModeMirror"
+msgstr "Zrcadlit cestu"
+
+msgid "settings.pathModeMirrorHint"
+msgstr "Oba panely vždy zobrazují stejný adresář; dostupné jen když jsou oba místní nebo oba vzdálené"
 
 msgid "settings.defaultShowHidden"
 msgstr "Ve výchozím nastavení zobrazovat skryté soubory"
@@ -1283,7 +1309,7 @@ msgid "settings.occupied.closeDialog"
 msgstr "Zavřít dialog / prohlížeč / panel"
 
 msgid "settings.occupied.confirmDelete"
-msgstr "Potvrdit smazání"
+msgstr "Potvrdit"
 
 msgid "log.modeFast"
 msgstr "Rychlý režim"
@@ -1538,7 +1564,7 @@ msgid "app.targetNotDir"
 msgstr "Cílová cesta není složka: {dir}"
 
 msgid "pane.groupBy"
-msgstr "Seskupit podle"
+msgstr "Seskupit"
 
 msgid "group.none"
 msgstr "Žádná"
@@ -1751,3 +1777,327 @@ msgid "settings.caretShapeBeam"
 msgstr "Svislá čára"
 msgid "settings.caretShapeUnderline"
 msgstr "Podtržení"
+msgid "settings.showTextWordWrap"
+msgstr "Zalamování řádků (prohlížeč/editor)"
+msgid "settings.showTextWordWrapHint"
+msgstr "Zalamovat dlouhé řádky v prohlížeči a editoru místo vodorovného posouvání."
+msgid "viewer.wordWrap"
+msgstr "Zalamovat"
+msgid "viewer.lineNumbers"
+msgstr "Čísla řádků"
+msgid "viewer.lineNumbersOffByWrap"
+msgstr "Čísla řádků nejsou při zalamování dostupná"
+
+msgid "editor.encodingNotEditable"
+msgstr "Tento soubor používá kódování, které nelze bezpečně uložit (např. GBK/GB18030). Upravte jej prosím v systémovém editoru."
+
+# ★ 2026-10-13：对齐 en-US 新增的 15 个 msgid（审计修复：缺失时这些语言回退英文）
+msgid "layout.override.tooNarrow"
+msgstr "Panel je příliš úzký pro vodorovné rozložení; dočasně se použije svislé rozložení"
+
+msgid "layout.override.tooShort"
+msgstr "Panel je příliš nízký pro svislé rozložení; dočasně se použije vodorovné rozložení"
+
+msgid "layout.override.tooCramped"
+msgstr "Panel je příliš malý pro dvě podokna; dočasně se použije jedno podokno"
+
+msgid "layout.override.reasonNarrow"
+msgstr "příliš úzký"
+
+msgid "layout.override.reasonShort"
+msgstr "příliš nízký"
+
+msgid "layout.override.reasonCramped"
+msgstr "příliš malý"
+
+msgid "layout.override.title"
+msgstr "{preferred} → {actual} ({reason})"
+
+msgid "settings.occupied.typeAhead"
+msgstr "Zadejte předponu názvu pro přechod na shodu"
+
+msgid "log.modeSftp"
+msgstr "SFTP"
+
+msgid "editor.remoteChanged"
+msgstr "Vzdálený soubor byl změněn. Přepsat verzi na serveru?"
+
+msgid "notify.sftpRecovered"
+msgstr "Relace SFTP obnovena; zkuste znovu přerušené přenosy"
+
+msgid "perm.modeUnknown"
+msgstr "Nelze přečíst oprávnění; zrušeno"
+
+msgid "permission.chmodFailed"
+msgstr "Nepodařilo se změnit oprávnění"
+
+msgid "conflict.contentDiffers"
+msgstr "Obsah se liší — zvažte přepsání"
+
+msgid "viewer.truncatedPreview"
+msgstr "Soubor je velký; zobrazují se první {limit}. Pro celý soubor použijte “Open in System”."
+
+# ★ 2026-10-13：传输日志操作名（对齐 en-US 新增，缺失时这些语言回退英文）
+msgid "transfer.delete"
+msgstr "Odstranit"
+
+msgid "transfer.rename"
+msgstr "Přejmenovat"
+
+msgid "transfer.mkdir"
+msgstr "Nová složka"
+
+msgid "transfer.chmod"
+msgstr "Oprávnění"
+
+msgid "viewer.selectAllLimited"
+msgstr "Soubor je příliš velký: je vybrána pouze viditelná část. Pro celý obsah použijte Kopírovat vše."
+
+# ★ 2026-10-14：复制反馈区分「全部 / 选中」（原都显示 file.copied，看不出复制了哪一份）
+msgid "file.copiedAll"
+msgstr "Zkopírováno vše"
+
+msgid "file.copiedSelection"
+msgstr "Zkopírován výběr"
+
+# ★ 2026-10-16：设置页新增「键入定位」开关（默认开）
+msgid "settings.typeAhead"
+msgstr "Přeskočení podle předpony názvu"
+
+msgid "settings.typeAheadHint"
+msgstr "Napište písmeno nebo číslici v seznamu pro přeskočení na položku s touto předponou názvu; dalším stiskem přejdete na další shodu"
+
+msgid "conn.switchHint"
+msgstr "Click to switch remote connection"
+
+msgid "conn.pickerTitle"
+msgstr "Přepnout připojení"
+
+msgid "conn.notOpened"
+msgstr "(není otevřeno)"
+
+msgid "conn.current"
+msgstr "(current)"
+msgid "conn.otherPane"
+msgstr "(jiný panel)"
+
+msgid "conn.disconnect"
+msgstr "Disconnect"
+
+msgid "conn.leftPickerTitle"
+msgstr "Přepnout připojení"
+
+msgid "notify.leftEndpointNotRestored"
+msgstr "Předchozí vzdálené připojení ({host}) není připojeno. Zůstává označeno jako odpojené – kliknutím na připojení znovu to zkuste."
+
+msgid "notify.connPanelTabKept"
+msgstr "Tato karta hostuje panel SFTP+: panel odpojen, karta zachována"
+
+msgid "notify.connOpenFailed"
+msgstr "Konfigurované připojení nelze otevřít: {host}"
+
+msgid "notify.leftRemoteSwitchFailed"
+msgstr "Přepnutí na vzdálené připojení se nezdařilo"
+
+msgid "notify.leftRemoteViewUnsupported"
+msgstr "Přímé otevírání vzdálených souborů tento koncový bod nepodporuje"
+
+msgid "transfer.remote-copy"
+msgstr "Server↔Server"
+
+msgid "transfer.local-copy"
+msgstr "Local copy"
+
+msgid "notify.remoteToRemoteFailed"
+msgstr "Remote-to-remote transfer failed"
+
+msgid "notify.dropTargetNotLocal"
+msgstr "Tento koncový bod není místní disk; přetažení sem není podporováno"
+
+msgid "conflict.digestUnavailableRemote"
+msgstr "Digest unavailable (sizes differ, or the remote server does not support it)"
+
+msgid "conflict.digestUnavailableLocal"
+msgstr "Digest unavailable (sizes differ, or the local file could not be read)"
+
+msgid "transfer.skippedAsDuplicateHint"
+msgstr "Content is identical on both sides, so the transfer was not executed"
+
+msgid "app.invalidNameChars"
+msgstr "The name cannot contain a path separator (slash or backslash) or control characters"
+
+msgid "settings.exportNothing"
+msgstr "Není co exportovat: vybrané kategorie neobsahují žádná data (např. na tomto počítači nejsou záznamy přenosů). Záložní soubor nebyl vytvořen."
+
+msgid "notify.pasteSkippedExists"
+msgstr "Přeskočeno {n} položek — cíl již existuje"
+
+msgid "settings.customTopBar"
+msgstr "Přizpůsobit tlačítka horní lišty"
+
+msgid "settings.topBarOverflow"
+msgstr "Povolit nabídku přetečení (⋯)"
+
+msgid "settings.topBarPinned"
+msgstr "Připnuto"
+
+msgid "settings.topBarInMenu"
+msgstr "V nabídce ⋯"
+
+msgid "settings.topBarPin"
+msgstr "Připnout na lištu"
+
+msgid "settings.topBarUnpin"
+msgstr "Odepnout (přesunout do ⋯)"
+
+msgid "settings.topBarCloseNeedsHotkey"
+msgstr "Vždy zobrazeno, dokud není nastavena klávesová zkratka panelu"
+
+msgid "settings.resetTopBar"
+msgstr "Obnovit výchozí horní lištu"
+
+msgid "topbar.pathMode"
+msgstr "Režim cesty"
+
+msgid "topbar.minimize"
+msgstr "Minimalizovat"
+
+msgid "settings.connPickerTrigger"
+msgstr "Spouštění přepínače připojení"
+
+msgid "settings.connPickerTriggerHint"
+msgstr "Zvolte, jak se přepínač připojení otevírá: název v horní liště nebo štítek místní/vzdálený na liště každého panelu"
+
+msgid "settings.connPickerTopbar"
+msgstr "Název v liště"
+
+msgid "settings.connPickerBadge"
+msgstr "Štítek v liště"
+
+msgid "settings.connPickerBoth"
+msgstr "Obojí"
+msgid "settings.connLabelStyle"
+msgstr "Zobrazení připojení"
+
+msgid "settings.connLabelAccount"
+msgstr "Účet@host"
+
+msgid "settings.connLabelAlias"
+msgstr "Alias"
+
+msgid "settings.connLabelStyleHint"
+msgstr "Co zobrazovat v horní liště: účet@host nebo název profilu Tabby. Výběr připojení to neovlivní."
+
+
+msgid "settings.panelOpacity"
+msgstr "Průhlednost panelu"
+
+msgid "settings.panelOpacityHint"
+msgstr "Nastavte celkovou průhlednost panelu. Minimum je 50 procent, plně průhledné není povoleno"
+
+msgid "bookmark.resetSize"
+msgstr "Dvojklikem obnovíte výchozí velikost"
+
+msgid "settings.bookmarkLink"
+msgstr "Propojené záložky"
+
+msgid "settings.bookmarkLinkHint"
+msgstr "Po zapnutí může mít záložka propojenou cestu; po kliknutí se na ni přesune i druhý panel"
+
+msgid "bookmark.linkPath"
+msgstr "Propojená cesta (druhý panel, volitelné)"
+
+msgid "bookmark.linkBadge"
+msgstr "Propojeno"
+
+msgid "bookmark.sortManual"
+msgstr "Pořadí tažení"
+
+msgid "bookmark.sortUsage"
+msgstr "Podle použití"
+
+msgid "bookmark.sortName"
+msgstr "Podle názvu"
+
+msgid "bookmark.sortHint"
+msgstr "Kliknutím přepnete na druhé řazení"
+
+msgid "bookmark.dragHint"
+msgstr "Přetažením změníte pořadí záložek, pravé tlačítko pro úpravu"
+
+msgid "bookmark.dragHintSorted"
+msgstr "Seřazeno podle použití – přetažení zakázáno; pravé tlačítko pro úpravu"
+
+msgid "settings.bookmarkSortByUsage"
+msgstr "Řadit podle použití"
+
+msgid "settings.bookmarkSortByUsageHint"
+msgstr "Vypnuto: ruční pořadí. Zapnuto: podle počtu kliknutí na záložku"
+
+msgid "settings.bookmarkSortHint"
+msgstr "Pořadí tažení: ruční. Podle použití: nejčastěji kliknuté první. Podle názvu: abecedně (čísla v přirozeném pořadí)"
+
+msgid "settings.bookmarkSort"
+msgstr "Řazení záložek"
+
+msgid "settings.bookmarkResetUsage"
+msgstr "Obnovit statistiky"
+
+msgid "settings.bookmarkResetUsageDone"
+msgstr "Statistiky {count} záložek byly obnoveny"
+
+msgid "bookmark.linkMissing"
+msgstr "Propojená cesta neexistuje; druhý panel nebyl přesunut"
+
+msgid "bookmark.resetWidth"
+msgstr "Dvojklikem obnovíte výchozí šířku"
+
+msgid "bookmark.resetHeight"
+msgstr "Dvojklikem obnovíte výchozí výšku"
+
+
+msgid "editor.externalChanged"
+msgstr "Local changes not yet uploaded to server"
+
+msgid "editor.uploadNow"
+msgstr "Upload now"
+
+msgid "settings.editorAutoUploadExternal"
+msgstr "Auto-upload on external edit"
+
+msgid "settings.editorAutoUploadExternalHint"
+msgstr "Automatically upload to server after saving in an external editor. Off by default; when on, if the remote file was changed by someone else, it prompts for confirmation instead of overwriting silently."
+
+msgid "settings.applyInstant"
+msgstr "Použít změny okamžitě"
+
+msgid "settings.applyInstantHint"
+msgstr "Zapnuto: změny na této stránce se okamžitě projeví v otevřených panelech SFTP+. Vypnuto: musíte panel zavřít a znovu otevřít"
+
+msgid "settings.buyCoffee"
+msgstr "Kupte mi kávu"
+
+msgid "bookmark.pinOn"
+msgstr "Panel zůstane otevřený"
+
+msgid "bookmark.pinOff"
+msgstr "Zavřít po výběru"
+
+msgid "bookmark.pinHint"
+msgstr "Kliknutím přepnete: zůstane otevřený (klik jinde nezavře) / zavřít po výběru"
+
+msgid "settings.conflictRenameStyle"
+msgstr "Styl přejmenování při konfliktu"
+
+msgid "settings.conflictRenameStyleHint"
+msgstr "Jak se tvoří nové názvy při volbě Přejmenovat (výchozí je číslování)"
+
+msgid "settings.renameStyleSeq"
+msgstr "Číslované"
+
+msgid "settings.renameStyleTime"
+msgstr "S časovým razítkem"
+
+msgid "settings.renameStyleRandom"
+msgstr "Náhodná přípona"
+

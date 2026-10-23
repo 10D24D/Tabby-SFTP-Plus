@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
  * 一次性补丁脚本：为全部 24 种语言的 .po 追加「文件列表分组」相关 key
- *   pane.groupBy            分组依据（右键菜单区段标题）
+ *   pane.groupBy            分组（右键菜单区段标题；2026-10-18 由「分组依据」精简，
+ *                           因「全部展开/全部折叠」也收在该子菜单下）
  *   group.none/name/modified/type/size  分组依据五个选项
  *   group.expand/collapse   分组表头箭头悬停提示
  *   group.today/yesterday/thisWeek/thisMonth/earlierThisYear/longAgo  日期分组桶
@@ -31,12 +32,12 @@ const KEYS = [
 
 const T = {
   'pane.groupBy': {
-    'af-ZA': 'Groepeer volgens', 'bg-BG': 'Групиране по', 'cs-CZ': 'Seskupit podle', 'da-DK': 'Gruppér efter',
-    'de-DE': 'Gruppieren nach', 'en-GB': 'Group by', 'en-US': 'Group by', 'es-ES': 'Agrupar por',
-    'fr-FR': 'Grouper par', 'hr-HR': 'Grupiraj prema', 'id-ID': 'Kelompokkan menurut', 'it-IT': 'Raggruppa per',
-    'ja-JP': 'グループ化', 'ko-KR': '그룹 기준', 'pl-PL': 'Grupuj według', 'pt-BR': 'Agrupar por',
-    'pt-PT': 'Agrupar por', 'ru-RU': 'Группировать по', 'sr-Latn': 'Grupiši po', 'sv-SE': 'Gruppera efter',
-    'tr-TR': 'Gruplandır', 'uk-UA': 'Групувати за', 'zh-CN': '分组依据', 'zh-TW': '分組依據',
+    'af-ZA': 'Groepeer', 'bg-BG': 'Групиране', 'cs-CZ': 'Seskupit', 'da-DK': 'Gruppér',
+    'de-DE': 'Gruppieren', 'en-GB': 'Group', 'en-US': 'Group', 'es-ES': 'Agrupar',
+    'fr-FR': 'Grouper', 'hr-HR': 'Grupiraj', 'id-ID': 'Kelompokkan', 'it-IT': 'Raggruppa',
+    'ja-JP': 'グループ化', 'ko-KR': '그룹', 'pl-PL': 'Grupuj', 'pt-BR': 'Agrupar',
+    'pt-PT': 'Agrupar', 'ru-RU': 'Группировка', 'sr-Latn': 'Grupiši', 'sv-SE': 'Gruppera',
+    'tr-TR': 'Gruplandır', 'uk-UA': 'Групування', 'zh-CN': '分组', 'zh-TW': '分組',
   },
   'group.none': {
     'af-ZA': 'Geen', 'bg-BG': 'Няма', 'cs-CZ': 'Žádná', 'da-DK': 'Ingen',

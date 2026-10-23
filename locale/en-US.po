@@ -199,6 +199,9 @@ msgstr "Upload"
 msgid "app.download"
 msgstr "Download"
 
+msgid "app.transfer"
+msgstr "Transfer"
+
 msgid "app.newFolder"
 msgstr "New Folder"
 
@@ -358,6 +361,9 @@ msgstr "No matching files"
 msgid "pane.empty"
 msgstr "Empty folder"
 
+msgid "pane.connLost"
+msgstr "Connection lost"
+
 msgid "pane.errorAccess"
 msgstr "Cannot access (permission denied or path not found)"
 
@@ -372,6 +378,12 @@ msgstr "Path mode: Remember (restore next time)"
 
 msgid "path.modeSync"
 msgstr "Path mode: Sync with terminal (remote follows cwd)"
+
+msgid "path.modeMirror"
+msgstr "Path mode: Mirror path (both panes show the same directory)"
+
+msgid "path.mirrorUnavailable"
+msgstr "Mirror path needs both panes to be local or both remote"
 
 msgid "path.syncNoCwd"
 msgstr "Terminal cwd not reported. Switch to Sync again to configure"
@@ -586,6 +598,22 @@ msgstr "Edit Save"
 msgid "transfer.edit-download"
 msgstr "Edit Load"
 
+# ★ 2026-10-13 P1 修复：传输日志对话框按 `transfer.<operation>` 动态取徽标文案，
+#   而 delete/rename/mkdir/chmod 四个操作类型的 key 此前不在字典里——t() 缺失时
+#   返回 key 本身（truthy），模板的 `|| entry.operation` 兜底永不触发，
+#   导致全部 24 种语言下徽标直接显示 "transfer.delete" 等字面量。
+msgid "transfer.delete"
+msgstr "Delete"
+
+msgid "transfer.rename"
+msgstr "Rename"
+
+msgid "transfer.mkdir"
+msgstr "New Folder"
+
+msgid "transfer.chmod"
+msgstr "Permissions"
+
 msgid "transfer.progress"
 msgstr "Progress"
 
@@ -674,19 +702,19 @@ msgid "transfer.deleteTitle"
 msgstr "Confirm Delete"
 
 msgid "bookmark.title"
-msgstr "Bookmarks"
+msgstr "{pane} Bookmarks"
 
 msgid "bookmark.add"
 msgstr "Add Bookmark"
 
 msgid "bookmark.addLocal"
-msgstr "Add Local"
+msgstr "Add Scoped: only visible in tabs of this connection"
 
 msgid "bookmark.addGlobal"
-msgstr "Add Global"
+msgstr "Add Global: visible in any tab"
 
 msgid "bookmark.addCurrentShort"
-msgstr "+Local"
+msgstr "+Scoped"
 
 msgid "bookmark.addGlobalShort"
 msgstr "+Global"
@@ -713,7 +741,7 @@ msgid "bookmark.global"
 msgstr "Global Bookmarks"
 
 msgid "bookmark.forConnection"
-msgstr "Current Bookmarks"
+msgstr "Scoped"
 msgid "permission.title"
 msgstr "Edit Permissions"
 
@@ -761,6 +789,9 @@ msgstr "Connecting to"
 
 msgid "notify.sftpConnectFailed"
 msgstr "SFTP connection failed. Ensure SSH is connected and the server supports SFTP."
+
+msgid "notify.paneConnClosed"
+msgstr "This connection was closed. Pick another connection from the list."
 
 msgid "notify.reconnectNoTerminal"
 msgstr "Terminal disconnected. Please click or press any key in the terminal to reconnect."
@@ -1257,8 +1288,16 @@ msgstr "Not connected, cannot download"
 msgid "notify.copied"
 msgstr "Copied {n} item(s)"
 
+msgid "notify.remoteToRemoteFailed"
+msgstr "Remote-to-remote transfer failed"
+
 msgid "notify.cut"
 msgstr "Cut {n} item(s)"
+
+msgid "status.connecting"
+msgstr "Connecting"
+msgid "status.waitingConn"
+msgstr "Waiting for connection"
 
 msgid "status.disconnected"
 msgstr "Disconnected"
@@ -1350,6 +1389,12 @@ msgstr "Remember path"
 
 msgid "settings.pathModeSync"
 msgstr "Sync with terminal"
+
+msgid "settings.pathModeMirror"
+msgstr "Mirror path"
+
+msgid "settings.pathModeMirrorHint"
+msgstr "Both panes always show the same directory; only available when both panes are local or both remote"
 
 msgid "settings.defaultShowHidden"
 msgstr "Show hidden files by default"
@@ -1474,7 +1519,7 @@ msgid "settings.occupied.closeDialog"
 msgstr "Close dialog / viewer / panel"
 
 msgid "settings.occupied.confirmDelete"
-msgstr "Confirm deletion"
+msgstr "Confirm"
 
 msgid "log.modeFast"
 msgstr "Fast mode"
@@ -1497,7 +1542,7 @@ msgstr "Reset bookmark panel"
 msgid "settings.bookmarkGroupByScope"
 msgstr "Bookmark grouping"
 msgid "settings.bookmarkGroupByScopeHint"
-msgstr "When on, bookmarks are shown in Current / Global sections. When off, they mix freely and can be reordered across scopes."
+msgstr "When on, bookmarks are shown in Scoped / Global sections. When off, they mix freely and can be reordered across scopes."
 msgid "settings.bookmarkGroupOrderHint"
 msgstr "Drag to set which group appears first: connection or global"
 
@@ -1561,7 +1606,7 @@ msgid "app.targetNotDir"
 msgstr "Target path is not a directory: {dir}"
 
 msgid "pane.groupBy"
-msgstr "Group by"
+msgstr "Group"
 
 msgid "group.none"
 msgstr "None"
@@ -1774,3 +1819,265 @@ msgid "settings.caretShapeBeam"
 msgstr "Vertical bar"
 msgid "settings.caretShapeUnderline"
 msgstr "Underline"
+msgid "settings.showTextWordWrap"
+msgstr "Viewer/editor word wrap"
+msgid "settings.showTextWordWrapHint"
+msgstr "Wrap long lines in the built-in viewer and editor instead of scrolling horizontally."
+msgid "viewer.wordWrap"
+msgstr "Wrap"
+msgid "viewer.lineNumbers"
+msgstr "Line numbers"
+msgid "viewer.lineNumbersOffByWrap"
+msgstr "Line numbers are hidden while word wrap is on"
+
+msgid "editor.encodingNotEditable"
+msgstr "This file uses an encoding that cannot be saved safely (e.g. GBK/GB18030). Please edit it in the system editor instead."
+
+msgid "viewer.selectAllLimited"
+msgstr "File too large: only the visible part is selected. Use Copy All for the full content."
+
+# ★ 2026-10-14：复制反馈区分「全部 / 选中」（原都显示 file.copied，看不出复制了哪一份）
+msgid "file.copiedAll"
+msgstr "Copied All"
+
+msgid "file.copiedSelection"
+msgstr "Copied Selection"
+
+# ★ 2026-10-16：设置页新增「键入定位」开关（默认开）
+msgid "settings.typeAhead"
+msgstr "Type-ahead find"
+
+msgid "settings.typeAheadHint"
+msgstr "Type a letter or digit in the file list to jump to the entry with that name prefix; press again to cycle through matches"
+
+msgid "conn.switchHint"
+msgstr "Click to switch remote connection"
+
+msgid "conn.pickerTitle"
+msgstr "Switch connection"
+
+msgid "conn.notOpened"
+msgstr "(not opened)"
+
+msgid "conn.current"
+msgstr "(current)"
+msgid "conn.otherPane"
+msgstr "(other pane)"
+
+msgid "conn.disconnect"
+msgstr "Disconnect"
+
+msgid "conn.leftPickerTitle"
+msgstr "Switch connection"
+
+msgid "notify.leftEndpointNotRestored"
+msgstr "Previous remote connection ({host}) is not connected. Kept disconnected; click reconnect to retry."
+
+msgid "notify.connPanelTabKept"
+msgstr "This tab hosts the SFTP+ panel: panel disconnected, tab kept"
+
+msgid "notify.connOpenFailed"
+msgstr "Could not open the configured connection: {host}"
+
+msgid "notify.leftRemoteSwitchFailed"
+msgstr "Failed to switch to the remote connection"
+
+msgid "notify.leftRemoteViewUnsupported"
+msgstr "Opening remote files directly is not supported for this endpoint"
+
+msgid "transfer.remote-copy"
+msgstr "Server↔Server"
+
+msgid "transfer.local-copy"
+msgstr "Local copy"
+
+msgid "notify.dropTargetNotLocal"
+msgstr "This endpoint is not a local disk; dropping here is not supported"
+
+msgid "conflict.digestUnavailableRemote"
+msgstr "Digest unavailable (sizes differ, or the remote server does not support it)"
+
+msgid "conflict.digestUnavailableLocal"
+msgstr "Digest unavailable (sizes differ, or the local file could not be read)"
+
+msgid "transfer.skippedAsDuplicateHint"
+msgstr "Content is identical on both sides, so the transfer was not executed"
+
+msgid "app.invalidNameChars"
+msgstr "The name cannot contain a path separator (slash or backslash) or control characters"
+
+msgid "settings.exportNothing"
+msgstr "Nothing to export: the selected categories contain no data (e.g. no transfer logs on this machine). No backup file was created."
+
+msgid "notify.pasteSkippedExists"
+msgstr "{n} item(s) skipped — target already exists"
+
+msgid "settings.customTopBar"
+msgstr "Customize top bar buttons"
+
+msgid "settings.topBarOverflow"
+msgstr "Enable overflow menu (⋯)"
+
+msgid "settings.topBarPinned"
+msgstr "Pinned"
+
+msgid "settings.topBarInMenu"
+msgstr "In ⋯ menu"
+
+msgid "settings.topBarPin"
+msgstr "Pin to top bar"
+
+msgid "settings.topBarUnpin"
+msgstr "Unpin (move into ⋯)"
+
+msgid "settings.topBarCloseNeedsHotkey"
+msgstr "Always shown until a panel hotkey is set"
+
+msgid "settings.resetTopBar"
+msgstr "Reset top bar to default"
+
+msgid "topbar.pathMode"
+msgstr "Path mode"
+
+msgid "topbar.minimize"
+msgstr "Minimize"
+
+msgid "settings.connPickerTrigger"
+msgstr "Connection switcher trigger"
+
+msgid "settings.connPickerTriggerHint"
+msgstr "Choose how the connection switcher opens: the title in the top bar or the local/remote label in each pane toolbar"
+
+msgid "settings.connPickerTopbar"
+msgstr "Top bar title"
+
+msgid "settings.connPickerBadge"
+msgstr "Toolbar badge"
+
+msgid "settings.connPickerBoth"
+msgstr "Both"
+msgid "settings.connLabelStyle"
+msgstr "Connection label"
+
+msgid "settings.connLabelAccount"
+msgstr "Account@host"
+
+msgid "settings.connLabelAlias"
+msgstr "Alias"
+
+msgid "settings.connLabelStyleHint"
+msgstr "What the top bar shows for a connection: account@host, or the Tabby profile name. The connection picker is not affected."
+
+
+msgid "settings.panelOpacity"
+msgstr "Panel opacity"
+
+msgid "settings.panelOpacityHint"
+msgstr "Adjust the overall panel opacity. Minimum 50 percent, fully transparent is not allowed"
+
+msgid "bookmark.resetSize"
+msgstr "Double-click to reset size"
+
+msgid "settings.bookmarkLink"
+msgstr "Linked bookmarks"
+
+msgid "settings.bookmarkLinkHint"
+msgstr "When on, a bookmark can carry a linked path; clicking it also moves the other pane there"
+
+msgid "bookmark.linkPath"
+msgstr "Linked path (other pane, optional)"
+
+msgid "bookmark.linkBadge"
+msgstr "Linked"
+
+msgid "bookmark.sortManual"
+msgstr "Drag order"
+
+msgid "bookmark.sortUsage"
+msgstr "By usage"
+
+msgid "bookmark.sortName"
+msgstr "By name"
+
+msgid "bookmark.sortHint"
+msgstr "Click to switch sort order"
+
+msgid "bookmark.dragHint"
+msgstr "Drag to reorder bookmarks, right-click to edit"
+
+msgid "bookmark.dragHintSorted"
+msgstr "Sorted by usage — dragging disabled; right-click to edit"
+
+msgid "settings.bookmarkSortByUsage"
+msgstr "Sort by usage"
+
+msgid "settings.bookmarkSortByUsageHint"
+msgstr "Off: manual drag order. On: by how often the bookmark was clicked"
+
+msgid "settings.bookmarkSortHint"
+msgstr "Drag order: manual. By usage: most clicked first. By name: alphabetical (numbers in natural order)"
+
+msgid "settings.bookmarkSort"
+msgstr "Bookmark sorting"
+
+msgid "settings.bookmarkResetUsage"
+msgstr "Reset statistics"
+
+msgid "settings.bookmarkResetUsageDone"
+msgstr "Statistics of {count} bookmarks reset"
+
+msgid "bookmark.linkMissing"
+msgstr "Linked path does not exist; the other pane was not moved"
+
+msgid "bookmark.resetWidth"
+msgstr "Double-click to reset width"
+
+msgid "bookmark.resetHeight"
+msgstr "Double-click to reset height"
+
+
+msgid "editor.externalChanged"
+msgstr "Local changes not yet uploaded to server"
+
+msgid "editor.uploadNow"
+msgstr "Upload now"
+
+msgid "settings.editorAutoUploadExternal"
+msgstr "Auto-upload on external edit"
+
+msgid "settings.editorAutoUploadExternalHint"
+msgstr "Automatically upload to server after saving in an external editor. Off by default; when on, if the remote file was changed by someone else, it prompts for confirmation instead of overwriting silently."
+
+msgid "settings.applyInstant"
+msgstr "Apply changes immediately"
+
+msgid "settings.applyInstantHint"
+msgstr "On: changes here reach open SFTP+ panels at once. Off: close and reopen the panel to apply"
+
+msgid "settings.buyCoffee"
+msgstr "Treat me to a coffee"
+
+msgid "bookmark.pinOn"
+msgstr "Panel stays open"
+
+msgid "bookmark.pinOff"
+msgstr "Close on select"
+
+msgid "bookmark.pinHint"
+msgstr "Click to toggle: stay open (clicking elsewhere will not close it) / close on select"
+
+msgid "settings.conflictRenameStyle"
+msgstr "Conflict rename style"
+
+msgid "settings.conflictRenameStyleHint"
+msgstr "How a new name is built when you choose Rename on a conflict (numbered by default)"
+
+msgid "settings.renameStyleSeq"
+msgstr "Numbered"
+
+msgid "settings.renameStyleTime"
+msgstr "Timestamp"
+
+msgid "settings.renameStyleRandom"
+msgstr "Random suffix"
+

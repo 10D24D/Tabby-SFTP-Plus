@@ -199,6 +199,9 @@ msgstr "上传"
 msgid "app.download"
 msgstr "下载"
 
+msgid "app.transfer"
+msgstr "传输"
+
 msgid "app.newFolder"
 msgstr "新建文件夹"
 
@@ -358,6 +361,9 @@ msgstr "无匹配文件"
 msgid "pane.empty"
 msgstr "空文件夹"
 
+msgid "pane.connLost"
+msgstr "连接已断开"
+
 msgid "pane.errorAccess"
 msgstr "无法访问（权限不足或路径不存在）"
 
@@ -372,6 +378,12 @@ msgstr "路径模式：路径记忆（下次打开恢复）"
 
 msgid "path.modeSync"
 msgstr "路径模式：与终端同步（远程跟随终端目录）"
+
+msgid "path.modeMirror"
+msgstr "路径模式：同步路径（两栏显示同一目录）"
+
+msgid "path.mirrorUnavailable"
+msgstr "同步路径仅在两栏同为本地或同为远程时可用"
 
 msgid "path.syncNoCwd"
 msgstr "未检测到终端目录上报。可再次切换到「与终端同步」以配置"
@@ -586,6 +598,20 @@ msgstr "编辑保存"
 msgid "transfer.edit-download"
 msgstr "编辑加载"
 
+# ★ 2026-10-13 P1 修复：补 delete/rename/mkdir/chmod 四个操作类型的徽标文案（与 en-US 对齐）。
+#   缺失时 t() 返回 key 本身，全部语言下徽标直接显示 "transfer.delete" 等字面量。
+msgid "transfer.delete"
+msgstr "删除"
+
+msgid "transfer.rename"
+msgstr "重命名"
+
+msgid "transfer.mkdir"
+msgstr "新建文件夹"
+
+msgid "transfer.chmod"
+msgstr "权限"
+
 msgid "transfer.progress"
 msgstr "进度"
 
@@ -674,19 +700,19 @@ msgid "transfer.deleteTitle"
 msgstr "确认删除"
 
 msgid "bookmark.title"
-msgstr "书签"
+msgstr "{pane}书签"
 
 msgid "bookmark.add"
 msgstr "添加书签"
 
 msgid "bookmark.addLocal"
-msgstr "当前添加"
+msgstr "局部添加：仅当前标签页的连接可见"
 
 msgid "bookmark.addGlobal"
-msgstr "全局添加"
+msgstr "全局添加：任何标签页都可见"
 
 msgid "bookmark.addCurrentShort"
-msgstr "+本地"
+msgstr "+局部"
 
 msgid "bookmark.addGlobalShort"
 msgstr "+全局"
@@ -713,7 +739,7 @@ msgid "bookmark.global"
 msgstr "全局书签"
 
 msgid "bookmark.forConnection"
-msgstr "当前书签"
+msgstr "局部"
 msgid "permission.title"
 msgstr "修改权限"
 
@@ -761,6 +787,9 @@ msgstr "正在连接到"
 
 msgid "notify.sftpConnectFailed"
 msgstr "SFTP 连接失败，请确认 SSH 已连接且服务器支持 SFTP 子系统。"
+
+msgid "notify.paneConnClosed"
+msgstr "该连接已关闭，请从列表中选择其他连接"
 
 msgid "notify.reconnectNoTerminal"
 msgstr "终端连接已断开，请在终端中点击或按任意键重新连接。"
@@ -1255,8 +1284,16 @@ msgstr "未连接，无法下载"
 msgid "notify.copied"
 msgstr "已复制 {n} 项"
 
+msgid "notify.remoteToRemoteFailed"
+msgstr "远程↔远程传输失败"
+
 msgid "notify.cut"
 msgstr "已剪切 {n} 项"
+
+msgid "status.connecting"
+msgstr "连接中"
+msgid "status.waitingConn"
+msgstr "等待连接"
 
 msgid "status.disconnected"
 msgstr "已断开"
@@ -1351,6 +1388,12 @@ msgstr "路径记忆"
 
 msgid "settings.pathModeSync"
 msgstr "与终端同步"
+
+msgid "settings.pathModeMirror"
+msgstr "同步路径"
+
+msgid "settings.pathModeMirrorHint"
+msgstr "两栏始终显示同一目录；仅当两栏同为本地或同为远程时可用"
 
 msgid "settings.defaultShowHidden"
 msgstr "默认显示隐藏文件"
@@ -1479,7 +1522,7 @@ msgid "settings.occupied.closeDialog"
 msgstr "关闭对话框 / 查看器 / 面板"
 
 msgid "settings.occupied.confirmDelete"
-msgstr "确认删除"
+msgstr "确认"
 
 msgid "log.modeFast"
 msgstr "快速模式"
@@ -1502,7 +1545,7 @@ msgstr "恢复默认书签面板"
 msgid "settings.bookmarkGroupByScope"
 msgstr "书签分组"
 msgid "settings.bookmarkGroupByScopeHint"
-msgstr "开启后书签按「当前书签 / 全局书签」分块显示；关闭后混排并可跨范围拖拽排序"
+msgstr "开启后书签按「局部 / 全局」分块显示；关闭后混排并可跨范围拖拽排序"
 msgid "settings.bookmarkGroupOrderHint"
 msgstr "拖拽调整「当前连接」与「全局」分组块的先后顺序"
 
@@ -1566,7 +1609,7 @@ msgid "app.targetNotDir"
 msgstr "目标路径不是目录：{dir}"
 
 msgid "pane.groupBy"
-msgstr "分组依据"
+msgstr "分组"
 
 msgid "group.none"
 msgstr "无"
@@ -1779,3 +1822,265 @@ msgid "settings.caretShapeBeam"
 msgstr "竖线"
 msgid "settings.caretShapeUnderline"
 msgstr "下划线"
+msgid "settings.showTextWordWrap"
+msgstr "查看编辑器自动换行"
+msgid "settings.showTextWordWrapHint"
+msgstr "长行在内置查看器与编辑器中自动折行显示，不再横向滚动。"
+msgid "viewer.wordWrap"
+msgstr "自动换行"
+msgid "viewer.lineNumbers"
+msgstr "行号"
+msgid "viewer.lineNumbersOffByWrap"
+msgstr "自动换行开启时行号不可用（折行后无法与逻辑行对齐）"
+
+msgid "editor.encodingNotEditable"
+msgstr "该文件的编码无法安全保存（如 GBK/GB18030），请改用系统编辑器编辑。"
+
+msgid "viewer.selectAllLimited"
+msgstr "文件过大：仅选中当前屏幕内容，需要全文请用「复制全部」"
+
+# ★ 2026-10-14：复制反馈区分「全部 / 选中」（原都显示 file.copied，看不出复制了哪一份）
+msgid "file.copiedAll"
+msgstr "已复制全部"
+
+msgid "file.copiedSelection"
+msgstr "已复制选中"
+
+# ★ 2026-10-16：设置页新增「键入定位」开关（默认开）
+msgid "settings.typeAhead"
+msgstr "键入文件名前缀定位"
+
+msgid "settings.typeAheadHint"
+msgstr "在文件列表里直接敲字母/数字，跳转选中名称以该前缀开头的条目；连按同一字母可在多个匹配项之间循环"
+
+msgid "conn.switchHint"
+msgstr "点击切换远程连接"
+
+msgid "conn.pickerTitle"
+msgstr "切换连接"
+
+msgid "conn.notOpened"
+msgstr "(未打开)"
+
+msgid "conn.current"
+msgstr "(当前)"
+msgid "conn.otherPane"
+msgstr "(另一栏)"
+
+msgid "conn.disconnect"
+msgstr "断开连接"
+
+msgid "conn.leftPickerTitle"
+msgstr "切换连接"
+
+msgid "notify.leftEndpointNotRestored"
+msgstr "上次的远程连接 ({host}) 未连上，已保留为断开状态，可点击重连"
+
+msgid "notify.connPanelTabKept"
+msgstr "该标签页承载着 SFTP+ 面板：已断开面板，标签页保留"
+
+msgid "notify.connOpenFailed"
+msgstr "无法打开配置连接 {host}"
+
+msgid "notify.leftRemoteSwitchFailed"
+msgstr "切换到远程连接失败"
+
+msgid "notify.leftRemoteViewUnsupported"
+msgstr "当前端点不支持直接打开远程文件"
+
+msgid "transfer.remote-copy"
+msgstr "服务器互传"
+
+msgid "transfer.local-copy"
+msgstr "本地复制"
+
+msgid "notify.dropTargetNotLocal"
+msgstr "当前端点不是本机磁盘，不支持拖放到此"
+
+msgid "conflict.digestUnavailableRemote"
+msgstr "摘要不可用（文件大小不同，或远程服务器不支持）"
+
+msgid "conflict.digestUnavailableLocal"
+msgstr "摘要不可用（文件大小不同，或本地文件读取失败）"
+
+msgid "transfer.skippedAsDuplicateHint"
+msgstr "两侧内容完全相同，本次未实际传输"
+
+msgid "app.invalidNameChars"
+msgstr "名称不能包含路径分隔符（正斜杠或反斜杠）或控制字符"
+
+msgid "settings.exportNothing"
+msgstr "没有可导出的数据：勾选的类别中没有内容（例如本机没有传输记录）。未生成备份文件。"
+
+msgid "notify.pasteSkippedExists"
+msgstr "{n} 项已存在，已跳过"
+
+msgid "settings.customTopBar"
+msgstr "定制顶栏按钮"
+
+msgid "settings.topBarOverflow"
+msgstr "启用折叠菜单（⋯）"
+
+msgid "settings.topBarPinned"
+msgstr "已固定"
+
+msgid "settings.topBarInMenu"
+msgstr "在 ⋯ 菜单"
+
+msgid "settings.topBarPin"
+msgstr "固定到顶栏"
+
+msgid "settings.topBarUnpin"
+msgstr "取消固定（收进 ⋯）"
+
+msgid "settings.topBarCloseNeedsHotkey"
+msgstr "未设置面板快捷键时始终显示"
+
+msgid "settings.resetTopBar"
+msgstr "恢复默认顶栏"
+
+msgid "topbar.pathMode"
+msgstr "路径模式"
+
+msgid "topbar.minimize"
+msgstr "最小化"
+
+msgid "settings.connPickerTrigger"
+msgstr "连接切换器唤起方式"
+
+msgid "settings.connPickerTriggerHint"
+msgstr "选择连接切换器的弹出方式：面板顶栏的连接标题，或每栏工具栏上的本地/远程标识"
+
+msgid "settings.connPickerTopbar"
+msgstr "顶栏标题"
+
+msgid "settings.connPickerBadge"
+msgstr "工具栏标识"
+
+msgid "settings.connPickerBoth"
+msgstr "两者都"
+msgid "settings.connLabelStyle"
+msgstr "顶栏连接显示"
+
+msgid "settings.connLabelAccount"
+msgstr "账号@地址"
+
+msgid "settings.connLabelAlias"
+msgstr "别名"
+
+msgid "settings.connLabelStyleHint"
+msgstr "顶栏连接显示「账号@地址」或「Tabby 配置连接名」；连接选择器不受影响"
+
+
+msgid "settings.panelOpacity"
+msgstr "面板透明度"
+
+msgid "settings.panelOpacityHint"
+msgstr "调整面板整体透明度；最低 50%，不允许全透明"
+
+msgid "bookmark.resetSize"
+msgstr "双击还原默认大小"
+
+msgid "settings.bookmarkLink"
+msgstr "联动书签"
+
+msgid "settings.bookmarkLinkHint"
+msgstr "开启后书签可设置联动路径；点击该书签时另一栏也会跳到该路径"
+
+msgid "bookmark.linkPath"
+msgstr "联动路径（另一栏，可选）"
+
+msgid "bookmark.linkBadge"
+msgstr "联动"
+
+msgid "bookmark.sortManual"
+msgstr "拖拽排序"
+
+msgid "bookmark.sortUsage"
+msgstr "频率排序"
+
+msgid "bookmark.sortName"
+msgstr "名称排序"
+
+msgid "bookmark.sortHint"
+msgstr "点击切换排序方式"
+
+msgid "bookmark.dragHint"
+msgstr "拖拽排序书签，右键编辑书签"
+
+msgid "bookmark.dragHintSorted"
+msgstr "按使用频率排序中，无法拖拽；右键编辑书签"
+
+msgid "settings.bookmarkSortByUsage"
+msgstr "按使用频率排序"
+
+msgid "settings.bookmarkSortByUsageHint"
+msgstr "关闭时按手动拖拽顺序；开启后按书签被点击的次数降序"
+
+msgid "settings.bookmarkSortHint"
+msgstr "拖拽顺序：手动排序；使用频率：按点击次数降序；名称排序：按名称升序（数字按自然顺序）"
+
+msgid "settings.bookmarkSort"
+msgstr "书签排序"
+
+msgid "settings.bookmarkResetUsage"
+msgstr "重置统计"
+
+msgid "settings.bookmarkResetUsageDone"
+msgstr "已重置 {count} 条书签的使用次数"
+
+msgid "bookmark.linkMissing"
+msgstr "联动路径不存在，已跳过另一栏跳转"
+
+msgid "bookmark.resetWidth"
+msgstr "双击还原默认宽度"
+
+msgid "bookmark.resetHeight"
+msgstr "双击还原默认高度"
+
+
+msgid "editor.externalChanged"
+msgstr "本地已改动，尚未上传到服务器"
+
+msgid "editor.uploadNow"
+msgstr "立即上传"
+
+msgid "settings.editorAutoUploadExternal"
+msgstr "外部编辑自动上传"
+
+msgid "settings.editorAutoUploadExternalHint"
+msgstr "在系统中编辑并保存后自动上传到服务器。默认关闭；开启后若远端文件已被他人修改，将改为提示你确认，而非静默覆盖。"
+
+msgid "settings.applyInstant"
+msgstr "调整配置立即生效"
+
+msgid "settings.applyInstantHint"
+msgstr "开启后设置页的修改会立即推送到已打开的 SFTP+ 面板；关闭后需关闭并重开面板才生效"
+
+msgid "settings.buyCoffee"
+msgstr "请喝咖啡"
+
+msgid "bookmark.pinOn"
+msgstr "面板常驻"
+
+msgid "bookmark.pinOff"
+msgstr "选中后关闭"
+
+msgid "bookmark.pinHint"
+msgstr "点击切换：常驻（点其它位置不关闭）/ 选中后关闭"
+
+msgid "settings.conflictRenameStyle"
+msgstr "冲突重命名风格"
+
+msgid "settings.conflictRenameStyleHint"
+msgstr "冲突时选「重命名」的新名字怎么起（默认按序号堆叠）"
+
+msgid "settings.renameStyleSeq"
+msgstr "序号堆叠"
+
+msgid "settings.renameStyleTime"
+msgstr "时间戳"
+
+msgid "settings.renameStyleRandom"
+msgstr "随机后缀"
+

@@ -179,6 +179,9 @@ msgstr "Unggah"
 msgid "app.download"
 msgstr "Unduh"
 
+msgid "app.transfer"
+msgstr "Transfer"
+
 msgid "app.newFolder"
 msgstr "Folder Baru"
 
@@ -337,6 +340,9 @@ msgstr "Tidak ada file yang cocok"
 msgid "pane.empty"
 msgstr "Folder kosong"
 
+msgid "pane.connLost"
+msgstr "Koneksi terputus"
+
 msgid "pane.errorAccess"
 msgstr "Tidak dapat mengakses (izin ditolak atau jalur tidak ditemukan)"
 
@@ -351,6 +357,12 @@ msgstr "Mode Jalur: Ingat (pulihkan lain kali)"
 
 msgid "path.modeSync"
 msgstr "Mode Jalur: Sinkron dengan terminal (jarak jauh mengikuti cwd)"
+
+msgid "path.modeMirror"
+msgstr "Mode Jalur: Cermin jalur (kedua panel menampilkan folder yang sama)"
+
+msgid "path.mirrorUnavailable"
+msgstr "Cermin jalur hanya tersedia bila kedua panel lokal atau kedua panel jarak jauh"
 
 msgid "path.syncNoCwd"
 msgstr "cwd terminal tidak dilaporkan. Alihkan ke Sinkron lagi untuk mengonfigurasi"
@@ -606,7 +618,7 @@ msgid "transfer.deleteTitle"
 msgstr "Konfirmasi Hapus"
 
 msgid "bookmark.title"
-msgstr "Bookmark"
+msgstr "{pane} Bookmark"
 
 msgid "bookmark.add"
 msgstr "Tambahkan Bookmark"
@@ -691,6 +703,9 @@ msgstr "Menghubungkan ke"
 
 msgid "notify.sftpConnectFailed"
 msgstr "Koneksi SFTP gagal. Pastikan SSH terhubung dan server mendukung SFTP."
+
+msgid "notify.paneConnClosed"
+msgstr "Koneksi ini telah ditutup. Pilih koneksi lain dari daftar."
 
 msgid "notify.reconnectNoTerminal"
 msgstr "Terminal terputus. Silakan klik atau tekan tombol apa pun di terminal untuk menghubungkan kembali."
@@ -1009,6 +1024,11 @@ msgstr "{n} item disalin"
 msgid "notify.cut"
 msgstr "{n} item dipotong"
 
+msgid "status.connecting"
+msgstr "Menghubungkan"
+msgid "status.waitingConn"
+msgstr "Menunggu koneksi"
+
 msgid "status.disconnected"
 msgstr "Terputus"
 
@@ -1093,6 +1113,12 @@ msgstr "Ingat jalur"
 
 msgid "settings.pathModeSync"
 msgstr "Sinkron dengan terminal"
+
+msgid "settings.pathModeMirror"
+msgstr "Cermin jalur"
+
+msgid "settings.pathModeMirrorHint"
+msgstr "Kedua panel selalu menampilkan folder yang sama; hanya tersedia bila keduanya lokal atau keduanya jarak jauh"
 
 msgid "settings.defaultShowHidden"
 msgstr "Tampilkan file tersembunyi secara default"
@@ -1279,7 +1305,7 @@ msgid "settings.occupied.closeDialog"
 msgstr "Tutup dialog / penampil / panel"
 
 msgid "settings.occupied.confirmDelete"
-msgstr "Konfirmasi penghapusan"
+msgstr "Konfirmasi"
 
 msgid "log.modeFast"
 msgstr "Mode cepat"
@@ -1534,7 +1560,7 @@ msgid "app.targetNotDir"
 msgstr "Jalur tujuan bukan direktori: {dir}"
 
 msgid "pane.groupBy"
-msgstr "Kelompokkan menurut"
+msgstr "Kelompokkan"
 
 msgid "group.none"
 msgstr "Tidak ada"
@@ -1747,3 +1773,327 @@ msgid "settings.caretShapeBeam"
 msgstr "Garis vertikal"
 msgid "settings.caretShapeUnderline"
 msgstr "Garis bawah"
+msgid "settings.showTextWordWrap"
+msgstr "Bungkus baris (penampil/editor)"
+msgid "settings.showTextWordWrapHint"
+msgstr "Bungkus baris panjang di penampil dan editor alih-alih menggulir mendatar."
+msgid "viewer.wordWrap"
+msgstr "Bungkus"
+msgid "viewer.lineNumbers"
+msgstr "Nomor baris"
+msgid "viewer.lineNumbersOffByWrap"
+msgstr "Nomor baris disembunyikan saat bungkus baris aktif"
+
+msgid "editor.encodingNotEditable"
+msgstr "Berkas ini memakai enkode yang tidak dapat disimpan dengan aman (mis. GBK/GB18030). Sunting di editor sistem sebagai gantinya."
+
+# ★ 2026-10-13：对齐 en-US 新增的 15 个 msgid（审计修复：缺失时这些语言回退英文）
+msgid "layout.override.tooNarrow"
+msgstr "Panel terlalu sempit untuk tata letak berdampingan; sementara menggunakan tata letak atas-bawah"
+
+msgid "layout.override.tooShort"
+msgstr "Panel terlalu pendek untuk tata letak atas-bawah; sementara menggunakan tata letak berdampingan"
+
+msgid "layout.override.tooCramped"
+msgstr "Panel terlalu kecil untuk dua panel; sementara menggunakan satu panel"
+
+msgid "layout.override.reasonNarrow"
+msgstr "terlalu sempit"
+
+msgid "layout.override.reasonShort"
+msgstr "terlalu pendek"
+
+msgid "layout.override.reasonCramped"
+msgstr "terlalu kecil"
+
+msgid "layout.override.title"
+msgstr "{preferred} → {actual} ({reason})"
+
+msgid "settings.occupied.typeAhead"
+msgstr "Ketik awalan nama untuk melompat ke kecocokan"
+
+msgid "log.modeSftp"
+msgstr "SFTP"
+
+msgid "editor.remoteChanged"
+msgstr "Berkas jarak jauh telah diubah. Timpa versi di server?"
+
+msgid "notify.sftpRecovered"
+msgstr "Sesi SFTP dipulihkan; silakan coba lagi transfer yang terputus"
+
+msgid "perm.modeUnknown"
+msgstr "Tidak dapat membaca izin; dibatalkan"
+
+msgid "permission.chmodFailed"
+msgstr "Gagal mengubah izin"
+
+msgid "conflict.contentDiffers"
+msgstr "Konten berbeda — pertimbangkan untuk menimpa"
+
+msgid "viewer.truncatedPreview"
+msgstr "Berkas besar; menampilkan {limit} pertama. Gunakan “Open in System” untuk berkas lengkap."
+
+# ★ 2026-10-13：传输日志操作名（对齐 en-US 新增，缺失时这些语言回退英文）
+msgid "transfer.delete"
+msgstr "Hapus"
+
+msgid "transfer.rename"
+msgstr "Ganti nama"
+
+msgid "transfer.mkdir"
+msgstr "Folder baru"
+
+msgid "transfer.chmod"
+msgstr "Izin"
+
+msgid "viewer.selectAllLimited"
+msgstr "File terlalu besar: hanya bagian yang terlihat yang dipilih. Gunakan Salin semua untuk seluruh isi."
+
+# ★ 2026-10-14：复制反馈区分「全部 / 选中」（原都显示 file.copied，看不出复制了哪一份）
+msgid "file.copiedAll"
+msgstr "Semua tersalin"
+
+msgid "file.copiedSelection"
+msgstr "Pilihan tersalin"
+
+# ★ 2026-10-16：设置页新增「键入定位」开关（默认开）
+msgid "settings.typeAhead"
+msgstr "Lompat menurut awalan nama"
+
+msgid "settings.typeAheadHint"
+msgstr "Ketik huruf atau angka di daftar berkas untuk melompat ke entri dengan awalan nama itu; tekan lagi untuk berpindah antar kecocokan"
+
+msgid "conn.switchHint"
+msgstr "Click to switch remote connection"
+
+msgid "conn.pickerTitle"
+msgstr "Ganti koneksi"
+
+msgid "conn.notOpened"
+msgstr "(belum dibuka)"
+
+msgid "conn.current"
+msgstr "(current)"
+msgid "conn.otherPane"
+msgstr "(panel lain)"
+
+msgid "conn.disconnect"
+msgstr "Disconnect"
+
+msgid "conn.leftPickerTitle"
+msgstr "Ganti koneksi"
+
+msgid "notify.leftEndpointNotRestored"
+msgstr "Koneksi jarak jauh sebelumnya ({host}) tidak terhubung. Tetap ditampilkan sebagai terputus; klik sambungkan ulang untuk mencoba lagi."
+
+msgid "notify.connPanelTabKept"
+msgstr "Tab ini menampung panel SFTP+: panel diputus, tab dipertahankan"
+
+msgid "notify.connOpenFailed"
+msgstr "Tidak dapat membuka koneksi yang dikonfigurasi: {host}"
+
+msgid "notify.leftRemoteSwitchFailed"
+msgstr "Gagal beralih ke koneksi jarak jauh"
+
+msgid "notify.leftRemoteViewUnsupported"
+msgstr "Membuka berkas jarak jauh secara langsung tidak didukung oleh endpoint ini"
+
+msgid "transfer.remote-copy"
+msgstr "Server↔Server"
+
+msgid "transfer.local-copy"
+msgstr "Local copy"
+
+msgid "notify.remoteToRemoteFailed"
+msgstr "Remote-to-remote transfer failed"
+
+msgid "notify.dropTargetNotLocal"
+msgstr "Endpoint ini bukan disk lokal; menjatuhkan di sini tidak didukung"
+
+msgid "conflict.digestUnavailableRemote"
+msgstr "Digest unavailable (sizes differ, or the remote server does not support it)"
+
+msgid "conflict.digestUnavailableLocal"
+msgstr "Digest unavailable (sizes differ, or the local file could not be read)"
+
+msgid "transfer.skippedAsDuplicateHint"
+msgstr "Content is identical on both sides, so the transfer was not executed"
+
+msgid "app.invalidNameChars"
+msgstr "The name cannot contain a path separator (slash or backslash) or control characters"
+
+msgid "settings.exportNothing"
+msgstr "Tidak ada yang diekspor: kategori yang dipilih tidak berisi data (mis. tidak ada log transfer di komputer ini). Tidak ada file cadangan yang dibuat."
+
+msgid "notify.pasteSkippedExists"
+msgstr "{n} item dilewati — tujuan sudah ada"
+
+msgid "settings.customTopBar"
+msgstr "Sesuaikan tombol bilah atas"
+
+msgid "settings.topBarOverflow"
+msgstr "Aktifkan menu luapan (⋯)"
+
+msgid "settings.topBarPinned"
+msgstr "Disematkan"
+
+msgid "settings.topBarInMenu"
+msgstr "Di menu ⋯"
+
+msgid "settings.topBarPin"
+msgstr "Sematkan ke bilah atas"
+
+msgid "settings.topBarUnpin"
+msgstr "Lepas sematan (pindah ke ⋯)"
+
+msgid "settings.topBarCloseNeedsHotkey"
+msgstr "Selalu ditampilkan sampai pintasan panel diatur"
+
+msgid "settings.resetTopBar"
+msgstr "Atur ulang bilah atas"
+
+msgid "topbar.pathMode"
+msgstr "Mode jalur"
+
+msgid "topbar.minimize"
+msgstr "Perkecil"
+
+msgid "settings.connPickerTrigger"
+msgstr "Pemicu pengalih koneksi"
+
+msgid "settings.connPickerTriggerHint"
+msgstr "Pilih cara membuka pengalih koneksi: judul di bilah atas atau label lokal/jarak jauh di bilah setiap panel"
+
+msgid "settings.connPickerTopbar"
+msgstr "Judul bilah atas"
+
+msgid "settings.connPickerBadge"
+msgstr "Lencana bilah alat"
+
+msgid "settings.connPickerBoth"
+msgstr "Keduanya"
+msgid "settings.connLabelStyle"
+msgstr "Tampilan koneksi"
+
+msgid "settings.connLabelAccount"
+msgstr "Akun@host"
+
+msgid "settings.connLabelAlias"
+msgstr "Alias"
+
+msgid "settings.connLabelStyleHint"
+msgstr "Apa yang ditampilkan bilah atas: akun@host atau nama profil Tabby. Pemilih koneksi tidak terpengaruh."
+
+
+msgid "settings.panelOpacity"
+msgstr "Opasitas panel"
+
+msgid "settings.panelOpacityHint"
+msgstr "Sesuaikan opasitas keseluruhan panel. Minimal 50 persen, sepenuhnya transparan tidak diizinkan"
+
+msgid "bookmark.resetSize"
+msgstr "Klik dua kali untuk mengatur ulang ukuran"
+
+msgid "settings.bookmarkLink"
+msgstr "Markah tertaut"
+
+msgid "settings.bookmarkLinkHint"
+msgstr "Jika aktif, markah dapat memiliki jalur tertaut; saat diklik, panel lain juga berpindah ke sana"
+
+msgid "bookmark.linkPath"
+msgstr "Jalur tertaut (panel lain, opsional)"
+
+msgid "bookmark.linkBadge"
+msgstr "Tertaut"
+
+msgid "bookmark.sortManual"
+msgstr "Urutan seret"
+
+msgid "bookmark.sortUsage"
+msgstr "Berdasarkan penggunaan"
+
+msgid "bookmark.sortName"
+msgstr "Berdasarkan nama"
+
+msgid "bookmark.sortHint"
+msgstr "Klik untuk mengganti urutan"
+
+msgid "bookmark.dragHint"
+msgstr "Seret untuk mengurutkan ulang markah, klik kanan untuk mengedit"
+
+msgid "bookmark.dragHintSorted"
+msgstr "Diurutkan menurut penggunaan — seret dinonaktifkan; klik kanan untuk mengedit"
+
+msgid "settings.bookmarkSortByUsage"
+msgstr "Urutkan menurut penggunaan"
+
+msgid "settings.bookmarkSortByUsageHint"
+msgstr "Mati: urutan manual. Nyala: menurut berapa kali markah diklik"
+
+msgid "settings.bookmarkSortHint"
+msgstr "Urutan seret: manual. Berdasarkan penggunaan: paling sering diklik lebih dulu. Berdasarkan nama: alfabetis (angka dalam urutan alami)"
+
+msgid "settings.bookmarkSort"
+msgstr "Pengurutan markah"
+
+msgid "settings.bookmarkResetUsage"
+msgstr "Atur ulang statistik"
+
+msgid "settings.bookmarkResetUsageDone"
+msgstr "Statistik {count} markah diatur ulang"
+
+msgid "bookmark.linkMissing"
+msgstr "Jalur tertaut tidak ada; panel lain tidak dipindahkan"
+
+msgid "bookmark.resetWidth"
+msgstr "Klik dua kali untuk mengatur ulang lebar"
+
+msgid "bookmark.resetHeight"
+msgstr "Klik dua kali untuk mengatur ulang tinggi"
+
+
+msgid "editor.externalChanged"
+msgstr "Local changes not yet uploaded to server"
+
+msgid "editor.uploadNow"
+msgstr "Upload now"
+
+msgid "settings.editorAutoUploadExternal"
+msgstr "Auto-upload on external edit"
+
+msgid "settings.editorAutoUploadExternalHint"
+msgstr "Automatically upload to server after saving in an external editor. Off by default; when on, if the remote file was changed by someone else, it prompts for confirmation instead of overwriting silently."
+
+msgid "settings.applyInstant"
+msgstr "Terapkan perubahan segera"
+
+msgid "settings.applyInstantHint"
+msgstr "Aktif: perubahan langsung diterapkan ke panel SFTP+ yang terbuka. Nonaktif: tutup dan buka lagi panel"
+
+msgid "settings.buyCoffee"
+msgstr "Traktir saya kopi"
+
+msgid "bookmark.pinOn"
+msgstr "Panel tetap terbuka"
+
+msgid "bookmark.pinOff"
+msgstr "Tutup setelah memilih"
+
+msgid "bookmark.pinHint"
+msgstr "Klik untuk beralih: tetap terbuka (klik di luar tidak menutup) / tutup setelah memilih"
+
+msgid "settings.conflictRenameStyle"
+msgstr "Gaya penamaan ulang saat konflik"
+
+msgid "settings.conflictRenameStyleHint"
+msgstr "Cara nama baru dibuat saat memilih Ganti nama pada konflik (bernomor secara bawaan)"
+
+msgid "settings.renameStyleSeq"
+msgstr "Bernomor"
+
+msgid "settings.renameStyleTime"
+msgstr "Stempel waktu"
+
+msgid "settings.renameStyleRandom"
+msgstr "Akhiran acak"
+

@@ -179,6 +179,9 @@ msgstr "Загрузить"
 msgid "app.download"
 msgstr "Скачать"
 
+msgid "app.transfer"
+msgstr "Передать"
+
 msgid "app.newFolder"
 msgstr "Новая Папка"
 
@@ -335,6 +338,9 @@ msgstr "Нет совпадающих файлов"
 msgid "pane.empty"
 msgstr "Пустая папка"
 
+msgid "pane.connLost"
+msgstr "Соединение потеряно"
+
 msgid "pane.errorAccess"
 msgstr "Нет доступа (отказано в разрешении или путь не найден)"
 
@@ -349,6 +355,12 @@ msgstr "Режим Пути: Запомнить (восстановить в с�
 
 msgid "path.modeSync"
 msgstr "Режим Пути: Синхронизировать с Терминалом (удалённый следует за cwd)"
+
+msgid "path.modeMirror"
+msgstr "Режим Пути: Зеркальный путь (обе панели показывают один каталог)"
+
+msgid "path.mirrorUnavailable"
+msgstr "Зеркальный путь доступен, только если обе панели локальные или обе удалённые"
 
 msgid "path.syncNoCwd"
 msgstr "cwd терминала не сообщается. Переключите снова на Синхронизацию для настройки"
@@ -603,7 +615,7 @@ msgid "transfer.deleteTitle"
 msgstr "Подтвердить Удаление"
 
 msgid "bookmark.title"
-msgstr "Закладки"
+msgstr "{pane} Закладки"
 
 msgid "bookmark.add"
 msgstr "Добавить Закладку"
@@ -690,6 +702,9 @@ msgstr "Подключение к"
 
 msgid "notify.sftpConnectFailed"
 msgstr "Не удалось подключиться к SFTP. Убедитесь, что SSH подключён и сервер поддерживает SFTP."
+
+msgid "notify.paneConnClosed"
+msgstr "Это подключение закрыто. Выберите другое подключение из списка."
 
 msgid "notify.reconnectNoTerminal"
 msgstr "Терминал отключён. Нажмите или кликните в терминале для переподключения."
@@ -1024,6 +1039,11 @@ msgstr "Скопировано {n} элемент(ов)"
 msgid "notify.cut"
 msgstr "Вырезано {n} элемент(ов)"
 
+msgid "status.connecting"
+msgstr "Подключение"
+msgid "status.waitingConn"
+msgstr "Ожидание подключения"
+
 msgid "status.disconnected"
 msgstr "Отключено"
 
@@ -1108,6 +1128,12 @@ msgstr "Запоминать путь"
 
 msgid "settings.pathModeSync"
 msgstr "Синхронизация с терминалом"
+
+msgid "settings.pathModeMirror"
+msgstr "Зеркальный путь"
+
+msgid "settings.pathModeMirrorHint"
+msgstr "Обе панели всегда показывают один каталог; доступно только когда обе панели локальные или обе удалённые"
 
 msgid "settings.defaultShowHidden"
 msgstr "Показывать скрытые файлы по умолчанию"
@@ -1294,7 +1320,7 @@ msgid "settings.occupied.closeDialog"
 msgstr "Закрыть диалог / просмотрщик / панель"
 
 msgid "settings.occupied.confirmDelete"
-msgstr "Подтвердить удаление"
+msgstr "Подтвердить"
 
 msgid "log.modeFast"
 msgstr "Быстрый режим"
@@ -1549,7 +1575,7 @@ msgid "app.targetNotDir"
 msgstr "Целевой путь не является каталогом: {dir}"
 
 msgid "pane.groupBy"
-msgstr "Группировать по"
+msgstr "Группировка"
 
 msgid "group.none"
 msgstr "Нет"
@@ -1762,3 +1788,327 @@ msgid "settings.caretShapeBeam"
 msgstr "Вертикальная линия"
 msgid "settings.caretShapeUnderline"
 msgstr "Подчёркивание"
+msgid "settings.showTextWordWrap"
+msgstr "Перенос строк (просмотр/редактор)"
+msgid "settings.showTextWordWrapHint"
+msgstr "Переносить длинные строки в просмотрщике и редакторе вместо горизонтальной прокрутки."
+msgid "viewer.wordWrap"
+msgstr "Перенос"
+msgid "viewer.lineNumbers"
+msgstr "Номера строк"
+msgid "viewer.lineNumbersOffByWrap"
+msgstr "Номера строк скрыты при включённом переносе"
+
+msgid "editor.encodingNotEditable"
+msgstr "Этот файл использует кодировку, которую нельзя безопасно сохранить (например, GBK/GB18030). Отредактируйте его в системном редакторе."
+
+# ★ 2026-10-13：对齐 en-US 新增的 15 个 msgid（审计修复：缺失时这些语言回退英文）
+msgid "layout.override.tooNarrow"
+msgstr "Панель слишком узкая для горизонтальной раскладки; временно используется вертикальная раскладка"
+
+msgid "layout.override.tooShort"
+msgstr "Панель слишком низкая для вертикальной раскладки; временно используется горизонтальная раскладка"
+
+msgid "layout.override.tooCramped"
+msgstr "Панель слишком маленькая для двух панелей; временно используется одиночная панель"
+
+msgid "layout.override.reasonNarrow"
+msgstr "слишком узкая"
+
+msgid "layout.override.reasonShort"
+msgstr "слишком низкая"
+
+msgid "layout.override.reasonCramped"
+msgstr "слишком маленькая"
+
+msgid "layout.override.title"
+msgstr "{preferred} → {actual} ({reason})"
+
+msgid "settings.occupied.typeAhead"
+msgstr "Введите префикс имени, чтобы перейти к совпадению"
+
+msgid "log.modeSftp"
+msgstr "SFTP"
+
+msgid "editor.remoteChanged"
+msgstr "Удалённый файл был изменён. Перезаписать версию на сервере?"
+
+msgid "notify.sftpRecovered"
+msgstr "Сеанс SFTP восстановлен; повторите прерванные передачи"
+
+msgid "perm.modeUnknown"
+msgstr "Не удалось прочитать права; отменено"
+
+msgid "permission.chmodFailed"
+msgstr "Не удалось изменить права"
+
+msgid "conflict.contentDiffers"
+msgstr "Содержимое отличается — рассмотрите перезапись"
+
+msgid "viewer.truncatedPreview"
+msgstr "Файл большой; показаны первые {limit}. Используйте “Open in System” для полного файла."
+
+# ★ 2026-10-13：传输日志操作名（对齐 en-US 新增，缺失时这些语言回退英文）
+msgid "transfer.delete"
+msgstr "Удалить"
+
+msgid "transfer.rename"
+msgstr "Переименовать"
+
+msgid "transfer.mkdir"
+msgstr "Новая папка"
+
+msgid "transfer.chmod"
+msgstr "Права доступа"
+
+msgid "viewer.selectAllLimited"
+msgstr "Файл слишком большой: выделена только видимая часть. Для всего содержимого используйте «Копировать всё»."
+
+# ★ 2026-10-14：复制反馈区分「全部 / 选中」（原都显示 file.copied，看不出复制了哪一份）
+msgid "file.copiedAll"
+msgstr "Скопировано всё"
+
+msgid "file.copiedSelection"
+msgstr "Скопировано выделенное"
+
+# ★ 2026-10-16：设置页新增「键入定位」开关（默认开）
+msgid "settings.typeAhead"
+msgstr "Переход по началу имени"
+
+msgid "settings.typeAheadHint"
+msgstr "Введите букву или цифру в списке, чтобы перейти к элементу с таким началом имени; нажмите снова, чтобы перейти к следующему совпадению"
+
+msgid "conn.switchHint"
+msgstr "Click to switch remote connection"
+
+msgid "conn.pickerTitle"
+msgstr "Сменить подключение"
+
+msgid "conn.notOpened"
+msgstr "(не открыто)"
+
+msgid "conn.current"
+msgstr "(current)"
+msgid "conn.otherPane"
+msgstr "(другая панель)"
+
+msgid "conn.disconnect"
+msgstr "Disconnect"
+
+msgid "conn.leftPickerTitle"
+msgstr "Сменить подключение"
+
+msgid "notify.leftEndpointNotRestored"
+msgstr "Предыдущее удалённое подключение ({host}) не установлено. Оно осталось в состоянии «отключено» — нажмите «Переподключиться», чтобы повторить."
+
+msgid "notify.connPanelTabKept"
+msgstr "Эта вкладка содержит панель SFTP+: панель отключена, вкладка сохранена"
+
+msgid "notify.connOpenFailed"
+msgstr "Не удалось открыть настроенное подключение: {host}"
+
+msgid "notify.leftRemoteSwitchFailed"
+msgstr "Не удалось переключиться на удалённое подключение"
+
+msgid "notify.leftRemoteViewUnsupported"
+msgstr "Прямое открытие удалённых файлов не поддерживается этой конечной точкой"
+
+msgid "transfer.remote-copy"
+msgstr "Server↔Server"
+
+msgid "transfer.local-copy"
+msgstr "Local copy"
+
+msgid "notify.remoteToRemoteFailed"
+msgstr "Remote-to-remote transfer failed"
+
+msgid "notify.dropTargetNotLocal"
+msgstr "Эта конечная точка не является локальным диском; перетаскивание сюда не поддерживается"
+
+msgid "conflict.digestUnavailableRemote"
+msgstr "Digest unavailable (sizes differ, or the remote server does not support it)"
+
+msgid "conflict.digestUnavailableLocal"
+msgstr "Digest unavailable (sizes differ, or the local file could not be read)"
+
+msgid "transfer.skippedAsDuplicateHint"
+msgstr "Content is identical on both sides, so the transfer was not executed"
+
+msgid "app.invalidNameChars"
+msgstr "The name cannot contain a path separator (slash or backslash) or control characters"
+
+msgid "settings.exportNothing"
+msgstr "Нечего экспортировать: в выбранных категориях нет данных (например, на этом компьютере нет журнала передач). Файл резервной копии не создан."
+
+msgid "notify.pasteSkippedExists"
+msgstr "Пропущено {n} элементов — цель уже существует"
+
+msgid "settings.customTopBar"
+msgstr "Настроить кнопки верхней панели"
+
+msgid "settings.topBarOverflow"
+msgstr "Включить меню переполнения (⋯)"
+
+msgid "settings.topBarPinned"
+msgstr "Закреплено"
+
+msgid "settings.topBarInMenu"
+msgstr "В меню ⋯"
+
+msgid "settings.topBarPin"
+msgstr "Закрепить на панели"
+
+msgid "settings.topBarUnpin"
+msgstr "Открепить (в меню ⋯)"
+
+msgid "settings.topBarCloseNeedsHotkey"
+msgstr "Всегда отображается, пока не задано сочетание клавиш панели"
+
+msgid "settings.resetTopBar"
+msgstr "Сбросить верхнюю панель"
+
+msgid "topbar.pathMode"
+msgstr "Режим пути"
+
+msgid "topbar.minimize"
+msgstr "Свернуть"
+
+msgid "settings.connPickerTrigger"
+msgstr "Способ вызова переключателя подключений"
+
+msgid "settings.connPickerTriggerHint"
+msgstr "Выберите, как открывать переключатель подключений: заголовок в верхней панели или метка локально/удалённо на панели каждого раздела"
+
+msgid "settings.connPickerTopbar"
+msgstr "Заголовок панели"
+
+msgid "settings.connPickerBadge"
+msgstr "Значок панели"
+
+msgid "settings.connPickerBoth"
+msgstr "Оба"
+msgid "settings.connLabelStyle"
+msgstr "Отображение подключения"
+
+msgid "settings.connLabelAccount"
+msgstr "Учётная запись@хост"
+
+msgid "settings.connLabelAlias"
+msgstr "Псевдоним"
+
+msgid "settings.connLabelStyleHint"
+msgstr "Что показывать в верхней панели: учётная запись@хост или имя профиля Tabby. На выбор подключения это не влияет."
+
+
+msgid "settings.panelOpacity"
+msgstr "Непрозрачность панели"
+
+msgid "settings.panelOpacityHint"
+msgstr "Настройте общую непрозрачность панели. Минимум 50 процентов, полностью прозрачная панель запрещена"
+
+msgid "bookmark.resetSize"
+msgstr "Двойной щелчок вернёт размер по умолчанию"
+
+msgid "settings.bookmarkLink"
+msgstr "Связанные закладки"
+
+msgid "settings.bookmarkLinkHint"
+msgstr "Если включено, закладка может иметь связанный путь; по щелчку вторая панель тоже переходит туда"
+
+msgid "bookmark.linkPath"
+msgstr "Связанный путь (другая панель, необязательно)"
+
+msgid "bookmark.linkBadge"
+msgstr "Связано"
+
+msgid "bookmark.sortManual"
+msgstr "Порядок перетаскивания"
+
+msgid "bookmark.sortUsage"
+msgstr "По частоте"
+
+msgid "bookmark.sortName"
+msgstr "По имени"
+
+msgid "bookmark.sortHint"
+msgstr "Щелчок меняет порядок сортировки"
+
+msgid "bookmark.dragHint"
+msgstr "Перетащите, чтобы изменить порядок закладок; правый клик — редактировать"
+
+msgid "bookmark.dragHintSorted"
+msgstr "Сортировка по использованию — перетаскивание отключено; правый клик — редактировать"
+
+msgid "settings.bookmarkSortByUsage"
+msgstr "Сортировать по частоте"
+
+msgid "settings.bookmarkSortByUsageHint"
+msgstr "Выкл.: ручной порядок. Вкл.: по числу нажатий на закладку"
+
+msgid "settings.bookmarkSortHint"
+msgstr "Порядок перетаскивания: вручную. По частоте: чаще нажимаемые выше. По имени: по алфавиту (числа в естественном порядке)"
+
+msgid "settings.bookmarkSort"
+msgstr "Сортировка закладок"
+
+msgid "settings.bookmarkResetUsage"
+msgstr "Сбросить статистику"
+
+msgid "settings.bookmarkResetUsageDone"
+msgstr "Статистика {count} закладок сброшена"
+
+msgid "bookmark.linkMissing"
+msgstr "Связанный путь не существует; вторая панель не перемещена"
+
+msgid "bookmark.resetWidth"
+msgstr "Двойной щелчок вернёт ширину по умолчанию"
+
+msgid "bookmark.resetHeight"
+msgstr "Двойной щелчок вернёт высоту по умолчанию"
+
+
+msgid "editor.externalChanged"
+msgstr "Local changes not yet uploaded to server"
+
+msgid "editor.uploadNow"
+msgstr "Upload now"
+
+msgid "settings.editorAutoUploadExternal"
+msgstr "Auto-upload on external edit"
+
+msgid "settings.editorAutoUploadExternalHint"
+msgstr "Automatically upload to server after saving in an external editor. Off by default; when on, if the remote file was changed by someone else, it prompts for confirmation instead of overwriting silently."
+
+msgid "settings.applyInstant"
+msgstr "Применять изменения сразу"
+
+msgid "settings.applyInstantHint"
+msgstr "Вкл.: изменения сразу применяются к открытым панелям SFTP+. Выкл.: закройте и снова откройте панель"
+
+msgid "settings.buyCoffee"
+msgstr "Угостите кофе"
+
+msgid "bookmark.pinOn"
+msgstr "Панель остаётся открытой"
+
+msgid "bookmark.pinOff"
+msgstr "Закрывать после выбора"
+
+msgid "bookmark.pinHint"
+msgstr "Нажмите для переключения: остаётся открытой (клик вне не закрывает) / закрывать после выбора"
+
+msgid "settings.conflictRenameStyle"
+msgstr "Стиль переименования при конфликте"
+
+msgid "settings.conflictRenameStyleHint"
+msgstr "Как формируется новое имя при выборе «Переименовать» (по умолчанию с номером)"
+
+msgid "settings.renameStyleSeq"
+msgstr "С номером"
+
+msgid "settings.renameStyleTime"
+msgstr "С меткой времени"
+
+msgid "settings.renameStyleRandom"
+msgstr "Случайный суффикс"
+

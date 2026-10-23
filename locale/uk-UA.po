@@ -141,6 +141,9 @@ msgstr "Завантажити"
 msgid "app.download"
 msgstr "Завантажити"
 
+msgid "app.transfer"
+msgstr "Передати"
+
 msgid "app.newFolder"
 msgstr "Нова Папка"
 
@@ -267,6 +270,9 @@ msgstr "Ні matching files"
 
 msgid "pane.empty"
 msgstr "Порожня тека"
+msgid "pane.connLost"
+msgstr "З'єднання втрачено"
+
 msgid "pane.errorAccess"
 msgstr "Неможливо отримати доступ (доступ заборонено або шлях не знайдено)"
 msgid "pane.loading"
@@ -277,6 +283,12 @@ msgid "path.modeRemember"
 msgstr "Режим шляху: Запам'ятати (відновити наступного разу)"
 msgid "path.modeSync"
 msgstr "Режим шляху: Синхронізувати з терміналом (віддалений слідує за cwd)"
+
+msgid "path.modeMirror"
+msgstr "Режим Шляху: Дзеркальний шлях (обидві панелі показують один каталог)"
+
+msgid "path.mirrorUnavailable"
+msgstr "Дзеркальний шлях доступний, лише якщо обидві панелі локальні або обидві віддалені"
 msgid "path.syncNoCwd"
 msgstr "Термінальний cwd не повідомлено. Перемкніть на Синхронізувати знову для налаштування"
 msgid "path.cwdSetupTitle"
@@ -482,7 +494,7 @@ msgid "transfer.deleteTitle"
 msgstr "Підтвердити Видалити"
 
 msgid "bookmark.title"
-msgstr "Закладки"
+msgstr "{pane} Закладки"
 msgid "bookmark.add"
 msgstr "Додати закладку"
 msgid "bookmark.addLocal"
@@ -546,6 +558,9 @@ msgid "notify.connecting"
 msgstr "Підключення до"
 msgid "notify.sftpConnectFailed"
 msgstr "З'єднання SFTP не вдалося. Переконайтеся, що SSH підключено і сервер підтримує SFTP."
+msgid "notify.paneConnClosed"
+msgstr "Це з'єднання закрито. Виберіть інше з'єднання зі списку."
+
 msgid "notify.reconnectNoTerminal"
 msgstr "Термінал відключено. Натисніть або клацніть будь-яку клавішу в терміналі, щоб повторно підключитися."
 msgid "notify.reconnectFailed"
@@ -810,6 +825,11 @@ msgstr "Скопійовано {n} елементів"
 msgid "notify.cut"
 msgstr "Вирізано {n} елементів"
 
+msgid "status.connecting"
+msgstr "Підключення"
+msgid "status.waitingConn"
+msgstr "Очікування з’єднання"
+
 msgid "status.disconnected"
 msgstr "Роз'єднано"
 
@@ -894,6 +914,12 @@ msgstr "Запам'ятовувати шлях"
 
 msgid "settings.pathModeSync"
 msgstr "Синхронізація з терміналом"
+
+msgid "settings.pathModeMirror"
+msgstr "Дзеркальний шлях"
+
+msgid "settings.pathModeMirrorHint"
+msgstr "Обидві панелі завжди показують один каталог; доступно лише коли обидві локальні або обидві віддалені"
 
 msgid "settings.defaultShowHidden"
 msgstr "Показувати приховані файли за замовчуванням"
@@ -1080,7 +1106,7 @@ msgid "settings.occupied.closeDialog"
 msgstr "Закрити діалог / переглядач / панель"
 
 msgid "settings.occupied.confirmDelete"
-msgstr "Підтвердити видалення"
+msgstr "Підтвердити"
 
 msgid "log.modeFast"
 msgstr "Швидкий режим"
@@ -1335,7 +1361,7 @@ msgid "app.targetNotDir"
 msgstr "Цільовий шлях не є каталогом: {dir}"
 
 msgid "pane.groupBy"
-msgstr "Групувати за"
+msgstr "Групування"
 
 msgid "group.none"
 msgstr "Немає"
@@ -1548,3 +1574,327 @@ msgid "settings.caretShapeBeam"
 msgstr "Вертикальна лінія"
 msgid "settings.caretShapeUnderline"
 msgstr "Підкреслення"
+msgid "settings.showTextWordWrap"
+msgstr "Перенесення рядків (перегляд/редактор)"
+msgid "settings.showTextWordWrapHint"
+msgstr "Переносити довгі рядки в переглядачі та редакторі замість горизонтального прокручування."
+msgid "viewer.wordWrap"
+msgstr "Перенос"
+msgid "viewer.lineNumbers"
+msgstr "Номери рядків"
+msgid "viewer.lineNumbersOffByWrap"
+msgstr "Номери рядків приховано, коли увімкнено перенесення"
+
+msgid "editor.encodingNotEditable"
+msgstr "Цей файл використовує кодування, яке неможливо безпечно зберегти (напр., GBK/GB18030). Відредагуйте його в системному редакторі."
+
+# ★ 2026-10-13：对齐 en-US 新增的 15 个 msgid（审计修复：缺失时这些语言回退英文）
+msgid "layout.override.tooNarrow"
+msgstr "Панель занадто вузька для горизонтального макета; тимчасово використовується вертикальний макет"
+
+msgid "layout.override.tooShort"
+msgstr "Панель занадто низька для вертикального макета; тимчасово використовується горизонтальний макет"
+
+msgid "layout.override.tooCramped"
+msgstr "Панель занадто мала для двох панелей; тимчасово використовується один панель"
+
+msgid "layout.override.reasonNarrow"
+msgstr "занадто вузька"
+
+msgid "layout.override.reasonShort"
+msgstr "занадто низька"
+
+msgid "layout.override.reasonCramped"
+msgstr "занадто мала"
+
+msgid "layout.override.title"
+msgstr "{preferred} → {actual} ({reason})"
+
+msgid "settings.occupied.typeAhead"
+msgstr "Введіть префікс імені, щоб перейти до відповідності"
+
+msgid "log.modeSftp"
+msgstr "SFTP"
+
+msgid "editor.remoteChanged"
+msgstr "Віддалений файл було змінено. Перезаписати версію на сервері?"
+
+msgid "notify.sftpRecovered"
+msgstr "Сеанс SFTP відновлено; повторіть перервані передачі"
+
+msgid "perm.modeUnknown"
+msgstr "Не вдалося прочитати права; скасовано"
+
+msgid "permission.chmodFailed"
+msgstr "Не вдалося змінити права"
+
+msgid "conflict.contentDiffers"
+msgstr "Вміст відрізняється — розгляньте перезапис"
+
+msgid "viewer.truncatedPreview"
+msgstr "Файл великий; показано перші {limit}. Використовуйте “Open in System” для повного файла."
+
+# ★ 2026-10-13：传输日志操作名（对齐 en-US 新增，缺失时这些语言回退英文）
+msgid "transfer.delete"
+msgstr "Видалити"
+
+msgid "transfer.rename"
+msgstr "Перейменувати"
+
+msgid "transfer.mkdir"
+msgstr "Нова папка"
+
+msgid "transfer.chmod"
+msgstr "Права доступу"
+
+msgid "viewer.selectAllLimited"
+msgstr "Файл завеликий: вибрано лише видиму частину. Для всього вмісту скористайтеся «Копіювати все»."
+
+# ★ 2026-10-14：复制反馈区分「全部 / 选中」（原都显示 file.copied，看不出复制了哪一份）
+msgid "file.copiedAll"
+msgstr "Скопійовано все"
+
+msgid "file.copiedSelection"
+msgstr "Скопійовано виділене"
+
+# ★ 2026-10-16：设置页新增「键入定位」开关（默认开）
+msgid "settings.typeAhead"
+msgstr "Перехід за початком назви"
+
+msgid "settings.typeAheadHint"
+msgstr "Введіть літеру або цифру у списку, щоб перейти до елемента з таким початком назви; натисніть ще раз, щоб перейти до наступного збігу"
+
+msgid "conn.switchHint"
+msgstr "Click to switch remote connection"
+
+msgid "conn.pickerTitle"
+msgstr "Змінити з’єднання"
+
+msgid "conn.notOpened"
+msgstr "(не відкрито)"
+
+msgid "conn.current"
+msgstr "(current)"
+msgid "conn.otherPane"
+msgstr "(інша панель)"
+
+msgid "conn.disconnect"
+msgstr "Disconnect"
+
+msgid "conn.leftPickerTitle"
+msgstr "Змінити з’єднання"
+
+msgid "notify.leftEndpointNotRestored"
+msgstr "Попереднє віддалене з'єднання ({host}) не встановлено. Воно залишилося в стані «відключено» — натисніть «Перепідключитися», щоб повторити."
+
+msgid "notify.connPanelTabKept"
+msgstr "Ця вкладка містить панель SFTP+: панель відключено, вкладку збережено"
+
+msgid "notify.connOpenFailed"
+msgstr "Не вдалося відкрити налаштоване з’єднання: {host}"
+
+msgid "notify.leftRemoteSwitchFailed"
+msgstr "Не вдалося перемкнутися на віддалене з'єднання"
+
+msgid "notify.leftRemoteViewUnsupported"
+msgstr "Пряме відкриття віддалених файлів не підтримується цією кінцевою точкою"
+
+msgid "transfer.remote-copy"
+msgstr "Server↔Server"
+
+msgid "transfer.local-copy"
+msgstr "Local copy"
+
+msgid "notify.remoteToRemoteFailed"
+msgstr "Remote-to-remote transfer failed"
+
+msgid "notify.dropTargetNotLocal"
+msgstr "Ця кінцева точка не є локальним диском; перетягування сюди не підтримується"
+
+msgid "conflict.digestUnavailableRemote"
+msgstr "Digest unavailable (sizes differ, or the remote server does not support it)"
+
+msgid "conflict.digestUnavailableLocal"
+msgstr "Digest unavailable (sizes differ, or the local file could not be read)"
+
+msgid "transfer.skippedAsDuplicateHint"
+msgstr "Content is identical on both sides, so the transfer was not executed"
+
+msgid "app.invalidNameChars"
+msgstr "The name cannot contain a path separator (slash or backslash) or control characters"
+
+msgid "settings.exportNothing"
+msgstr "Нічого експортувати: вибрані категорії не містять даних (наприклад, на цьому комп'ютері немає журналу передач). Файл резервної копії не створено."
+
+msgid "notify.pasteSkippedExists"
+msgstr "Пропущено {n} елементів — ціль уже існує"
+
+msgid "settings.customTopBar"
+msgstr "Налаштувати кнопки верхньої панелі"
+
+msgid "settings.topBarOverflow"
+msgstr "Увімкнути меню переповнення (⋯)"
+
+msgid "settings.topBarPinned"
+msgstr "Закріплено"
+
+msgid "settings.topBarInMenu"
+msgstr "У меню ⋯"
+
+msgid "settings.topBarPin"
+msgstr "Закріпити на панелі"
+
+msgid "settings.topBarUnpin"
+msgstr "Відкріпити (до меню ⋯)"
+
+msgid "settings.topBarCloseNeedsHotkey"
+msgstr "Завжди видно, доки не задано сполучення клавіш панелі"
+
+msgid "settings.resetTopBar"
+msgstr "Скинути верхню панель"
+
+msgid "topbar.pathMode"
+msgstr "Режим шляху"
+
+msgid "topbar.minimize"
+msgstr "Згорнути"
+
+msgid "settings.connPickerTrigger"
+msgstr "Спосіб виклику перемикача зєднань"
+
+msgid "settings.connPickerTriggerHint"
+msgstr "Виберіть, як відкривати перемикач зєднань: заголовок у верхній панелі або позначка локально/віддалено на панелі кожного розділу"
+
+msgid "settings.connPickerTopbar"
+msgstr "Заголовок панелі"
+
+msgid "settings.connPickerBadge"
+msgstr "Значок панелі"
+
+msgid "settings.connPickerBoth"
+msgstr "Обидва"
+msgid "settings.connLabelStyle"
+msgstr "Відображення з'єднання"
+
+msgid "settings.connLabelAccount"
+msgstr "Обліковий запис@хост"
+
+msgid "settings.connLabelAlias"
+msgstr "Псевдонім"
+
+msgid "settings.connLabelStyleHint"
+msgstr "Що показувати у верхній панелі: обліковий запис@хост або назву профілю Tabby. На вибір з'єднання це не впливає."
+
+
+msgid "settings.panelOpacity"
+msgstr "Непрозорість панелі"
+
+msgid "settings.panelOpacityHint"
+msgstr "Налаштуйте загальну непрозорість панелі. Мінімум 50 відсотків, повністю прозора панель заборонена"
+
+msgid "bookmark.resetSize"
+msgstr "Подвійний клік повертає типовий розмір"
+
+msgid "settings.bookmarkLink"
+msgstr "Повязані закладки"
+
+msgid "settings.bookmarkLinkHint"
+msgstr "Коли ввімкнено, закладка може мати повязаний шлях; під час кліку друга панель також переходить туди"
+
+msgid "bookmark.linkPath"
+msgstr "Повязаний шлях (інша панель, необовязково)"
+
+msgid "bookmark.linkBadge"
+msgstr "Повязано"
+
+msgid "bookmark.sortManual"
+msgstr "Порядок перетягування"
+
+msgid "bookmark.sortUsage"
+msgstr "За частотою"
+
+msgid "bookmark.sortName"
+msgstr "За назвою"
+
+msgid "bookmark.sortHint"
+msgstr "Клік змінює порядок сортування"
+
+msgid "bookmark.dragHint"
+msgstr "Перетягніть, щоб змінити порядок закладок; правий клік — редагувати"
+
+msgid "bookmark.dragHintSorted"
+msgstr "Сортування за використанням — перетягування вимкнено; правий клік — редагувати"
+
+msgid "settings.bookmarkSortByUsage"
+msgstr "Сортувати за частотою"
+
+msgid "settings.bookmarkSortByUsageHint"
+msgstr "Вимк.: ручний порядок. Увімк.: за кількістю натискань на закладку"
+
+msgid "settings.bookmarkSortHint"
+msgstr "Порядок перетягування: вручну. За частотою: найчастіше натискані вище. За назвою: за абеткою (числа в природному порядку)"
+
+msgid "settings.bookmarkSort"
+msgstr "Сортування закладок"
+
+msgid "settings.bookmarkResetUsage"
+msgstr "Скинути статистику"
+
+msgid "settings.bookmarkResetUsageDone"
+msgstr "Статистику {count} закладок скинуто"
+
+msgid "bookmark.linkMissing"
+msgstr "Повязаний шлях не існує; іншу панель не переміщено"
+
+msgid "bookmark.resetWidth"
+msgstr "Подвійний клік повертає типову ширину"
+
+msgid "bookmark.resetHeight"
+msgstr "Подвійний клік повертає типову висоту"
+
+
+msgid "editor.externalChanged"
+msgstr "Local changes not yet uploaded to server"
+
+msgid "editor.uploadNow"
+msgstr "Upload now"
+
+msgid "settings.editorAutoUploadExternal"
+msgstr "Auto-upload on external edit"
+
+msgid "settings.editorAutoUploadExternalHint"
+msgstr "Automatically upload to server after saving in an external editor. Off by default; when on, if the remote file was changed by someone else, it prompts for confirmation instead of overwriting silently."
+
+msgid "settings.applyInstant"
+msgstr "Застосовувати зміни одразу"
+
+msgid "settings.applyInstantHint"
+msgstr "Увімк.: зміни одразу застосовуються до відкритих панелей SFTP+. Вимк.: закрийте й знову відкрийте панель"
+
+msgid "settings.buyCoffee"
+msgstr "Пригостіть кавою"
+
+msgid "bookmark.pinOn"
+msgstr "Панель залишається відкритою"
+
+msgid "bookmark.pinOff"
+msgstr "Закривати після вибору"
+
+msgid "bookmark.pinHint"
+msgstr "Натисніть, щоб перемкнути: залишається відкритою (клік поза не закриває) / закривати після вибору"
+
+msgid "settings.conflictRenameStyle"
+msgstr "Стиль перейменування при конфлікті"
+
+msgid "settings.conflictRenameStyleHint"
+msgstr "Як формується нове ім’я після вибору «Перейменувати» (типово з номером)"
+
+msgid "settings.renameStyleSeq"
+msgstr "З номером"
+
+msgid "settings.renameStyleTime"
+msgstr "З міткою часу"
+
+msgid "settings.renameStyleRandom"
+msgstr "Випадковий суфікс"
+

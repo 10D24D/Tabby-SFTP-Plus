@@ -181,6 +181,9 @@ msgstr "Yükle"
 msgid "app.download"
 msgstr "İndir"
 
+msgid "app.transfer"
+msgstr "Aktar"
+
 msgid "app.newFolder"
 msgstr "Yeni Klasör"
 
@@ -338,6 +341,9 @@ msgstr "Eşleşen dosya yok"
 msgid "pane.empty"
 msgstr "Boş klasör"
 
+msgid "pane.connLost"
+msgstr "Bağlantı kesildi"
+
 msgid "pane.errorAccess"
 msgstr "Erişilemez (izin reddedildi veya yol bulunamadı)"
 
@@ -352,6 +358,12 @@ msgstr "Yol modu: Hatırla (bir sonraki seferde geri yükle)"
 
 msgid "path.modeSync"
 msgstr "Yol modu: Terminal ile senkronize (uzak cwd takip eder)"
+
+msgid "path.modeMirror"
+msgstr "Yol modu: Yolu eşitle (iki panel de aynı dizini gösterir)"
+
+msgid "path.mirrorUnavailable"
+msgstr "Yol eşitleme yalnızca iki panel de yerel veya iki panel de uzak olduğunda kullanılabilir"
 
 msgid "path.syncNoCwd"
 msgstr "Terminal cwd bildirilmedi. Yapılandırmak için tekrar Senkronizeye geçin"
@@ -609,7 +621,7 @@ msgid "transfer.deleteTitle"
 msgstr "Silmeyi Onayla"
 
 msgid "bookmark.title"
-msgstr "Yer İmleri"
+msgstr "{pane} Yer İmleri"
 
 msgid "bookmark.add"
 msgstr "Yer İmi Ekle"
@@ -696,6 +708,9 @@ msgstr "Bağlanıyor"
 
 msgid "notify.sftpConnectFailed"
 msgstr "SFTP bağlantısı başarısız oldu. SSH bağlı olduğundan ve sunucunun SFTP desteklediğinden emin olun."
+
+msgid "notify.paneConnClosed"
+msgstr "Bu bağlantı kapatıldı. Listeden başka bir bağlantı seçin."
 
 msgid "notify.reconnectNoTerminal"
 msgstr "Terminal bağlantısı kesildi. Yeniden bağlanmak için terminale tıklayın veya herhangi bir tuşa basın."
@@ -1020,6 +1035,11 @@ msgstr "{n} öğe kopyalandı"
 msgid "notify.cut"
 msgstr "{n} öğe kesildi"
 
+msgid "status.connecting"
+msgstr "Bağlanıyor"
+msgid "status.waitingConn"
+msgstr "Bağlantı bekleniyor"
+
 msgid "status.disconnected"
 msgstr "Bağlantı kesildi"
 
@@ -1104,6 +1124,12 @@ msgstr "Yolu hatırla"
 
 msgid "settings.pathModeSync"
 msgstr "Terminal ile senkronize"
+
+msgid "settings.pathModeMirror"
+msgstr "Yolu eşitle"
+
+msgid "settings.pathModeMirrorHint"
+msgstr "İki panel her zaman aynı dizini gösterir; yalnızca ikisi de yerel veya ikisi de uzak olduğunda kullanılabilir"
 
 msgid "settings.defaultShowHidden"
 msgstr "Gizli dosyaları varsayılan olarak göster"
@@ -1290,7 +1316,7 @@ msgid "settings.occupied.closeDialog"
 msgstr "İletişim kutusunu / görüntüleyiciyi / paneli kapat"
 
 msgid "settings.occupied.confirmDelete"
-msgstr "Silmeyi onayla"
+msgstr "Onayla"
 
 msgid "log.modeFast"
 msgstr "Hızlı mod"
@@ -1758,3 +1784,327 @@ msgid "settings.caretShapeBeam"
 msgstr "Dikey çizgi"
 msgid "settings.caretShapeUnderline"
 msgstr "Alt çizgi"
+msgid "settings.showTextWordWrap"
+msgstr "Sözcük kaydırma (görüntüleyici/düzenleyici)"
+msgid "settings.showTextWordWrapHint"
+msgstr "Uzun satırları görüntüleyici ve düzenleyicide yatay kaydırma yerine kaydırır."
+msgid "viewer.wordWrap"
+msgstr "Kaydır"
+msgid "viewer.lineNumbers"
+msgstr "Satır numaraları"
+msgid "viewer.lineNumbersOffByWrap"
+msgstr "Sözcük kaydırma açıkken satır numaraları gizlenir"
+
+msgid "editor.encodingNotEditable"
+msgstr "Bu dosya güvenle kaydedilemeyen bir kodlama kullanıyor (örn. GBK/GB18030). Lütfen bunun yerine sistem düzenleyicide düzenleyin."
+
+# ★ 2026-10-13：对齐 en-US 新增的 15 个 msgid（审计修复：缺失时这些语言回退英文）
+msgid "layout.override.tooNarrow"
+msgstr "Panel yan yana düzen için çok dar; geçici olarak üst-alt düzen kullanılıyor"
+
+msgid "layout.override.tooShort"
+msgstr "Panel üst-alt düzen için çok kısa; geçici olarak yan yana düzen kullanılıyor"
+
+msgid "layout.override.tooCramped"
+msgstr "Panel iki bölmeli düzen için çok küçük; geçici olarak tek panel kullanılıyor"
+
+msgid "layout.override.reasonNarrow"
+msgstr "çok dar"
+
+msgid "layout.override.reasonShort"
+msgstr "çok kısa"
+
+msgid "layout.override.reasonCramped"
+msgstr "çok küçük"
+
+msgid "layout.override.title"
+msgstr "{preferred} → {actual} ({reason})"
+
+msgid "settings.occupied.typeAhead"
+msgstr "Eşleşmeye atlamak için bir ad öneki yazın"
+
+msgid "log.modeSftp"
+msgstr "SFTP"
+
+msgid "editor.remoteChanged"
+msgstr "Uzak dosya değiştirildi. Sunucudaki sürümün üzerine yazılsın mı?"
+
+msgid "notify.sftpRecovered"
+msgstr "SFTP oturumu kurtarıldı; kesilen transferleri yeniden deneyin"
+
+msgid "perm.modeUnknown"
+msgstr "İzinler okunamıyor; iptal edildi"
+
+msgid "permission.chmodFailed"
+msgstr "İzinler değiştirilemedi"
+
+msgid "conflict.contentDiffers"
+msgstr "İçerik farklı — üzerine yazmayı düşünün"
+
+msgid "viewer.truncatedPreview"
+msgstr "Dosya büyük; yalnızca ilk {limit} gösteriliyor. Dosyanın tamamı için “Open in System” kullanın."
+
+# ★ 2026-10-13：传输日志操作名（对齐 en-US 新增，缺失时这些语言回退英文）
+msgid "transfer.delete"
+msgstr "Sil"
+
+msgid "transfer.rename"
+msgstr "Yeniden adlandır"
+
+msgid "transfer.mkdir"
+msgstr "Yeni klasör"
+
+msgid "transfer.chmod"
+msgstr "İzinler"
+
+msgid "viewer.selectAllLimited"
+msgstr "Dosya çok büyük: yalnızca görünen kısım seçildi. Tamamı için Tümünü kopyala seçeneğini kullanın."
+
+# ★ 2026-10-14：复制反馈区分「全部 / 选中」（原都显示 file.copied，看不出复制了哪一份）
+msgid "file.copiedAll"
+msgstr "Tümü kopyalandı"
+
+msgid "file.copiedSelection"
+msgstr "Seçim kopyalandı"
+
+# ★ 2026-10-16：设置页新增「键入定位」开关（默认开）
+msgid "settings.typeAhead"
+msgstr "Ad ön ekine göre atla"
+
+msgid "settings.typeAheadHint"
+msgstr "Dosya listesinde bir harf veya rakam yazınca o ad ön ekine sahip öğeye atlanır; aynı tuşa tekrar basarak eşleşmeler arasında geçin"
+
+msgid "conn.switchHint"
+msgstr "Click to switch remote connection"
+
+msgid "conn.pickerTitle"
+msgstr "Bağlantıyı değiştir"
+
+msgid "conn.notOpened"
+msgstr "(açık değil)"
+
+msgid "conn.current"
+msgstr "(current)"
+msgid "conn.otherPane"
+msgstr "(diğer panel)"
+
+msgid "conn.disconnect"
+msgstr "Disconnect"
+
+msgid "conn.leftPickerTitle"
+msgstr "Bağlantıyı değiştir"
+
+msgid "notify.leftEndpointNotRestored"
+msgstr "Önceki uzak bağlantı ({host}) bağlı değil. Bağlantı kesildi olarak kalıyor; yeniden denemek için yeniden bağlan'a tıklayın."
+
+msgid "notify.connPanelTabKept"
+msgstr "Bu sekme SFTP+ panelini barındırıyor: panel bağlantısı kesildi, sekme korundu"
+
+msgid "notify.connOpenFailed"
+msgstr "Yapılandırılmış bağlantı açılamadı: {host}"
+
+msgid "notify.leftRemoteSwitchFailed"
+msgstr "Uzak bağlantıya geçilemedi"
+
+msgid "notify.leftRemoteViewUnsupported"
+msgstr "Uzak dosyaları doğrudan açma bu uç noktada desteklenmiyor"
+
+msgid "transfer.remote-copy"
+msgstr "Server↔Server"
+
+msgid "transfer.local-copy"
+msgstr "Local copy"
+
+msgid "notify.remoteToRemoteFailed"
+msgstr "Remote-to-remote transfer failed"
+
+msgid "notify.dropTargetNotLocal"
+msgstr "Bu uç nokta yerel disk değil; buraya bırakma desteklenmiyor"
+
+msgid "conflict.digestUnavailableRemote"
+msgstr "Digest unavailable (sizes differ, or the remote server does not support it)"
+
+msgid "conflict.digestUnavailableLocal"
+msgstr "Digest unavailable (sizes differ, or the local file could not be read)"
+
+msgid "transfer.skippedAsDuplicateHint"
+msgstr "Content is identical on both sides, so the transfer was not executed"
+
+msgid "app.invalidNameChars"
+msgstr "The name cannot contain a path separator (slash or backslash) or control characters"
+
+msgid "settings.exportNothing"
+msgstr "Dışa aktarılacak bir şey yok: seçilen kategorilerde veri bulunmuyor (örn. bu makinede aktarım kaydı yok). Yedekleme dosyası oluşturulmadı."
+
+msgid "notify.pasteSkippedExists"
+msgstr "{n} öğe atlandı — hedef zaten var"
+
+msgid "settings.customTopBar"
+msgstr "Üst çubuk düğmelerini özelleştir"
+
+msgid "settings.topBarOverflow"
+msgstr "Taşma menüsünü etkinleştir (⋯)"
+
+msgid "settings.topBarPinned"
+msgstr "Sabitlendi"
+
+msgid "settings.topBarInMenu"
+msgstr "⋯ menüsünde"
+
+msgid "settings.topBarPin"
+msgstr "Üst çubuğa sabitle"
+
+msgid "settings.topBarUnpin"
+msgstr "Sabitlemeyi kaldır (⋯ menüsüne taşı)"
+
+msgid "settings.topBarCloseNeedsHotkey"
+msgstr "Panel kısayolu ayarlanana kadar her zaman gösterilir"
+
+msgid "settings.resetTopBar"
+msgstr "Üst çubuğu sıfırla"
+
+msgid "topbar.pathMode"
+msgstr "Yol modu"
+
+msgid "topbar.minimize"
+msgstr "Küçült"
+
+msgid "settings.connPickerTrigger"
+msgstr "Bağlantı değiştirici tetikleyicisi"
+
+msgid "settings.connPickerTriggerHint"
+msgstr "Bağlantı değiştiricinin nasıl açılacağını seçin: üst çubuktaki başlık veya her bölmenin araç çubuğundaki yerel/uzak etiketi"
+
+msgid "settings.connPickerTopbar"
+msgstr "Üst çubuk başlığı"
+
+msgid "settings.connPickerBadge"
+msgstr "Araç çubuğu rozeti"
+
+msgid "settings.connPickerBoth"
+msgstr "İkisi de"
+msgid "settings.connLabelStyle"
+msgstr "Bağlantı görünümü"
+
+msgid "settings.connLabelAccount"
+msgstr "Hesap@host"
+
+msgid "settings.connLabelAlias"
+msgstr "Takma ad"
+
+msgid "settings.connLabelStyleHint"
+msgstr "Üst çubukta ne gösterilsin: hesap@host veya Tabby profil adı. Bağlantı seçici etkilenmez."
+
+
+msgid "settings.panelOpacity"
+msgstr "Panel opaklığı"
+
+msgid "settings.panelOpacityHint"
+msgstr "Panelin genel opaklığını ayarlayın. En az 50 yüzde, tamamen saydam olamaz"
+
+msgid "bookmark.resetSize"
+msgstr "Boyutu sıfırlamak için çift tıklayın"
+
+msgid "settings.bookmarkLink"
+msgstr "Bağlantılı yer imleri"
+
+msgid "settings.bookmarkLinkHint"
+msgstr "Açıkken yer imine bağlantılı yol eklenebilir; tıklandığında diğer bölme de oraya gider"
+
+msgid "bookmark.linkPath"
+msgstr "Bağlantılı yol (diğer bölme, isteğe bağlı)"
+
+msgid "bookmark.linkBadge"
+msgstr "Bağlantılı"
+
+msgid "bookmark.sortManual"
+msgstr "Sürükleme sırası"
+
+msgid "bookmark.sortUsage"
+msgstr "Kullanıma göre"
+
+msgid "bookmark.sortName"
+msgstr "Ada göre"
+
+msgid "bookmark.sortHint"
+msgstr "Sıralamayı değiştirmek için tıklayın"
+
+msgid "bookmark.dragHint"
+msgstr "Yer imlerini yeniden sıralamak için sürükleyin, düzenlemek için sağ tıklayın"
+
+msgid "bookmark.dragHintSorted"
+msgstr "Kullanıma göre sıralı — sürükleme devre dışı; düzenlemek için sağ tıklayın"
+
+msgid "settings.bookmarkSortByUsage"
+msgstr "Kullanıma göre sırala"
+
+msgid "settings.bookmarkSortByUsageHint"
+msgstr "Kapalı: elle sıralama. Açık: yer imine tıklanma sayısına göre"
+
+msgid "settings.bookmarkSortHint"
+msgstr "Sürükleme sırası: elle. Kullanıma göre: en çok tıklanan önce. Ada göre: alfabetik (sayılar doğal sırada)"
+
+msgid "settings.bookmarkSort"
+msgstr "Yer imi sıralaması"
+
+msgid "settings.bookmarkResetUsage"
+msgstr "İstatistikleri sıfırla"
+
+msgid "settings.bookmarkResetUsageDone"
+msgstr "{count} yer imi istatistiği sıfırlandı"
+
+msgid "bookmark.linkMissing"
+msgstr "Bağlantılı yol yok; diğer bölme taşınmadı"
+
+msgid "bookmark.resetWidth"
+msgstr "Genişliği sıfırlamak için çift tıklayın"
+
+msgid "bookmark.resetHeight"
+msgstr "Yüksekliği sıfırlamak için çift tıklayın"
+
+
+msgid "editor.externalChanged"
+msgstr "Local changes not yet uploaded to server"
+
+msgid "editor.uploadNow"
+msgstr "Upload now"
+
+msgid "settings.editorAutoUploadExternal"
+msgstr "Auto-upload on external edit"
+
+msgid "settings.editorAutoUploadExternalHint"
+msgstr "Automatically upload to server after saving in an external editor. Off by default; when on, if the remote file was changed by someone else, it prompts for confirmation instead of overwriting silently."
+
+msgid "settings.applyInstant"
+msgstr "Değişiklikleri hemen uygula"
+
+msgid "settings.applyInstantHint"
+msgstr "Açık: değişiklikler açık SFTP+ panellerine hemen uygulanır. Kapalı: paneli kapatıp yeniden açın"
+
+msgid "settings.buyCoffee"
+msgstr "Bana bir kahve ısmarla"
+
+msgid "bookmark.pinOn"
+msgstr "Panel açık kalır"
+
+msgid "bookmark.pinOff"
+msgstr "Seçimden sonra kapat"
+
+msgid "bookmark.pinHint"
+msgstr "Değiştirmek için tıklayın: açık kalır (dışına tıklamak kapatmaz) / seçimden sonra kapat"
+
+msgid "settings.conflictRenameStyle"
+msgstr "Çakışmada yeniden adlandırma stili"
+
+msgid "settings.conflictRenameStyleHint"
+msgstr "Çakışmada Yeniden adlandır seçildiğinde yeni adın nasıl oluşturulacağı (varsayılan numaralı)"
+
+msgid "settings.renameStyleSeq"
+msgstr "Numaralı"
+
+msgid "settings.renameStyleTime"
+msgstr "Zaman damgası"
+
+msgid "settings.renameStyleRandom"
+msgstr "Rastgele son ek"
+

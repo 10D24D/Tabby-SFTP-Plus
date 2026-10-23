@@ -179,6 +179,9 @@ msgstr "Hochladen"
 msgid "app.download"
 msgstr "Herunterladen"
 
+msgid "app.transfer"
+msgstr "Übertragen"
+
 msgid "app.newFolder"
 msgstr "Neuer Ordner"
 
@@ -333,6 +336,9 @@ msgstr "Keine passenden Dateien"
 msgid "pane.empty"
 msgstr "Leerer Ordner"
 
+msgid "pane.connLost"
+msgstr "Verbindung getrennt"
+
 msgid "pane.errorAccess"
 msgstr "Zugriff nicht möglich (Berechtigung verweigert oder Pfad nicht gefunden)"
 
@@ -348,6 +354,12 @@ msgstr "Pfadmodus: Merken (nächstes Mal wiederherstellen)"
 msgid "path.modeSync"
 msgstr "Pfadmodus: Mit Terminal Synchronisieren (Remote folgt cwd)"
 
+msgid "path.modeMirror"
+msgstr "Pfadmodus: Pfad spiegeln (beide Bereiche zeigen dasselbe Verzeichnis)"
+
+msgid "path.mirrorUnavailable"
+msgstr "Pfad spiegeln ist nur möglich, wenn beide Bereiche lokal oder beide remote sind"
+
 msgid "path.syncNoCwd"
 msgstr "Terminal cwd nicht gemeldet. Wechseln Sie erneut zu Sync, um zu konfigurieren"
 
@@ -360,8 +372,8 @@ msgstr "SFTP+ benötigt, dass Tabby cwd über OSC 1337 meldet, bevor es synchron
 msgid "path.cwdSetupSessionHint"
 msgstr "Nur diese Sitzung: Führen Sie den temporären Befehl unten im aktuellen Terminal aus (verloren nach Shell-Neustart)"
 
-msgid "path.cwdSetupPermanentHint"msgstr "Permanent: Fügen Sie das Snippet unten zum Remote-Profil hinzu und sourcen Sie es (basierend auf der erkannten Shell)"
-msgstr ""
+msgid "path.cwdSetupPermanentHint"
+msgstr "Permanent: Fügen Sie das Snippet unten zum Remote-Profil hinzu und sourcen Sie es (basierend auf der erkannten Shell)"
 
 msgid "path.cwdSetupNote"
 msgstr "Abbrechen schaltet den Pfadmodus aus. Nichts wird ausgeführt oder geschrieben."
@@ -599,7 +611,7 @@ msgid "transfer.deleteTitle"
 msgstr "Löschen Bestätigen"
 
 msgid "bookmark.title"
-msgstr "Lesezeichen"
+msgstr "{pane} Lesezeichen"
 
 msgid "bookmark.add"
 msgstr "Lesezeichen Hinzufügen"
@@ -685,6 +697,9 @@ msgstr "Verbinden mit"
 
 msgid "notify.sftpConnectFailed"
 msgstr "SFTP-Verbindung fehlgeschlagen. Stellen Sie sicher, dass SSH verbunden ist und der Server SFTP unterstützt."
+
+msgid "notify.paneConnClosed"
+msgstr "Diese Verbindung wurde geschlossen. Wählen Sie eine andere Verbindung aus der Liste."
 
 msgid "notify.reconnectNoTerminal"
 msgstr "Terminal getrennt. Bitte klicken oder drücken Sie eine beliebige Taste im Terminal, um sich wiederzuverbinden."
@@ -1016,6 +1031,11 @@ msgstr "{n} Element(e) kopiert"
 msgid "notify.cut"
 msgstr "{n} Element(e) ausgeschnitten"
 
+msgid "status.connecting"
+msgstr "Verbinden"
+msgid "status.waitingConn"
+msgstr "Warte auf Verbindung"
+
 msgid "status.disconnected"
 msgstr "Getrennt"
 
@@ -1100,6 +1120,12 @@ msgstr "Pfad merken"
 
 msgid "settings.pathModeSync"
 msgstr "Mit Terminal synchronisieren"
+
+msgid "settings.pathModeMirror"
+msgstr "Pfad spiegeln"
+
+msgid "settings.pathModeMirrorHint"
+msgstr "Beide Bereiche zeigen immer dasselbe Verzeichnis; nur wenn beide lokal oder beide remote sind"
 
 msgid "settings.defaultShowHidden"
 msgstr "Versteckte Dateien standardmäßig anzeigen"
@@ -1286,7 +1312,7 @@ msgid "settings.occupied.closeDialog"
 msgstr "Dialog / Betrachter / Panel schließen"
 
 msgid "settings.occupied.confirmDelete"
-msgstr "Löschen bestätigen"
+msgstr "Bestätigen"
 
 msgid "log.modeFast"
 msgstr "Schnellmodus"
@@ -1541,7 +1567,7 @@ msgid "app.targetNotDir"
 msgstr "Zielpfad ist kein Verzeichnis: {dir}"
 
 msgid "pane.groupBy"
-msgstr "Gruppieren nach"
+msgstr "Gruppieren"
 
 msgid "group.none"
 msgstr "Keine"
@@ -1754,3 +1780,327 @@ msgid "settings.caretShapeBeam"
 msgstr "Senkrechter Strich"
 msgid "settings.caretShapeUnderline"
 msgstr "Unterstrich"
+msgid "settings.showTextWordWrap"
+msgstr "Zeilenumbruch in Ansicht/Editor"
+msgid "settings.showTextWordWrapHint"
+msgstr "Lange Zeilen in Ansicht und Editor umbrechen statt horizontal zu scrollen."
+msgid "viewer.wordWrap"
+msgstr "Umbruch"
+msgid "viewer.lineNumbers"
+msgstr "Zeilennummern"
+msgid "viewer.lineNumbersOffByWrap"
+msgstr "Zeilennummern sind bei aktivem Umbruch nicht verfügbar"
+
+msgid "editor.encodingNotEditable"
+msgstr "Diese Datei verwendet eine Kodierung, die nicht sicher gespeichert werden kann (z. B. GBK/GB18030). Bitte bearbeiten Sie sie stattdessen im System-Editor."
+
+# ★ 2026-10-13：对齐 en-US 新增的 15 个 msgid（审计修复：缺失时这些语言回退英文）
+msgid "layout.override.tooNarrow"
+msgstr "Panel zu schmal für Seite an Seite; vorübergehend Oben-Unten-Layout"
+
+msgid "layout.override.tooShort"
+msgstr "Panel zu niedrig für Oben-Unten; vorübergehend Seite-an-Seite-Layout"
+
+msgid "layout.override.tooCramped"
+msgstr "Panel zu klein für zwei Fenster; vorübergehend einzelnes Fenster"
+
+msgid "layout.override.reasonNarrow"
+msgstr "zu schmal"
+
+msgid "layout.override.reasonShort"
+msgstr "zu niedrig"
+
+msgid "layout.override.reasonCramped"
+msgstr "zu klein"
+
+msgid "layout.override.title"
+msgstr "{preferred} → {actual} ({reason})"
+
+msgid "settings.occupied.typeAhead"
+msgstr "Namenspräfix eingeben, um zum Treffer zu springen"
+
+msgid "log.modeSftp"
+msgstr "SFTP"
+
+msgid "editor.remoteChanged"
+msgstr "Die Remote-Datei wurde geändert. Version auf dem Server überschreiben?"
+
+msgid "notify.sftpRecovered"
+msgstr "SFTP-Sitzung wiederhergestellt; bitte unterbrochene Übertragungen erneut versuchen"
+
+msgid "perm.modeUnknown"
+msgstr "Berechtigungen nicht lesbar; abgebrochen"
+
+msgid "permission.chmodFailed"
+msgstr "Ändern der Berechtigungen fehlgeschlagen"
+
+msgid "conflict.contentDiffers"
+msgstr "Inhalt ist unterschiedlich — Überschreiben in Betracht ziehen"
+
+msgid "viewer.truncatedPreview"
+msgstr "Datei ist groß; es werden die ersten {limit} angezeigt. Für die vollständige Datei “Open in System” verwenden."
+
+# ★ 2026-10-13：传输日志操作名（对齐 en-US 新增，缺失时这些语言回退英文）
+msgid "transfer.delete"
+msgstr "Löschen"
+
+msgid "transfer.rename"
+msgstr "Umbenennen"
+
+msgid "transfer.mkdir"
+msgstr "Neuer Ordner"
+
+msgid "transfer.chmod"
+msgstr "Berechtigungen"
+
+msgid "viewer.selectAllLimited"
+msgstr "Datei zu groß: Nur der sichtbare Teil ist ausgewählt. Für den gesamten Inhalt Alle kopieren verwenden."
+
+# ★ 2026-10-14：复制反馈区分「全部 / 选中」（原都显示 file.copied，看不出复制了哪一份）
+msgid "file.copiedAll"
+msgstr "Alles kopiert"
+
+msgid "file.copiedSelection"
+msgstr "Auswahl kopiert"
+
+# ★ 2026-10-16：设置页新增「键入定位」开关（默认开）
+msgid "settings.typeAhead"
+msgstr "Sprung nach Namenspräfix"
+
+msgid "settings.typeAheadHint"
+msgstr "Buchstabe oder Ziffer in der Dateiliste eingeben, um zum Eintrag mit diesem Namenspräfix zu springen; erneut drücken, um die Treffer zu durchlaufen"
+
+msgid "conn.switchHint"
+msgstr "Click to switch remote connection"
+
+msgid "conn.pickerTitle"
+msgstr "Verbindung wechseln"
+
+msgid "conn.notOpened"
+msgstr "(nicht geöffnet)"
+
+msgid "conn.current"
+msgstr "(current)"
+msgid "conn.otherPane"
+msgstr "(anderes Panel)"
+
+msgid "conn.disconnect"
+msgstr "Disconnect"
+
+msgid "conn.leftPickerTitle"
+msgstr "Verbindung wechseln"
+
+msgid "notify.leftEndpointNotRestored"
+msgstr "Die vorherige Remoteverbindung ({host}) ist nicht verbunden. Sie bleibt als getrennt erhalten - zum Wiederholen auf "Wiederverbinden" klicken."
+
+msgid "notify.connPanelTabKept"
+msgstr "Dieser Tab enthält das SFTP+-Panel: Panel getrennt, Tab bleibt erhalten"
+
+msgid "notify.connOpenFailed"
+msgstr "Die konfigurierte Verbindung konnte nicht geöffnet werden: {host}"
+
+msgid "notify.leftRemoteSwitchFailed"
+msgstr "Umschalten auf die Remote-Verbindung fehlgeschlagen"
+
+msgid "notify.leftRemoteViewUnsupported"
+msgstr "Direktes Öffnen von Remote-Dateien wird von diesem Endpunkt nicht unterstützt"
+
+msgid "transfer.remote-copy"
+msgstr "Server↔Server"
+
+msgid "transfer.local-copy"
+msgstr "Local copy"
+
+msgid "notify.remoteToRemoteFailed"
+msgstr "Remote-to-remote transfer failed"
+
+msgid "notify.dropTargetNotLocal"
+msgstr "Dieser Endpunkt ist kein lokaler Datenträger; Ablegen hier wird nicht unterstützt"
+
+msgid "conflict.digestUnavailableRemote"
+msgstr "Digest unavailable (sizes differ, or the remote server does not support it)"
+
+msgid "conflict.digestUnavailableLocal"
+msgstr "Digest unavailable (sizes differ, or the local file could not be read)"
+
+msgid "transfer.skippedAsDuplicateHint"
+msgstr "Content is identical on both sides, so the transfer was not executed"
+
+msgid "app.invalidNameChars"
+msgstr "The name cannot contain a path separator (slash or backslash) or control characters"
+
+msgid "settings.exportNothing"
+msgstr "Nichts zu exportieren: Die ausgewählten Kategorien enthalten keine Daten (z. B. keine Übertragungsprotokolle auf diesem Rechner). Es wurde keine Sicherungsdatei erstellt."
+
+msgid "notify.pasteSkippedExists"
+msgstr "{n} Elemente übersprungen — Ziel existiert bereits"
+
+msgid "settings.customTopBar"
+msgstr "Schaltflächen der oberen Leiste anpassen"
+
+msgid "settings.topBarOverflow"
+msgstr "Überlaufmenü aktivieren (⋯)"
+
+msgid "settings.topBarPinned"
+msgstr "Angeheftet"
+
+msgid "settings.topBarInMenu"
+msgstr "Im ⋯-Menü"
+
+msgid "settings.topBarPin"
+msgstr "An Titelleiste anheften"
+
+msgid "settings.topBarUnpin"
+msgstr "Lösen (in ⋯ verschieben)"
+
+msgid "settings.topBarCloseNeedsHotkey"
+msgstr "Immer sichtbar, bis eine Panel-Tastenkombination gesetzt ist"
+
+msgid "settings.resetTopBar"
+msgstr "Obere Leiste zurücksetzen"
+
+msgid "topbar.pathMode"
+msgstr "Pfadmodus"
+
+msgid "topbar.minimize"
+msgstr "Minimieren"
+
+msgid "settings.connPickerTrigger"
+msgstr "Auslöser für Verbindungswechsler"
+
+msgid "settings.connPickerTriggerHint"
+msgstr "Wählen Sie, wie der Verbindungswechsler geöffnet wird: Titel in der oberen Leiste oder Lokal/Remote-Kennzeichnung in der Werkzeugleiste jedes Bereichs"
+
+msgid "settings.connPickerTopbar"
+msgstr "Titel in Leiste"
+
+msgid "settings.connPickerBadge"
+msgstr "Kennzeichnung in Leiste"
+
+msgid "settings.connPickerBoth"
+msgstr "Beides"
+msgid "settings.connLabelStyle"
+msgstr "Verbindungsanzeige"
+
+msgid "settings.connLabelAccount"
+msgstr "Konto@Host"
+
+msgid "settings.connLabelAlias"
+msgstr "Alias"
+
+msgid "settings.connLabelStyleHint"
+msgstr "Was die obere Leiste für eine Verbindung anzeigt: Konto@Host oder den Tabby-Profilnamen. Die Verbindungsauswahl bleibt unverändert."
+
+
+msgid "settings.panelOpacity"
+msgstr "Panel-Transparenz"
+
+msgid "settings.panelOpacityHint"
+msgstr "Gesamttransparenz des Panels einstellen. Minimum 50 Prozent, vollständig transparent ist nicht erlaubt"
+
+msgid "bookmark.resetSize"
+msgstr "Doppelklick setzt die Standardgröße zurück"
+
+msgid "settings.bookmarkLink"
+msgstr "Verknüpfte Lesezeichen"
+
+msgid "settings.bookmarkLinkHint"
+msgstr "Wenn aktiviert, kann ein Lesezeichen einen verknüpften Pfad haben; beim Klick springt auch der andere Bereich dorthin"
+
+msgid "bookmark.linkPath"
+msgstr "Verknüpfter Pfad (anderer Bereich, optional)"
+
+msgid "bookmark.linkBadge"
+msgstr "Verknüpft"
+
+msgid "bookmark.sortManual"
+msgstr "Zieh-Reihenfolge"
+
+msgid "bookmark.sortUsage"
+msgstr "Nach Nutzung"
+
+msgid "bookmark.sortName"
+msgstr "Nach Name"
+
+msgid "bookmark.sortHint"
+msgstr "Klicken, um die andere Sortierung zu verwenden"
+
+msgid "bookmark.dragHint"
+msgstr "Ziehen zum Sortieren der Lesezeichen, Rechtsklick zum Bearbeiten"
+
+msgid "bookmark.dragHintSorted"
+msgstr "Nach Nutzung sortiert – Ziehen deaktiviert; Rechtsklick zum Bearbeiten"
+
+msgid "settings.bookmarkSortByUsage"
+msgstr "Nach Nutzung sortieren"
+
+msgid "settings.bookmarkSortByUsageHint"
+msgstr "Aus: manuelle Reihenfolge. An: nach Anzahl der Klicks auf das Lesezeichen"
+
+msgid "settings.bookmarkSortHint"
+msgstr "Zieh-Reihenfolge: manuell. Nach Nutzung: meistgeklickt zuerst. Nach Name: alphabetisch (Zahlen numerisch)"
+
+msgid "settings.bookmarkSort"
+msgstr "Lesezeichen-Sortierung"
+
+msgid "settings.bookmarkResetUsage"
+msgstr "Statistik zurücksetzen"
+
+msgid "settings.bookmarkResetUsageDone"
+msgstr "Statistik von {count} Lesezeichen zurückgesetzt"
+
+msgid "bookmark.linkMissing"
+msgstr "Verknüpfter Pfad existiert nicht; der andere Bereich wurde nicht verschoben"
+
+msgid "bookmark.resetWidth"
+msgstr "Doppelklick setzt die Standardbreite zurück"
+
+msgid "bookmark.resetHeight"
+msgstr "Doppelklick setzt die Standardhöhe zurück"
+
+
+msgid "editor.externalChanged"
+msgstr "Local changes not yet uploaded to server"
+
+msgid "editor.uploadNow"
+msgstr "Upload now"
+
+msgid "settings.editorAutoUploadExternal"
+msgstr "Auto-upload on external edit"
+
+msgid "settings.editorAutoUploadExternalHint"
+msgstr "Automatically upload to server after saving in an external editor. Off by default; when on, if the remote file was changed by someone else, it prompts for confirmation instead of overwriting silently."
+
+msgid "settings.applyInstant"
+msgstr "Änderungen sofort anwenden"
+
+msgid "settings.applyInstantHint"
+msgstr "An: Änderungen werden sofort an geöffnete SFTP+ Panels gesendet. Aus: Panel schließen und erneut öffnen"
+
+msgid "settings.buyCoffee"
+msgstr "Spendier mir einen Kaffee"
+
+msgid "bookmark.pinOn"
+msgstr "Panel bleibt offen"
+
+msgid "bookmark.pinOff"
+msgstr "Nach Auswahl schließen"
+
+msgid "bookmark.pinHint"
+msgstr "Klicken zum Umschalten: bleibt offen (Klick woanders schließt nicht) / nach Auswahl schließen"
+
+msgid "settings.conflictRenameStyle"
+msgstr "Umbenennungsstil bei Konflikt"
+
+msgid "settings.conflictRenameStyleHint"
+msgstr "Wie neue Namen beim Umbenennen gebildet werden (standardmäßig nummeriert)"
+
+msgid "settings.renameStyleSeq"
+msgstr "Nummeriert"
+
+msgid "settings.renameStyleTime"
+msgstr "Zeitstempel"
+
+msgid "settings.renameStyleRandom"
+msgstr "Zufälliges Suffix"
+
