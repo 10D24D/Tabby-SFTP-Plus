@@ -5,7 +5,75 @@
  * @创建人：DD1024z + Hy3 preview
  * @创建时间：2026-06-21
  * @修改人：DD1024z + Deepseek-V4.1-Flash
- * @修改时间：2026-09-29 — 导出数据改为「按配置类别可勾选」：点「导出数据」先弹出勾选弹窗
+ * @修改时间：2026-10-23 — ⑭「调整配置立即生效」开关改到「数据」分区导出/导入/清空按钮组**上方**
+ *              （用户第三次调位：先说改动是否即时生效，再执行数据操作；仍保留
+ *              .ss-apply-instant-wrap{margin-top:0} 紧贴分区标题，按钮组自带 4px 上边距）。
+ *              ⑬取消「字体」分组标题：字号大小与上方面板透明度**平级**
+ *              （同为 .ss-toggle-row + .ss-range-wrap + .ss-range-val），去掉 ss-sub-head 标题行
+ *              与 ss-toggle-sub 的 18px 左缩进；重置按钮改挂「字号大小」标签右侧
+ *              （.ss-label-with-reset，行内按钮压到 18px 保行高一致）；删除已无引用的
+ *              .ss-font-row / .ss-font-control / .ss-font-val。settings.font 这个 key 保留 ——
+ *              「导入/导出说明」那一行还在用，只去掉分组标题这一处用法。
+ *              ⑫新增「冲突重命名风格」下拉（设置页「传输」分区，紧接冲突摘要那组）：
+ *              配置 `conflictRenameStyle` = seq 序号堆叠（默认）/ time 时间戳 / random 随机后缀；
+ *              六处登记（字段 / 回读 / 写回 / 导出 config / 导出 localStorage / 导入，+ 导出分类 transfer）；
+ *              导出与导入都过 `normalizeConflictRenameStyle`（外部 JSON 不可信，未知值回落 seq）。
+ *              ⑪书签弹层 footer 新增图钉「面板常驻」，它写的就是本页「选中书签后关闭书签面板」
+ *              那一项（钉住 = closeBookmarkPanelOnSelect false）⇒ `_settingsChangedHandler` 补回读本项，
+ *              否则设置页内存里的旧值会在下次 _saveToConfig()（45+ 字段整体写回）时把图钉的改动覆盖掉。
+ *              ⑩「字体字号」整块（字体标题 + 重置按钮 + 字号滑块）从「布局」分区末尾
+ *              移到「主题」分区的「面板透明度」下方（用户提议：两个都是滑块、同属面板外观）；
+ *              EXPORT_CATEGORY_FIELDS 里 fontSize 随之由 layout 换到 theme，导出分类与 UI 分区一致。
+ *              ⛔ 导入侧按扁平 key 取值、不读分类，所以换组不影响老备份导入（勿"顺手"改导入逻辑）。
+ *              2026-10-22 — ⑨「关于」区新增赞助入口：在 NPM 源码与「点赞支持」之间插入「请喝咖啡」
+ *              （图标 src/assets/icons/kofi.svg，点击走 openKofi() 打开 https://ko-fi.com/dd1024z）；
+ *              「隐藏作者信息」确认框同步补同一入口（用 ☕ 与同处 ⭐ 风格一致），README 中英同步；
+ *              新增 i18n key settings.buyCoffee（24 语言，脚本 scripts/add-kofi-i18n.mjs）。
+ *              ⛔ 英文一律写 Treat me to a coffee，不用 Buy me a coffee（后者是注册商标）。
+ *              ⑧撤销③：默认路径模式**不再**因设置页改默认值而清掉本连接的 per-host 覆盖 ——
+ *              面板上单独切换过的模式随该标签页连接保存，「默认路径模式」只用于**没有覆盖的新连接**；
+ *              随之移除 `sftp-plus-default-pathmode-changed` 专用事件（用户 2026-10-22 拍板）。
+ *              ⑦「配置保存后立即生效」改名「调整配置立即生效」（24 语言），
+ *              并加 `.ss-apply-instant-wrap { margin-top:0 }` 让它紧贴上方按钮组。
+ *              ⑥「配置保存后立即生效」开关移到「数据」分区导出/导入/清空按钮组**下方**
+ *              （用户指定：先动数据，再说数据何时落到面板）。
+ *              ⑤「配置保存后立即生效」开关改放到「数据」分区（用户要求），
+ *              书签排序第三档文案对齐为「名称排序」（settings.bookmarkSortHint 同步措辞）。
+ *              ③（已于⑧撤销）曾让 saveDefaultPathMode 额外派发 `sftp-plus-default-pathmode-changed`，
+ *              面板收到后清本连接覆盖再套用；该行为与「单独切换过的随连接保存」冲突，现已移除；
+ *              ④新增配置 `applySettingsInstantly`（配置保存后立即生效 / 需重开面板生效，默认立即），
+ *              设置页在「默认路径模式」下方提供开关，导出/导入/字段清单同步登记。
+ *              ①默认路径模式加第四档「同步路径」（settings.pathModeMirror）；②书签排序由两档扩为三档（manual/usage/name，settings.bookmarkSortHint），配置键 bookmarkSortByUsage → bookmarkSortMode，导入兼容老备份。
+ *              2026-10-20 — 定制右键菜单的「补齐缺失动作」改走 fillMenuOrder（按默认顺序相对位置插入）：
+ *              原逻辑一律 append 到末尾，老配置里没有「传输」时它在设置页列表与右键菜单里都沉底。
+ *              2026-10-19 — 设置页五项审计修复（audit §3 P2-31..P2-35）：
+ *              ① P2-31 已打开的设置页不同步面板「查看偏好」：面板底部就地切换行号/自动换行后
+ *                 会广播 sftp-plus-settings-changed，而本组件的监听原先**只回读 layoutMode 与
+ *                 fontSize** ⇒ 设置页内存值仍是旧的；用户随后在设置页动任一开关时，
+ *                 _saveToConfig() 会把 45+ 字段连同这两个**陈旧值**一起写回，面板刚做的修改
+ *                 被静默覆盖。现随同一事件一并回读 showTextLineNumbers / showTextWordWrap
+ *                 （复用既有监听，不新开轮询）。
+ *              ② P2-32 paneState 导出/导入不对称：导出侧是整份 paneState 克隆，导入侧却只认
+ *                 layout/local/remote 三个分节 ⇒ endpoints（右栏端点类型，面板
+ *                 _persistRightEndpoint 写入）与 rightLocalPath（右栏本地路径，**标量**，
+ *                 进不了分节循环的 typeof 检查）被静默丢弃。现补 endpoints 分节 +
+ *                 rightLocalPath 标量回写（非空串且不含控制字符）。
+ *              ③ P2-33 字号滑块绑的是 (input)，拖动一次连发几十个事件 × 每次 _saveToConfig()
+ *                 全量重写 config.yaml。改为 300ms 尾随写（内存值即时更新、UI 零延迟），
+ *                 并在 resetFontSize / ngOnDestroy 冲刷，保证最后一次改动一定落盘。
+ *              ④ P2-34 「只勾传输记录且本机无日志」时点导出：filterExportData 过滤结果为空 ⇒
+ *                 既不下载文件也不给提示，用户只看到弹窗关了。现补一条 i18n 提示
+ *                 settings.exportNothing（新增 24 语言，脚本 scripts/add-export-nothing-i18n.mjs），
+ *                 沿用本文件导入完成/失败那套 alert 口径，不新增 UI 组件与依赖。
+ *              ⑤ P2-35 导入的 lang 未做白名单校验 ⇒ 任意非法语言码落库后，effectiveLang 的
+ *                 validLocales.includes 恒为 false、静默回退 detectSystemLocale()，
+ *                 与面板（各自构造时读 lang）行为不一致且用户无从察觉。现只接受白名单内的
+ *                 规范码（大小写不敏感归一，如 zh-cn → zh-CN）或空串（跟随系统），
+ *                 非法值直接丢弃、保留本机原 lang。
+ *              2026-10-08 — 新增 showTextWordWrap（查看/编辑器长行自动换行，默认 false）：
+ *              「查看与编辑」小节新增开关行，并在 EXPORT_CATEGORY_FIELDS 的 other 类登记、
+ *              补齐导出快照 / 导入基线 / 导入回写 —— 漏登记则该字段永远导不出去。
+ *              2026-09-29 — 导出数据改为「按配置类别可勾选」：点「导出数据」先弹出勾选弹窗
  *              （界面与外观 / 面板与行为 / 传输与冲突 / 书签与记录 / 图标与文件类型，默认全选、
  *              可一键全选·全不选、一类未勾时禁用导出按钮），未勾选的类别**完全不写入** JSON。
  *              安全性来自导入侧的「字段不存在 = 不覆盖」语义 —— 所以「只导外观」的备份导入时
@@ -149,7 +217,7 @@ import { SftpI18nService } from '../services/sftp-i18n.service'
 import type { Locale } from '../services/sftp-i18n.service'
 import { SftpConfigService } from '../services/sftp-config.service'
 import { SftpTransferLogService } from '../services/sftp-transfer-log.service'
-import { normalizeBookmarkPath } from '../services/sftp-bookmarks.service'
+import { normalizeBookmarkPath, SftpBookmarksService } from '../services/sftp-bookmarks.service'
 import { SFTP_PLUS_TOGGLE_HOTKEY } from '../tabby/hotkey-provider'
 import {
   findHotkeyConflicts,
@@ -175,14 +243,25 @@ import {
 } from '../tabby/hotkey-util'
 import {
   defaultPanelHotkeys,
+  normalizeBookmarkSortMode,
   PANEL_HOTKEY_ACTIONS,
+  type BookmarkSortMode,
   type FileTypeIconRule,
   type PanelHotkeyAction,
 } from '../tabby/config-provider'
+// ★ 2026-10-22（Deepseek-V4.1-Flash）：默认路径模式新增「同步路径」档，类型与面板共用同一联合类型
+import type { PathFollowMode } from '../sftp/components/connection-lifecycle'
 import { detectSystemLocale, isColorDark, parseColorLuminance } from '@common/utils'
 import { DEFAULT_DATE_FORMAT, formatTextExtensionsForInput, normalizeEditableExtensions, setDateFormatPattern } from '../sftp/core/file-utils'
 import { DEFAULT_ICON_MAP, BUILTIN_ICON_FILES, BUILTIN_ICON_EXTS, FOLDER_ICON_SVG, resolveSftpPlusBundledIconDir } from '../sftp/core/icon-defaults'
-import { ContextMenuAction, FILE_MENU_REGISTRY, DEFAULT_FILE_MENU_ORDER, GROUP_BY_MODES } from '../sftp/components/sftp-context-menu.component'
+import { ContextMenuAction, FILE_MENU_REGISTRY, DEFAULT_FILE_MENU_ORDER, fillMenuOrder, GROUP_BY_MODES } from '../sftp/components/sftp-context-menu.component'
+import {
+  TOP_BAR_ITEMS, DEFAULT_TOP_BAR_ORDER, DEFAULT_TOP_BAR_PINNED, DEFAULT_TOP_BAR_DISABLED, TOP_BAR_CFG_FIELDS,
+  normalizeTopBarOrder, normalizeTopBarPinned, normalizeTopBarDisabled,
+  type TopBarItemId,
+} from '../sftp/core/top-bar-items'
+// ★ 2026-10-23：冲突重命名风格（seq / time / random）——归一化函数与面板/冲突解决器共用同一份
+import { normalizeConflictRenameStyle } from '../sftp/core/conflict'
 
 /** ★ 2026-09-28（同日修订）：右键菜单定制项 id（文件动作 + 分组依据）。
  *  「展开/收起所有分组」已并入「分组依据」子菜单，不再作为独立定制项（用户定稿）。 */
@@ -264,30 +343,42 @@ function loadTableSetting(key: string, fallback: boolean): boolean {
 const EXPORT_CATEGORY_FIELDS: Record<string, string[]> = {
   // 语言（设置页「语言」分区）
   lang: ['lang'],
-  // 主题（设置页「主题」分区：配色方案 + 四个自定义色）
-  theme: ['theme', 'colorPrimary', 'colorBg', 'colorText', 'colorBorder'],
-  // 布局（设置页「布局」分区：面板布局与字体、定制工具栏、定制书签面板、定制右键菜单、表格样式）
+  // 主题（设置页「主题」分区：配色方案 + 四个自定义色 + 面板透明度 + 字体字号）
+  // ★ 2026-10-23（Deepseek-V4.1-Flash）：fontSize 随 UI 从「布局」分区移到「主题」分区
+  //   （字号滑块挪到「面板透明度」下方），导出分类跟着走 —— 否则用户勾「主题」导出会漏掉字号。
+  //   导入侧按扁平 key 查找、不读分类，故把键换组**不影响老备份导入**。
+  theme: ['theme', 'colorPrimary', 'colorBg', 'colorText', 'colorBorder', 'panelOpacity', 'fontSize'],
+  // 布局（设置页「布局」分区：面板布局、定制工具栏、定制书签面板、定制右键菜单、表格样式）
   layout: [
-    'layoutMode', 'fontSize', 'tableColBorders', 'tableZebra',
+    'layoutMode', 'tableColBorders', 'tableZebra',
     'paneCustomOrder', 'paneHiddenItems',
-    'bookmarkPanelGroupByScope', 'bookmarkPanelGroupOrder',
+    'bookmarkPanelGroupByScope', 'bookmarkPanelGroupOrder', 'bookmarkLinkEnabled', 'bookmarkSortMode',
+    // ★ 2026-10-22：只读兼容键一并进备份（老备份/老客户端之间来回迁移不丢排序），导入侧会折算
+    'bookmarkSortByUsage',
     'contextMenuOrder', 'contextMenuDisabled',
+    // ★ 2026-10-19（Deepseek-V4.1-Flash）：顶栏按钮定制（顺序 / 固定态 / 折叠开关）
+    TOP_BAR_CFG_FIELDS.order, TOP_BAR_CFG_FIELDS.pinned, TOP_BAR_CFG_FIELDS.overflow, TOP_BAR_CFG_FIELDS.disabled,
   ],
   // 对象图标（设置页「对象图标」分区）
   icons: ['iconResourceDir', 'fileTypeIcons', 'disabledIconSvgs', 'folderIconSvg'],
   // 其它（设置页「其它」分区：交互、日期格式、查看/编辑、文本编辑器）
   other: [
-    'hideAuthorInfo', 'hideNativeSFTPButton', 'defaultPathMode', 'defaultShowHidden',
+    'hideAuthorInfo', 'hideNativeSFTPButton', 'defaultPathMode', 'applySettingsInstantly', 'defaultShowHidden',
     'openInNewTabByDefault', 'singleWorkspaceInstance', 'closeBookmarkPanelOnSelect',
+    // ★ 2026-10-19（Deepseek-V4.1-Flash）：连接切换器唤起方式（顶栏标题 / 终端标识 / 两者）
+    'connPickerTrigger',
+    // ★ 2026-10-20 续三十一（Deepseek-V4.1-Flash）：顶栏连接显示（别名 / 账号@地址）
+    'connLabelStyle',
+    'typeAheadEnabled',
     'openOnClick', 'dateFormat', 'openUnsupportedInSystem',
     'allowViewEditAllFiles', 'allowEditAllFiles', 'allowViewAllAsText', 'editableFileExtensions',
-    'showTextLineNumbers', 'textCaretShape',
+    'showTextLineNumbers', 'showTextWordWrap', 'editorAutoUploadExternal', 'textCaretShape',
   ],
   // 传输设置（设置页「传输设置」分区：并发、通道模式、冲突摘要、默认路径）
   transfer: [
     'transferUploadConcurrency', 'transferDownloadConcurrency', 'transferChannelMode',
     'conflictDigestEnabled', 'conflictAutoSkipSameContent',
-    'conflictDigestMaxSizeMB', 'conflictDigestAlgo',
+    'conflictDigestMaxSizeMB', 'conflictDigestAlgo', 'conflictRenameStyle',
     'defaultUploadPath', 'defaultDownloadPath',
   ],
   // 快捷键（设置页「快捷键」分区：面板项快捷键）
@@ -389,6 +480,40 @@ const MACOS_BY_DARWIN: Record<number, string> = {
             </div>
           </div>
         </div>
+
+        <!-- ★ 2026-10-19（Deepseek-V4.1-Flash）：面板整体透明度（50%–100%，不可全透明）。
+             作用于整个 .sftp-root（含浮层/对话框/toast），拖动时 150ms 合并落盘并广播面板即时生效。 -->
+        <div class="ss-toggle-row ss-pathmode-row" style="margin-top:10px;"
+          title="{{ i18n.t('settings.panelOpacityHint') }}">
+          <span class="ss-toggle-label">{{ i18n.t('settings.panelOpacity') }}</span>
+          <div class="ss-range-wrap">
+            <input class="ss-range" type="range" min="50" max="100" step="5"
+              [ngModel]="panelOpacityPercent"
+              (ngModelChange)="onPanelOpacityChange($event)" />
+            <span class="ss-range-val">{{ panelOpacityPercent }}%</span>
+          </div>
+        </div>
+
+        <!-- ★ 2026-10-23（Deepseek-V4.1-Flash）：字号的「字体」分组标题已取消（用户要求）。
+             字号大小本身就是一条滑块行，与上方面板透明度**平级**即可 —— 不再套 ss-sub-head，
+             也不再走带左缩进的 ss-toggle-sub；类名/结构与透明度行逐项对齐（ss-toggle-row + ss-range-wrap）。
+             重置按钮随「字体」标题一起去掉后没地方放，改为挂在「字号大小」文字右侧（仍走 resetFontSize）。 -->
+        <div class="ss-toggle-row ss-pathmode-row" style="margin-top:4px;">
+          <span class="ss-label-with-reset">
+            <span class="ss-toggle-label">{{ i18n.t('settings.fontSize') }}</span>
+            <button class="ss-reset-icon-btn" (click)="resetFontSize()" [title]="i18n.t('settings.resetFont')">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M13 8a5 5 0 1 1-1.8-3.85"/>
+                <path d="M13 3.5v2.9h-2.9"/>
+              </svg>
+            </button>
+          </span>
+          <div class="ss-range-wrap">
+            <input class="ss-range" type="range" min="11" max="18" step="1"
+              [value]="fontSize" (input)="onFontSizeChange(+$any($event.target).value)" />
+            <span class="ss-range-val">{{ fontSize }}px</span>
+          </div>
+        </div>
       </div>
 
       <!-- 布局 -->
@@ -471,6 +596,58 @@ const MACOS_BY_DARWIN: Record<number, string> = {
             <span>{{ paneCustomItemLabel(item) }}</span>
           </div>
         </div>
+        <!-- ★ 2026-10-19（Deepseek-V4.1-Flash）：定制顶栏按钮（右上角操作按钮）：
+             拖拽排序 + 「固定到顶栏 / 在 ⋯ 菜单」两态；折叠开关关闭时全部平铺（不折叠）。
+             登记表与面板共用 core/top-bar-items.ts。 -->
+        <div class="ss-sub-head" style="margin-top:16px;">
+          <div class="ss-sub-label" style="margin:0;">{{ i18n.t('settings.customTopBar') }}</div>
+          <button class="ss-reset-icon-btn" (click)="resetTopBar()" [title]="i18n.t('settings.resetTopBar')">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M13 8a5 5 0 1 1-1.8-3.85"/>
+              <path d="M13 3.5v2.9h-2.9"/>
+            </svg>
+          </button>
+        </div>
+        <div class="ss-toggle-wrap">
+          <label class="ss-toggle-row" title="{{ i18n.t('settings.topBarOverflow') }}">
+            <span class="ss-toggle-label">{{ i18n.t('settings.topBarOverflow') }}</span>
+            <span class="ss-toggle-track" [class.active]="topBarOverflowEnabled" (click)="toggleTopBarOverflow()">
+              <span class="ss-toggle-thumb"></span>
+            </span>
+          </label>
+        </div>
+        <div class="ss-menu-preview">
+          <div class="ss-menu-row"
+            *ngFor="let a of topBarOrder"
+            draggable="true"
+            [class.dragging]="draggingTopBarItem === a"
+            (dragstart)="onTopBarDragStart(a, $event)"
+            (dragover)="onTopBarDragOver(a, $event)"
+            (drop)="onTopBarDrop(a, $event)"
+            (dragend)="onTopBarDragEnd()">
+            <span class="ss-menu-handle">⋮⋮</span>
+            <!-- ★ 2026-10-19（Deepseek-V4.1-Flash）：「是否启用」复选框（与右键菜单定制同款）。
+                 勾掉 = 该按钮顶栏与 ⋯ 菜单都不出现；与右侧「固定/收起」是互相独立的两件事。 -->
+            <!-- ★ 2026-10-23（Deepseek-V4.1-Flash）：「关闭」（✕）也进本列表 —— 但没给面板配开关快捷键时
+                 不允许停用/收起（锁住并给出说明），否则面板会失去唯一稳定出口（Esc 需焦点在面板内）。 -->
+            <input class="ss-menu-check" type="checkbox"
+              [checked]="isTopBarEnabled(a)"
+              [disabled]="isTopBarCloseLocked(a)"
+              (change)="toggleTopBarEnabled(a)"
+              (mousedown)="$event.stopPropagation()"
+              [title]="isTopBarCloseLocked(a) ? i18n.t('settings.topBarCloseNeedsHotkey') : i18n.t('settings.enableItem')" />
+            <span class="ss-menu-label" [class.disabled]="!isTopBarEnabled(a)">{{ topBarItemLabel(a) }}</span>
+            <span class="ss-menu-note" *ngIf="isTopBarCloseLocked(a)">{{ i18n.t('settings.topBarCloseNeedsHotkey') }}</span>
+            <button *ngIf="topBarOverflowEnabled" class="ss-pin-btn"
+              [class.pinned]="isTopBarPinned(a)"
+              [disabled]="!isTopBarEnabled(a) || isTopBarCloseLocked(a)"
+              (mousedown)="$event.stopPropagation()"
+              (click)="toggleTopBarPinned(a)"
+              [title]="isTopBarPinned(a) ? i18n.t('settings.topBarPinned') : i18n.t('settings.topBarInMenu')">
+              {{ isTopBarPinned(a) ? i18n.t('settings.topBarPinned') : i18n.t('settings.topBarInMenu') }}
+            </button>
+          </div>
+        </div>
         <!-- 定制右键菜单（2026-08-22 挪到定制工具栏下方，改为每行一项） -->
         <div class="ss-sub-head" style="margin-top:16px;">
           <div class="ss-sub-label" style="margin:0;">{{ i18n.t('settings.customContextMenu') }}</div>
@@ -516,6 +693,39 @@ const MACOS_BY_DARWIN: Record<number, string> = {
               <span class="ss-toggle-thumb"></span>
             </span>
           </label>
+          <!-- ★ 2026-10-19（Deepseek-V4.1-Flash）：「联动书签」——开启后新增/编辑表单多出联动路径，
+               点击书签时另一栏也会跳到该路径。 -->
+          <label class="ss-toggle-row" title="{{ i18n.t('settings.bookmarkLinkHint') }}">
+            <span class="ss-toggle-label">{{ i18n.t('settings.bookmarkLink') }}</span>
+            <span class="ss-toggle-track" [class.active]="bookmarkLinkEnabled" (click)="toggleBookmarkLinkEnabled()">
+              <span class="ss-toggle-thumb"></span>
+            </span>
+          </label>
+          <!-- ★ 2026-10-19（Deepseek-V4.1-Flash）：书签排序模式——显式选择（与弹层 footer 的图标按钮同一配置项），
+               比单开关更直观：各模式的名称同时可见。
+               ★ 2026-10-22（Deepseek-V4.1-Flash）：两档扩成三档（新增「名称排序」）。 -->
+          <div class="ss-toggle-row ss-pathmode-row" title="{{ i18n.t('settings.bookmarkSortHint') }}">
+            <span class="ss-toggle-label">{{ i18n.t('settings.bookmarkSort') }}</span>
+            <div class="ss-segmented">
+              <button type="button" class="ss-segment"
+                [class.active]="bookmarkSortMode === 'manual'"
+                (click)="setBookmarkSort('manual')">{{ i18n.t('bookmark.sortManual') }}</button>
+              <button type="button" class="ss-segment"
+                [class.active]="bookmarkSortMode === 'usage'"
+                (click)="setBookmarkSort('usage')">{{ i18n.t('bookmark.sortUsage') }}</button>
+              <button type="button" class="ss-segment"
+                [class.active]="bookmarkSortMode === 'name'"
+                (click)="setBookmarkSort('name')">{{ i18n.t('bookmark.sortName') }}</button>
+            </div>
+          </div>
+          <!-- ★ 2026-10-19（Deepseek-V4.1-Flash）：仅「频率排序」下显示重置统计入口（拖拽/名称排序用不到计数）。
+               整行右对齐 —— 与上方各开关的右缘对齐（.ss-toggle-row 的右内边距 10px）。 -->
+          <div class="ss-reset-row" *ngIf="bookmarkSortMode === 'usage'">
+            <span class="ss-reset-msg" *ngIf="bookmarkResetMsg">{{ bookmarkResetMsg }}</span>
+            <button type="button" class="ss-mini-btn" (click)="resetBookmarkUsage()">
+              {{ i18n.t('settings.bookmarkResetUsage') }}
+            </button>
+          </div>
         </div>
         <div class="ss-layout-preview" *ngIf="bookmarkPanelGroupByScope" style="margin-top:8px;">
           <div class="ss-layout-chip"
@@ -547,25 +757,9 @@ const MACOS_BY_DARWIN: Record<number, string> = {
           </label>
         </div>
         <div class="ss-hint">{{ i18n.t('settings.tableStyleHint') }}</div>
-        <!-- ★ 2026-09-17：字体小分栏（2026-09-29 由「定制工具栏」上方移到「表格样式」之下，保持整节收尾） -->
-        <div class="ss-sub-head" style="margin-top:16px;">
-          <div class="ss-sub-label" style="margin:0;">{{ i18n.t('settings.font') }}</div>
-          <button class="ss-reset-icon-btn" (click)="resetFontSize()" [title]="i18n.t('settings.resetFont')">
-            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M13 8a5 5 0 1 1-1.8-3.85"/>
-              <path d="M13 3.5v2.9h-2.9"/>
-            </svg>
-          </button>
-        </div>
-        <!-- ★ 2026-09-29：滑块与数值整块靠右 —— 对齐 Tabby「窗口」页滑块的靠右显示（见 .ss-font-control） -->
-        <div class="ss-font-row ss-toggle-sub">
-          <span class="ss-toggle-label">{{ i18n.t('settings.fontSize') }}</span>
-          <div class="ss-font-control">
-            <input type="range" min="11" max="18" step="1" class="ss-range"
-              [value]="fontSize" (input)="onFontSizeChange(+$any($event.target).value)" />
-            <span class="ss-font-val">{{ fontSize }}px</span>
-          </div>
-        </div>
+        <!-- ★ 2026-10-23（Deepseek-V4.1-Flash）：字体小分栏已移到「主题」分区的「面板透明度」下方
+             —— 两个都是滑块、同属面板外观，放在一起更好找；本分区改回由「表格样式」收尾。
+             （历史：2026-09-29 曾由「定制工具栏」上方移到这里，理由是由表格样式收尾。） -->
       </div>
 
       <!-- ★ 2026-09-20：对象图标升为独立大节（原挂在「布局」下，语义不符） -->
@@ -745,6 +939,12 @@ const MACOS_BY_DARWIN: Record<number, string> = {
               <span class="ss-toggle-thumb"></span>
             </span>
           </label>
+          <label class="ss-toggle-row" [title]="i18n.t('settings.typeAheadHint')">
+            <span class="ss-toggle-label">{{ i18n.t('settings.typeAhead') }}</span>
+            <span class="ss-toggle-track" [class.active]="typeAheadEnabled" (click)="toggleTypeAheadEnabled()">
+              <span class="ss-toggle-thumb"></span>
+            </span>
+          </label>
           <label class="ss-toggle-row">
             <span class="ss-toggle-label">{{ i18n.t('settings.openInNewTab') }}</span>
             <span class="ss-toggle-track" [class.active]="openInNewTabByDefault" (click)="toggleOpenInNewTabByDefault()">
@@ -763,6 +963,45 @@ const MACOS_BY_DARWIN: Record<number, string> = {
               <span class="ss-toggle-thumb"></span>
             </span>
           </label>
+          <!-- ★ 2026-10-19（Deepseek-V4.1-Flash）：连接切换器（连接面板）的唤起方式。
+               三选一：顶栏连接标题（默认）/ 终端工具栏 SFTP+ 标识 / 两者都支持。 -->
+          <div class="ss-toggle-row ss-pathmode-row" title="{{ i18n.t('settings.connPickerTriggerHint') }}">
+            <span class="ss-toggle-label">{{ i18n.t('settings.connPickerTrigger') }}</span>
+            <div class="ss-segmented">
+              <button type="button" class="ss-segment"
+                [class.active]="connPickerTrigger === 'topbar'"
+                (click)="setConnPickerTrigger('topbar')">
+                {{ i18n.t('settings.connPickerTopbar') }}
+              </button>
+              <button type="button" class="ss-segment"
+                [class.active]="connPickerTrigger === 'paneToolbar'"
+                (click)="setConnPickerTrigger('paneToolbar')">
+                {{ i18n.t('settings.connPickerBadge') }}
+              </button>
+              <button type="button" class="ss-segment"
+                [class.active]="connPickerTrigger === 'both'"
+                (click)="setConnPickerTrigger('both')">
+                {{ i18n.t('settings.connPickerBoth') }}
+              </button>
+            </div>
+          </div>
+          <!-- ★ 2026-10-20 续三十一（Deepseek-V4.1-Flash）：顶栏连接显示内容（别名 / 账号@地址）。
+               只影响顶栏两段文案，连接选择器浮层里的条目仍是账号@地址（其副文本本就是连接名）。 -->
+          <div class="ss-toggle-row ss-pathmode-row" title="{{ i18n.t('settings.connLabelStyleHint') }}">
+            <span class="ss-toggle-label">{{ i18n.t('settings.connLabelStyle') }}</span>
+            <div class="ss-segmented">
+              <button type="button" class="ss-segment"
+                [class.active]="connLabelStyle === 'account'"
+                (click)="setConnLabelStyle('account')">
+                {{ i18n.t('settings.connLabelAccount') }}
+              </button>
+              <button type="button" class="ss-segment"
+                [class.active]="connLabelStyle === 'alias'"
+                (click)="setConnLabelStyle('alias')">
+                {{ i18n.t('settings.connLabelAlias') }}
+              </button>
+            </div>
+          </div>
           <div class="ss-toggle-row ss-pathmode-row">
             <span class="ss-toggle-label">{{ i18n.t('settings.openOnClick') }}</span>
             <div class="ss-segmented">
@@ -796,6 +1035,12 @@ const MACOS_BY_DARWIN: Record<number, string> = {
                 (click)="defaultPathMode = 'sync'; saveDefaultPathMode()">
                 {{ i18n.t('settings.pathModeSync') }}
               </button>
+              <button type="button" class="ss-segment"
+                [class.active]="defaultPathMode === 'mirror'"
+                (click)="defaultPathMode = 'mirror'; saveDefaultPathMode()"
+                title="{{ i18n.t('settings.pathModeMirrorHint') }}">
+                {{ i18n.t('settings.pathModeMirror') }}
+              </button>
             </div>
           </div>
           <div class="ss-toggle-row ss-datefmt-row">
@@ -810,12 +1055,6 @@ const MACOS_BY_DARWIN: Record<number, string> = {
           </div>
 
           <div class="ss-sub-label" style="margin-top:16px;">{{ i18n.t('settings.viewerEditor') }}</div>
-          <label class="ss-toggle-row" title="{{ i18n.t('settings.openUnsupportedInSystemDesc') }}">
-            <span class="ss-toggle-label">{{ i18n.t('settings.openUnsupportedInSystem') }}</span>
-            <span class="ss-toggle-track" [class.active]="openUnsupportedInSystem" (click)="toggleOpenUnsupportedInSystem()">
-              <span class="ss-toggle-thumb"></span>
-            </span>
-          </label>
           <label class="ss-toggle-row" title="{{ i18n.t('settings.allowViewEditAllFilesHint') }}">
             <span class="ss-toggle-label">{{ i18n.t('settings.allowViewEditAllFiles') }}</span>
             <span class="ss-toggle-track" [class.active]="allowViewEditAllFiles" (click)="toggleAllowViewEditAllFiles()">
@@ -828,9 +1067,31 @@ const MACOS_BY_DARWIN: Record<number, string> = {
             <input class="ss-path-input" type="text" [(ngModel)]="editableFileExtensionsText"
               (change)="saveEditorOptions()" spellcheck="false" />
           </div>
+          <!-- ★ 2026-10-18：下移一行到「显示行号」之上——该开关与「可编辑/查看类型」同属文件类型策略，
+               与下面的显示偏好（行号/换行/光标）分开，阅读顺序更自然 -->
+          <label class="ss-toggle-row" title="{{ i18n.t('settings.openUnsupportedInSystemDesc') }}">
+            <span class="ss-toggle-label">{{ i18n.t('settings.openUnsupportedInSystem') }}</span>
+            <span class="ss-toggle-track" [class.active]="openUnsupportedInSystem" (click)="toggleOpenUnsupportedInSystem()">
+              <span class="ss-toggle-thumb"></span>
+            </span>
+          </label>
           <label class="ss-toggle-row" title="{{ i18n.t('settings.showTextLineNumbersHint') }}">
             <span class="ss-toggle-label">{{ i18n.t('settings.showTextLineNumbers') }}</span>
             <span class="ss-toggle-track" [class.active]="showTextLineNumbers" (click)="toggleShowTextLineNumbers()">
+              <span class="ss-toggle-thumb"></span>
+            </span>
+          </label>
+          <!-- ★ 2026-10-08：查看器/编辑器长行自动换行（查看器=按列宽切行，编辑器=textarea 软换行并隐藏行号栏） -->
+          <label class="ss-toggle-row" title="{{ i18n.t('settings.showTextWordWrapHint') }}">
+            <span class="ss-toggle-label">{{ i18n.t('settings.showTextWordWrap') }}</span>
+            <span class="ss-toggle-track" [class.active]="showTextWordWrap" (click)="toggleShowTextWordWrap()">
+              <span class="ss-toggle-thumb"></span>
+            </span>
+          </label>
+          <!-- ★ 2026-10-22（Deepseek-V4.1-Flash）：外部编辑自动上传（方案 A 开关，默认关 → 走方案 B 提示） -->
+          <label class="ss-toggle-row" title="{{ i18n.t('settings.editorAutoUploadExternalHint') }}">
+            <span class="ss-toggle-label">{{ i18n.t('settings.editorAutoUploadExternal') }}</span>
+            <span class="ss-toggle-track" [class.active]="editorAutoUploadExternal" (click)="toggleEditorAutoUploadExternal()">
               <span class="ss-toggle-thumb"></span>
             </span>
           </label>
@@ -893,6 +1154,16 @@ const MACOS_BY_DARWIN: Record<number, string> = {
           <span class="ss-toggle-label">{{ i18n.t('settings.conflictDigestMaxSize') }}</span>
           <input class="ss-concurrency-input" type="number" min="1" max="4096" step="1"
           [(ngModel)]="conflictDigestMaxSizeMB" (change)="saveConflictDigestMaxSize()" />
+          </div>
+          <!-- ★ 2026-10-23：冲突「重命名」的命名风格（用户反馈随机后缀事后找不到文件）。
+               控件与「传输通道模式」同款（ss-channel-select 固定宽），说明放在行 title 与各 option 的 title（示例名）。 -->
+          <div class="ss-toggle-row ss-concurrency-row" title="{{ i18n.t('settings.conflictRenameStyleHint') }}">
+          <span class="ss-toggle-label">{{ i18n.t('settings.conflictRenameStyle') }}</span>
+          <select class="ss-select ss-channel-select" [(ngModel)]="conflictRenameStyle" (change)="saveConflictRenameStyle()">
+          <option value="seq" title="file (1).txt">{{ i18n.t('settings.renameStyleSeq') }}</option>
+          <option value="time" title="file_20261023-103512.txt">{{ i18n.t('settings.renameStyleTime') }}</option>
+          <option value="random" title="file_A1B2C3D4.txt">{{ i18n.t('settings.renameStyleRandom') }}</option>
+          </select>
           </div>
           <!-- 默认上传/下载路径 -->
           <div class="ss-toggle-row ss-path-row">
@@ -998,6 +1269,21 @@ const MACOS_BY_DARWIN: Record<number, string> = {
       <div class="ss-section">
         <label class="ss-label">{{ i18n.t('settings.data') }}</label>
 
+        <!-- ★ 2026-10-23（Deepseek-V4.1-Flash）：本开关移到导出/导入/清空按钮组**上方**（用户第三次调位）。
+             语义顺序：先说「改动是否即时落到面板」，再执行数据操作。
+             原注释（2026-10-22 续三十八）：「配置保存后立即生效」还是「重开面板生效」；
+             关闭时面板忽略设置变更广播，需关闭并重开 SFTP+ 面板；重新打开会广播一次把差异追平。
+             ★ 续三十九：文案改为「调整配置立即生效」，去掉 .ss-toggle-wrap 自带 8px 上边距
+               （.ss-apply-instant-wrap{margin-top:0}）—— 现在紧贴「数据」标题，按钮组自带 4px 上边距。 -->
+        <div class="ss-toggle-wrap ss-apply-instant-wrap">
+          <label class="ss-toggle-row" title="{{ i18n.t('settings.applyInstantHint') }}">
+            <span class="ss-toggle-label">{{ i18n.t('settings.applyInstant') }}</span>
+            <span class="ss-toggle-track" [class.active]="applySettingsInstantly" (click)="toggleApplySettingsInstantly()">
+              <span class="ss-toggle-thumb"></span>
+            </span>
+          </label>
+        </div>
+
         <!-- 数据导入导出 -->
         <div class="ss-backup-row">
           <button class="ss-btn" (click)="openExportDialog()">[&darr;] {{ i18n.t('settings.export') }}</button>
@@ -1028,6 +1314,12 @@ const MACOS_BY_DARWIN: Record<number, string> = {
             <img class="ss-about-icon" [src]="'file://' + bundledIconPreviewPath('npm.svg')"
               alt="" aria-hidden="true" draggable="false" />
             <span class="ss-about-label">{{ i18n.t('settings.npmSource') }}</span>
+          </span>
+          <!-- ★ 2026-10-22：赞助入口（ko-fi），按用户要求置于「点赞支持」左侧 -->
+          <span class="ss-about-link" (click)="openKofi()">
+            <img class="ss-about-icon" [src]="'file://' + bundledIconPreviewPath('kofi.svg')"
+              alt="" aria-hidden="true" draggable="false" />
+            <span class="ss-about-label">{{ i18n.t('settings.buyCoffee') }}</span>
           </span>
           <span class="ss-about-link" (click)="openGithub()">
             ⭐ <span class="ss-about-label">{{ i18n.t('settings.giveStar') }}</span>
@@ -1113,7 +1405,7 @@ const MACOS_BY_DARWIN: Record<number, string> = {
                 <input type="checkbox" [(ngModel)]="exportPickTransfer" class="ss-export-check" />
                 <span class="ss-export-text">
                   <span class="ss-export-name">{{ i18n.t('settings.transferSection') }}</span>
-                  <span class="ss-export-sub">{{ i18n.t('settings.uploadConcurrency') }} · {{ i18n.t('settings.channelMode') }} · {{ i18n.t('settings.conflictDigest') }}</span>
+                  <span class="ss-export-sub">{{ i18n.t('settings.uploadConcurrency') }} · {{ i18n.t('settings.channelMode') }} · {{ i18n.t('settings.conflictDigest') }} · {{ i18n.t('settings.conflictRenameStyle') }}</span>
                 </span>
               </label>
 
@@ -1186,6 +1478,7 @@ const MACOS_BY_DARWIN: Record<number, string> = {
           <div class="ss-edit-title">⭐ {{ i18n.t('settings.hideAuthorInfo') }}</div>
           <div class="ss-edit-field">
             <p>{{ i18n.t('settings.hideAuthorConfirmText') }}</p>
+          <span class="ss-about-link" (click)="openKofi()">☕ <span class="ss-about-label">{{ i18n.t('settings.buyCoffee') }}</span></span>
           <span class="ss-about-link" (click)="openGithub()">⭐ <span class="ss-about-label">{{ i18n.t('settings.giveStar') }}</span></span>
           </div>
           <div class="ss-edit-footer">
@@ -1279,6 +1572,9 @@ const MACOS_BY_DARWIN: Record<number, string> = {
 
     /* 表格样式 - Tabby 风格开关 */
     .ss-toggle-wrap { display:flex; flex-direction:column; gap:4px; margin-top:8px; }
+    /* ★ 2026-10-22 续三十九（Deepseek-V4.1-Flash）：「调整配置立即生效」紧跟数据区按钮组，
+       不能沿用 ss-toggle-wrap 的 8px 上边距（叠加 ss-toggle-row 的 8px padding ⇒ 视觉上离按钮太远）。 */
+    .ss-apply-instant-wrap { margin-top: 0; }
     .ss-toggle-row {
       display:flex; align-items:center; justify-content:space-between;
       padding:8px 10px; border-radius:6px;
@@ -1304,30 +1600,21 @@ const MACOS_BY_DARWIN: Record<number, string> = {
 
     /* 设置面板提示文字 */
     .ss-hint { font-size:11px; opacity:.5; margin-top:6px; }
-    .ss-font-row {
-      display:flex; align-items:center; justify-content:space-between; gap:12px;
-      margin-top:4px; flex-wrap:wrap;
-      /* ★ 2026-09-29：右侧留 10px —— 与 .ss-toggle-row 的水平内距一致。
-         否则控件贴到行尾(0)，而开关/下拉行是行尾-10px ⇒ 数值文字会比其它行的控件右探 4px
-         （实测：无内距时文字右边缘 594、按钮组右边缘 590）。 */
-      padding-right:10px;
-    }
-    /* ★ 2026-09-29：控件块整体靠右（justify-content:flex-end）—— 对齐 Tabby「窗口」页滑块的
-       靠右显示（Tabby 用 .form-line .header{margin-right:auto} 把控件顶到行尾）。
-       滑块宽度保持不动；靠右后「13px」落在行尾最右，与其它行的开关/下拉右边缘对齐。
-       注：轨道 #111 / 圆点 #aaa 由宿主全局 input[type=range] 样式提供，与 Tabby 滑块逐字相同。 */
-    .ss-font-control { display:flex; align-items:center; justify-content:flex-end; gap:10px; flex:1; min-width:180px; }
+    /* ★ 2026-10-23（Deepseek-V4.1-Flash）：取消 .ss-font-row / .ss-font-control / .ss-font-val
+       （⛔ 注释里别写反引号：本文件样式是模板字符串，反引号会提前闭合）。
+       字号行改为与「面板透明度」同一套类（ss-toggle-row + ss-range-wrap + ss-range-val），
+       两行的滑块宽度、数值列宽、右缘位置因此天然一致（原先靠 padding-right:10px 手工对齐）。
+       注：轨道 #111 / 圆点 #aaa 仍由宿主全局 input[type=range] 样式提供。 */
     .ss-range {
       flex:1; min-width:120px; max-width:280px; height:4px; cursor:pointer;
       accent-color: var(--primary-color, #3b82f6);
     }
-    .ss-font-val {
-      font-size:13px; min-width:36px; opacity:.65; font-variant-numeric:tabular-nums;
-      /* ★ 2026-09-29：盒内文字右对齐 —— 盒宽 36px 比文字「13px」(30px) 宽，
-         左对齐会让文字右边缘比盒右边缘内缩 6px、与其它行控件错开；右对齐后两条右边缘重合。
-         （该 span 是 flex 项 ⇒ 会被块级化，text-align 生效。） */
-      text-align:right;
-    }
+    /* 行内「标签 + 小重置图标」：字号行去掉分组标题后，重置入口跟着标签走。
+       图标压到 18px —— 与标签行高(13px × 1.4 ≈ 18px)等高，行高不会因按钮从 34px 涨到 40px，
+       否则与相邻的「面板透明度」行不等高。 */
+    .ss-label-with-reset { display:inline-flex; align-items:center; gap:4px; }
+    .ss-label-with-reset .ss-reset-icon-btn { width:18px; height:18px; border-radius:5px; }
+    .ss-label-with-reset .ss-reset-icon-btn svg { width:12px; height:12px; }
     /* ★ 2026-09-29：查看编辑器光标宽度按钮组 —— 形制对齐 Tabby 外观页「光标形状」
        （等宽方块字形按钮：▏▎▍▌ 表示 1–4px；行本身是 .ss-toggle-row，故按钮组天然靠右） */
     .ss-caret-seg .ss-segment {
@@ -1853,7 +2140,48 @@ const MACOS_BY_DARWIN: Record<number, string> = {
     .ss-menu-handle { opacity: .5; letter-spacing: -1px; cursor: grab; }
     .ss-menu-check { width: 14px; height: 14px; margin: 0; cursor: pointer; flex: none; }
     .ss-menu-label { flex: 1; }
+    /* ★ 2026-10-23（Deepseek-V4.1-Flash）：行尾小字说明（当前用于「关闭按钮需先设面板快捷键」）。
+       不用 flex:1，紧跟标签、不抢固定按钮的位置；字号与 .ss-pin-btn 同档。 */
+    .ss-menu-note { flex: none; font-size: 11px; opacity: .55; white-space: nowrap; }
     .ss-menu-label.disabled { opacity: 0.4; text-decoration: line-through; }
+    /* ★ 2026-10-19（Deepseek-V4.1-Flash）：顶栏按钮「固定 / 在 ⋯ 菜单」切换（布局分区的定制列表用） */
+    .ss-pin-btn {
+      flex: none;
+      padding: 1px 8px;
+      font-size: 11px;
+      line-height: 16px;
+      border-radius: 9px;
+      border: 1px solid rgba(128, 128, 128, 0.4);
+      background: transparent;
+      color: inherit;
+      opacity: 0.7;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .ss-pin-btn:hover { opacity: 1; }
+    .ss-pin-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+    /* ★ 2026-10-19（Deepseek-V4.1-Flash）：面板透明度滑块（主题区） */
+    .ss-range-wrap { display: flex; align-items: center; gap: 8px; flex: none; }
+    .ss-range { width: 150px; accent-color: var(--_primary, #3b82f6); cursor: pointer; }
+    .ss-range-val { min-width: 38px; text-align: right; font-size: 12px; opacity: 0.75; }
+    /* ★ 2026-10-19（Deepseek-V4.1-Flash）：书签「重置统计」按钮与结果提示。
+       整行右对齐：与上方 .ss-toggle-row（padding 8px 10px）的右缘齐平；提示文字在按钮左侧，避免把按钮挤离右缘。 */
+    .ss-reset-row {
+      display: flex; align-items: center; justify-content: flex-end;
+      gap: 8px; margin-top: 2px; padding: 0 10px;
+    }
+    .ss-mini-btn {
+      padding: 3px 10px; font-size: 12px; border-radius: 5px;
+      border: 1px solid var(--_border); background: transparent;
+      color: var(--_text); cursor: pointer;
+    }
+    .ss-mini-btn:hover { background: var(--_hover, rgba(128,128,128,0.12)); }
+    .ss-reset-msg { font-size: 12px; opacity: 0.7; }
+    .ss-pin-btn.pinned {
+      opacity: 1;
+      border-color: var(--_primary, #3b82f6);
+      color: var(--_primary, #3b82f6);
+    }
 
   `],
 })
@@ -2052,6 +2380,12 @@ export class SftpSettingsTabComponent implements OnDestroy {
   themeText = load('textColor', '')
   themeBorder = load('borderColor', '')
 
+  /**
+   * ★ 2026-10-19（Deepseek-V4.1-Flash）：面板整体透明度（0.5–1，默认 1）。
+   *   下限 50% —— 不允许全透明（全透明等于面板消失且内容不可读）。
+   */
+  panelOpacity = 1
+
   /** 面板布局 */
   layoutMode: string = 'auto'
   /** 面板界面字号（px），默认 13，范围 11–18 */
@@ -2065,7 +2399,13 @@ export class SftpSettingsTabComponent implements OnDestroy {
   hideNativeBtn = load('hideNativeBtn', false)
 
   /** 默认路径模式（off/remember/sync）：对未在面板上单独切换过的连接生效 */
-  defaultPathMode: 'off' | 'remember' | 'sync' = load('defaultPathMode', 'off') as 'off' | 'remember' | 'sync'
+  defaultPathMode: PathFollowMode = load('defaultPathMode', 'off') as PathFollowMode
+
+  /**
+   * ★ 2026-10-22 续三十六（Deepseek-V4.1-Flash）：设置保存后是否立即推送到已打开的面板。
+   *   false = 面板忽略设置变更广播，需关闭并重开 SFTP+ 面板才生效。
+   */
+  applySettingsInstantly: boolean = load('applySettingsInstantly', true) as boolean
 
   /** 默认显示隐藏文件：对从未按过眼睛按钮的面板生效 */
   defaultShowHidden = load('defaultShowHidden', false)
@@ -2098,12 +2438,36 @@ export class SftpSettingsTabComponent implements OnDestroy {
   /** 工具栏入口在新标签页打开 */
   openInNewTabByDefault = load('openInNewTabByDefault', false)
 
+  /**
+   * ★ 2026-10-19（Deepseek-V4.1-Flash）：连接切换器（连接面板）的唤起方式。
+   *   topbar = 点顶栏连接标题（默认，历史行为）；paneToolbar = 点面板栏工具栏上的本地/远程标识；
+   *   both = 两者都可以。装饰器与面板都读同一个 config 键 connPickerTrigger。
+   */
+  connPickerTrigger: 'topbar' | 'paneToolbar' | 'both' = 'topbar'
+
+  /**
+   * ★ 2026-10-20 续三十一（Deepseek-V4.1-Flash，用户诉求）：顶栏连接显示内容。
+   *   account = 账号@地址（默认，历史行为）；alias = Tabby 配置连接的名字（无名字时回落账号@地址）。
+   *   面板侧同名配置由 `_readConnLabelStyle()` 读取，改完广播 `sftp-plus-settings-changed` 即时生效。
+   */
+  connLabelStyle: 'account' | 'alias' = 'account'
+
   /** 新标签页模式：同一 SSH 终端只保留一个 SFTP+ 标签 */
   singleWorkspaceInstance = load('singleWorkspaceInstance', true)
   /** 兼容选项：选中书签后关闭面板 */
   closeBookmarkPanelOnSelect = load('closeBookmarkPanelOnSelect', false)
-  /** 书签面板是否按连接/全局分组（默认开启） */
+  /** ★ 2026-10-16：键入定位（在文件列表中敲字母/数字按文件名前缀跳转选中），默认开 */
+  typeAheadEnabled = load('typeAheadEnabled', true)
+  /** 书签面板是否按「局部 / 全局」分组（默认开启） */
   bookmarkPanelGroupByScope = load('bookmarkPanelGroupByScope', true)
+  /** ★ 2026-10-19（Deepseek-V4.1-Flash）：联动书签开关（★ 2026-10-20 默认改为开） */
+  bookmarkLinkEnabled = true
+  /** ★ 2026-10-19（Deepseek-V4.1-Flash）：书签按使用频率排序（默认关 = 拖拽顺序） */
+  /** ★ 2026-10-22（Deepseek-V4.1-Flash）：书签排序三档（manual / usage / name），替代原布尔开关 */
+  bookmarkSortMode: BookmarkSortMode = 'manual'
+  /** 重置统计后的临时提示（2.6s 自动消失） */
+  bookmarkResetMsg = ''
+  private _bookmarkResetMsgTimer: ReturnType<typeof setTimeout> | null = null
   /** 分组块显示顺序 */
   bookmarkPanelGroupOrder: Array<'connection' | 'global'> = (() => {
     try {
@@ -2131,6 +2495,8 @@ export class SftpSettingsTabComponent implements OnDestroy {
   conflictDigestEnabled = true
   conflictAutoSkipSameContent = true
   conflictDigestMaxSizeMB = 256
+  /** ★ 2026-10-23：冲突「重命名」命名风格（seq 序号堆叠 / time 时间戳 / random 随机后缀） */
+  conflictRenameStyle = normalizeConflictRenameStyle(load('conflictRenameStyle', 'seq'))
   /** 默认上传路径（远程目标目录）；空串 = 使用当前远程目录 */
   defaultUploadPath = ''
   /** 默认下载路径（本地目标目录）；空串 = 使用当前本地目录 */
@@ -2173,8 +2539,11 @@ export class SftpSettingsTabComponent implements OnDestroy {
   editableFileExtensionsText = formatTextExtensionsForInput(load<unknown>('editableFileExtensions', []))
   /** 忽略扩展名白名单，允许查看与编辑所有非目录文件（编辑仍受二进制保护）。 */
   allowViewEditAllFiles = loadAllowViewEditAllFiles()
-  /** ★ 2026-09-20：查看/编辑器显示行号；查看器插入光标形状（2026-09-29 由宽度改为形状三档） */
+  /** ★ 2026-09-20：查看/编辑器显示行号；★ 2026-10-08：查看/编辑器长行自动换行（2026-09-29 光标由宽度改为形状三档） */
   showTextLineNumbers = load('showTextLineNumbers', true)
+  showTextWordWrap = load('showTextWordWrap', false)
+  /** ★ 2026-10-22（Deepseek-V4.1-Flash）：外部编辑自动上传开关（方案 A），默认关 → 走方案 B 提示 */
+  editorAutoUploadExternal = load('editorAutoUploadExternal', false)
   textCaretShape: CaretShape = normalizeCaretShape(load<unknown>('textCaretShape', 'beam'))
   /** ★ 2026-09-29：光标形状按钮组选项（三档取值与 Tabby 终端 cursor 逐字一致，字形照宿主外观页的 █ | ▁）
    *  形制对齐 Tabby 外观页「光标形状」的方块字形按钮组；文案 key 同时作为按钮 title。 */
@@ -2190,6 +2559,21 @@ export class SftpSettingsTabComponent implements OnDestroy {
   contextMenuDisabled: ContextMenuCustomId[] = []
   /** 右键菜单排序拖拽中的项 */
   draggingMenuItem: ContextMenuCustomId | null = null
+
+  /**
+   * ★ 2026-10-19（Deepseek-V4.1-Flash）：顶栏按钮定制（右上角操作按钮）。
+   *   topBarOrder   —— 全量顺序（决定顶栏顺序与 ⋯ 菜单顺序）
+   *   topBarPinned  —— 固定在顶栏的项；其余项在「启用折叠菜单」时收进 ⋯
+   *   topBarOverflowEnabled —— 折叠菜单总开关；关闭时未固定项**全部平铺**（用户已确认的语义）
+   *   登记表来自 core/top-bar-items.ts，与面板共用，禁止在本文件另写一份 id 数组。
+   */
+  topBarOrder: TopBarItemId[] = [...DEFAULT_TOP_BAR_ORDER]
+  topBarPinned: TopBarItemId[] = [...DEFAULT_TOP_BAR_PINNED]
+  /** 被停用的按钮（顶栏与 ⋯ 菜单都不显示；空 = 全部启用） */
+  topBarDisabled: TopBarItemId[] = [...DEFAULT_TOP_BAR_DISABLED]
+  topBarOverflowEnabled = false
+  /** 顶栏按钮排序拖拽中的项 */
+  draggingTopBarItem: TopBarItemId | null = null
 
   /** ★ 2026-08-31：面板内置操作快捷键，一动作可绑多个键
    *  （keys 空数组 = 未绑定即禁用；enabled=false 为双保险标记，防 Tabby config 清洗空数组后 defaults 回退） */
@@ -2251,12 +2635,46 @@ export class SftpSettingsTabComponent implements OnDestroy {
         const cfg = this.configService?.store?.['tabby-sftp-plus']
         if (cfg?.layoutMode) this.layoutMode = cfg.layoutMode as string
         if (typeof cfg?.fontSize === 'number') this.fontSize = this._clampFontSize(cfg.fontSize)
+        // ★ 2026-10-19 P2-31（audit）：补同步「查看与编辑」的查看偏好两开关。
+        //   浮动面板底部可就地切换行号/自动换行（_saveTextViewPref 写 config 后广播本事件），
+        //   但本监听原先只回读 layoutMode / fontSize ⇒ 面板改完、已打开的设置页内存值仍是旧的，
+        //   用户随后在设置页动任一开关 → _saveToConfig() 把 45+ 字段**连同这两个旧值**一起写回，
+        //   面板刚做的修改被静默覆盖。此处随事件回读即可（不新开轮询）。
+        const lineNumbers = cfg?.showTextLineNumbers
+        if (typeof lineNumbers === 'boolean') this.showTextLineNumbers = lineNumbers
+        const wordWrap = cfg?.showTextWordWrap
+        if (typeof wordWrap === 'boolean') this.showTextWordWrap = wordWrap
+        // ★ 2026-10-22（Deepseek-V4.1-Flash）：回读「外部编辑自动上传」开关，避免面板改动后被设置页旧值覆盖
+        const autoUpload = cfg?.editorAutoUploadExternal
+        if (typeof autoUpload === 'boolean') this.editorAutoUploadExternal = autoUpload
+        // ★ 2026-10-19（Deepseek-V4.1-Flash）：书签弹层 footer 也能切排序方式（写同一配置项），
+        //   这里必须回读；否则设置页内存里的旧值会在下次 _saveToConfig() 时把它覆盖回去（P2-31 同源）。
+        this.bookmarkSortMode = normalizeBookmarkSortMode(cfg?.bookmarkSortMode, cfg?.bookmarkSortByUsage)
+        // ★ 2026-10-23（Deepseek-V4.1-Flash）：书签弹层 footer 的图钉「面板常驻」写的就是这一项
+        //   （图钉钉住 = closeBookmarkPanelOnSelect false），理由与上一行 bookmarkSortMode 完全同源：
+        //   不回读 ⇒ 设置页内存里的旧值会在下次 _saveToConfig()（含 45+ 字段）时把图钉改动写回去。
+        if (typeof cfg?.closeBookmarkPanelOnSelect === 'boolean') {
+          this.closeBookmarkPanelOnSelect = cfg.closeBookmarkPanelOnSelect
+        }
+        // ★ 2026-10-23（Deepseek-V4.1-Flash）：面板 ⋯ 菜单可就地切「固定 / 收进 ⋯」
+        //   （sftp-floating-panel 的 toggleTopBarItemPinned 写的就是本项 topBarPinned）。
+        //   理由与上面两条同源：不回读 ⇒ 设置页内存里的旧数组会在下次 _saveToConfig()
+        //   （45+ 字段整体写回）时把面板刚做的固定改动覆盖回去（P2-31）。
+        const pinnedRaw = (cfg as any)?.[TOP_BAR_CFG_FIELDS.pinned]
+        if (Array.isArray(pinnedRaw)) this.topBarPinned = normalizeTopBarPinned(pinnedRaw)
       }
       window.addEventListener('sftp-plus-settings-changed', this._settingsChangedHandler)
     }
   }
 
   ngOnDestroy(): void {
+    // ★ 2026-10-19 P2-33：销毁前冲刷节流里挂着的字号落盘 —— 拖完滑块立刻关掉设置页
+    //   时，尾随定时器随组件一起消失，最后一次改动必须在此补写，否则字号丢失。
+    this._flushFontSizeSave()
+    // ★ 2026-10-19（Deepseek-V4.1-Flash）：透明度同理——拖完滑块立刻关设置页，尾随定时器会被销毁
+    this._flushPanelOpacitySave()
+    // ★ 2026-10-19（Deepseek-V4.1-Flash）：重置提示的定时器
+    if (this._bookmarkResetMsgTimer) { clearTimeout(this._bookmarkResetMsgTimer); this._bookmarkResetMsgTimer = null }
     this.cancelHotkeyRecording()
     // ★ 2026-09-20 A4 审计修复：此前漏掉「面板操作快捷键」录制链的清理——
     //   录制中关闭/切换设置页会残留两个 window 捕获监听器（最多 12s 到安全定时器才自愈），
@@ -2781,6 +3199,12 @@ export class SftpSettingsTabComponent implements OnDestroy {
     }
   }
 
+  /**
+   * ★ 2026-10-09 审计新增：_readFromConfig 中读到「需要清理失效图标规则」时置位，
+   *   待本方法**全部字段读完**后再执行（避免中途 _saveToConfig 覆盖未读入的真实配置）。
+   */
+  private _pendingIconRuleCleanup = false
+
   /** 从 Tabby 配置加载所有设置 */
   private _readFromConfig(): void {
     try {
@@ -2796,15 +3220,34 @@ export class SftpSettingsTabComponent implements OnDestroy {
       if (cfg.colorBg !== undefined) this.themeBg = cfg.colorBg as string
       if (cfg.colorText !== undefined) this.themeText = cfg.colorText as string
       if (cfg.colorBorder !== undefined) this.themeBorder = cfg.colorBorder as string
+      // ★ 2026-10-19（Deepseek-V4.1-Flash）：面板透明度（钳制 0.5–1，历史缺失值按 1）
+      if (Number.isFinite(Number(cfg.panelOpacity))) this.panelOpacity = Math.min(1, Math.max(0.5, Number(cfg.panelOpacity)))
       if (cfg.tableColBorders !== undefined) this.showColBorders = cfg.tableColBorders as boolean
       if (cfg.tableZebra !== undefined) this.showZebra = cfg.tableZebra as boolean
       if (cfg.hideNativeSFTPButton !== undefined) this.hideNativeBtn = cfg.hideNativeSFTPButton as boolean
-      if (cfg.defaultPathMode === 'off' || cfg.defaultPathMode === 'remember' || cfg.defaultPathMode === 'sync') this.defaultPathMode = cfg.defaultPathMode
+      // ★ 2026-10-22（Deepseek-V4.1-Flash）：第四档 mirror（同步路径）也要能回读
+      if (cfg.defaultPathMode === 'off' || cfg.defaultPathMode === 'remember'
+        || cfg.defaultPathMode === 'sync' || cfg.defaultPathMode === 'mirror') this.defaultPathMode = cfg.defaultPathMode
+      // ★ 2026-10-22 续三十六（Deepseek-V4.1-Flash）：缺省按 true（老用户升级后行为不变）
+      if (cfg.applySettingsInstantly !== undefined) this.applySettingsInstantly = cfg.applySettingsInstantly !== false
       if (cfg.defaultShowHidden !== undefined) this.defaultShowHidden = cfg.defaultShowHidden === true
       if (cfg.openInNewTabByDefault !== undefined) this.openInNewTabByDefault = cfg.openInNewTabByDefault as boolean
+      // ★ 2026-10-19（Deepseek-V4.1-Flash）：连接切换器唤起方式
+      if (cfg.connPickerTrigger === 'paneToolbar' || cfg.connPickerTrigger === 'both') this.connPickerTrigger = cfg.connPickerTrigger
+      else if (cfg.connPickerTrigger === 'terminalBadge') this.connPickerTrigger = 'paneToolbar'  // 兼容旧值
+      else if (cfg.connPickerTrigger === 'topbar') this.connPickerTrigger = 'topbar'
+      // ★ 2026-10-20 续三十一（Deepseek-V4.1-Flash）：顶栏连接显示 别名 / 账号@地址（缺省 = account）
+      if (cfg.connLabelStyle === 'alias') this.connLabelStyle = 'alias'
+      else if (cfg.connLabelStyle === 'account') this.connLabelStyle = 'account'
       if (cfg.singleWorkspaceInstance !== undefined) this.singleWorkspaceInstance = cfg.singleWorkspaceInstance as boolean
       if (cfg.closeBookmarkPanelOnSelect !== undefined) this.closeBookmarkPanelOnSelect = cfg.closeBookmarkPanelOnSelect as boolean
+      if (cfg.typeAheadEnabled !== undefined) this.typeAheadEnabled = cfg.typeAheadEnabled !== false
       if (cfg.bookmarkPanelGroupByScope !== undefined) this.bookmarkPanelGroupByScope = cfg.bookmarkPanelGroupByScope !== false
+      // ★ 2026-10-19（Deepseek-V4.1-Flash）：联动书签（★ 2026-10-20 默认改为开 ⇒ 缺省按开处理）
+      this.bookmarkLinkEnabled = cfg.bookmarkLinkEnabled !== false
+      // ★ 2026-10-19（Deepseek-V4.1-Flash）：书签排序方式（默认拖拽顺序）
+      // ★ 2026-10-22（Deepseek-V4.1-Flash）：三档归一化，老配置 bookmarkSortByUsage=true 折算 usage
+      this.bookmarkSortMode = normalizeBookmarkSortMode(cfg.bookmarkSortMode, cfg.bookmarkSortByUsage)
       if (Array.isArray(cfg.bookmarkPanelGroupOrder) && cfg.bookmarkPanelGroupOrder.length) {
         const valid = (cfg.bookmarkPanelGroupOrder as string[]).filter(
           (x): x is 'connection' | 'global' => x === 'connection' || x === 'global',
@@ -2833,6 +3276,8 @@ export class SftpSettingsTabComponent implements OnDestroy {
       if (cfg.conflictDigestMaxSizeMB !== undefined) {
         this.conflictDigestMaxSizeMB = this._clampDigestMaxMB(cfg.conflictDigestMaxSizeMB)
       }
+      // ★ 2026-10-23：冲突重命名风格（旧配置没有此键 ⇒ 归一化回落到 seq）
+      this.conflictRenameStyle = normalizeConflictRenameStyle(cfg.conflictRenameStyle)
       if (typeof cfg.defaultUploadPath === 'string') this.defaultUploadPath = cfg.defaultUploadPath
       if (typeof cfg.defaultDownloadPath === 'string') this.defaultDownloadPath = cfg.defaultDownloadPath
       if (typeof cfg.iconResourceDir === 'string') this.iconResourceDir = cfg.iconResourceDir
@@ -2847,8 +3292,16 @@ export class SftpSettingsTabComponent implements OnDestroy {
       }
       if (Array.isArray(cfg.disabledIconSvgs)) this.disabledIconSvgs = cfg.disabledIconSvgs.filter((s: any) => typeof s === 'string')
       if (typeof cfg.folderIconSvg === 'string') this.folderIconSvg = cfg.folderIconSvg || 'folder.svg'
-      // 自动清理指向不存在 svg 的旧规则（仅当图标目录可读时执行，避免误删自定义目录临时不可用的合法规则）
-      this._autoCleanInvalidRules()
+      // ★ 2026-10-09 审计根治：原在此处直接调 _autoCleanInvalidRules()，而后者内部
+      //   在发现失效规则时会调 _saveToConfig() —— 把**全部 40+ 字段**从组件当前内存值
+      //   写进 store。但此刻本方法才执行到一半：paneCustomOrder / contextMenuOrder /
+      //   contextMenuDisabled / panelHotkeys / hideAuthorInfo 等**还没从 cfg 读出**，
+      //   仍是构造期的默认值/硬编码初始值 ⇒ 用户真实配置被默认值覆盖并 save() 落盘。
+      //   触发路径：配了自定义图标规则且其中有失效项 → 打开设置页 ⇒ 工具栏顺序 /
+      //   右键菜单顺序 / 快捷键被静默重置。
+      //   根治：**延后**到本方法全部字段读完之后再执行（见下方 _pendingIconRuleCleanup），
+      //   此时内存值已与 config 一致，_saveToConfig() 写回的是真实值。
+      this._pendingIconRuleCleanup = true
       if (cfg.hideAuthorInfo !== undefined) this.hideAuthorInfo = cfg.hideAuthorInfo === true
       if (Array.isArray(cfg.paneCustomOrder) && cfg.paneCustomOrder.length) this.paneCustomOrder = cfg.paneCustomOrder as any
       // 一次性迁移：旧默认顺序（hidden 追加在末尾）→ 新默认顺序（hidden 在 filter 前）；用户自定义过的顺序不动
@@ -2879,18 +3332,26 @@ export class SftpSettingsTabComponent implements OnDestroy {
       }
       this.allowViewEditAllFiles = resolveAllowViewEditAllFiles(cfg as Record<string, unknown>)
       if (cfg.showTextLineNumbers !== undefined) this.showTextLineNumbers = cfg.showTextLineNumbers !== false
+      if (cfg.showTextWordWrap !== undefined) this.showTextWordWrap = cfg.showTextWordWrap === true
+      if (cfg.editorAutoUploadExternal !== undefined) this.editorAutoUploadExternal = cfg.editorAutoUploadExternal === true
       if (cfg.textCaretShape !== undefined) this.textCaretShape = normalizeCaretShape(cfg.textCaretShape)
       if (Array.isArray(cfg.contextMenuOrder) && cfg.contextMenuOrder.length) {
         const valid = (cfg.contextMenuOrder as string[]).filter(a => (a in FILE_MENU_REGISTRY)) as ContextMenuAction[]
-        // 补齐可能缺失的已知项（保证顺序数组始终含全部文件动作，缺失项追加末尾）
-        for (const a of DEFAULT_FILE_MENU_ORDER) if (!valid.includes(a)) valid.push(a)
-        this.contextMenuOrder = [...valid, 'groupBy'] as ContextMenuCustomId[]
+        // 补齐可能缺失的已知项（★ 2026-10-20：改由 fillMenuOrder 按默认顺序相对位置插入，
+        // 不再一律追加末尾 —— 否则老配置升级后新增的「传输」会沉到列表最下面）
+        this.contextMenuOrder = [...fillMenuOrder(valid), 'groupBy'] as ContextMenuCustomId[]
       }
       if (Array.isArray(cfg.contextMenuDisabled)) {
         // groupToggleAll 已并入分组依据子菜单，不再是独立定制项——历史配置里的该值直接丢弃
         this.contextMenuDisabled = (cfg.contextMenuDisabled as string[])
           .filter(a => (a in FILE_MENU_REGISTRY) || a === 'groupBy') as ContextMenuCustomId[]
       }
+      // ★ 2026-10-19（Deepseek-V4.1-Flash）：顶栏按钮定制。normalize 会剔除未知 id 并补齐新增项，
+      //   缺失字段（老配置）自动落到默认值 ⇒ 不配置时行为与历史一致。
+      this.topBarOrder = normalizeTopBarOrder((cfg as any)[TOP_BAR_CFG_FIELDS.order])
+      this.topBarPinned = normalizeTopBarPinned((cfg as any)[TOP_BAR_CFG_FIELDS.pinned])
+      this.topBarDisabled = normalizeTopBarDisabled((cfg as any)[TOP_BAR_CFG_FIELDS.disabled])
+      this.topBarOverflowEnabled = (cfg as any)[TOP_BAR_CFG_FIELDS.overflow] === true
       // ★ 2026-08-31：面板内置操作快捷键（多绑定）。与默认值合并保证动作齐全。
       // ★ 2026-08-24 修复：空串/NUL/空数组会被 Tabby config 清洗删除（{} → defaults 回退 F2/F5）。
       //    双保险：无绑定时写 enabled=false（布尔一定保留），读取时据此判为未绑定。
@@ -2916,6 +3377,17 @@ export class SftpSettingsTabComponent implements OnDestroy {
         this.panelHotkeys = def
       }
     } catch { /* ignore */ }
+
+    // ★ 2026-10-09 审计根治：此处才是执行「自动清理失效图标规则」的**正确时机** ——
+    //   上面所有字段（含 paneCustomOrder / contextMenuOrder / contextMenuDisabled /
+    //   panelHotkeys / hideAuthorInfo）都已从 config 读入，内存值与 config 一致，
+    //   此时 _autoCleanInvalidRules() 内部的 _saveToConfig() 写回的是**真实值**，
+    //   不会用默认值覆盖用户配置。（原先它在方法中段就调用，是配置被静默重置的根因。）
+    //   用 try/catch 兜住：清理失败不应让整个设置页加载失败。
+    if (this._pendingIconRuleCleanup) {
+      this._pendingIconRuleCleanup = false
+      try { this._autoCleanInvalidRules() } catch (e) { log.warn('auto clean invalid icon rules failed:', e) }
+    }
   }
 
   /**
@@ -2940,15 +3412,23 @@ export class SftpSettingsTabComponent implements OnDestroy {
       target.colorBg = this.themeBg
       target.colorText = this.themeText
       target.colorBorder = this.themeBorder
+      target.panelOpacity = this.panelOpacity
       target.tableColBorders = this.showColBorders
       target.tableZebra = this.showZebra
       target.hideNativeSFTPButton = this.hideNativeBtn
       target.defaultPathMode = this.defaultPathMode
+      target.applySettingsInstantly = this.applySettingsInstantly
       target.defaultShowHidden = this.defaultShowHidden
       target.openInNewTabByDefault = this.openInNewTabByDefault
+      target.connPickerTrigger = this.connPickerTrigger
+      // ★ 2026-10-20 续三十一（Deepseek-V4.1-Flash）：顶栏连接显示（别名 / 账号@地址）
+      target.connLabelStyle = this.connLabelStyle
       target.singleWorkspaceInstance = this.singleWorkspaceInstance
       target.closeBookmarkPanelOnSelect = this.closeBookmarkPanelOnSelect
+      target.typeAheadEnabled = this.typeAheadEnabled
       target.bookmarkPanelGroupByScope = this.bookmarkPanelGroupByScope
+      target.bookmarkLinkEnabled = this.bookmarkLinkEnabled
+      target.bookmarkSortMode = this.bookmarkSortMode
       target.bookmarkPanelGroupOrder = this.bookmarkPanelGroupOrder
       target.dateFormat = this.dateFormat
       target.transferUploadConcurrency = this.uploadConcurrency
@@ -2958,6 +3438,8 @@ export class SftpSettingsTabComponent implements OnDestroy {
       target.conflictDigestEnabled = this.conflictDigestEnabled
       target.conflictAutoSkipSameContent = this.conflictAutoSkipSameContent
       target.conflictDigestMaxSizeMB = this.conflictDigestMaxSizeMB
+      // ★ 2026-10-23：冲突重命名风格（标量叶子，可直接赋值）
+      target.conflictRenameStyle = this.conflictRenameStyle
       target.defaultUploadPath = this.defaultUploadPath
       target.defaultDownloadPath = this.defaultDownloadPath
       target.iconResourceDir = this.iconResourceDir
@@ -2972,12 +3454,24 @@ export class SftpSettingsTabComponent implements OnDestroy {
       target.editableFileExtensions = normalizeEditableExtensions(this.editableFileExtensionsText)
       target.allowViewEditAllFiles = this.allowViewEditAllFiles
       target.showTextLineNumbers = this.showTextLineNumbers
+      target.showTextWordWrap = this.showTextWordWrap
+      target.editorAutoUploadExternal = this.editorAutoUploadExternal
       target.textCaretShape = this.textCaretShape
-      // 兼容旧字段：同步写入，避免回退旧版插件时丢失开关状态
+      // 兼容旧字段：同步写入，避免回退旧版插件时丢失开关状态。
+      // ★ 2026-10-09：这两个键原先在 defaultSftpPlusConfig() 里**缺席**，而宿主 ConfigProxy
+      //   只为 defaults 里出现过的键建立 accessor ⇒ 这两行是原生属性赋值，值落在 Proxy 实例上
+      //   而不在 _store ⇒ save() 时被 JSON.stringify 丢掉 ⇒ 意图完全无效。
+      //   已在 config-provider.ts 把它们补进 defaults（含各自独立 try/catch 语义），
+      //   此处写入现在才真正落盘。
       target.allowEditAllFiles = this.allowViewEditAllFiles
       target.allowViewAllAsText = this.allowViewEditAllFiles
       target.contextMenuOrder = this.contextMenuOrder
       target.contextMenuDisabled = this.contextMenuDisabled
+      // ★ 2026-10-19（Deepseek-V4.1-Flash）：顶栏按钮定制（面板从同一份配置读取）
+      ;(target as any)[TOP_BAR_CFG_FIELDS.order] = [...this.topBarOrder]
+      ;(target as any)[TOP_BAR_CFG_FIELDS.pinned] = [...this.topBarPinned]
+      ;(target as any)[TOP_BAR_CFG_FIELDS.disabled] = [...this.topBarDisabled]
+      ;(target as any)[TOP_BAR_CFG_FIELDS.overflow] = this.topBarOverflowEnabled
       // ★ 2026-08-24 修复：panelHotkeys 是 ConfigProxy 的「结构成员」（对象），只有 getter 没有 setter。
       //    直接 `target.panelHotkeys = x` 不生效（严格模式抛 TypeError 被 catch 吞掉 / 非严格静默忽略），
       //    导致绑定从未落盘 → config.yaml 写成 {} → 重启后 defaults 回退 F2/F5。
@@ -3130,9 +3624,26 @@ export class SftpSettingsTabComponent implements OnDestroy {
     this.notifyPanels()
   }
 
-  /** 保存默认路径模式 */
+  /**
+   * 保存默认路径模式
+   * ★ 2026-10-22 续三十八（Deepseek-V4.1-Flash）：这里**只**广播通用设置变更，不再派发专用事件。
+   *   语义按用户拍板：面板上单独切换过的路径模式随该标签页连接保存（per-host 覆盖优先），
+   *   「默认路径模式」只管**没有覆盖的新连接**；改默认值不应把老连接的局部设定抹掉。
+   */
   saveDefaultPathMode(): void {
-    if (this.defaultPathMode !== 'off' && this.defaultPathMode !== 'remember' && this.defaultPathMode !== 'sync') this.defaultPathMode = 'off'
+    if (this.defaultPathMode !== 'off' && this.defaultPathMode !== 'remember'
+      && this.defaultPathMode !== 'sync' && this.defaultPathMode !== 'mirror') this.defaultPathMode = 'off'
+    this._saveToConfig()
+    this.notifyPanels()
+  }
+
+  /**
+   * ★ 2026-10-22 续三十六（Deepseek-V4.1-Flash）：切换「配置保存后立即生效」。
+   *   关掉后本页仍会广播设置变更，但面板侧会忽略广播 ⇒ 需关闭并重开 SFTP+ 面板才看到效果。
+   *   从关改回开时会广播一次，正好让所有面板把期间改过的配置一次性追平（无需重开）。
+   */
+  toggleApplySettingsInstantly(): void {
+    this.applySettingsInstantly = !this.applySettingsInstantly
     this._saveToConfig()
     this.notifyPanels()
   }
@@ -3166,6 +3677,20 @@ export class SftpSettingsTabComponent implements OnDestroy {
 
   toggleShowTextLineNumbers(): void {
     this.showTextLineNumbers = !this.showTextLineNumbers
+    this._saveToConfig()
+    this.notifyPanels()
+  }
+
+  /** ★ 2026-10-08：查看器/编辑器长行自动换行 */
+  toggleShowTextWordWrap(): void {
+    this.showTextWordWrap = !this.showTextWordWrap
+    this._saveToConfig()
+    this.notifyPanels()
+  }
+
+  /** ★ 2026-10-22（Deepseek-V4.1-Flash）：外部编辑自动上传开关（方案 A） */
+  toggleEditorAutoUploadExternal(): void {
+    this.editorAutoUploadExternal = !this.editorAutoUploadExternal
     this._saveToConfig()
     this.notifyPanels()
   }
@@ -3640,9 +4165,16 @@ export class SftpSettingsTabComponent implements OnDestroy {
   private _autoCleanInvalidRules(): void {
     const dir = this.effectiveIconBaseDir
     if (!dir) return
-    let readable = false
-    try { readable = Array.isArray(fs.readdirSync(dir)) && fs.readdirSync(dir).some((f: string) => f.toLowerCase().endsWith('.svg')) } catch { return }
-    if (!readable) return
+    // ★ 2026-10-09：原先写成 `Array.isArray(fs.readdirSync(dir)) && fs.readdirSync(dir).some(...)`
+    //   —— **同步读了两遍目录**（图标目录动辄数百个文件），而这函数在每次打开设置页时都会跑。
+    //   改为读一次存局部变量复用；语义完全等价（readdirSync 抛错仍由 catch 兜住 return）。
+    let files: string[]
+    try {
+      const listing = fs.readdirSync(dir)
+      if (!Array.isArray(listing)) return
+      files = listing
+    } catch { return }
+    if (!files.some((f: string) => f.toLowerCase().endsWith('.svg'))) return
     const before = this.fileTypeIcons.length
     this.fileTypeIcons = this.fileTypeIcons.filter(r => r && r.svg && r.ext && this.svgExists(r.svg))
     if (this.fileTypeIcons.length !== before) this._saveToConfig()
@@ -3717,10 +4249,58 @@ export class SftpSettingsTabComponent implements OnDestroy {
     this.notifyPanels()
   }
 
+  /** ★ 2026-10-16：切换「键入定位」（文件列表里敲字母/数字按文件名前缀跳转选中） */
+  toggleTypeAheadEnabled(): void {
+    this.typeAheadEnabled = !this.typeAheadEnabled
+    this._saveToConfig()
+    this.notifyPanels()
+  }
+
   toggleBookmarkPanelGroupByScope(): void {
     this.bookmarkPanelGroupByScope = !this.bookmarkPanelGroupByScope
     this._saveToConfig()
     this.notifyPanels()
+  }
+
+  /** ★ 2026-10-19（Deepseek-V4.1-Flash）：「联动书签」开关（设置页「定制书签面板」） */
+  toggleBookmarkLinkEnabled(): void {
+    this.bookmarkLinkEnabled = !this.bookmarkLinkEnabled
+    this._saveToConfig()
+    this.notifyPanels()
+  }
+
+  /**
+   * ★ 2026-10-19（Deepseek-V4.1-Flash）：设置「书签排序」两档（manual=拖拽顺序 / usage=使用频率降序）。
+   * ★ 2026-10-22（Deepseek-V4.1-Flash）：扩成三档，新增 name（名称升序，数字按自然序）。
+   *   与弹层 footer 的图标按钮写同一个配置项 bookmarkSortMode。
+   */
+  setBookmarkSort(mode: BookmarkSortMode): void {
+    if (this.bookmarkSortMode === mode) return
+    this.bookmarkSortMode = mode
+    this._saveToConfig()
+    this.notifyPanels()
+  }
+
+  /**
+   * ★ 2026-10-19（Deepseek-V4.1-Flash）：重置书签使用次数统计（仅「频率排序」下显示入口）。
+   *   设置页没有注入书签服务，这里临时 new 一个同源实例——构造函数会先从同一份存储加载，
+   *   清零后 save() 写回，再 notifyPanels() 广播让已打开的面板 bookmarks.reload()。
+   */
+  resetBookmarkUsage(): void {
+    try {
+      const svc = new SftpBookmarksService(this.configService as any)
+      const n = svc.resetUsage()
+      this.bookmarkResetMsg = n > 0 ? this.i18n.t('settings.bookmarkResetUsageDone', { count: n }) : ''
+      this.notifyPanels()
+    } catch (e) {
+      log.warn('[SFTP+] reset bookmark usage failed:', e)
+      return
+    }
+    if (this._bookmarkResetMsgTimer) clearTimeout(this._bookmarkResetMsgTimer)
+    this._bookmarkResetMsgTimer = setTimeout(() => {
+      this._bookmarkResetMsgTimer = null
+      this.bookmarkResetMsg = ''
+    }, 2600)
   }
 
   bookmarkGroupLabel(g: 'connection' | 'global'): string {
@@ -3797,6 +4377,17 @@ export class SftpSettingsTabComponent implements OnDestroy {
     if (!['smart', 'sftpOnly', 'tarOnly', 'preferSftp', 'preferTar'].includes(this.transferChannelMode)) {
       this.transferChannelMode = 'smart'
     }
+    this._saveToConfig()
+    this.notifyPanels()
+  }
+
+  /**
+   * ★ 2026-10-23：保存「冲突重命名风格」（设置页「传输」分区下拉）。
+   *   归一化后再写：旧备份 / 手工改坏的 config.yaml 里可能有未知值，写进配置会让面板侧
+   *   `normalizeConflictRenameStyle` 之外的地方（例如未来新增的读取方）拿到脏值。
+   */
+  saveConflictRenameStyle(): void {
+    this.conflictRenameStyle = normalizeConflictRenameStyle(this.conflictRenameStyle)
     this._saveToConfig()
     this.notifyPanels()
   }
@@ -3939,13 +4530,38 @@ export class SftpSettingsTabComponent implements OnDestroy {
     return Math.max(11, Math.min(18, n))
   }
 
+  /**
+   * ★ 2026-10-19 P2-33（audit）：字号滑块落盘节流定时器（尾随写）。
+   *   滑块绑的是 (input)，拖动一次会连发几十个事件；每个事件一次 _saveToConfig()
+   *   = 45+ 字段整段重写 config.yaml（Electron 同步写文件），拖到底就是几十次全量落盘。
+   *   现改为 300ms 尾随：内存值立即更新（UI 零延迟），停手后才落盘并通知面板一次。
+   */
+  private _fontSizeSaveTimer: ReturnType<typeof setTimeout> | null = null
+
   onFontSizeChange(val: number): void {
     this.fontSize = this._clampFontSize(val)
+    if (this._fontSizeSaveTimer) clearTimeout(this._fontSizeSaveTimer)
+    this._fontSizeSaveTimer = setTimeout(() => {
+      this._fontSizeSaveTimer = null
+      void this._saveToConfig().then(() => this.notifyPanels())
+    }, 300)
+  }
+
+  /** 冲刷挂起的字号落盘（重置字号、组件销毁前调用，保证最后一次改动一定写盘） */
+  private _flushFontSizeSave(): void {
+    if (!this._fontSizeSaveTimer) return
+    clearTimeout(this._fontSizeSaveTimer)
+    this._fontSizeSaveTimer = null
     void this._saveToConfig().then(() => this.notifyPanels())
   }
 
   resetFontSize(): void {
     this.fontSize = 13
+    // 先冲刷再即时落盘：否则拖完立刻点重置，节流里挂着的旧值会在 300ms 后把 13 覆盖回去
+    if (this._fontSizeSaveTimer) {
+      clearTimeout(this._fontSizeSaveTimer)
+      this._fontSizeSaveTimer = null
+    }
     void this._saveToConfig().then(() => this.notifyPanels())
   }
 
@@ -4082,6 +4698,152 @@ export class SftpSettingsTabComponent implements OnDestroy {
     void this.saveInteraction()
   }
 
+  // ========== 顶栏按钮定制（2026-10-19，Deepseek-V4.1-Flash） ==========
+
+  /** 顶栏按钮展示名（登记表给出 labelKey，避免与本文件其它文案漂移） */
+  topBarItemLabel(a: TopBarItemId): string {
+    const def = TOP_BAR_ITEMS.find(i => i.id === a)
+    return def ? this.i18n.t(def.labelKey) : a
+  }
+
+  /** 该项是否固定在顶栏（否则收进 ⋯ 菜单） */
+  isTopBarPinned(a: TopBarItemId): boolean {
+    return this.topBarPinned.includes(a)
+  }
+
+  /**
+   * ★ 2026-10-23（Deepseek-V4.1-Flash）：关闭按钮（✕）是否「锁住」—— 未给面板配开关快捷键时
+   *   不允许停用 / 收进 ⋯。理由：✕ 是面板唯一稳定出口（Esc 只有焦点在面板内才生效），
+   *   面板侧 `topBarInlineItems` 对同一条件做兜底（即使配置里被停用也强制显示）。
+   *   ⛔ 两边判据必须一致（都读 hotkeys[SFTP_PLUS_TOGGLE_HOTKEY]），否则会出现「设置页能勾掉、面板还显示」。
+   */
+  isTopBarCloseLocked(a: TopBarItemId): boolean {
+    return a === 'close' && !this.panelToggleHotkeyBound
+  }
+
+  /** 是否给「SFTP+ 面板」绑了开关快捷键（Tabby 设置 → 快捷键） */
+  get panelToggleHotkeyBound(): boolean {
+    try {
+      const hk = (this.configService?.store as any)?.hotkeys?.[SFTP_PLUS_TOGGLE_HOTKEY]
+      if (Array.isArray(hk)) return hk.length > 0
+      return typeof hk === 'string' ? hk.trim().length > 0 : false
+    } catch { return false }
+  }
+
+  /** 该项是否启用（未勾选 → 顶栏与 ⋯ 菜单都不显示） */
+  isTopBarEnabled(a: TopBarItemId): boolean {
+    return !this.topBarDisabled.includes(a)
+  }
+
+  toggleTopBarEnabled(a: TopBarItemId): void {
+    this.topBarDisabled = this.isTopBarEnabled(a)
+      ? [...this.topBarDisabled, a]
+      : this.topBarDisabled.filter(x => x !== a)
+    void this.saveInteraction()
+  }
+
+  toggleTopBarPinned(a: TopBarItemId): void {
+    this.topBarPinned = this.isTopBarPinned(a)
+      ? this.topBarPinned.filter(x => x !== a)
+      : [...this.topBarPinned, a]
+    void this.saveInteraction()
+  }
+
+  toggleTopBarOverflow(): void {
+    this.topBarOverflowEnabled = !this.topBarOverflowEnabled
+    void this.saveInteraction()
+  }
+
+  /** ★ 2026-10-19（Deepseek-V4.1-Flash）：连接切换器唤起方式（三选一，立即落盘并广播） */
+  setConnPickerTrigger(v: 'topbar' | 'paneToolbar' | 'both'): void {
+    if (this.connPickerTrigger === v) return
+    this.connPickerTrigger = v
+    void this.saveInteraction()
+  }
+
+  /**
+   * ★ 2026-10-20 续三十一（Deepseek-V4.1-Flash，用户诉求）：顶栏连接显示内容（两选一，立即落盘并广播）。
+   *   面板在 `_settingsChangedHandler` 里重读配置，所以这里保存后顶栏立刻换文案，无需重开面板。
+   */
+  setConnLabelStyle(v: 'account' | 'alias'): void {
+    if (this.connLabelStyle === v) return
+    this.connLabelStyle = v
+    void this.saveInteraction()
+  }
+
+  /** 面板透明度滑块的显示值（0.5–1 → 50–100） */
+  get panelOpacityPercent(): number {
+    return Math.round(this.panelOpacity * 100)
+  }
+
+  /**
+   * ★ 2026-10-19（Deepseek-V4.1-Flash）：滑块拖动 → 钳制到 0.5–1 并**合并落盘**。
+   *   与字号滑块同一套路：内存值立即更新（UI 零延迟），300ms 尾随才写 config 并广播，
+   *   避免拖到底时几十次全量 config.yaml 写入 + 面板重算。
+   */
+  private _panelOpacityTimer: ReturnType<typeof setTimeout> | null = null
+
+  onPanelOpacityChange(v: number | string): void {
+    const n = Number(v)
+    this.panelOpacity = Math.min(1, Math.max(0.5, Number.isFinite(n) ? n / 100 : 1))
+    if (this._panelOpacityTimer) clearTimeout(this._panelOpacityTimer)
+    this._panelOpacityTimer = setTimeout(() => {
+      this._panelOpacityTimer = null
+      void this._saveToConfig().then(() => this.notifyPanels())
+    }, 300)
+  }
+
+  /** 冲刷挂起的透明度落盘（组件销毁前调用，保证最后一次改动不丢） */
+  private _flushPanelOpacitySave(): void {
+    if (!this._panelOpacityTimer) return
+    clearTimeout(this._panelOpacityTimer)
+    this._panelOpacityTimer = null
+    void this._saveToConfig().then(() => this.notifyPanels())
+  }
+
+  onTopBarDragStart(a: TopBarItemId, event: DragEvent): void {
+    this.draggingTopBarItem = a
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'move'
+      event.dataTransfer.setData('text/plain', a)
+    }
+  }
+
+  onTopBarDragOver(_target: TopBarItemId, event: DragEvent): void {
+    event.preventDefault()
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'
+  }
+
+  onTopBarDrop(target: TopBarItemId, event: DragEvent): void {
+    event.preventDefault()
+    const source = this.draggingTopBarItem || (event.dataTransfer?.getData('text/plain') as TopBarItemId)
+    if (!source || source === target) return
+    const next = this.topBarOrder.filter(i => i !== source)
+    const targetIndex = next.indexOf(target)
+    if (targetIndex < 0) return
+    let insertIndex = targetIndex
+    const targetEl = event.currentTarget as HTMLElement | null
+    if (targetEl) {
+      const rect = targetEl.getBoundingClientRect()
+      if (event.clientX > (rect.left + rect.width / 2)) insertIndex = targetIndex + 1
+    }
+    next.splice(insertIndex, 0, source)
+    this.topBarOrder = next
+    void this.saveInteraction()
+  }
+
+  onTopBarDragEnd(): void {
+    this.draggingTopBarItem = null
+  }
+
+  resetTopBar(): void {
+    this.topBarOrder = [...DEFAULT_TOP_BAR_ORDER]
+    this.topBarPinned = [...DEFAULT_TOP_BAR_PINNED]
+    this.topBarDisabled = [...DEFAULT_TOP_BAR_DISABLED]
+    this.topBarOverflowEnabled = false
+    void this.saveInteraction()
+  }
+
   /** 通知所有面板重新读取设置 */
   private notifyPanels(): void {
     // 通过 DOM 事件通知（面板在 ngOnInit 中监听）
@@ -4121,15 +4883,28 @@ export class SftpSettingsTabComponent implements OnDestroy {
           data.colorBg = cfg.colorBg ?? ''
           data.colorText = cfg.colorText ?? ''
           data.colorBorder = cfg.colorBorder ?? ''
-          data.tableColBorders = cfg.tableColBorders ?? true
-          data.tableZebra = cfg.tableZebra ?? true
+          // ★ 2026-10-19（Deepseek-V4.1-Flash）：面板透明度（导出时同样钳制到 0.5–1）
+          data.panelOpacity = Math.min(1, Math.max(0.5, Number(cfg.panelOpacity) || 1))
+          // ★ 2026-10-09 审计根治：兜底值原先是 `?? true`，而 defaultSftpPlusConfig() 里
+          //   两者默认都是 **false**、读侧 loadTableSetting(..., false) 也按 false 兜底。
+          //   ⇒ 从未改过表格样式的用户导出时 store 里无该键 → 备份里写成 true
+          //   → 导入到另一台机器后边框线与斑马纹**全被打开**（用户从没要求过）。
+          //   统一成与默认值一致的 false。
+          data.tableColBorders = cfg.tableColBorders ?? false
+          data.tableZebra = cfg.tableZebra ?? false
           data.hideNativeSFTPButton = cfg.hideNativeSFTPButton ?? false
           data.defaultPathMode = cfg.defaultPathMode ?? 'off'
+          data.applySettingsInstantly = cfg.applySettingsInstantly !== false
           data.defaultShowHidden = cfg.defaultShowHidden ?? false
           data.openInNewTabByDefault = cfg.openInNewTabByDefault ?? false
+          data.connPickerTrigger = (cfg.connPickerTrigger === 'paneToolbar' || cfg.connPickerTrigger === 'both') ? cfg.connPickerTrigger : (cfg.connPickerTrigger === 'terminalBadge' ? 'paneToolbar' : 'topbar')
           data.singleWorkspaceInstance = cfg.singleWorkspaceInstance ?? true
           data.closeBookmarkPanelOnSelect = cfg.closeBookmarkPanelOnSelect ?? false
+          data.typeAheadEnabled = cfg.typeAheadEnabled !== false
           data.bookmarkPanelGroupByScope = cfg.bookmarkPanelGroupByScope !== false
+          // ★ 2026-10-19（Deepseek-V4.1-Flash）：联动书签开关
+          data.bookmarkLinkEnabled = cfg.bookmarkLinkEnabled !== false
+          data.bookmarkSortMode = normalizeBookmarkSortMode(cfg.bookmarkSortMode, cfg.bookmarkSortByUsage)
           data.bookmarkPanelGroupOrder = cfg.bookmarkPanelGroupOrder ?? ['connection', 'global']
           data.dateFormat = cfg.dateFormat ?? ''
           data.transferUploadConcurrency = cfg.transferUploadConcurrency ?? 3
@@ -4139,6 +4914,7 @@ export class SftpSettingsTabComponent implements OnDestroy {
           data.conflictAutoSkipSameContent = cfg.conflictAutoSkipSameContent ?? true
           data.conflictDigestMaxSizeMB = cfg.conflictDigestMaxSizeMB ?? 256
           data.conflictDigestAlgo = cfg.conflictDigestAlgo === 'sha256' ? 'sha256' : 'sha1'
+          data.conflictRenameStyle = normalizeConflictRenameStyle(cfg.conflictRenameStyle)
           data.defaultUploadPath = cfg.defaultUploadPath ?? ''
           data.defaultDownloadPath = cfg.defaultDownloadPath ?? ''
           data.iconResourceDir = cfg.iconResourceDir ?? ''
@@ -4152,8 +4928,21 @@ export class SftpSettingsTabComponent implements OnDestroy {
           data.allowEditAllFiles = data.allowViewEditAllFiles
           data.allowViewAllAsText = data.allowViewEditAllFiles
           data.showTextLineNumbers = cfg.showTextLineNumbers !== false
+          data.showTextWordWrap = cfg.showTextWordWrap === true
+          data.editorAutoUploadExternal = cfg.editorAutoUploadExternal === true
           data.textCaretShape = normalizeCaretShape(cfg.textCaretShape)
           data.contextMenuOrder = cfg.contextMenuOrder ?? [...DEFAULT_FILE_MENU_ORDER, 'groupBy']
+          // ★ 2026-10-09 审计根治：本行原先**缺失**。contextMenuDisabled 在
+          //   EXPORT_CATEGORY_FIELDS.layout 里已登记、localStorage 兜底分支也采集了，
+          //   唯独 config 分支漏掉 → 而下游 filterExportData 用 `if (field in all)` 过滤
+          //   → 正常路径（config 可用，也就是绝大多数情况）下该字段永远不进导出文件。
+          //   ⇒ 用户在设置页停用过的右键菜单项，导出后导入到新机器会全部复活。
+          data.contextMenuDisabled = cfg.contextMenuDisabled ?? []
+          // ★ 2026-10-19（Deepseek-V4.1-Flash）：顶栏按钮定制（顺序 / 固定态 / 折叠开关）
+          data[TOP_BAR_CFG_FIELDS.order] = normalizeTopBarOrder((cfg as any)[TOP_BAR_CFG_FIELDS.order])
+          data[TOP_BAR_CFG_FIELDS.pinned] = normalizeTopBarPinned((cfg as any)[TOP_BAR_CFG_FIELDS.pinned])
+          data[TOP_BAR_CFG_FIELDS.disabled] = normalizeTopBarDisabled((cfg as any)[TOP_BAR_CFG_FIELDS.disabled])
+          data[TOP_BAR_CFG_FIELDS.overflow] = (cfg as any)[TOP_BAR_CFG_FIELDS.overflow] === true
           data.panelHotkeys = cfg.panelHotkeys ?? defaultPanelHotkeys()
           data.hideAuthorInfo = cfg.hideAuthorInfo ?? false
           data.paneCustomOrder = cfg.paneCustomOrder ?? ['label', 'back', 'forward', 'up', 'refresh', 'home', 'path', 'hidden', 'filter', 'bookmark']
@@ -4183,17 +4972,27 @@ export class SftpSettingsTabComponent implements OnDestroy {
     data.colorBg = load('bgColor', '')
     data.colorText = load('textColor', '')
     data.colorBorder = load('borderColor', '')
+    // ★ 2026-10-19（Deepseek-V4.1-Flash）：localStorage 兜底分支也要采集，否则 config 不可用时导出丢字段
+    data.panelOpacity = Math.min(1, Math.max(0.5, Number(load('panelOpacity', 1)) || 1))
     data.tableColBorders = loadTableSetting('colBorders', false)
     data.tableZebra = loadTableSetting('zebra', true)
     data.hideNativeSFTPButton = load('hideNativeBtn', false)
     data.defaultPathMode = load('defaultPathMode', 'off')
+    data.applySettingsInstantly = (load('applySettingsInstantly', true) as boolean) !== false
     data.defaultShowHidden = load('defaultShowHidden', false)
     data.openInNewTabByDefault = load('openInNewTabByDefault', false)
+    data.connPickerTrigger = load('connPickerTrigger', 'topbar')
+    // ★ 2026-10-20 续三十一（Deepseek-V4.1-Flash）：localStorage 兜底分支同样要采集
+    data.connLabelStyle = load('connLabelStyle', 'account')
     data.singleWorkspaceInstance = load('singleWorkspaceInstance', true)
     data.closeBookmarkPanelOnSelect = load('closeBookmarkPanelOnSelect', false)
+    data.typeAheadEnabled = load('typeAheadEnabled', true)
     data.bookmarkPanelGroupByScope = load('bookmarkPanelGroupByScope', true)
+    data.bookmarkLinkEnabled = load('bookmarkLinkEnabled', true)
+    data.bookmarkSortMode = normalizeBookmarkSortMode(load('bookmarkSortMode', 'manual'), load('bookmarkSortByUsage', false))
     data.bookmarkPanelGroupOrder = load('bookmarkPanelGroupOrder', ['connection', 'global'])
     data.dateFormat = load('dateFormat', '')
+    data.conflictRenameStyle = normalizeConflictRenameStyle(load('conflictRenameStyle', 'seq'))
     data.transferUploadConcurrency = 3
     data.transferDownloadConcurrency = 3
     data.hideAuthorInfo = false
@@ -4204,6 +5003,8 @@ export class SftpSettingsTabComponent implements OnDestroy {
     data.allowEditAllFiles = data.allowViewEditAllFiles
     data.allowViewAllAsText = data.allowViewEditAllFiles
     data.showTextLineNumbers = load('showTextLineNumbers', true)
+    data.showTextWordWrap = load('showTextWordWrap', false)
+    data.editorAutoUploadExternal = load('editorAutoUploadExternal', false)
     data.textCaretShape = normalizeCaretShape(load<unknown>('textCaretShape', 'beam'))
     data.conflictDigestEnabled = load('conflictDigestEnabled', true)
     data.conflictAutoSkipSameContent = load('conflictAutoSkipSameContent', true)
@@ -4211,6 +5012,12 @@ export class SftpSettingsTabComponent implements OnDestroy {
     data.conflictDigestAlgo = load<'sha1' | 'sha256'>('conflictDigestAlgo', 'sha1')
     try { data.contextMenuOrder = JSON.parse(localStorage.getItem('sftp-plus-context-menu-order') || '[]') } catch { data.contextMenuOrder = [] }
     try { data.contextMenuDisabled = JSON.parse(localStorage.getItem('sftp-plus-context-menu-disabled') || '[]') } catch { data.contextMenuDisabled = [] }
+    // ★ 2026-10-19（Deepseek-V4.1-Flash）：localStorage 兜底分支也带上顶栏定制（导出字段必须两分支都采集，
+    //   否则 config 不可用时会静默丢字段 —— 与 contextMenuDisabled 曾经漏采集同一类坑）
+    data[TOP_BAR_CFG_FIELDS.order] = [...DEFAULT_TOP_BAR_ORDER]
+    data[TOP_BAR_CFG_FIELDS.pinned] = [...DEFAULT_TOP_BAR_PINNED]
+    data[TOP_BAR_CFG_FIELDS.disabled] = [...DEFAULT_TOP_BAR_DISABLED]
+    data[TOP_BAR_CFG_FIELDS.overflow] = false
     data.panelHotkeys = defaultPanelHotkeys()
     try { data.paneCustomOrder = JSON.parse(localStorage.getItem('sftp-plus-pane-custom-order') || '["label","back","forward","up","refresh","home","path","hidden","filter","bookmark"]') } catch { data.paneCustomOrder = ['label', 'back', 'forward', 'up', 'refresh', 'home', 'path', 'hidden', 'filter', 'bookmark'] }
     try { data.paneHiddenItems = JSON.parse(localStorage.getItem('sftp-plus-pane-hidden-items') || '[]') } catch { data.paneHiddenItems = [] }
@@ -4264,7 +5071,13 @@ export class SftpSettingsTabComponent implements OnDestroy {
     const data = this.filterExportData(all)
     if (!Object.keys(data).length) {
       // 兜底：一类都没勾（按钮已 disabled，这里防键盘/脚本绕过）→ 不生成空备份文件
+      // ★ 2026-10-19 P2-34（audit）：这里还有一条**正常用户路径**会走到 —— 勾了类别但该类
+      //   本机没有数据。最典型：只勾「传输记录」而本机无日志 ⇒ transferLogs 不在 collectAllData
+      //   结果里 ⇒ filterExportData 的 `field in all` 过滤后为空 ⇒ 既不下载也不提示，
+      //   用户只看到弹窗关了，以为导出坏了。现补一条 i18n 提示（沿用本文件导入结果那套
+      //   alert 口径，不新增 UI 组件/依赖）；一类未勾的纯绕过场景同样给这条提示。
       this.showExportDialog = false
+      alert(this.i18n.t('settings.exportNothing'))
       return
     }
     this.showExportDialog = false
@@ -4323,7 +5136,23 @@ export class SftpSettingsTabComponent implements OnDestroy {
         // 写入 config.store（per-property update 写入保护）
         if (this.configService?.store) {
           const target = this.configService.store['tabby-sftp-plus']
-          if (data.lang !== undefined) target.lang = data.lang
+          // ★ 2026-10-19 P2-35（audit）：导入的 lang 必须先过白名单再落库。
+          //   原写法 `target.lang = data.lang` 把任意字符串直接写进 config（外部 JSON 不可信）：
+          //   'zh' / 'EN-us' / '自动' 之类非法码一旦落库，effectiveLang 的
+          //   validLocales.includes 判定就恒为 false ⇒ 静默退回 detectSystemLocale()，
+          //   于是「设置页下拉框显示『跟随 Tabby』、config 里却存着非法值」，与面板
+          //   （各自构造时读 lang，同样回退但判定源可能不同）行为不一致，且用户无从察觉。
+          //   修法：空串（跟随系统）合法；其余只接受 locales 白名单内的**规范码**
+          //   （大小写不敏感归一，如 zh-cn → zh-CN）；非法值直接丢弃、保留本机原 lang。
+          if (data.lang !== undefined) {
+            const rawLang = typeof data.lang === 'string' ? data.lang.trim() : ''
+            if (rawLang === '') {
+              target.lang = ''
+            } else {
+              const hit = this.locales.find(l => l.code.toLowerCase() === rawLang.toLowerCase())
+              if (hit) target.lang = hit.code
+            }
+          }
           if (data.layoutMode !== undefined) target.layoutMode = data.layoutMode
           if (data.fontSize !== undefined) target.fontSize = this._clampFontSize(Number(data.fontSize))
           if (data.theme !== undefined) target.theme = data.theme
@@ -4331,15 +5160,44 @@ export class SftpSettingsTabComponent implements OnDestroy {
           if (data.colorBg !== undefined) target.colorBg = data.colorBg
           if (data.colorText !== undefined) target.colorText = data.colorText
           if (data.colorBorder !== undefined) target.colorBorder = data.colorBorder
+          // ★ 2026-10-19（Deepseek-V4.1-Flash）：透明度（配置 + 内存同步，导入后设置页立即反映）
+          if (data.panelOpacity !== undefined) {
+            this.panelOpacity = Math.min(1, Math.max(0.5, Number(data.panelOpacity) || 1))
+            target.panelOpacity = this.panelOpacity
+          }
           if (data.tableColBorders !== undefined) target.tableColBorders = data.tableColBorders
           if (data.tableZebra !== undefined) target.tableZebra = data.tableZebra
           if (data.hideNativeSFTPButton !== undefined) target.hideNativeSFTPButton = data.hideNativeSFTPButton
           if (data.defaultPathMode !== undefined) target.defaultPathMode = data.defaultPathMode
+          // ★ 2026-10-22 续三十六（Deepseek-V4.1-Flash）：导入后设置页与面板都要立即反映
+          if (data.applySettingsInstantly !== undefined) {
+            this.applySettingsInstantly = data.applySettingsInstantly !== false
+            target.applySettingsInstantly = this.applySettingsInstantly
+          }
           if (data.defaultShowHidden !== undefined) target.defaultShowHidden = data.defaultShowHidden
           if (data.openInNewTabByDefault !== undefined) target.openInNewTabByDefault = data.openInNewTabByDefault
+          if (data.connPickerTrigger !== undefined) {
+            this.connPickerTrigger = (data.connPickerTrigger === 'paneToolbar' || data.connPickerTrigger === 'both') ? data.connPickerTrigger : (data.connPickerTrigger === 'terminalBadge' ? 'paneToolbar' : 'topbar')
+            target.connPickerTrigger = this.connPickerTrigger
+          }
+          // ★ 2026-10-20 续三十一（Deepseek-V4.1-Flash）：顶栏连接显示（导入后设置页与面板都要立即反映）
+          if (data.connLabelStyle !== undefined) {
+            this.connLabelStyle = data.connLabelStyle === 'alias' ? 'alias' : 'account'
+            target.connLabelStyle = this.connLabelStyle
+          }
           if (data.singleWorkspaceInstance !== undefined) target.singleWorkspaceInstance = data.singleWorkspaceInstance
           if (data.closeBookmarkPanelOnSelect !== undefined) target.closeBookmarkPanelOnSelect = data.closeBookmarkPanelOnSelect
+          if (data.typeAheadEnabled !== undefined) target.typeAheadEnabled = data.typeAheadEnabled !== false
           if (data.bookmarkPanelGroupByScope !== undefined) target.bookmarkPanelGroupByScope = data.bookmarkPanelGroupByScope !== false
+          if (data.bookmarkLinkEnabled !== undefined) {
+            this.bookmarkLinkEnabled = data.bookmarkLinkEnabled !== false
+            target.bookmarkLinkEnabled = this.bookmarkLinkEnabled
+          }
+          // ★ 2026-10-22（Deepseek-V4.1-Flash）：排序三档（兼容老备份里的 bookmarkSortByUsage 布尔）
+          if (data.bookmarkSortMode !== undefined || data.bookmarkSortByUsage !== undefined) {
+            this.bookmarkSortMode = normalizeBookmarkSortMode(data.bookmarkSortMode, data.bookmarkSortByUsage)
+            target.bookmarkSortMode = this.bookmarkSortMode
+          }
           if (Array.isArray(data.bookmarkPanelGroupOrder) && data.bookmarkPanelGroupOrder.length) {
             const valid = (data.bookmarkPanelGroupOrder as string[]).filter(
               (x): x is 'connection' | 'global' => x === 'connection' || x === 'global',
@@ -4354,6 +5212,10 @@ export class SftpSettingsTabComponent implements OnDestroy {
           if ((data as any).transferChannelMode !== undefined) target.transferChannelMode = (data as any).transferChannelMode
           if (data.conflictDigestEnabled !== undefined) target.conflictDigestEnabled = data.conflictDigestEnabled !== false
           if (data.conflictAutoSkipSameContent !== undefined) target.conflictAutoSkipSameContent = data.conflictAutoSkipSameContent !== false
+          if (data.conflictRenameStyle !== undefined) {
+            // ★ 2026-10-23：导入的备份来自外部 JSON，未知值一律回落 seq（不直接信任）
+            target.conflictRenameStyle = normalizeConflictRenameStyle(data.conflictRenameStyle)
+          }
           if (data.conflictDigestMaxSizeMB !== undefined) {
             // ★ 2026-09-21 P2：导入的配置同样要 clamp 上界（外部 JSON 不可信）
             target.conflictDigestMaxSizeMB = this._clampDigestMaxMB(data.conflictDigestMaxSizeMB)
@@ -4369,16 +5231,41 @@ export class SftpSettingsTabComponent implements OnDestroy {
           if (data.openOnClick !== undefined) target.openOnClick = data.openOnClick
           if (data.openUnsupportedInSystem !== undefined) target.openUnsupportedInSystem = data.openUnsupportedInSystem
           if (data.editableFileExtensions !== undefined) target.editableFileExtensions = normalizeEditableExtensions(data.editableFileExtensions)
-          if (data.allowViewEditAllFiles !== undefined || data.allowEditAllFiles !== undefined || data.allowViewAllAsText !== undefined) {
-            const on = data.allowViewEditAllFiles === true || data.allowEditAllFiles === true || data.allowViewAllAsText === true
+          if (data.allowViewEditAllFiles !== undefined || data.allowEditAllFiles !== undefined || data.allowViewAllAsText !== undefined || (data as Record<string, unknown>)['allowViewAllFiles'] !== undefined) {
+            // ★ 2026-10-09 审计根治：原先在导入侧**手写** `a === true || b === true || c === true`，
+            //   与导出侧/读侧共用的 resolveAllowViewEditAllFiles() 不一致，且**漏了第四个旧键
+            //   allowViewAllFiles** ⇒ 从旧备份导入该键时开关被强制写成 false（丢配置），
+            //   而同一份数据走导出路径却能正确带出 ⇒ 导出/导入不对称。
+            //   根治：两侧复用同一个 resolve 函数，语义单一来源。
+            const on = resolveAllowViewEditAllFiles(data as Record<string, unknown>)
             target.allowViewEditAllFiles = on
             target.allowEditAllFiles = on
             target.allowViewAllAsText = on
           }
           if (data.showTextLineNumbers !== undefined) target.showTextLineNumbers = data.showTextLineNumbers !== false
+          if (data.showTextWordWrap !== undefined) target.showTextWordWrap = data.showTextWordWrap === true
+          if (data.editorAutoUploadExternal !== undefined) target.editorAutoUploadExternal = data.editorAutoUploadExternal === true
           if (data.textCaretShape !== undefined) target.textCaretShape = normalizeCaretShape(data.textCaretShape)
           if (data.contextMenuOrder !== undefined) target.contextMenuOrder = data.contextMenuOrder
           if (data.contextMenuDisabled !== undefined) target.contextMenuDisabled = data.contextMenuDisabled
+          // ★ 2026-10-19（Deepseek-V4.1-Flash）：顶栏按钮定制——配置与内存同步写，
+          //   否则导入后设置页仍显示旧布局（直到重开设置页）
+          if (data[TOP_BAR_CFG_FIELDS.order] !== undefined) {
+            this.topBarOrder = normalizeTopBarOrder(data[TOP_BAR_CFG_FIELDS.order])
+            ;(target as any)[TOP_BAR_CFG_FIELDS.order] = [...this.topBarOrder]
+          }
+          if (data[TOP_BAR_CFG_FIELDS.pinned] !== undefined) {
+            this.topBarPinned = normalizeTopBarPinned(data[TOP_BAR_CFG_FIELDS.pinned])
+            ;(target as any)[TOP_BAR_CFG_FIELDS.pinned] = [...this.topBarPinned]
+          }
+          if (data[TOP_BAR_CFG_FIELDS.disabled] !== undefined) {
+            this.topBarDisabled = normalizeTopBarDisabled(data[TOP_BAR_CFG_FIELDS.disabled])
+            ;(target as any)[TOP_BAR_CFG_FIELDS.disabled] = [...this.topBarDisabled]
+          }
+          if (data[TOP_BAR_CFG_FIELDS.overflow] !== undefined) {
+            this.topBarOverflowEnabled = data[TOP_BAR_CFG_FIELDS.overflow] === true
+            ;(target as any)[TOP_BAR_CFG_FIELDS.overflow] = this.topBarOverflowEnabled
+          }
           // ★ 2026-08-24 修复：与 _saveToConfig 同理，panelHotkeys 为结构成员须逐叶子赋值
           if (data.panelHotkeys !== undefined) {
             const ph = (target as any).panelHotkeys
@@ -4425,13 +5312,34 @@ export class SftpSettingsTabComponent implements OnDestroy {
             const paneState = target.paneState && typeof target.paneState === 'object'
               ? target.paneState
               : (target.paneState = {})
-            for (const section of ['layout', 'local', 'remote'] as const) {
+            // ★ 2026-10-19 P2-32（audit）：补 endpoints 分节。导出侧是整份 paneState 克隆
+            //   （下面 rightLocalPath 同因），而导入侧原先只认 layout/local/remote ⇒
+            //   右侧端点类型 paneState/endpoints/right（面板 _persistRightEndpoint 写入）
+            //   导出带了、导入静默丢弃，新机器恢复后右栏端点回到默认。
+            for (const section of ['layout', 'local', 'remote', 'endpoints'] as const) {
               const clean = this._cloneBackupValue(incoming[section])
               if (clean && typeof clean === 'object' && !Array.isArray(clean)) {
                 paneState[section] = { ...(paneState[section] ?? {}), ...(clean as Record<string, unknown>) }
               }
             }
+            // ★ 2026-10-19 P2-32（audit）：rightLocalPath 是**标量**（右栏本地端点当前路径，
+            //   字符串），不属于上面任一分节对象 ⇒ 走上面的循环会被 typeof 检查挡掉、同样被丢弃
+            //   （面板 _restoreRightEndpoint 靠它恢复右栏本地目录）。按面板读取口径校验后写回：
+            //   非空字符串且不含控制字符（具体能否打开由面板导航自行兜底，与 perHost 路径同口径）。
+            const rlPath = incoming['rightLocalPath']
+            if (typeof rlPath === 'string' && rlPath.trim() && !/[\0-\x1f]/.test(rlPath)) {
+              paneState['rightLocalPath'] = rlPath
+            }
           }
+          // ★ 2026-10-19 P1（audit）：导入必须镜像到「面板真正读取的那份数据」。
+          //   本仓库存在两个数据源分叉：设置页主张写 config，但浮动面板的表格样式
+          //   （loadTableSettings）与自定义配色（_restoreCustomColors）**只读 localStorage**。
+          //   只写 config 的后果是：① 导入的斑马纹/列边框在面板上永远不生效，且之后用户在
+          //   设置页点一下开关就会用旧 localStorage 值覆盖掉刚导入的配置；② 自定义主题色
+          //   更严重——_readFromConfig 走 theme==='custom' 分支时被 localStorage 里的旧色
+          //   **吞并**，紧接着任何一次 _saveToConfig() 又把旧色写回 config（永久丢失）。
+          //   修法：凡设置页正常保存时会写 localStorage 的键，导入也逐项镜像同一份值。
+          this._mirrorImportedToLocalStorage(data)
           this.configService.save()
           // 传输日志只写 localStorage，但必须经过服务层清洗、条数及 4MB 上限。
           if (data.transferLogs !== undefined) {
@@ -4448,8 +5356,16 @@ export class SftpSettingsTabComponent implements OnDestroy {
               ? paneState.perHost
               : (paneState.perHost = {})
             for (const [host, entry] of Object.entries(data.paneState.perHost)) {
-              // 防御：仅允许合法主机名字符，拒绝注入
-              if (!/^[a-zA-Z0-9._:-]+$/.test(host)) continue
+              // 防御：仅允许合法主机名字符，拒绝注入。
+              // ★ 2026-10-09 审计根治：原正则 `[a-zA-Z0-9._:-]` **不含 @**，
+              //   而 perHost 的 key 恰恰就是 `${username}@${host}`（面板 _hostKey）：
+              //   root@192.168.1.1、deploy@build.internal 全部含 @ ⇒ 整段被 continue 跳过
+              //   ⇒ **路径记忆导入 100% 丢弃**（而导出侧 _cloneBackupValue 不做过滤，
+              //   于是表现为「导出成功、导入全丢」的不对称，极具迷惑性）。
+              //   修法：把 @ 纳入白名单。它不是注入字符 —— 本正则只校验**键**（用来拼
+              //   localStorage key），值里的危险字符仍由下方 4529-4531 行的
+              //   控制字符检查 + path.isAbsolute 双重把关。
+              if (!/^[a-zA-Z0-9._:@-]+$/.test(host)) continue
               const localRaw = typeof (entry as any).savedLocalPath === 'string' ? (entry as any).savedLocalPath.trim() : ''
               if (localRaw && !/[\0-\x1f]/.test(localRaw)) {
                 const localNormalized = path.normalize(localRaw)
@@ -4488,6 +5404,12 @@ export class SftpSettingsTabComponent implements OnDestroy {
 
         // 刷新当前组件属性
         this._refreshFromConfig()
+        // ★ 2026-10-13 P2 修复：导入后同步切换界面语言。
+        //   下拉框改语言走 saveLang()（内部会 i18n.setLocale），导入路径却只写了
+        //   config.store 的 lang 字段 —— 于是「导入一份英文备份后，设置页仍是中文」，
+        //   而面板（各自构造时读 lang）已经是英文，两边语言不一致，直到重启 Tabby 才统一。
+        //   注意必须放在 alert 之前，提示语才会用新语言。
+        try { this.i18n.setLocale(this.effectiveLang) } catch { /* 语言切换失败不影响导入结果 */ }
         this.notifyPanels()
       } catch (e: any) {
         alert(e?.message || this.i18n.t('settings.importFailed'))
@@ -4693,6 +5615,22 @@ export class SftpSettingsTabComponent implements OnDestroy {
   }
 
   /**
+   * 打开 ko-fi 赞助页（关于信息-「请喝咖啡」链接）
+   * 功能描述：与 openGithub / openNpm 同一条外部打开通道；优先走 Electron shell，
+   *          非 Electron 环境下回落 window.open，两者都失败则静默。
+   * @创建人：DD1024z + Deepseek-V4.1-Flash
+   * @创建时间：2026-10-22
+   */
+  openKofi(): void {
+    const url = 'https://ko-fi.com/dd1024z'
+    try {
+      ;(window as any).require('electron').shell.openExternal(url)
+    } catch {
+      try { window.open(url, '_blank') } catch { /* ignore */ }
+    }
+  }
+
+  /**
    * 「报告问题」入口：预填环境信息后打开「缺陷报告」issue 表单（按界面语言路由中/英模板）
    *   机制：GitHub issue forms 的字段 `id` 就是 URL query 参数名（官方文档：id 是 URL query
    *        parameter prefills 的规范标识），配合 ?template=<模板文件> 使用即可自动填好环境信息。
@@ -4850,6 +5788,31 @@ export class SftpSettingsTabComponent implements OnDestroy {
       const v = fn()
       return (v === undefined || v === null || v === '') ? fallback : String(v)
     } catch { return fallback }
+  }
+
+  /**
+   * ★ 2026-10-19 P1（audit）：把导入数据镜像到 localStorage。
+   *   只镜像「正常保存路径也会写 localStorage」的那些键（见 saveTableSettings / _saveToConfig），
+   *   保证「导入」与「用户在设置页手改并保存」落到完全相同的数据集，不再出现面板与设置页分叉。
+   *   每个键独立 try/catch：单个键写失败（配额/隐私模式）不能中断整次导入。
+   */
+  private _mirrorImportedToLocalStorage(data: Record<string, any>): void {
+    const setLS = (key: string, value: any): void => {
+      try { localStorage.setItem(key, JSON.stringify(value)) } catch (e) { log.warn('mirror imported key failed:', key, e) }
+    }
+    // ① 表格样式：面板 loadTableSettings() 只读 TABLE_SETTINGS_KEY.*
+    if (data.tableColBorders !== undefined) setLS(`${TABLE_SETTINGS_KEY}.colBorders`, !!data.tableColBorders)
+    if (data.tableZebra !== undefined) setLS(`${TABLE_SETTINGS_KEY}.zebra`, !!data.tableZebra)
+    // ② 自定义配色：面板/设置页在 theme === 'custom' 时改从 PREFIX.primaryColor 等读取，
+    //    不镜像会被旧色吞并并在下一次保存时反向写回 config（导入的配色永久丢失）
+    if (data.theme === 'custom') {
+      if (typeof data.colorPrimary === 'string' && data.colorPrimary) {
+        setLS(`${PREFIX}.primaryColor`, data.colorPrimary)
+        if (typeof data.colorBg === 'string') setLS(`${PREFIX}.bgColor`, data.colorBg)
+        if (typeof data.colorText === 'string') setLS(`${PREFIX}.textColor`, data.colorText)
+        if (typeof data.colorBorder === 'string') setLS(`${PREFIX}.borderColor`, data.colorBorder)
+      }
+    }
   }
 
   /** 转换旧版 prefixed localStorage 格式到新版扁平字段 */

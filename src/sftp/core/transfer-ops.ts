@@ -1,9 +1,27 @@
-/**
+﻿/**
  * 功能描述：SFTP+ transfer-ops 逻辑聚合模块（由旧 core 多文件合并）
  * @创建人：DD1024z + Hy3
  * @创建时间：2026-07-16
- * @修改人：DD1024z + Deepseek-V4.1-Flash
- * @修改时间：2026-09-29 — ★★ 修复「仅 TAR 模式下上传目录仍走 SFTP」（用户实测质问：「不是已经
+ * @修改人：DD1024z + Step-5-Preview
+ * @修改时间：2026-10-19 — P1 修复：目录传输取消后已排队文件继续写入。gatedDirTask 原先只在
+ *              占槽前（dirGate）检查一次 isAborted，而目录内全部文件任务经 entries.map
+ *              一次性创建；用户取消后已进入 limiter 等待队列的任务被 release() 直接交接
+ *              唤醒（ConcurrencyLimiter 不递减计数）⇒ 原样执行 fn，成百上千个已排队文件
+ *              继续写入远端/本地（UI 却显示已停止）。平铺大目录是重灾区。修复：占槽后补
+ *              一次中止/暂停复查（isAborted → waitWhilePaused → isAborted），不过关则
+ *              释放槽位直接返回 false。下载（:387）与上传（:1066）两个调用点同时生效。
+ *              ② P2-9 目录传输的**失败子项计入 itemDone**：下载 / 合并上传 / 单文件上传
+ *                 三个失败分支原先直接 `return false`，不递增 `ctx.itemDone` ⇒ 目录条目的
+ *                 「x/N」与进度永远差着失败的个数、停在 <100%（看起来像卡住）。
+ *                 itemDone 的语义是「已处理项数」而非「成功项数」，失败同样要计数。
+ *              2026-10-13 — 2026-10-13 全量审计第三批/四批修复：
+ *              ① P1 目录上传行级实时进度：新增模块级 makeUploadLiveReporter（与下载侧
+ *                 onLive 闭包同构：在途字节记 ctx.liveBytes 峰值 + 按 350ms 节流 +
+ *                 零字节空窗也上报），mergeLocalDirToRemote 与 _uploadFile 两个 uploadRaw
+ *                 调用点接上；下载冲突入队补 remoteFileMode（P2-F10 权限位透传）。
+ *              ② P2-F10 下载覆盖/重命名硬编码 0o644：入队时透传远端 mode，消费方
+ *                 （conflict.applyAction）取不到才回退 0o644。
+ *              2026-09-29 — ★★ 修复「仅 TAR 模式下上传目录仍走 SFTP」（用户实测质问：「不是已经
  *              开启了仅 TAR 模式吗？怎么还是有走 SFTP 模式？」）。根因＝上传侧缺对称入口：
  *              「目录冲突 → 覆盖」落在 MergeLocalDirUseCase（纯逐文件 uploadRaw），打包通道
  *              拿不到机会，于是仅 TAR 下选了覆盖依旧 ⇄SFTP，而提示偏偏写着「选覆盖即可打包」。
@@ -55,7 +73,7 @@ import { type FolderTransferCtx } from './panel-types'
 
 import { type SFTPFile } from '../../services/sftp.service'
 
-import { safeEntryName } from './path-utils'
+import {safeEntryName, localEntryName } from './path-utils'
 
 import { parseRemoteMtime } from './conflict'
 
@@ -94,6 +112,42 @@ const EPOCH_THRESHOLD_MS = 86400000
  *     发现「连续零推进」并把速度如实置成 `0 B/s`（见 SPEED_STALL_ZERO_MS）。
  */
 const FOLDER_LIVE_PROGRESS_MS = 350
+
+/**
+ * ★ 2026-10-13 P1 修复：目录上传的「行级实时进度」上报器（与下载侧 onLive 闭包同构）。
+ *
+ * 背景：目录上传的条目进度原先只在「一个文件传完」时上报一次，大文件上传期间整行
+ * （百分比 / 速度 / 当前文件名 / 剩余时间）完全冻住——用户看不到任何动静，只能判断成
+ * 「卡死了」。与 2026-09-26 修复下载侧前用户反馈的「这次似乎又完全不会动了」完全同构。
+ *
+ * 口径与下载侧逐字对齐：
+ *   · 在途字节记在 **ctx.liveBytes**（key＝本地路径，value＝峰值）：同目录文件多路并发，
+ *     若各报各的会把界面拉回去；峰值保证单调；
+ *   · 条目进度 = ctx.bytesDone（已完成文件之和）+ 在途峰值之和；
+ *   · 按 FOLDER_LIVE_PROGRESS_MS 节流；**零字节的空窗口也要上报**（面板靠这些窗口发现
+ *     「连续零推进」并把速度如实置成 0 B/s）；
+ *   · 本文件结束后调用方负责 liveMap.delete(localPath)，最终值由 bytesDone += sz 收口。
+ */
+function makeUploadLiveReporter(
+  folder: FolderTransferPort,
+  ctx: FolderTransferCtx | undefined,
+  localPath: string,
+  displayName: string,
+  fileSize: number,
+): ((bytes: number) => void) | undefined {
+  if (!ctx) return undefined
+  const liveMap = ctx.liveBytes || (ctx.liveBytes = new Map<string, number>())
+  let lastReportAt = 0
+  return (bytes: number): void => {
+    if (bytes > 0) liveMap.set(localPath, Math.max(liveMap.get(localPath) || 0, bytes))
+    const now = Date.now()
+    if (now - lastReportAt < FOLDER_LIVE_PROGRESS_MS) return
+    lastReportAt = now
+    let sum = 0
+    for (const v of liveMap.values()) sum += v
+    folder.updateProgress(ctx, ctx.bytesDone + sum, displayName, ctx.itemDone, fileSize)
+  }
+}
 
 /** 判断毫秒时间戳是否落在 Unix epoch 附近（通常表示服务器未返回有效修改时间） */
 function isEpoch1970(ms: number): boolean {
@@ -141,7 +195,12 @@ async function dirGate(
 
 /** 文件任务门控：中止/暂停检查 + 占槽执行。
  *  ★ 目录任务绝不能用本函数：目录持槽等待子项会形成 hold-and-wait，
- *  嵌套层数 ≥ 并发数时槽位被目录占满，文件任务永远拿不到槽 → 死锁卡死。 */
+ *  嵌套层数 ≥ 并发数时槽位被目录占满，文件任务永远拿不到槽 → 死锁卡死。
+ *  ★ 2026-10-19 P1 修复：占槽**之后**补一次中止/暂停复查。目录内全部文件任务经
+ *  entries.map 一次性创建，每个任务只在占槽前（dirGate）检查一次 isAborted；用户取消后
+ *  已进入 limiter 等待队列的任务被 release() 直接交接唤醒（ConcurrencyLimiter 不递减
+ *  计数）⇒ 原样执行 fn，成百上千个已排队文件继续写入——UI 却显示已停止。
+ *  平铺大目录（500 张照片）是重灾区；嵌套子目录因递归时过 dirGate 能止损。 */
 async function gatedDirTask(
   folder: TransferUseCasePorts['folder'],
   ctx: FolderTransferCtx | undefined,
@@ -149,7 +208,17 @@ async function gatedDirTask(
   fn: () => Promise<boolean>,
 ): Promise<boolean> {
   if (!(await dirGate(folder, ctx))) return false
-  return limiter.run(fn)
+  await limiter.acquire()
+  try {
+    if (ctx && folder) {
+      if (folder.isAborted(ctx)) return false
+      await folder.waitWhilePaused(ctx)
+      if (folder.isAborted(ctx)) return false
+    }
+    return await fn()
+  } finally {
+    limiter.release()
+  }
 }
 
 /** 汇总并发任务结果：任一失败/抛错都记失败；返回首个异常供调用方重抛 */
@@ -163,6 +232,10 @@ function foldSettled(settled: PromiseSettledResult<boolean>[]): { success: boole
     } else if (!r.value) {
       success = false
     }
+  }
+  // ★ 中危#23修复：当所有Promise都resolved但部分返回false时，构造通用错误
+  if (!success && firstErr == null) {
+    firstErr = new Error('Some tasks returned false')
   }
   return { success, firstErr }
 }
@@ -224,7 +297,12 @@ export class DownloadDirUseCase {
     if (!this.ports.sftp.hasSession()) return false
 
     const rawBase = localName || path.posix.basename(remoteSrc)
-    const base = safeEntryName(rawBase)
+    // ★ 2026-10-12 P2 修复：同条目级 —— 原名不合法时**转写落地**而不是整个目录跳过。
+    //   旧行为 safeEntryName 失败即 return false，用户侧是「下载了个寂寞」且无任何提示。
+    const base = safeEntryName(rawBase) ?? localEntryName(rawBase)
+    if (base !== rawBase) {
+      log.info(`[download-dir] remote dir name rewritten for local FS: ${JSON.stringify(rawBase)} -> ${JSON.stringify(base)}`)
+    }
     if (!base) {
       log.warn('skip download dir with unsafe name:', rawBase)
       return false
@@ -275,12 +353,31 @@ export class DownloadDirUseCase {
 
       const tasks = entries.map(async (entry): Promise<boolean> => {
         // ★ 2026-07-25：剥离服务器返回文件名中的目录组件与 ..，防止路径穿越
-        const safeName = safeEntryName(entry.name)
+        //
+        // ★ 2026-10-12 P2 修复（原先「名字不合法 ⇒ 整个文件从下载中消失」）：
+        //   原逻辑 safeEntryName 返回 null 就 `return true`（跳过）。
+        //   而 Linux 上 `\ : * ? " < > |` 都是合法文件名字符 —— 在 Windows 本地
+        //   这些名字确实无法直接创建，但**正确做法是转写后落地，而不是丢弃**：
+        //   用户侧表现为「下载 100 个文件、本地只有 97 个，且没有任何提示」。
+        //
+        //   根治：两步走 ——
+        //     ① safeEntryName 通过 ⇒ 原名落地（与旧行为一致，零回归）；
+        //     ② 不通过 ⇒ 用 localEntryName 转写（全角对应字符）落地，
+        //        并记一行 info 日志（用户能在 log.txt 里看到改名前后）。
+        //   路径穿越防护不受影响：localEntryName 内部走 path.posix.basename
+        //   （只认 `/`），且这里用 path.join(localDir, safeName) 前已确保 safeName
+        //   不含任何分隔符与 `..`（见 path-utils 的两道检查）。
+        const safeName = safeEntryName(entry.name) ?? localEntryName(entry.name)
+        if (safeName !== entry.name) {
+          log.info(`[download] remote entry name rewritten for local FS: ${JSON.stringify(entry.name)} -> ${JSON.stringify(safeName)}`)
+        }
         if (!safeName) {
           log.warn('skip unsafe entry name:', entry.name)
           return true
         }
-        const remoteP = path.posix.join(remoteSrc, safeName)
+        const remoteP = path.posix.join(remoteSrc, entry.name)
+        // ⚠ 本地路径必须用 safeName（可能已转写），远端路径必须用**原始名**
+        //   （远端不认识转写后的名字）—— 两者刻意不同，这正是本条修复的核心。
         const localP = path.join(localDir, safeName)
         // 父目录 listing 的类型标志并非所有服务端都可靠；递归前逐项 lstat/readlink，
         // 防止 symlink→dir 被误标为普通目录后扩大下载范围。
@@ -327,6 +424,8 @@ export class DownloadDirUseCase {
                 direction: 'download',
                 remoteFileSize: sz,
                 remoteFileMtime: remoteMtime,
+                // ★ 2026-10-13 P2 修复：透传远端 mode，下载覆盖/重命名落地时保留权限位
+                remoteFileMode: entry.mode,
                 transferCtx: ctx,
                 localDigest: conflictInfo.localDigest,
                 remoteDigest: conflictInfo.remoteDigest,
@@ -352,23 +451,30 @@ export class DownloadDirUseCase {
             for (const v of liveMap.values()) sum += v
             return sum
           }
-          let liveReportAt = 0
+          // ★ 高危#5修复：将liveReportAt封装在闭包内部，避免并发任务共享导致竞态
           const onLive = ctx && liveMap
-            ? (bytes: number): void => {
-                if (bytes > 0) liveMap.set(localP, Math.max(liveMap.get(localP) || 0, bytes))
-                const now = Date.now()
-                if (now - liveReportAt < FOLDER_LIVE_PROGRESS_MS) return
-                liveReportAt = now
-                this.ports.folder.updateProgress(ctx, ctx.bytesDone + inFlightBytes(), safeName, ctx.itemDone, sz)
-              }
+            ? ((): ((bytes: number) => void) => {
+                let liveReportAt = 0
+                return (bytes: number): void => {
+                  if (bytes > 0) liveMap.set(localP, Math.max(liveMap.get(localP) || 0, bytes))
+                  const now = Date.now()
+                  if (now - liveReportAt < FOLDER_LIVE_PROGRESS_MS) return
+                  liveReportAt = now
+                  this.ports.folder.updateProgress(ctx, ctx.bytesDone + inFlightBytes(), safeName, ctx.itemDone, sz)
+                }
+              })()
             : undefined
           const ok = await this.ports.execution.downloadRaw(remoteP, localP, entry.mode, entry.size, onLive)
           // 本文件已结束（成功或失败）→ 从在途表中摘除，避免其峰值永久占着进度
           liveMap?.delete(localP)
           // ★ 2026-09-20：跳过当前若已落盘则记成功，避免父目录整夹失败；未落盘才失败
+          // ★ 2026-10-19 P2-9：失败子项同样计入 `itemDone`（它是「已处理项数」，不是
+          //   「成功项数」）—— 此前失败即 return、计数永远差着失败的个数，目录条目的
+          //   「x/N」与进度永远停在 <100%，看起来像卡住。
           if (ctx && this.ports.folder.consumeAbortCurrent(ctx)) {
-            if (!ok) return false
+            if (!ok) { ctx.itemDone++; return false }
           } else if (!ok) {
+            if (ctx) ctx.itemDone++
             return false
           }
           if (ctx) {
@@ -415,7 +521,11 @@ export class DownloadOneUseCase {
 
     if (file.isDirectory) {
       // ★ 2026-07-25：剥离目录组件与 ..，防路径穿越
-      const safeName = safeEntryName(file.name)
+      // ★ 2026-10-12：远端名字含 Windows 非法字符时**转写落地**，不再整个跳过
+      const safeName = safeEntryName(file.name) ?? localEntryName(file.name)
+      if (safeName !== file.name) {
+        log.info(`[download-dir] remote dir name rewritten for local FS: ${JSON.stringify(file.name)} -> ${JSON.stringify(safeName)}`)
+      }
       if (!safeName) {
         log.warn('skip download dir with unsafe name:', file.name)
         return
@@ -462,7 +572,11 @@ export class DownloadOneUseCase {
     }
 
     // ★ 2026-07-25：剥离目录组件与 ..，防路径穿越
-    const safeName = safeEntryName(file.name)
+    // ★ 2026-10-12：同上 —— 转写落地而非丢弃（Linux 合法名字在 Windows 上不可直接创建）
+    const safeName = safeEntryName(file.name) ?? localEntryName(file.name)
+    if (safeName !== file.name) {
+      log.info(`[download-one] remote file name rewritten for local FS: ${JSON.stringify(file.name)} -> ${JSON.stringify(safeName)}`)
+    }
     if (!safeName) {
       log.warn('skip download file with unsafe name:', file.name)
       return
@@ -503,6 +617,8 @@ export class DownloadOneUseCase {
         direction: 'download',
         remoteFileSize: file.size ?? 0,
         remoteFileMtime: remoteMtime,
+        // ★ 2026-10-13 P2 修复：透传远端 mode，下载覆盖/重命名落地时保留权限位
+        remoteFileMode: file.mode,
         // ★ 2026-09-18 issue #15 修复：携带内容摘要供对话框展示
         localDigest: conflictInfo.localDigest,
         remoteDigest: conflictInfo.remoteDigest,
@@ -628,9 +744,16 @@ export class MergeLocalDirUseCase {
           const childOk = await this.execute(localP, remoteP, false, undefined, ctx)
           if (!childOk) success = false
         } else {
-          const ok = await this.ports.execution.uploadRaw(remoteP, localP)
+          // ★ 2026-10-13 P1 修复：目录上传行级实时进度（与下载侧 onLive 同构）——
+          //   此前只在文件传完时上报一次，大文件上传期间整行静止
+          const onLive = ctx && this.ports.folder
+            ? makeUploadLiveReporter(this.ports.folder, ctx, localP, c.name, st.size)
+            : undefined
+          const ok = await this.ports.execution.uploadRaw(remoteP, localP, onLive)
+          // 本文件已结束（成功或失败）→ 从在途表中摘除，避免其峰值永久占着进度
+          if (ctx) ctx.liveBytes?.delete(localP)
           if (ctx && this.ports.folder?.consumeAbortCurrent(ctx)) {
-            if (!ok) success = false
+            if (!ok) { success = false; ctx.itemDone++ }
             else {
               ctx.itemDone++
               if (st.size > 0) ctx.bytesDone += st.size
@@ -638,7 +761,8 @@ export class MergeLocalDirUseCase {
             }
             continue
           }
-          if (!ok) success = false
+          // ★ 2026-10-19 P2-9：失败子项计入已处理（同下载侧，见彼处注释）
+          if (!ok) { success = false; if (ctx) ctx.itemDone++ }
           else if (ctx && this.ports.folder) {
             ctx.itemDone++
             if (st.size > 0) ctx.bytesDone += st.size
@@ -745,9 +869,16 @@ export class UploadBatchUseCase {
 
   async execute(localPaths: string[], remoteDir: string, name: string): Promise<TarChannelResult> {
     const tarChannel = this.ports.tarChannel
-    const probe = this.ports.conflictDetection?.checkRemotePathExists
+    // ★ 2026-10-09 审计 P0-2 根治：原先写成
+    //   `const probe = this.ports.conflictDetection?.checkRemotePathExists`
+    //   再 `await probe(target)` —— 从**对象**上取出实例方法后 this 变成 undefined，
+    //   而 SftpConflictDetector.checkRemotePathExists 首行就是 this.getSession()
+    //   ⇒ 每次必抛 TypeError → 被下方 catch 吞成 'probe failed'（看着像网络探测失败）
+    //   ⇒ 100% return 'fallback'，批量打包从未真正生效，且完全静默。
+    //   根治：保留 this. 的调用点（不取快照、不复制逻辑），把 this 绑进箭头函数。
+    const probe = (p: string): Promise<boolean> => this.ports.conflictDetection!.checkRemotePathExists(p)
     const folder = this.ports.folder
-    if (!tarChannel?.tryUploadBatch || !probe || !folder) return 'fallback'
+    if (!tarChannel?.tryUploadBatch || !this.ports.conflictDetection || !folder) return 'fallback'
     // ★ 实时取值：tarChannelMode 在 ports 上是 getter（见 TransferUseCasePorts 的 P0 说明），
     //   写成局部快照会让用户改设置不生效
     const mode = this.ports.tarChannelMode ?? 'smart'
@@ -930,7 +1061,8 @@ export class UploadPathUseCase {
       //   （folder 条目不参与 _tickAllTransfers，15 分钟 stall 清理也到不了它）
       const children = await this.ports.localFs.listChildren(localPath)
       const tasks = children
-        .filter(c => !c.isSymbolicLink)
+        // ★ 中危#22修复：显式检查isSymbolicLink===true，避免undefined时误过滤
+        .filter(c => c.isSymbolicLink !== true)
         .map(async (c): Promise<boolean> => {
           const safeName = safeEntryName(c.name)
           if (!safeName) {
@@ -1018,11 +1150,19 @@ export class UploadPathUseCase {
       return this.ports.execution.uploadTopLevel(remoteTarget, localPath)
     }
 
-    const ok = await this.ports.execution.uploadRaw(remoteTarget, localPath)
+    // ★ 2026-10-13 P1 修复：目录上传行级实时进度（与下载侧 onLive 同构）——
+    //   此前只在文件传完时上报一次，大文件上传期间整行静止
+    const onLive = topCtx
+      ? makeUploadLiveReporter(this.ports.folder, topCtx, localPath, base, st.size)
+      : undefined
+    const ok = await this.ports.execution.uploadRaw(remoteTarget, localPath, onLive)
+    if (topCtx) topCtx.liveBytes?.delete(localPath)
     // ★ 2026-09-20：跳过当前若已落盘则记成功
+    // ★ 2026-10-19 P2-9：失败子项计入已处理（同下载侧，见彼处注释）
     if (topCtx && this.ports.folder.consumeAbortCurrent(topCtx)) {
-      if (!ok) return false
+      if (!ok) { topCtx.itemDone++; return false }
     } else if (!ok) {
+      if (topCtx) topCtx.itemDone++
       return false
     }
     if (topCtx) {

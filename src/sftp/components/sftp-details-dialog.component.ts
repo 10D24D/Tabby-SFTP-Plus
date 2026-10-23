@@ -3,9 +3,10 @@
  * ★ 2026-08-11 美化：头部图标+类型徽章（一眼分辨文件/文件夹）；
  *   文件夹大小按需计算（「计算」按钮，复用传输预扫描的并发扫描）
  */
-import { Component, EventEmitter, Input, Output } from '@angular/core'
+import { Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, Output, SimpleChanges, ViewChild } from '@angular/core'
 
 import { SftpI18nService } from '../../services/sftp-i18n.service'
+import { handleOverlayKeydown } from './dialog-focus'
 
 export type DetailsDisplay = {
   name: string
@@ -32,7 +33,7 @@ export type DetailsDisplay = {
 @Component({
   selector: 'sftp-details-dialog',
   template: `
-    <div class="overlay" *ngIf="visible" (click)="cancel.emit()">
+    <div class="overlay" #overlayEl *ngIf="visible" tabindex="-1" (keydown)="onOverlayKeydown($event)" (click)="cancel.emit()">
       <div class="dialog details-dialog" (click)="$event.stopPropagation()">
         <div class="dialog-title">{{ display?.isFolder ? i18n.t('file.folderProperties') : i18n.t('file.fileProperties') }}</div>
         <div class="details-body" *ngIf="display">
@@ -139,7 +140,35 @@ export type DetailsDisplay = {
     }
   `],
 })
-export class SftpDetailsDialogComponent {
+export class SftpDetailsDialogComponent implements OnChanges, OnDestroy {
+  /** ★ 2026-10-13 P1 修复：焦点陷阱用——overlay 根元素 */
+  @ViewChild('overlayEl', { static: false }) overlayEl?: ElementRef<HTMLDivElement>
+
+  /** ★ 2026-10-13 P1 修复：打开时把焦点移入 overlay——焦点陷阱（Tab 循环）只在焦点位于
+   *  对话框内时生效；此前打开后焦点留在背后的文件列表，Tab 会操作背景控件（幽灵交互）。 */
+  private _focusTimer: ReturnType<typeof setTimeout> | null = null
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['visible']) {
+      if (this._focusTimer) { clearTimeout(this._focusTimer); this._focusTimer = null }
+      if (this.visible) {
+        this._focusTimer = setTimeout(() => {
+          this._focusTimer = null
+          this.overlayEl?.nativeElement?.focus()
+        })
+      }
+    }
+  }
+
+  ngOnDestroy(): void {
+    if (this._focusTimer) { clearTimeout(this._focusTimer); this._focusTimer = null }
+  }
+
+  /** ★ 2026-10-13 P1 修复：Tab/Shift+Tab 在对话框内循环，不逃逸到背景（幽灵交互）。
+   *   Esc 由宿主 Esc 栈处理（detailsVisible 分支）。 */
+  onOverlayKeydown(event: KeyboardEvent): void {
+    handleOverlayKeydown(event, this.overlayEl?.nativeElement)
+  }
   @Input() visible = false
   @Input() display: DetailsDisplay | null = null
 

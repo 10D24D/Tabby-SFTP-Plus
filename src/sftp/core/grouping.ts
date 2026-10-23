@@ -6,7 +6,9 @@
  * @创建人：DD1024z + Hy3
  * @创建时间：2026-09-28
  * @修改人：DD1024z + Deepseek-V4.1-Flash
- * @修改时间：2026-09-29 — 新增 NAV_HEADER_KEY_PREFIX / navHeaderKey()：方向键导航中分组头行的
+ * @修改时间：2026-10-20 — 分组行新增 zebra 标记（按**组内序号**偶数位，每组首条带），供模板挂 .entry.zebra
+ *              实现分组模式斑马纹（取代被组头打乱的 nth-child 方案；单条分组也可见斑马色）。
+ *              2026-09-29 — 新增 NAV_HEADER_KEY_PREFIX / navHeaderKey()：方向键导航中分组头行的
  *              导航键前缀下沉到本叶子模块，供面板（焦点/锚点）与 file-pane（游标高亮判定）共用
  */
 
@@ -48,6 +50,10 @@ export interface GroupDisplayRow {
   // entry 专用
   entry?: any
   index?: number
+  /** ★ 2026-10-20（Deepseek-V4.1-Flash）：斑马纹标记 —— 按「组内序号」偶数位（含每组首条）打标，
+   *   供模板加 .zebra 类。分组模式下不能用 nth-child：组头行也是 .entry，会把奇偶打乱。
+   *   首条带标 ⇒ 只有一条的分组也有斑马色，不会看起来像「没开斑马纹」。 */
+  zebra?: boolean
 }
 
 /** 名称分组桶顺序（0-9 / A-H / I-P / Q-Z / 拼音 A-F / G-L / M-S / T-Z / 其他） */
@@ -235,7 +241,22 @@ export function buildGroupedRows(
       if (!ordered.includes(g)) ordered.push(g)
     }
   }
-  if (reverseGroups) ordered = ordered.slice().reverse()
+  // ★ 2026-10-13 P3 修复：type 模式下不能整段反转。
+  //   上面的桶序是「文件夹 **恒最前**、无扩展名 **恒最后**，中间扩展名按字母排」——
+  //   这是写死在注释与行为里的承诺。原先 `reverse()` 把整段倒过来，于是文件夹跑到
+  //   最后、无扩展名跑到最前，承诺在降序排序时被整个推翻（用户切一次排序方向，
+  //   文件夹就从顶部跳到底部）。降序只应影响**可比较的中间段**（扩展名）。
+  if (reverseGroups) {
+    ordered = mode === 'type'
+      ? [
+          ...ordered.filter(g => g.bucket.key === 'folder'),
+          ...ordered.filter(g => g.bucket.key.startsWith('ext:')).reverse(),
+          ...ordered.filter(g => g.bucket.key === 'noExt'),
+        ]
+      : ordered.slice().reverse()
+  }
+  // ★ 2026-10-20（Deepseek-V4.1-Flash）：斑马纹按**组内序号**打标（每组第 1 条带 zebra），
+  //   不再跨组连续计数 —— 组头把行隔开后，单条分组也能显示斑马色；折叠组不参与。
   for (const g of ordered) {
     const collapsed = collapsedSet.has(g.bucket.key)
     rows.push({
@@ -249,7 +270,7 @@ export function buildGroupedRows(
     })
     if (collapsed) continue
     for (let j = 0; j < g.items.length; j++) {
-      rows.push({ kind: 'entry', entry: g.items[j], index: g.indexes[j] })
+      rows.push({ kind: 'entry', entry: g.items[j], index: g.indexes[j], zebra: j % 2 === 0 })
     }
   }
   return rows

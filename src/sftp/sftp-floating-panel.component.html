@@ -1,3 +1,19 @@
+﻿<!-- SFTP+ 浮动面板组件模板
+     @创建人：DD1024z + Claude
+     @创建时间：2026-06-21
+     @修改人：DD1024z + Deepseek-V4.1-Flash
+     @修改时间：2026-10-23
+     修改情况：
+       - 2026-10-23 (Deepseek-V4.1-Flash)：关闭按钮 ✕ 纳入顶栏定制（可停用 / 收进 ⋯ 菜单），前提是已给面板绑开关快捷键；未绑时 topBarInlineItems 兜底强制显示
+       - 2026-10-23 (Deepseek-V4.1-Flash)：⋯ 折叠菜单改列**全部**可用按钮（含已固定的），每行右侧图钉就地切「固定 / 收进 ⋯」；启用折叠后 ⋯ 按钮常驻（不再要求确有按钮被收起）
+       - 2026-10-23 (Deepseek-V4.1-Flash)：书签弹层 [panelPinned] 改读控制器 getter bookmarkPinned（取反只在 getter 一处做）；常驻时点其它位置/滚轮/右键/框选/缩放都不关弹层
+       - 2026-10-22 (Deepseek-V4.1-Flash)：路径模式图标分三档（off/remember 定位销、sync 链接、mirror 两栏双向箭头）；书签弹层绑定由 [sortByUsage] 改为 [sortMode]（三档排序）
+       - 2026-10-21 (Hy4 preview)：右键菜单新增 [peerSameConnection] 绑定（远程↔远程不同连接 → 显示「上传」而非「传输」）
+       - 2026-10-18 (Hy3)：issue #27 P3 五轮书签归属按触发栏（_bookmarkSide/_bookmarkCurrentPath）；六轮选择器副文本收口 _connOptSubText
+       - 2026-10-19 (Deepseek-V4.1-Flash)：顶栏操作按钮改为配置驱动（topBarInlineItems 顺序渲染 + ⋯ 折叠菜单 topBarOverflowItems），关闭按钮 ✕ 仍恒固定
+       - 2026-10-20 (Deepseek-V4.1-Flash)：连接状态内联进顶栏连接分段（左/右各带闪烁红点 + 尾部重连图标），移除原独立的「已断开/重连」徽标；两个文件面板新增 [connLost] 绑定
+       - 2026-10-20 (Deepseek-V4.1-Flash)：端点标识/连接分段的悬停提示统一为「切换连接」（原「选择左侧面板端点 / 选择远程连接」绑死了左右方位，上下布局与单栏下自相矛盾）
+       - 2026-10-20 (Deepseek-V4.1-Flash)：连接选择器的选项补 dead 态（[class.dead] + [disabled]）——那个连接标签已被关掉时，列表里补一条「已断开」占位行与顶栏对齐，不可点选 -->
     <div class="sftp-root" tabindex="0"
       [class.has-zebra]="showZebra"
       [class.has-col-borders]="showColBorders"
@@ -23,105 +39,288 @@
       <!-- 顶部标题栏 -->
       <div class="top-bar" (mousedown)="onTopBarMouseDown($event)" (contextmenu)="onTopBarContextMenu($event)">
         <span class="title">SFTP+</span>
-        <span class="host-info" *ngIf="hostInfo">{{ hostInfo }}</span>
-        <!-- 断开连接指示器 -->
-        <span class="disconnect-indicator" *ngIf="!connected && !connecting && sshSession">
-          <span class="disconnect-dot"></span>
-          <span class="disconnect-tag">{{ i18n.t('status.disconnected') }}</span>
-          <button class="reconnect-btn" (click)="onReconnect()" [disabled]="reconnecting">
-            {{ reconnecting
-              ? i18n.t('status.reconnecting')
-              : i18n.t('status.reconnect') }}
-          </button>
+        <!-- 顶栏连接地址（issue #27 P3：选择器下沉到顶栏地址栏下方，全局唯一浮层）：
+             双栏可点击分段（左↔右）切换对应端点；单栏仅远程芯片。 -->
+        <span class="conn-address-wrap" (mousedown)="$event.stopPropagation()">
+          <!-- ★ 2026-10-20：连接状态内联到地址分段（用户要求）——「● 远程(user@host) ⟳」。
+               断开时红点闪烁 + 尾部重连图标；不再用顶栏右侧那条独立的「已断开 / 重连」徽标。
+               左右两段各带自己的状态，双远程时一眼看出是哪一栏的连接断了。 -->
+          <span class="conn-address" *ngIf="_effectiveLayout !== 'single'" [title]="i18n.t('conn.pickerTitle')">
+            <span class="conn-seg" [class.active]="_connPickerSide === 'left'" [class.picker-off]="!connPickerTopbarEnabled"
+                  [class.is-down]="leftConnState === 'disconnected'"
+                  (click)="openLeftConnPicker($event)" [title]="leftConnTitle">
+              <span class="conn-dot" *ngIf="leftConnState === 'disconnected'"></span>
+              <span class="conn-dot conn-dot--busy" *ngIf="leftConnState === 'connecting'"></span>
+              <span class="conn-seg-label">{{ leftConnLabel }}</span>
+              <button class="conn-retry" *ngIf="leftConnState === 'disconnected'"
+                      [disabled]="_leftReconnecting"
+                      [title]="_leftReconnecting ? i18n.t('status.reconnecting') : i18n.t('status.reconnect')"
+                      (click)="onReconnectLeft($event)">
+                <ng-container *ngTemplateOutlet="connRetryIcon"></ng-container>
+              </button>
+            </span>
+            <span class="conn-sep">↔</span>
+            <span class="conn-seg" [class.active]="_connPickerSide === 'right'" [class.picker-off]="!connPickerTopbarEnabled"
+                  [class.is-down]="rightConnState === 'disconnected'"
+                  (click)="openRightPaneConnPicker($event)" [title]="rightConnTitle">
+              <span class="conn-dot" *ngIf="rightConnState === 'disconnected'"></span>
+              <span class="conn-dot conn-dot--busy" *ngIf="rightConnState === 'connecting'"></span>
+              <span class="conn-seg-label">{{ rightConnLabel }}</span>
+              <button class="conn-retry" *ngIf="rightConnState === 'disconnected'"
+                      [disabled]="reconnecting"
+                      [title]="reconnecting ? i18n.t('status.reconnecting') : i18n.t('status.reconnect')"
+                      (click)="onReconnectFromBar($event)">
+                <ng-container *ngTemplateOutlet="connRetryIcon"></ng-container>
+              </button>
+            </span>
+          </span>
+          <span class="conn-address-single" *ngIf="_effectiveLayout === 'single'" [class.picker-off]="!connPickerTopbarEnabled"
+                [class.active]="_connPickerSide === 'right'"
+                [class.is-down]="rightConnState === 'disconnected'"
+                (click)="openRightPaneConnPicker($event)" [title]="rightConnTitle">
+            <span class="conn-dot" *ngIf="rightConnState === 'disconnected'"></span>
+            <span class="conn-dot conn-dot--busy" *ngIf="rightConnState === 'connecting'"></span>
+            <span class="conn-seg-label">{{ singleConnLabel }}</span>
+            <button class="conn-retry" *ngIf="rightConnState === 'disconnected'"
+                    [disabled]="reconnecting"
+                    [title]="reconnecting ? i18n.t('status.reconnecting') : i18n.t('status.reconnect')"
+                    (click)="onReconnectFromBar($event)">
+              <ng-container *ngTemplateOutlet="connRetryIcon"></ng-container>
+            </button>
+          </span>
+          <!-- ★ issue #27 P3：全局唯一连接端点选择器浮层，锚定在被点分段正下方（[style.left.px] 跟随）。
+               去掉了原 conn-picker-head 标题文案（用户要求）。 -->
+          <div class="conn-picker global-conn-picker" *ngIf="_connPickerSide"
+               [style.left.px]="_connPickerLeftPx"
+               [style.transform]="_connPickerTransform"
+               (mousedown)="$event.stopPropagation()">
+            <div class="conn-opt-list">
+              <button class="conn-opt" *ngFor="let o of _connPickerOptions"
+                      [class.active]="o.active"
+                      [class.other]="o.otherActive && !o.active"
+                      [class.dead]="o.dead"
+                      [class.unopened]="o.unopened"
+                      [disabled]="o.dead"
+                      (click)="_connPickerSelect(o)">
+                <span class="conn-opt-body">
+                  <span class="conn-opt-label"><span class="conn-opt-plus" *ngIf="o.unopened">+</span>{{ o.label }}</span>
+                  <span class="conn-opt-sub">{{ _connOptSubText(o) }}</span>
+                </span>
+                <!-- ★ 2026-10-20 续三十（用户诉求）：每个已打开的连接右侧一个减号 = 关闭这条连接。
+                     用 <span> 而非 <button>：.conn-opt 自己就是 button，HTML 不允许按钮嵌套按钮。
+                     悬停本行才显形（见 styles.ts .conn-opt-kill），避免列表常驻一排红叉。 -->
+                <span class="conn-opt-kill" *ngIf="o.sshSession && !o.dead"
+                      role="button" tabindex="0"
+                      [title]="i18n.t('conn.disconnect')"
+                      (click)="_connPickerCloseOption(o, $event)"
+                      (keydown.enter)="_connPickerCloseOption(o, $event)">
+                  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+                    <path d="M4 8h8"/>
+                  </svg>
+                </span>
+              </button>
+            </div>
+          </div>
         </span>
+        <!-- ★ 2026-10-20：原「● 已断开 [重连]」独立徽标已移除 —— 状态改由上方连接分段自带
+             （断开=闪烁红点 + 尾部重连图标），避免顶栏出现两条重复的断开提示。 -->
+        <!-- ★ 2026-10-19（Deepseek-V4.1-Flash）：按钮图标只写一份（ng-template），
+             顶栏按钮与 ⋯ 菜单项共用，避免两处各写一套 SVG 后漂移。 -->
+    <!-- 重连图标（连接分段的尾部按钮；断开态才渲染） -->
+    <ng-template #connRetryIcon>
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M13 8a5 5 0 1 1-1.46-3.54"/>
+        <path d="M13.2 2.6v3.12h-3.12"/>
+      </svg>
+    </ng-template>
+    <ng-template #tbIconPathMode>
+      <!-- 关闭/路径记忆：共用定位销图标（通过 active 亮度区分） -->
+      <svg *ngIf="pathMode === 'off' || pathMode === 'remember'" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linejoin="round">
+      <path d="M8 2.4C6.05 2.4 4.5 3.95 4.5 5.9c0 2.55 3.5 6.35 3.5 6.35s3.5-3.8 3.5-6.35C11.5 3.95 9.95 2.4 8 2.4z"/>
+      <circle cx="8" cy="5.9" r="1.25"/>
+      </svg>
+      <!-- 终端同步：链接图标 -->
+      <svg *ngIf="pathMode === 'sync'" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round">
+      <path d="M6.2 9.8l3.6-3.6"/>
+      <path d="M7.1 4.4l1.1-1.1a2.4 2.4 0 013.4 3.4L10.5 7.8"/>
+      <path d="M8.9 11.6l-1.1 1.1a2.4 2.4 0 01-3.4-3.4L5.5 8.2"/>
+      </svg>
+      <!-- ★ 2026-10-22（Deepseek-V4.1-Flash）：同步路径 —— 左右两栏（两条竖线）+ 中间双向箭头 -->
+      <svg *ngIf="pathMode === 'mirror'" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 2.8v10.4M13 2.8v10.4"/>
+      <path d="M5.9 6h4.2M8.5 4.4L10.1 6 8.5 7.6"/>
+      <path d="M10.1 10h-4.2M7.5 8.4L5.9 10l1.6 1.6"/>
+      </svg>
+    </ng-template>
+    <ng-template #tbIconLayout>
+      <!-- 自动模式：四格方块自适应图标 -->
+      <svg *ngIf="_layoutMode === 'auto'" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.35">
+      <rect x="2" y="2" width="5.5" height="5.5" rx="0.9"/>
+      <rect x="8.5" y="2" width="5.5" height="5.5" rx="0.9"/>
+      <rect x="2" y="8.5" width="5.5" height="5.5" rx="0.9"/>
+      <rect x="8.5" y="8.5" width="5.5" height="5.5" rx="0.9"/>
+      <path d="M4.75 7.25v1.5M11.25 7.25v1.5M7.25 4.75h1.5M7.25 11.25h1.5" stroke-width="1.2"/>
+      </svg>
+      <!-- 左右布局图标 -->
+      <svg *ngIf="_layoutMode === 'horizontal'" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.35">
+      <rect x="2" y="2.5" width="5.5" height="11" rx="0.9"/>
+      <rect x="8.5" y="2.5" width="5.5" height="11" rx="0.9"/>
+      </svg>
+      <!-- 上下布局图标 -->
+      <svg *ngIf="_layoutMode === 'vertical'" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.35">
+      <rect x="2.5" y="2" width="11" height="5.5" rx="0.9"/>
+      <rect x="2.5" y="8.5" width="11" height="5.5" rx="0.9"/>
+      </svg>
+      <!-- 单栏布局图标 -->
+      <svg *ngIf="_layoutMode === 'single'" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.35">
+      <rect x="2" y="2" width="12" height="12" rx="0.9"/>
+      <circle cx="10.5" cy="8" r="1.35" fill="currentColor" stroke="none"/>
+      </svg>
+    </ng-template>
+    <ng-template #tbIconTransferLog>
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round">
+      <rect x="2.5" y="2.5" width="11" height="11" rx="0.9"/>
+      <line x1="5" y1="5.75" x2="11" y2="5.75"/>
+      <line x1="5" y1="8" x2="11" y2="8"/>
+      <line x1="5" y1="10.25" x2="9.5" y2="10.25"/>
+      </svg>
+    </ng-template>
+    <ng-template #tbIconSettings>
+      <svg viewBox="0 0 16 16" fill="currentColor">
+      <g transform="translate(8 8) scale(0.62) translate(-12 -12)">
+      <path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
+      </g>
+      </svg>
+    </ng-template>
+    <ng-template #tbIconMinimize>
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round">
+      <line x1="4" y1="8" x2="12" y2="8"/>
+      </svg>
+    </ng-template>
+    <ng-template #tbIconMaximize>
+      <svg *ngIf="!panelMaximized" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M2.5 6V3.5A1 1 0 013.5 2.5H6"/>
+      <path d="M10 2.5h2.5A1 1 0 0113.5 3.5V6"/>
+      <path d="M13.5 10v2.5A1 1 0 0112.5 13.5H10"/>
+      <path d="M6 13.5H3.5A1 1 0 012.5 12.5V10"/>
+      </svg>
+      <svg *ngIf="panelMaximized" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linejoin="round">
+      <rect x="2.5" y="2.5" width="7" height="7" rx="1"/>
+      <rect x="6.5" y="6.5" width="7" height="7" rx="1"/>
+      </svg>
+    </ng-template>
+    <!-- ★ 2026-10-23（Deepseek-V4.1-Flash）：⋯ 菜单行内的「固定」图钉是**两套独立 SVG**
+         （用户要求：未固定的斜杠要画在图标里，不用 CSS 叠一条线）。
+         tbPinOn  = 已固定：实心图钉（这个按钮就在顶栏上）
+         tbPinOff = 未固定：轮廓图钉 + 斜杠（收在 ⋯ 菜单里） -->
+    <ng-template #tbPinOn>
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round">
+      <path d="M5.6 2.4h4.8l-.7 3.3 2 2v1.3H4.3V7.7l2-2z" fill="currentColor" stroke="none"/>
+      <path d="M8 9v4.4" stroke-linecap="round"/>
+      </svg>
+    </ng-template>
+    <ng-template #tbPinOff>
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round">
+      <path d="M5.6 2.4h4.8l-.7 3.3 2 2v1.3H4.3V7.7l2-2z"/>
+      <path d="M8 9v4.4" stroke-linecap="round"/>
+      <path d="M3.6 12.9L12.4 3.1" stroke-width="1.35" stroke-linecap="round"/>
+      </svg>
+    </ng-template>
+    <ng-template #tbIconClose>
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round">
+      <path d="M4.2 4.2l7.6 7.6"/>
+      <path d="M11.8 4.2l-7.6 7.6"/>
+      </svg>
+    </ng-template>
         <div class="top-actions">
-          <!-- 路径模式：关闭 → 路径记忆 → 终端同步 -->
-          <button class="btn-link btn-icon btn-path-mode" (click)="cyclePathMode()"
-                  [class.active]="pathMode !== 'off'"
-                  [title]="pathModeTitle()">
-            <!-- 关闭/路径记忆：共用定位销图标（通过 active 亮度区分） -->
-            <svg *ngIf="pathMode !== 'sync'" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linejoin="round">
-              <path d="M8 2.4C6.05 2.4 4.5 3.95 4.5 5.9c0 2.55 3.5 6.35 3.5 6.35s3.5-3.8 3.5-6.35C11.5 3.95 9.95 2.4 8 2.4z"/>
-              <circle cx="8" cy="5.9" r="1.25"/>
-            </svg>
-            <!-- 终端同步：链接图标 -->
-            <svg *ngIf="pathMode === 'sync'" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round">
-              <path d="M6.2 9.8l3.6-3.6"/>
-              <path d="M7.1 4.4l1.1-1.1a2.4 2.4 0 013.4 3.4L10.5 7.8"/>
-              <path d="M8.9 11.6l-1.1 1.1a2.4 2.4 0 01-3.4-3.4L5.5 8.2"/>
-            </svg>
+          <!-- ★ 2026-10-19（Deepseek-V4.1-Flash）：顶栏按钮改为**配置驱动**（顺序 + 固定/收起）。
+               每个按钮的实现（图标、active 态、title、点击方法）保持原样，只把「显示哪个 / 顺序」
+               交给 topBarInlineItems；未固定的项收进右侧 ⋯ 菜单（topBarMenuItems 列全部可用项，
+               每行带图钉可就地切固定），点菜单项执行同一个方法（runTopBarItem），不复制任何业务逻辑。
+               默认「全部固定 + 折叠关闭」⇒ 未配置时与历史行为一致。 -->
+          <ng-container *ngFor="let item of topBarInlineItems">
+            <button *ngIf="item === 'pathMode'" class="btn-link btn-icon btn-path-mode" (click)="cyclePathMode()"
+                    [class.active]="pathMode !== 'off'"
+                    [title]="pathModeTitle()">
+<ng-container *ngTemplateOutlet="tbIconPathMode"></ng-container>
           </button>
-          <!-- 布局模式切换 -->
-          <button class="btn-link btn-icon btn-layout" (click)="cycleLayoutMode()"
-                  [class.layout-overridden]="!!_layoutOverrideReason"
-                  title="{{ layoutModeTitle() }}">
-            <!-- 自动模式：四格方块自适应图标 -->
-            <svg *ngIf="_layoutMode === 'auto'" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.35">
-              <rect x="2" y="2" width="5.5" height="5.5" rx="0.9"/>
-              <rect x="8.5" y="2" width="5.5" height="5.5" rx="0.9"/>
-              <rect x="2" y="8.5" width="5.5" height="5.5" rx="0.9"/>
-              <rect x="8.5" y="8.5" width="5.5" height="5.5" rx="0.9"/>
-              <path d="M4.75 7.25v1.5M11.25 7.25v1.5M7.25 4.75h1.5M7.25 11.25h1.5" stroke-width="1.2"/>
-            </svg>
-            <!-- 左右布局图标 -->
-            <svg *ngIf="_layoutMode === 'horizontal'" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.35">
-              <rect x="2" y="2.5" width="5.5" height="11" rx="0.9"/>
-              <rect x="8.5" y="2.5" width="5.5" height="11" rx="0.9"/>
-            </svg>
-            <!-- 上下布局图标 -->
-            <svg *ngIf="_layoutMode === 'vertical'" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.35">
-              <rect x="2.5" y="2" width="11" height="5.5" rx="0.9"/>
-              <rect x="2.5" y="8.5" width="11" height="5.5" rx="0.9"/>
-            </svg>
-            <!-- 单栏布局图标 -->
-            <svg *ngIf="_layoutMode === 'single'" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.35">
-              <rect x="2" y="2" width="12" height="12" rx="0.9"/>
-              <circle cx="10.5" cy="8" r="1.35" fill="currentColor" stroke="none"/>
-            </svg>
+            <button *ngIf="item === 'layout'" class="btn-link btn-icon btn-layout" (click)="cycleLayoutMode()"
+                    [class.layout-overridden]="!!_layoutOverrideReason"
+                    title="{{ layoutModeTitle() }}">
+<ng-container *ngTemplateOutlet="tbIconLayout"></ng-container>
           </button>
-          <button class="btn-link btn-icon btn-transfer-log" (click)="toggleTransferLog()"
-                  [class.active]="showTransferLog"
-                  title="{{ i18n.t('transfer.log') }}">
-            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round">
-              <rect x="2.5" y="2.5" width="11" height="11" rx="0.9"/>
-              <line x1="5" y1="5.75" x2="11" y2="5.75"/>
-              <line x1="5" y1="8" x2="11" y2="8"/>
-              <line x1="5" y1="10.25" x2="9.5" y2="10.25"/>
-            </svg>
+            <button *ngIf="item === 'transferLog'" class="btn-link btn-icon btn-transfer-log" (click)="toggleTransferLog()"
+                    [class.active]="showTransferLog"
+                    title="{{ i18n.t('transfer.log') }}">
+<ng-container *ngTemplateOutlet="tbIconTransferLog"></ng-container>
           </button>
-          <button class="btn-link btn-icon btn-settings" (click)="openPluginSettings()"
-                  title="{{ i18n.t('app.openSettings') }}">
+            <button *ngIf="item === 'settings'" class="btn-link btn-icon btn-settings" (click)="openPluginSettings()"
+                    title="{{ i18n.t('app.openSettings') }}">
+<ng-container *ngTemplateOutlet="tbIconSettings"></ng-container>
+          </button>
+            <button *ngIf="item === 'minimize'" class="btn-link btn-icon btn-minimize" (click)="minimize()"
+                    [title]="minimized ? i18n.t('app.restore') : i18n.t('topbar.minimize')">
+<ng-container *ngTemplateOutlet="tbIconMinimize"></ng-container>
+          </button>
+            <button *ngIf="item === 'maximize'" class="btn-link btn-icon btn-maximize" (click)="toggleMaximize()"
+                    [title]="panelMaximized ? i18n.t('app.restore') : i18n.t('app.maximize')">
+<ng-container *ngTemplateOutlet="tbIconMaximize"></ng-container>
+          </button>
+            <!-- ★ 2026-10-23（Deepseek-V4.1-Flash）：✕ 不再是硬编码的恒固定按钮，改为参与上面的定制列表。
+                 前提是「已给面板配了开关快捷键」（否则 topBarInlineItems 会把它兜底补回来）。
+                 ⛔ mousedown 必须 preventDefault：不让 ✕ 拿到键盘焦点 —— Chrome 对未 preventDefault 的
+                 mousedown 一律把焦点给按钮，按钮随即在盒外画出聚焦环；顶栏 ✕ 在最右侧、上沿与
+                 .sftp-main 的裁切边界重合，那圈环的上边会被削平（用户实测「按下浮出蓝环、拖开仍残留」）。
+                 preventDefault 不影响 click，也不影响冒泡到 .top-bar 的拖拽处理。 -->
+            <button *ngIf="item === 'close'" class="btn-close"
+                    (mousedown)="$event.preventDefault()" (click)="close()"
+                    [title]="i18n.t('app.close')">✕</button>
+          </ng-container>
+          <!-- ⋯ 折叠菜单按钮：★ 2026-10-23 起**只要启用折叠菜单就常驻显示**。
+               原判断是「确有按钮被收起才出现」⇒ 默认全部固定的状态下压根没有入口去调固定
+               （用户反馈：启用折叠后，希望在面板里直接看到三个点）。 -->
+          <button *ngIf="topBarOverflowButtonVisible" class="btn-link btn-icon btn-overflow"
+                  [class.active]="_topBarOverflowVisible"
+                  (click)="toggleTopBarOverflow($event)"
+                  title="{{ i18n.t('settings.topBarOverflow') }}">
             <svg viewBox="0 0 16 16" fill="currentColor">
-              <g transform="translate(8 8) scale(0.62) translate(-12 -12)">
-                <path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
-              </g>
+              <circle cx="3.4" cy="8" r="1.25"/>
+              <circle cx="8" cy="8" r="1.25"/>
+              <circle cx="12.6" cy="8" r="1.25"/>
             </svg>
           </button>
-          <button *ngIf="displayMode !== 'workspace'" class="btn-link btn-icon btn-minimize" (click)="minimize()" title="{{ minimized ? (effectiveLang==='zh-CN'?'恢复':'Restore') : (effectiveLang==='zh-CN'?'最小化':'Minimize') }}">
-            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round">
-              <line x1="4" y1="8" x2="12" y2="8"/>
-            </svg>
-          </button>
-          <button *ngIf="displayMode !== 'workspace'" class="btn-link btn-icon btn-maximize" (click)="toggleMaximize()"
-                  [title]="panelMaximized ? i18n.t('app.restore') : i18n.t('app.maximize')">
-            <svg *ngIf="!panelMaximized" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M2.5 6V3.5A1 1 0 013.5 2.5H6"/>
-              <path d="M10 2.5h2.5A1 1 0 0113.5 3.5V6"/>
-              <path d="M13.5 10v2.5A1 1 0 0112.5 13.5H10"/>
-              <path d="M6 13.5H3.5A1 1 0 012.5 12.5V10"/>
-            </svg>
-            <svg *ngIf="panelMaximized" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linejoin="round">
-              <rect x="2.5" y="2.5" width="7" height="7" rx="1"/>
-              <rect x="6.5" y="6.5" width="7" height="7" rx="1"/>
-            </svg>
-          </button>
-          <!-- ★ 2026-09-30：mousedown 时 preventDefault —— 不让 ✕ 拿到键盘焦点。
-               成因：Chrome 对未 preventDefault 的 mousedown 一律把焦点交给按钮，而按钮一旦获得焦点
-               就会在盒子外侧画出聚焦环（顶栏 ✕ 位于最右侧、上沿与 .sftp-main 的裁切边界重合，
-               那圈环的上边会被削平，用户实测「按下后浮出蓝环、拖开仍残留、且没有封顶」）。
-               preventDefault 不影响 click（鼠标在按钮内抬起时 click 照常触发），也不影响事件冒泡到
-               .top-bar 的拖拽处理（该处理本就会对 button 提前 return）。 -->
-          <button class="btn-close" (mousedown)="$event.preventDefault()" (click)="close()">✕</button>
+        </div>
+        <!-- ★ 2026-10-19（Deepseek-V4.1-Flash）：⋯ 折叠菜单。锚定在顶栏右下（.top-bar 是 relative），
+             点外部/执行任一项/窗口尺寸变化由面板逻辑关闭；菜单只做动作转发，不持有业务状态。
+             ★ 2026-10-23：改为列**全部**可用按钮（含已固定的），每行右侧图钉就地切换「固定 / 收进 ⋯」。
+             ⛔ 外层必须是 div：HTML 不允许 button 嵌套 button（浏览器会拆 DOM，图钉点了没反应）。
+             ⛔ 点图钉不关菜单（用户常要连着改几项）；点行本体才执行动作并收起。 -->
+        <div class="topbar-overflow-menu" *ngIf="_topBarOverflowVisible && topBarMenuItems.length"
+          (mousedown)="$event.stopPropagation()" (click)="$event.stopPropagation()">
+          <div class="topbar-overflow-item" *ngFor="let item of topBarMenuItems"
+            [class.active]="topBarItemActive(item)">
+            <button class="topbar-overflow-run" (click)="runTopBarItem(item)" [title]="topBarItemLabel(item)">
+              <!-- 图标与顶栏按钮同一份（tbIcon* ng-template），保证收进菜单后仍能凭图标认出功能 -->
+              <span class="topbar-overflow-icon">
+                <ng-container [ngSwitch]="item">
+                  <ng-container *ngSwitchCase="'pathMode'"><ng-container *ngTemplateOutlet="tbIconPathMode"></ng-container></ng-container>
+                  <ng-container *ngSwitchCase="'layout'"><ng-container *ngTemplateOutlet="tbIconLayout"></ng-container></ng-container>
+                  <ng-container *ngSwitchCase="'transferLog'"><ng-container *ngTemplateOutlet="tbIconTransferLog"></ng-container></ng-container>
+                  <ng-container *ngSwitchCase="'settings'"><ng-container *ngTemplateOutlet="tbIconSettings"></ng-container></ng-container>
+                  <ng-container *ngSwitchCase="'minimize'"><ng-container *ngTemplateOutlet="tbIconMinimize"></ng-container></ng-container>
+                  <ng-container *ngSwitchCase="'maximize'"><ng-container *ngTemplateOutlet="tbIconMaximize"></ng-container></ng-container>
+                  <ng-container *ngSwitchCase="'close'"><ng-container *ngTemplateOutlet="tbIconClose"></ng-container></ng-container>
+                </ng-container>
+              </span>
+              <span class="topbar-overflow-label">{{ topBarItemLabel(item) }}</span>
+            </button>
+            <!-- 固定开关：已固定 = 实心图钉；未固定 = 带斜杠的轮廓图钉（两套 SVG 模板切换） -->
+            <button class="topbar-overflow-pin" [class.pinned]="isTopBarPinned(item)"
+              (click)="toggleTopBarItemPinned(item, $event)"
+              [title]="isTopBarPinned(item) ? i18n.t('settings.topBarUnpin') : i18n.t('settings.topBarPin')">
+              <ng-container *ngTemplateOutlet="isTopBarPinned(item) ? tbPinOn : tbPinOff"></ng-container>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -137,11 +336,17 @@
       <!-- 双栏主体 -->
       <div class="sftp-body">
         <!-- ====== 本地面板 ====== -->
+        <!-- ★ 2026-10-20：端点标识的悬停提示不带「左/右」方位（布局可切上下/单栏），与顶栏连接分段共用同一条文案 -->
         <sftp-file-pane
+          data-pane-side="left"
           *ngIf="_effectiveLayout !== 'single'"
           [i18n]="i18n"
-          labelIcon="🖥"
-          [paneLabel]="i18n.t('pane.local')"
+          [labelIcon]="leftPaneIcon"
+          [paneLabel]="leftPaneLabel"
+          [labelClickable]="connPickerPaneToolbarEnabled"
+          [labelActive]="_connPickerSide === 'left'"
+          [labelTitle]="i18n.t('conn.pickerTitle')"
+          (labelClick)="openConnPickerFromPaneLabel('left', $event)"
           listClass="local-pane"
           [isLocal]="true"
           [iconBaseDir]="effectiveIconBaseDir"
@@ -163,17 +368,22 @@
           [filterPending]="localFilterPending"
           (filterPendingChange)="localFilterPending = $event"
           [filterActive]="localFilter"
-          [bookmarksActive]="showBookmarks && bookmarkPane === 'local'"
+          [bookmarksActive]="bmState('left').open"
           [loading]="_localLoading"
           [flash]="_localFlash"
+          [locatedPath]="localLocatedPath"
           [dragOver]="_localDragOver"
           [hasError]="_localError"
+          [connLost]="leftConnState === 'disconnected'"
+          [pending]="leftPanePending"
+          [pendingLabel]="leftPanePendingText"
+          [pathPending]="leftPanePending"
           [showEmpty]="getFilteredLocalEntries().length === 0 && !_localLoading"
-          [entries]="getFilteredLocalEntries()"
-          [groupRows]="getLocalGroupRows()"
+          [entries]="leftPanePending ? _EMPTY_LIST : getFilteredLocalEntries()"
+          [groupRows]="leftPanePending ? null : getLocalGroupRows()"
           [navFocusKey]="navFocusKey('local')"
           (groupToggle)="onLocalGroupToggle($event)"
-          (groupSelect)="onLocalGroupSelect($event)"
+          (groupSelect)="onLocalGroupSelect($event.key, $event.event)"
           [visibleCols]="localVisibleCols"
           [headerCols]="localHeaderPreviewCols"
           [colWidths]="getLocalColWidths()"
@@ -213,7 +423,7 @@
           (entryContextMenu)="onLocalContextMenu($event.entry, $event.event)"
           (entryDragStart)="onDragStartLocal($event.event, $event.entry)"
           (entryDragEnd)="onEntryDragEnd()"
-          (toggleBookmarks)="toggleBookmarksForPane('local', $event)">
+          (toggleBookmarks)="toggleBookmarksForPane('left', $event)">
         </sftp-file-pane>
 
         <!-- 拖拽分割线（窄屏上下布局/宽屏左右布局均显示） -->
@@ -223,11 +433,17 @@
              (mousedown)="onSplitterDown($event)"
              (dblclick)="onSplitterDblClick($event)"></div>
 
-        <!-- ====== 远程面板 ====== -->
+        <!-- ====== 远程面板（右栏远程端点） ====== -->
         <sftp-file-pane
+          data-pane-side="right"
+          *ngIf="_rightKind === 'remote'"
           [i18n]="i18n"
-          labelIcon="🌐"
-          [paneLabel]="i18n.t('pane.remote')"
+          [labelIcon]="rightPaneIcon"
+          [paneLabel]="rightPaneLabel"
+          [labelClickable]="connPickerPaneToolbarEnabled"
+          [labelActive]="_connPickerSide === 'right'"
+          [labelTitle]="i18n.t('conn.pickerTitle')"
+          (labelClick)="openConnPickerFromPaneLabel('right', $event)"
           listClass="remote-pane"
           [isLocal]="false"
           [iconBaseDir]="effectiveIconBaseDir"
@@ -251,19 +467,23 @@
           [filterPending]="remoteFilterPending"
           (filterPendingChange)="remoteFilterPending = $event"
           [filterActive]="remoteFilter"
-          [bookmarksActive]="showBookmarks && bookmarkPane === 'remote'"
+          [bookmarksActive]="bmState('right').open"
           [loading]="_remoteLoading"
           [flash]="_remoteFlash"
+          [locatedPath]="remoteLocatedPath"
           [dragOver]="_remoteDragOver"
           [hasError]="_remoteError"
-          [showNoSession]="!connected && !sshSession"
+          [connLost]="rightConnState === 'disconnected'"
+          [pending]="rightPanePending"
+          [pendingLabel]="rightPanePendingText"
+          [showNoSession]="!connected && !sshSession && !rightPanePending"
           [showHeader]="connected"
           [showEmpty]="connected && getFilteredRemoteEntries().length === 0 && !_remoteLoading"
-          [entries]="getFilteredRemoteEntries()"
-          [groupRows]="getRemoteGroupRows()"
+          [entries]="rightPanePending ? _EMPTY_LIST : getFilteredRemoteEntries()"
+          [groupRows]="rightPanePending ? null : getRemoteGroupRows()"
           [navFocusKey]="navFocusKey('remote')"
           (groupToggle)="onRemoteGroupToggle($event)"
-          (groupSelect)="onRemoteGroupSelect($event)"
+          (groupSelect)="onRemoteGroupSelect($event.key, $event.event)"
           [visibleCols]="remoteVisibleCols"
           [headerCols]="remoteHeaderPreviewCols"
           [colWidths]="getRemoteColWidths()"
@@ -304,7 +524,94 @@
           (entryContextMenu)="onRemoteContextMenu($event.entry, $event.event)"
           (entryDragStart)="onDragStartRemote($event.event, $event.entry)"
           (entryDragEnd)="onEntryDragEnd()"
-          (toggleBookmarks)="toggleBookmarksForPane('remote', $event)">
+          (toggleBookmarks)="toggleBookmarksForPane('right', $event)">
+        </sftp-file-pane>
+
+        <!-- ====== 右栏本地端点（issue #27 P3：第二本地浏览器，状态槽 _rl* 与左栏独立） ====== -->
+        <!-- ★ 2026-10-18 issue #27：接入框选（rl 面板此前缺 listMouseDown/listClick 绑定，
+             框选无法启动；数据槽由 panel-rubber-band 按端点类型路由到 _rlSelected） -->
+        <sftp-file-pane
+          data-pane-side="right"
+          *ngIf="_rightKind === 'local'"
+          [i18n]="i18n"
+          [labelIcon]="rightPaneIcon"
+          [paneLabel]="rightPaneLabel"
+          [labelClickable]="connPickerPaneToolbarEnabled"
+          [labelActive]="_connPickerSide === 'right'"
+          [labelTitle]="i18n.t('conn.pickerTitle')"
+          (labelClick)="openConnPickerFromPaneLabel('right', $event)"
+          [bookmarksActive]="bmState('right').open"
+          listClass="remote-pane rl-pane"
+          [isLocal]="true"
+          [iconBaseDir]="effectiveIconBaseDir"
+          [fileTypeIcons]="_fileTypeIcons"
+          [bundledIconDir]="_bundledIconDir"
+          [disabledIconSvgs]="_disabledIconSvgs"
+          [folderIconSvg]="_folderIconSvg"
+          [pathInput]="_rlPathInput"
+          [paneCustomOrder]="paneCustomOrder"
+          [paneHiddenItems]="paneHiddenItems"
+          [showHidden]="_rlShowHidden"
+          (pathInputChange)="_rlPathInput = $event"
+          (pathEnter)="_rlPathEnter()"
+          (pathBlur)="onRlPathBlur()"
+          [canBack]="canRlBack"
+          [canForward]="canRlForward"
+          [canUp]="canRlUp()"
+          [filterVisible]="_rlFilterVisible"
+          [filterPending]="_rlFilterPending"
+          (filterPendingChange)="_rlFilterPending = $event"
+          [filterActive]="_rlFilter"
+          [loading]="_rlLoading"
+          [flash]="_rlFlash"
+          [dragOver]="_rlDragOver"
+          [hasError]="_rlError"
+          [showEmpty]="getFilteredRlEntries().length === 0 && !_rlLoading"
+          [entries]="getFilteredRlEntries()"
+          [groupRows]="getRlGroupRows()"
+          (groupToggle)="onRlGroupToggle($event)"
+          (groupSelect)="onRlGroupSelect($event.key, $event.event)"
+          [visibleCols]="localVisibleCols"
+          [headerCols]="rlHeaderPreviewCols"
+          [colWidths]="getLocalColWidths()"
+          [headerColWidths]="rlHeaderPreviewWidths"
+          [resizingCol]="rlResizingCol"
+          [draggingCol]="rlDraggingCol"
+          [dropIndicatorCol]="rlDropIndicatorCol"
+          [dropIndicatorAfter]="rlDropIndicatorAfter"
+          [sortBy]="_rlSortBy"
+          [sortAsc]="_rlSortAsc"
+          [selectionInfo]="getRlSelectionInfo()"
+          [locatedPath]="_rlLocatedPath"
+          [colHeaderLabelFn]="colHeaderLabelFn"
+          [colValueFn]="colValueFn"
+          [isSelectedFn]="isRlSelectedFn"
+          [sortArrowFn]="_rlSortArrowFn"
+          [trackByFn]="trackLocalEntryBy"
+          (applyFilter)="applyRlFilter()"
+          (clearFilter)="clearRlFilter()"
+          (listMouseEnter)="activePane = 'rl'"
+          (listWheel)="onPaneWheel($event, 'remote')"
+          (listScroll)="onPaneScroll()"
+          (listMouseDown)="onPaneMouseDown($event, 'remote')"
+          (listClick)="onPaneListClick($event, 'remote')"
+          (listContextMenu)="onPaneContextMenu($event)"
+          (headerContextMenu)="onHeaderContextMenu($event)"
+          (colResizeStart)="onColResizeStart($event.col, $event.event, 'rl')"
+          (colResizeAutoFit)="onColResizeAutoFit($event.col, 'rl')"
+          (colHeaderReorderStart)="onColHeaderReorderStart($event.col, $event.event, 'rl')"
+          (sort)="onRlSort($event)"
+          (entryClick)="_rlClick($event.entry, $event.event, $event.index)"
+          (entryDblClick)="_rlDblClick($event.entry, $event.event)"
+          (entryContextMenu)="onRlContextMenu($event.entry, $event.event)"
+          (entryDragStart)="onDragStartRl($event.event, $event.entry)"
+          (entryDragEnd)="onEntryDragEnd()"
+          (listDragOver)="onDragOverRl($event)"
+          (listDragEnter)="onDragEnterRl($event)"
+          (listDragLeave)="onDragLeaveRl($event)"
+          (listDrop)="onDropRl($event)"
+          (toggleBookmarks)="toggleBookmarksForPane('right', $event)"
+          (nav)="onRlPaneNav($event)">
         </sftp-file-pane>
 
       </div>
@@ -359,44 +666,68 @@
         (choose)="onCwdSetupChoice($event)">
       </sftp-cwd-setup-dialog>
 
-      <sftp-bookmark-popup *ngIf="showBookmarks"
+      <!-- ★ 2026-10-23（Deepseek-V4.1-Flash）：弹层 footer 的图钉「面板常驻」——
+           [panelPinned] 读控制器 getter `bookmarkPinned`（= closeBookmarkPanelOnSelect 取反），
+           点外部 / 滚轮 / 右键 / 框选 / 窗口缩放也统一读它，取反只在一处做。 -->
+      <!-- ★ 2026-10-23（Deepseek-V4.1-Flash）：书签弹层**按栏各一个**（*ngFor 遍历左右两栏）。
+           常驻（图钉钉住）时两栏可同时打开；未钉住时由 toggleBookmarksForPane 内部保证同时只有一个。
+           ⛔ 绑定统一走 bmState(side).xxx —— 新增字段要同步加到控制器 BookmarkPaneState，别加回控制器单例
+              （单例会让两栏抢同一份表单输入）。`data-bm-side` 供拖拽测高时定位到本栏弹层，别删。
+           ★ 2026-10-23 续：`suspended` = 本栏被布局临时隐藏（切单栏 / 窄窗只显一栏）。
+              ⛔ 用 display:none 而不是把它 *ngIf 掉/关闭：要保住滚动位置、展开分组、表单草稿，
+                 窗口再放大回来时这一栏的弹层要原样回来（用户实测要求）。 -->
+      <ng-container *ngFor="let side of bookmarkSides">
+        <sftp-bookmark-popup *ngIf="bmState(side).open"
+        [attr.data-bm-side]="side"
+        [style.display]="bmState(side).suspended ? 'none' : null"
         [i18n]="i18n"
-        [top]="bookmarkPopupY"
-        [left]="bookmarkPopupX"
-        [width]="bookmarkPopupW"
-        [maxHeight]="bookmarkPopupMaxH"
-        [arrowLeft]="bookmarkArrowLeft"
-        [paneLabel]="bookmarkPane === 'local' ? i18n.t('pane.local') : i18n.t('pane.remote')"
-        [pane]="bookmarkPane"
-        [currentPath]="bookmarkPane === 'local' ? localPath : remotePath"
-        [addScope]="bookmarkAddScope"
-        [newName]="newBookmarkName"
-        [newPath]="newBookmarkPath"
-        (newNameChange)="newBookmarkName = $event"
-        (newPathChange)="newBookmarkPath = $event"
-        [editingId]="_editingBookmarkId"
-        [connectionBookmarks]="getBookmarksForPaneType('connection')"
-        [globalBookmarks]="getBookmarksForPaneType('global')"
-        [allBookmarks]="getAllBookmarksForPane()"
+        [top]="bmState(side).y"
+        [left]="bmState(side).x"
+        [width]="bmState(side).w"
+        [maxHeight]="bmState(side).maxH"
+        [height]="bmState(side).h"
+        (resizeStart)="startBookmarkResize($event.dir, $event.event, side)"
+        (resizeReset)="resetBookmarkPopupSize($event, side)"
+        [arrowLeft]="bmState(side).arrowLeft"
+        [paneLabel]="bmState(side).pane === 'local' ? i18n.t('pane.local') : i18n.t('pane.remote')"
+        [pane]="bmState(side).pane"
+        [currentPath]="_bookmarkCurrentPathOf(side)"
+        [addScope]="bmState(side).addScope"
+        [linkEnabled]="bookmarkLinkEnabled"
+        [sortMode]="bookmarkSortMode"
+        (sortToggle)="toggleBookmarkSortMode()"
+        [panelPinned]="bookmarkPinned"
+        (pinToggle)="toggleBookmarkPanelPinned()"
+        [newLinkedPath]="bmState(side).newLinkedPath"
+        (newLinkedPathChange)="setBookmarkDraft(side, 'newLinkedPath', $event)"
+        [newName]="bmState(side).newName"
+        [newPath]="bmState(side).newPath"
+        (newNameChange)="setBookmarkDraft(side, 'newName', $event)"
+        (newPathChange)="setBookmarkDraft(side, 'newPath', $event)"
+        [editingId]="bmState(side).editingId"
+        [connectionBookmarks]="getBookmarksForPaneType('connection', side)"
+        [globalBookmarks]="getBookmarksForPaneType('global', side)"
+        [allBookmarks]="getAllBookmarksForPane(side)"
         [groupByScope]="bookmarkPanelGroupByScope"
         [groupOrder]="bookmarkPanelGroupOrder"
-        [dragOverIdx]="dragOverIdx"
-        [dragOverScope]="dragOverScope"
-        [dragOverBottom]="dragOverBottom"
-        [dragSourceIdx]="dragSourceIdx"
-        [dragSourceScope]="dragSourceScope"
-        (close)="closeBookmarks()"
-        (addScopeClick)="openBookmarkAddForm($event)"
-        (addBookmark)="addBookmark()"
-        (cancelEdit)="cancelBookmarkEdit()"
-        (gotoBookmark)="gotoBookmark($event)"
+        [dragOverIdx]="bmState(side).dragOverIdx"
+        [dragOverScope]="bmState(side).dragOverScope"
+        [dragOverBottom]="bmState(side).dragOverBottom"
+        [dragSourceIdx]="bmState(side).dragSourceIdx"
+        [dragSourceScope]="bmState(side).dragSourceScope"
+        (close)="closeBookmarksAt(side)"
+        (addScopeClick)="openBookmarkAddForm($event, side)"
+        (addBookmark)="addBookmark(side)"
+        (cancelEdit)="cancelBookmarkEdit(side)"
+        (gotoBookmark)="gotoBookmark($event, side)"
         (removeBookmark)="removeBookmark($event)"
-        (contextMenu)="onBookmarkContextMenu($event.bookmark, $event.event)"
-        (dragStart)="onBookmarkDragStart($event.event, $event.index, $event.scope)"
-        (dragOver)="onBookmarkDragOver($event.event, $event.index, $event.scope)"
-        (dragEnd)="onBookmarkDragEnd()"
-        (drop)="onBookmarkDrop($event.event, $event.index, $event.scope)">
-      </sftp-bookmark-popup>
+        (contextMenu)="onBookmarkContextMenu($event.bookmark, $event.event, side)"
+        (dragStart)="onBookmarkDragStart($event.event, $event.index, $event.scope, side)"
+        (dragOver)="onBookmarkDragOver($event.event, $event.index, $event.scope, side)"
+        (dragEnd)="onBookmarkDragEnd(side)"
+        (drop)="onBookmarkDrop($event.event, $event.index, $event.scope, side)">
+        </sftp-bookmark-popup>
+      </ng-container>
 
       <!-- 传输日志 -->
       <!-- ★ 2026-09-20 A6：加 *ngIf——此前该元素常驻实例化，导致 [entries]="filteredTransferLogs"
@@ -455,19 +786,22 @@
         [menuVisible]="contextMenuVisible"
         [menuX]="contextMenuX"
         [menuY]="contextMenuY"
-        [pane]="contextMenuPane"
+        [pane]="contextMenuDisplayPane"
+        [dataPane]="_ctxActionPane"
+        [peerPane]="_ctxPeerActionPane"
+        [peerSameConnection]="_ctxPeerSameConnection"
         [entry]="contextMenuEntry"
         [hasSelection]="hasContextSelection()"
-        [singleSelected]="contextMenuPane === 'local' ? selectedLocal.length === 1 : selectedRemote.length === 1"
+        [singleSelected]="_ctxSingleSelected"
         [clipboardHasEntries]="clipboardEntries.length > 0"
         [canView]="canViewEntry(contextMenuEntry)"
         [canEdit]="canEditEntry(contextMenuEntry)"
-        [canTransfer]="connected"
+        [canTransfer]="_ctxCanTransfer"
         [modKey]="modKey"
         [menuOrder]="contextMenuOrder"
         [panelHotkeyShortcuts]="contextMenuHotkeyShortcuts"
-        [groupByPane]="contextMenuEntry ? null : contextMenuPane"
-        [groupBy]="contextMenuPane === 'local' ? localGroupBy : remoteGroupBy"
+        [groupByPane]="contextMenuEntry ? null : contextMenuDisplayPane"
+        [groupBy]="_ctxGroupBy"
         [groupAllCollapsed]="groupAllCollapsed"
         [disabledMenuEntries]="contextMenuDisabledEntries"
         (groupByAction)="onGroupByMenuAction($event)"
@@ -477,8 +811,8 @@
         [headerY]="headerMenuY"
         [headerCol]="headerMenuCol"
         [cols]="contextColVisibility"
-        [pinFolders]="contextMenuPane === 'local' ? pinFoldersLocal : pinFoldersRemote"
-        [showHidden]="contextMenuPane === 'local' ? showHiddenLocal : showHiddenRemote"
+        [pinFolders]="_ctxPinFolders"
+        [showHidden]="_ctxShowHidden"
         [showColBorders]="showColBorders"
         [showZebra]="showZebra"
         (menuAction)="onContextMenuAction($event)"
@@ -490,6 +824,8 @@
         [visible]="showPermDialog"
         [targetName]="permTargetName"
         [targetPath]="permTargetPath"
+        [isDir]="permTargetIsDir"
+        [iconUrl]="permTargetIcon"
         [ownerRead]="permOwnerRead"
         [ownerWrite]="permOwnerWrite"
         [ownerExec]="permOwnerExec"
@@ -525,13 +861,18 @@
         [imageUrl]="viewerImageUrl"
         [error]="viewerError"
         [showSystemAction]="viewerShowSystemAction"
+        [showEditInSystem]="viewerShowEditInSystem"
         [imageIndex]="viewerImageIndex"
         [imageCount]="viewerImageCount"
         [showLineNumbers]="showTextLineNumbers"
+        [wordWrap]="showTextWordWrap"
         [caretShape]="textCaretShape"
         (systemAction)="openViewerInSystem()"
+        (editInSystem)="openViewerInSystemEdit()"
         (prevImage)="gotoViewerImage(-1)"
         (nextImage)="gotoViewerImage(1)"
+        (wordWrapChange)="onTextViewWordWrapChange($event)"
+        (lineNumbersChange)="onTextViewLineNumbersChange($event)"
         (close)="closeViewer()">
       </sftp-viewer-dialog>
 
@@ -547,7 +888,11 @@
         [error]="editorError"
         [showSystemAction]="editorShowSystemAction"
         [showLineNumbers]="showTextLineNumbers"
+        [wordWrap]="showTextWordWrap"
+        [externalEditPrompt]="editorExternalDirty && editorIsRemote"
         (contentChange)="onEditorContentChange($event)"
+        (wordWrapChange)="onTextViewWordWrapChange($event)"
+        (lineNumbersChange)="onTextViewLineNumbersChange($event)"
         (save)="saveEditor()"
         (cancel)="closeEditor()"
         (systemAction)="openEditorInSystem()">

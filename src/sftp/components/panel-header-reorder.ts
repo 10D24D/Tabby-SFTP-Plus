@@ -1,9 +1,15 @@
 /**
  * 表头列拖拽重排：仅表头预览换位，松手后同步数据列
+ * 功能描述：按面板（local/remote/rl）拖拽表头列实时预览换位，松手提交列序并持久化
+ * @创建人：DD1024z + Hy3
+ * @创建时间：2026-10-12
+ * @修改人：DD1024z + Hy3
+ * @修改时间：2026-10-19 — 续八：HeaderReorderPane 扩 'rl'（右栏本地端点）：列表选择器走 .pane-list.rl-pane
+ *           防串栏命中真正远程面板表头；rl 预览/提交归 local 列序配置组（localVisibleCols/localColOrder）
  */
 import { ChangeDetectorRef, ElementRef } from '@angular/core'
 
-export type HeaderReorderPane = 'local' | 'remote'
+export type HeaderReorderPane = 'local' | 'remote' | 'rl'
 
 export interface HeaderReorderHost {
   cdr: ChangeDetectorRef
@@ -22,8 +28,9 @@ export interface HeaderReorderHost {
   clearJustResizedSoon(ms?: number): void
 }
 
+// ★ 2026-10-12：加入 'name'（名称列现已可重排，需被 _colFromEl 识别为有效列）
 const KNOWN_HEADER_COLS = [
-  'size', 'date', 'created', 'perms', 'mode',
+  'name', 'size', 'date', 'created', 'perms', 'mode',
   'access', 'owner', 'group', 'path', 'ext',
 ] as const
 
@@ -83,12 +90,16 @@ export class PanelHeaderReorder {
   }
 
   start(col: string, event: MouseEvent, pane: HeaderReorderPane): void {
-    if (col === 'name' || event.button !== 0) return
+    // ★ 2026-10-12：移除 `col === 'name'` 屏蔽——名称列现已纳入列顺序体系，可拖拽重排。
+    if (event.button !== 0) return
     if (this.host.resizing) return
 
     this.reset()
 
-    const listSel = pane === 'local' ? '.pane-list.local-pane' : '.pane-list.remote-pane'
+    // ★ 2026-10-19 续八：rl（右栏本地端点）列表带 remote-pane rl-pane 双类，必须走
+    //   .rl-pane 精确选择器，否则会命中真正远程面板的表头（幽灵/预览错栏）。
+    const listSel = pane === 'local' ? '.pane-list.local-pane'
+      : pane === 'rl' ? '.pane-list.rl-pane' : '.pane-list.remote-pane'
     const header = (this.host.elRef.nativeElement as HTMLElement)
       .querySelector(`${listSel} .entry.header`) as HTMLElement | null
     const sourceEl = header?.querySelector(`.sortable.${col}`) as HTMLElement | null
@@ -101,7 +112,8 @@ export class PanelHeaderReorder {
     this._moved = false
     this._startX = event.clientX
     this._startTime = Date.now()
-    this._previewOrder = [...(pane === 'local' ? this.host.localVisibleCols : this.host.remoteVisibleCols)]
+    // rl 列序与左栏本地共用同一套配置（localVisibleCols/localColOrder）
+    this._previewOrder = [...(pane === 'remote' ? this.host.remoteVisibleCols : this.host.localVisibleCols)]
     this._dropIndicator = null
     this._ghostOffsetX = event.clientX - sourceRect.left
 
@@ -119,8 +131,12 @@ export class PanelHeaderReorder {
 
     const finish = (commit: boolean) => {
       if (!this._dragging) return
-      const duration = Date.now() - this._startTime
-      const isClick = !this._moved || duration < 200
+      // ★ 2026-10-13 P2 修复：isClick 只按**位移**判定，删掉 duration < 200 条件。
+      //   原判据 `!this._moved || duration < 200` 把「果断的快速拖列」（位移 >10px
+      //   已置 _moved，但总时长 <200ms）也算 click ⇒ 列序不生效、预览幽灵消失、
+      //   无任何反馈。位移阈值（上方 <10）已是点击/拖拽的正确判据，时长条件是
+      //   冗余的第二判据，且与位移判据语义冲突。
+      const isClick = !this._moved
       const preview = this._previewOrder
       if (commit && this._moved && !isClick && preview) {
         this._commitPreviewOrder(pane, preview)
@@ -167,15 +183,18 @@ export class PanelHeaderReorder {
   }
 
   private _previewHeaderOnly(pane: HeaderReorderPane, dragCol: string, clientX: number): void {
-    const listSel = pane === 'local' ? '.pane-list.local-pane' : '.pane-list.remote-pane'
+    const listSel = pane === 'local' ? '.pane-list.local-pane'
+      : pane === 'rl' ? '.pane-list.rl-pane' : '.pane-list.remote-pane'
     const header = (this.host.elRef.nativeElement as HTMLElement)
       .querySelector(`${listSel} .entry.header`) as HTMLElement | null
     if (!header) return
 
     const headers = Array.from(header.querySelectorAll('.sortable')) as HTMLElement[]
+    // ★ 2026-10-12：名称列（name）现在也是合法落点——拖某列到最前即落在 name 之前，
+    //   拖 name 自身时由 `c !== dragCol` 排除。移除原先 `c !== 'name'` 的限制。
     const targets = headers.filter(el => {
       const c = this._colFromEl(el)
-      return !!c && c !== 'name' && c !== dragCol
+      return !!c && c !== dragCol
     })
     if (!targets.length) return
 
@@ -193,7 +212,7 @@ export class PanelHeaderReorder {
     }
 
     const current = this._previewOrder
-      || (pane === 'local' ? this.host.localVisibleCols : this.host.remoteVisibleCols)
+      || (pane === 'remote' ? this.host.remoteVisibleCols : this.host.localVisibleCols)
     const fromIdx = current.indexOf(dragCol)
     if (fromIdx < 0) return
 
@@ -232,18 +251,20 @@ export class PanelHeaderReorder {
   }
 
   private _commitPreviewOrder(pane: HeaderReorderPane, previewVisible: string[]): void {
-    const order = pane === 'local' ? [...this.host.localColOrder] : [...this.host.remoteColOrder]
+    // ★ 2026-10-19 续八：rl 列序归到 local 配置组（与列宽/可见列同口径）
+    const isRemote = pane === 'remote'
+    const order = isRemote ? [...this.host.remoteColOrder] : [...this.host.localColOrder]
     const hidden = order.filter(c => !previewVisible.includes(c))
     const next = [...previewVisible]
     for (const c of order) {
       if (hidden.includes(c) && !next.includes(c)) next.push(c)
     }
-    if (pane === 'local') {
-      this.host.localColOrder = next
-      this.host.saveLocalColSettings()
-    } else {
+    if (isRemote) {
       this.host.remoteColOrder = next
       this.host.saveRemoteColSettings()
+    } else {
+      this.host.localColOrder = next
+      this.host.saveLocalColSettings()
     }
     try { window.dispatchEvent(new CustomEvent('sftp-plus-settings-changed')) } catch {}
   }

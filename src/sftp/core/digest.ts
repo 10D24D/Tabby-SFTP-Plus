@@ -14,6 +14,12 @@
  *
  * 创建人：DD1024z + Hy4 preview
  * 创建时间：2026-09-07
+ * @修改人：DD1024z + Step-5-Preview
+ * @修改时间：2026-10-19 — P2 修复：缓存键 `size:mtime` 里 mtime 用 `?? '?'` 兜底，
+ *              mtime 未知（调用方未传）时键退化成 `<size>:?` —— 此后只要大小不变就一直
+ *              命中同一条缓存，文件被改写（大小恰好不变）也返回旧摘要 ⇒ 判定「内容相同」
+ *              ⇒ 跳过传输、用户修改被静默丢弃。改为：mtime 未知时本轮**既不读缓存也不写缓存**
+ *              （多算一次 hash，换取绝不误判）。
  */
 
 import { createHash } from 'crypto'
@@ -37,8 +43,9 @@ export interface ContentDigestPort {
   readonly algo: DigestAlgo
   /** 本地文件摘要；无法计算时返回 null */
   localDigest(localPath: string, size?: number, mtime?: number): Promise<string | null>
-  /** 远端文件摘要；无 exec 权限或命令缺失时返回 null */
-  remoteDigest(remotePath: string, size?: number, mtime?: number): Promise<string | null>
+  /** 远端文件摘要；无 exec 权限或命令缺失时返回 null
+   *  @param session 可选的 SSH 会话，用于端点化冲突（远程↔远程）时指定非面板主会话 */
+  remoteDigest(remotePath: string, size?: number, mtime?: number, session?: any): Promise<string | null>
 }
 
 const DEFAULT_MAX_BYTES = 256 * 1024 * 1024
@@ -52,7 +59,58 @@ interface CacheEntry {
 }
 
 /** 摘要长度：sha1 = 40 hex，sha256 = 64 hex */
-const HEX_RE = /\b([0-9a-fA-F]{40}|[0-9a-fA-F]{64})\b/
+const HEX40 = '[0-9a-fA-F]{40}'
+const HEX64 = '[0-9a-fA-F]{64}'
+
+/**
+ * ★ 2026-10-09 审计根治：原先只有一个宽松的 `HEX_RE = /\b([0-9a-fA-F]{40}|{64})\b/` 取
+ * **首个**匹配，隐含假设「hash 总在输出最前面」。
+ * 该假设只在 sha1sum 成立（格式 `<hash>  <path>`），而 openssl 回退路径的输出是
+ * `SHA1(/data/deadbeef…/config.js)= <hash>` —— **路径在前、hash 在 `=` 之后**。
+ * 于是当远端没有 sha1sum/sha256sum（回退 openssl）且路径中含 40/64 位连续十六进制
+ * （内容寻址 cache 目录、CI 产物目录等），会匹配到**路径里那串**并当成文件摘要返回，
+ * 由于格式合法而通过全部校验 ⇒ isContentIdentical 返回「双方文件名相同就相同、
+ * 与内容无关」的假摘要 ⇒ **跳过传输，用户对文件的修改被静默丢弃**。
+ *
+ * 根治要点（三条，缺一不可）：
+ *   ① 按每种命令的**真实输出格式**分别锚定（sha*sum 锚行首、openssl 锚 `=` 右侧）；
+ *   ② 校验取到的 hex **长度必须与本实例算法一致**（sha1=40 / sha256=64），
+ *      宁可解析失败返回 null，也不要一个宽度不符的串；
+ *   ③ 逐行尝试（远端可能先吐 banner / warning 行）。
+ * 解析不出 ⇒ 返回 null（上层保守弹冲突框），绝不猜。
+ */
+function parseDigestOutput(
+  out: string | null | undefined,
+  bin: 'sha1sum' | 'sha256sum' | 'openssl',
+  algo: DigestAlgo,
+): string | null {
+  const hex = algo === 'sha256' ? HEX64 : HEX40
+  const text = String(out ?? '')
+  if (!text.trim()) return null
+
+  // 逐行匹配：远端 stdout 常混入 banner / locale 提示 / stderr 合并内容
+  for (const rawLine of text.split(/\r?\n/)) {
+    const line = rawLine.trimEnd()
+    if (!line.trim()) continue
+
+    if (bin === 'openssl') {
+      // 格式：`SHA1(/path/to/file)= <hash>` / `SHA2-256(/path)= <hash>`
+      // 关键：用**非贪婪单行**匹配 + 锚定行尾的 `= <hex>`，确保取的是 `=` 右侧的摘要。
+      // `[^=\n]*` 保证不会跨行、也不会越过 `=` 去取别的东西。
+      const re = new RegExp(`^[^=\\n]*=[ \\t]*(${hex})[ \\t]*$`, 'i')
+      const m = re.exec(line)
+      if (m) return m[1].toLowerCase()
+      continue
+    }
+
+    // sha1sum / sha256sum：`<hash>  <path>` 或 `<hash> *<path>`
+    // 必须锚定**行首**且后跟至少一个空白 + 路径字符，否则路径里的 hex 会被误取。
+    const re = new RegExp(`^[ \\t]*(${hex})[ \\t]+[*]?\\S`, 'i')
+    const m = re.exec(line)
+    if (m) return m[1].toLowerCase()
+  }
+  return null
+}
 
 export class ContentDigestService implements ContentDigestPort {
   readonly algo: DigestAlgo
@@ -104,10 +162,10 @@ export class ContentDigestService implements ContentDigestPort {
     })
   }
 
-  async remoteDigest(remotePath: string, size?: number, mtime?: number): Promise<string | null> {
+  async remoteDigest(remotePath: string, size?: number, mtime?: number, session?: any): Promise<string | null> {
     return this._withDedupe('R|' + remotePath, async () => {
       try {
-        const ssh = this.getSshSession()
+        const ssh = session ?? this.getSshSession()
         if (!ssh) {
           log.warn('[digest] remote digest skipped: no SSH session for', remotePath)
           return null
@@ -129,22 +187,27 @@ export class ContentDigestService implements ContentDigestPort {
           log.warn('[digest] remote digest skipped: no sha1sum/sha256sum/openssl available on remote server for', remotePath)
           return null
         }
-        const key = `${size ?? '?'}:${mtime ?? '?'}`
-        const hit = this.cache.get('R|' + remotePath)
-        if (hit && hit.key === key) return hit.digest
+        // ★ 2026-10-19 P2：mtime 未知时**不参与缓存**（既不读也不写）。
+        //   原写法把未知的 mtime 兜成 '?'，键变成 `<size>:?` —— 只要大小不变就永远命中，
+        //   文件被改写（大小恰好不变）也照旧返回旧摘要 ⇒ 上层判定「内容相同」⇒ 跳过传输。
+        //   宁可多跑一次远端 hash，也不返回可能陈旧的摘要。
+        const version = mtime == null ? null : `${size ?? '?'}:${mtime}`
+        const hit = version == null ? undefined : this.cache.get('R|' + remotePath)
+        if (hit && hit.key === version) return hit.digest
 
         const cmd = this.remoteBin === 'openssl'
           ? `openssl dgst -${this.algo} ${shellQuotePosix(remotePath)}`
           : `${this.remoteBin} ${shellQuotePosix(remotePath)}`
         // ★ 2026-09-20 P1-13：幂等命令显式启用重试
         const out = await execSshCommand(ssh, cmd, this.timeoutMs, { retryOnEmpty: true })
-        const m = HEX_RE.exec(out || '')
-        if (!m) {
-          log.warn('[digest] remote digest output parse failed for', remotePath, 'output:', out?.slice(0, 200))
+        // ★ 2026-10-09 审计根治：按命令真实格式解析 + 校验宽度（原 HEX_RE 取首个匹配，
+        //   openssl 路径会把「路径里的 hex」当成摘要 ⇒ 误判内容相同 ⇒ 静默跳过传输）
+        const digest = parseDigestOutput(out, this.remoteBin, this.algo)
+        if (!digest) {
+          log.warn('[digest] remote digest output parse failed for', remotePath, 'bin:', this.remoteBin, 'output:', out?.slice(0, 200))
           return null
         }
-        const digest = m[1].toLowerCase()
-        this._put('R|' + remotePath, key, digest)
+        if (version != null) this._put('R|' + remotePath, version, digest)
         return digest
       } catch (e) {
         log.warn('[digest] remote digest failed:', remotePath, e)

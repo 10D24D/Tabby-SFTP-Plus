@@ -5,14 +5,19 @@
  *   本次使用当前面板目录（回退）、取消传输。每批传输只询问一次。
  * @创建人：DD1024z + Hy3
  * @创建时间：2026-09-28
- * @修改人：DD1024z + Hy3
- * @修改时间：2026-09-28
+ * @修改人：DD1024z + Step-5-Preview
+ * @修改时间：2026-10-13 — P1 修复：目录不存在框的 Enter 劫持——焦点在「取消 / 使用当前目录」
+ *              按钮上按 Enter 时，overlay 级 Enter 被无条件映射为「创建并传输」
+ *              （preventDefault 取消按钮激活 + stopImmediatePropagation 阻断宿主兜底）。
+ *              onKeyDown 收口到 dialog-focus helper：Enter 按 event.target 分流 +
+ *              Tab 焦点陷阱（此前无陷阱，可逃逸到背景产生幽灵交互）。
  * 修改情况：
  *   - 2026-09-28 (Hy3)：按钮顺序调整——「取消」移到最左侧（用户反馈），主操作保持靠右
  */
 import { Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, Output, SimpleChanges, ViewChild } from '@angular/core'
 
 import { SftpI18nService } from '../../services/sftp-i18n.service'
+import { handleOverlayKeydown } from './dialog-focus'
 
 @Component({
   selector: 'sftp-dir-missing-dialog',
@@ -131,12 +136,13 @@ export class SftpDirMissingDialogComponent implements OnChanges, OnDestroy {
   }
 
   onKeyDown(event: KeyboardEvent): void {
-    if (event.key === 'Enter') {
-      // 回车 = 最常用动作：创建并传输
-      event.preventDefault()
-      event.stopImmediatePropagation()
-      this.emitChoice('create')
-    } else if (event.key === 'Escape') {
+    // ★ 2026-10-13 P1 修复：收口到 dialog-focus helper——Enter 按焦点目标分流
+    //   （此前焦点在「取消 / 使用当前目录」上按回车也会执行「创建并传输」），
+    //   并补 Tab 焦点陷阱（不逃逸到背景）。
+    handleOverlayKeydown(event, this.overlayEl?.nativeElement, {
+      onEnter: () => this.emitChoice('create'),
+    })
+    if (event.key === 'Escape') {
       event.preventDefault()
       event.stopImmediatePropagation()
       this.emitChoice('cancel')

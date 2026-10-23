@@ -1,6 +1,42 @@
 /** SFTP+ 面板样式（合并自 panel-main-styles + file-dialog-shared-styles）
- * 修改人：DD1024z + Deepseek-V4.1-Flash
- * 修改时间：2026-09-30 — ⑬ 顶栏 ✕ 的「蓝色光圈」根治，三处并改：
+ * @修改人：DD1024z + Deepseek-V4.1-Flash
+ * @修改时间：2026-10-20 — 分组模式斑马纹启用：改用 .entry.zebra（组内序号偶数位，每组首条带）替代被组头打乱的 nth-child；单条分组也可见斑马色。nth-child 规则限定 .pane-list:not(.has-groups)，避免与 .zebra 互补覆盖导致整组同色。
+ *             2026-10-19 — .sftp-root 增加 opacity: var(--_panel-opacity, 1)（设置页「面板透明度」，0.5–1）。
+ *             新增 .pane-label-caret（可点端点标识的 ▾ 角标，is-open 时翻转）。
+ *             2026-10-19 全量审计 P2-36 / P2-37 / P2-38：
+ *              P2-36 清除本文件里「已抽成组件」的对话框残留规则（delete / bookmark / ctx / details 四组），
+ *              只删已确证在对应组件 styles 里有同名规则的类；
+ *              P2-37 .sftp-overlays .overlay 不再写死 z-index:100 —— 该选择器 (0,3,0) 恒压掉对话框组件
+ *              自声明的层级 (0,2,0)，组件里写的 z-index（查看/编辑对话框 110）永远不生效；
+ *              P2-38 conn-identity / conn-opt / add-btn 三个 active 修饰类补 .active:hover 同参规则，
+ *              不再靠源码顺序与 :hover 打平决胜。
+ * 修改情况：
+ *   - 2026-10-20 (Deepseek-V4.1-Flash)：连接选择器补 .conn-opt.dead —— 已被关掉的那个连接在候选列表里
+ *             以「已断开」占位行出现（与顶栏显示对齐、不可点选）；同时显式盖回 :disabled 的 UA 灰化
+ *             （opacity:1），否则整行淡到看不清。
+ *   - 2026-10-20 (Deepseek-V4.1-Flash)：连接状态内联进顶栏连接分段 —— 新增 .conn-seg-label（承接省略号，
+ *             分段容器是 inline-flex，容器上的 text-overflow 对子元素文本无效）、.conn-dot / .conn-dot--busy
+ *             （7px 闪烁红点，busy 为主题色）、.conn-retry（16px 重连图标按钮）；删除整套
+ *             .disconnect-indicator / .disconnect-dot / .disconnect-tag 规则（对应徽标已移除）。
+ *   - 2026-10-18 (Hy3)：issue #27 P3：顶栏连接地址与 SFTP+ 标题基线对齐（标题镜像 .conn-seg 的 1px 内边距+1px 透明边框）；↔ 两侧间距改为「分段 6px 内边距 + 分隔符 4px 外边距」对称构成；连接标签全角括号改半角。
+ *   - 2026-10-14 (Deepseek-V4.1-Flash)：新增 .file-dialog-hint；窄面板修复 / 查看器编辑器长行 / 顶栏 ✕ 蓝圈等历史修复（原文见下）。
+ *              （历史原文）新增 `.file-dialog-hint`（对话框底部按钮行上方的单行提示，
+ *              用于查看器「文件过大：仅选中当前屏幕内容」）。顺带说明：上方 ⑫ 条目里
+ *              「.disconnect-indicator 维持 flex-shrink:0」已被 2026-10-13 的窄面板修复**取代**——
+ *              该指示器现为可压缩项（flex:0 1 auto + min-width:0，由 .disconnect-tag 承担省略），
+ *              以保证断开态下关闭/最大化按钮永不被裁。
+ *              2026-10-13 — 2026-10-13 全量审计第二批修复（查看器/编辑器开关与长行显示）：
+ *              ⑭ `.file-dialog-vs-window` 补 `width:max-content; min-width:100%`，并去掉
+ *                  `.file-dialog-vs-text` 的 `overflow:hidden; text-overflow:ellipsis`——
+ *                  查看器长行「省略号截断、横向滚不动」的根因：window 是 `left:0;right:0`
+ *                  （宽恒等于视口）+ 文本层 ellipsis 两层叠加，`.file-dialog-vs` 的
+ *                  `overflow:auto` 因没有超宽内容而永不产生横向滚动。组件注释（2026-09-26）
+ *                  声称的配套修改当时并未落地。换行模式行宽受 packRows 预切行约束，不依赖 ellipsis。
+ *              ⑮ 新增 `.file-dialog-editor-wrap .file-dialog-textarea.is-soft-wrap`——编辑器
+ *                  「自动换行」开关此前**全仓无对应 CSS 规则**（模板加类无任何样式响应），
+ *                  且被上方 (0,2,0) 的 `white-space:pre` 与静态 `wrap="off"` 双重锁死。
+ *                  新规则特异性 (0,3,0) 胜出。
+ *              2026-09-30 — ⑬ 顶栏 ✕ 的「蓝色光圈」根治，三处并改：
  *                 ① 模板给 .btn-close 加 mousedown preventDefault —— 鼠标点按不再让按钮获得焦点
  *                 （焦点正是那个环的成因：它是聚焦态画的、松开鼠标后仍残留），click 行为不变；
  *                 ② 图标按钮的聚焦态收口由 :focus / :focus-visible 扩到 :active，并补
@@ -110,6 +146,9 @@ export const SFTP_PANEL_STYLES = `
       gap: 0;
       position: relative;
       background: var(--_bg);
+      /* ★ 2026-10-19（Deepseek-V4.1-Flash）：面板整体透明度由设置页写入 --_panel-opacity（0.5–1）。
+         下限 50% 保证内容可读；无变量时退回 1（历史行为）。 */
+      opacity: var(--_panel-opacity, 1);
       color: var(--_text);
       font-size: var(--_fs);
       font-family: var(--font-family, 'Segoe UI', sans-serif);
@@ -164,7 +203,10 @@ export const SFTP_PANEL_STYLES = `
     }
     .sftp-root .sftp-toast {
       position: absolute;
-      top: 10px;
+      /* ★ 2026-10-19（Deepseek-V4.1-Flash）：原来贴顶居中（top:10px），而顶栏右上角是操作按钮组，
+         长提示（如「面板过窄…已临时改为上下布局」）会整条压住那排按钮，用户没法点。
+         改为贴底居中：底部只有非交互的状态行/列表，不挡任何操作入口。 */
+      bottom: 10px;
       left: 50%;
       transform: translateX(-50%);
       z-index: 200010;
@@ -184,7 +226,7 @@ export const SFTP_PANEL_STYLES = `
       animation: sftp-toast-in 0.18s ease-out;
     }
     @keyframes sftp-toast-in {
-      from { opacity: 0; transform: translateX(-50%) translateY(-6px); }
+      from { opacity: 0; transform: translateX(-50%) translateY(6px); }
       to { opacity: 1; transform: translateX(-50%) translateY(0); }
     }
     /* 主内容区：标题栏 + 双栏 + 传输队列，独占剩余高度 */
@@ -227,6 +269,14 @@ export const SFTP_PANEL_STYLES = `
       pointer-events: none;
     }
     /* 全屏遮罩对话框：相对浮层容器铺满并居中 */
+    /* ★ 2026-10-19 P2-37：本规则原写 z-index:100 —— 选择器 .sftp-root .sftp-overlays .overlay
+       特异性 (0,3,0)，恒压过对话框组件自带的 .overlay[_ngcontent-x]（(0,2,0)），
+       组件里声明的层级**永远不生效**（查看/编辑对话框走 FILE_DIALOG_SHARED_STYLES 的 110，
+       实际被摁成 100），只能靠本文件后面给删除框开特例 120 兜底。
+       现去掉这条 z-index：每个对话框的 .overlay 在各自组件里都声明了 z-index
+       （delete / input / cwd-setup / details / perm / conflict / transfer-log / dir-missing 均为 100；
+       查看器与编辑器走共用样式的 110），层级改由组件自己说了算；
+       遮罩整体压在面板内容之上由父级 .sftp-overlays 的 z-index:100 保证，不受影响。 */
     .sftp-root .sftp-overlays .overlay {
       position: absolute;
       inset: 0;
@@ -234,7 +284,6 @@ export const SFTP_PANEL_STYLES = `
       align-items: center;
       justify-content: center;
       background: rgba(0,0,0,0.6);
-      z-index: 100;
       pointer-events: auto;
       transition: none !important;
       animation: none !important;
@@ -257,50 +306,300 @@ export const SFTP_PANEL_STYLES = `
       border-radius: 8px 8px 0 0;
       flex-shrink: 0;
       border-bottom: 1px solid var(--_border);
+      position: relative;
     }
-    .sftp-root .title { font-weight: 700; color: var(--_primary); font-size: 1.15em; flex-shrink: 0; white-space: nowrap; }
-    /* ★ 2026-09-30：.host-info 是顶栏里唯一「内容长度不可控」的元素（user@host，长域名 30+ 字符）。
+    .sftp-root .title { font-weight: 700; color: var(--_primary); font-size: 1.15em; flex-shrink: 0; white-space: nowrap;
+      /* ★ issue #27 P3：镜像 .conn-seg 的 1px 上下内边距 + 1px 透明边框。分段有上下内边距/边框而标题没有，
+         会使「连接地址」文字相对「SFTP+」标题上移约 1px（用户实测基线不齐）；两者盒模型一致后基线对齐。 */
+      padding: 1px 0; border: 1px solid transparent; }
+    /* ★ 2026-09-30：.conn-address（原 .host-info）是顶栏里唯一「内容长度不可控」的元素（user@host，长域名 30+ 字符）。
        原先 flex-shrink:0 ⇒ 面板变窄时它一分不让，而右侧 .top-actions 也无法收缩
        （7 个 28px 按钮 + 6 个 2px gap = 208px）⇒ 顶栏整体溢出面板右缘被裁掉，
        最后两个按钮（最大化 / 关闭）直接消失（用户实测：窄面板下 ✕ 完全不见、最大化只剩一半）。
        改为「唯一可压缩项 + 省略号」：先牺牲主机名文字，按钮永不被裁。
        配套：最小宽度已抬到 420px（见 sftp-floating-panel.component.ts 的 _geomMinW）。 */
-    .sftp-root .host-info {
-      font-size: 0.92em; opacity: 0.6; margin-left: 4px;
-      flex: 0 1 auto; min-width: 0; overflow: hidden;
-      text-overflow: ellipsis; white-space: nowrap;
+    /* ★ 2026-10-18 issue #27 P2 收尾：顶栏连接地址（conn-address）控件。
+       沿用 .host-info 的「唯一可压缩项 + 省略号」约束，避免窄面板下顶栏右侧按钮被裁。 */
+    .sftp-root .conn-address {
+      display: inline-flex; align-items: center; gap: 0;
+      font-size: 0.92em; opacity: 0.85;
+      flex: 0 1 auto; min-width: 0; overflow: hidden; line-height: 1;
     }
-    /* 断开连接指示器 - 嵌入标题栏 */
-    .sftp-root .disconnect-indicator {
-      display: inline-flex; align-items: center; gap: 6px;
-      margin-left: 8px; padding: 2px 10px 2px 8px;
-      border-radius: 4px;
-      background: rgba(239, 68, 68, 0.10);
-      border: 1px solid rgba(239, 68, 68, 0.25);
-      font-size: 12px;
-      flex-shrink: 0;
+    .sftp-root .conn-seg {
+      cursor: pointer; user-select: none;
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 1px 6px; border-radius: 4px; border: 1px solid transparent;
+      min-width: 0; overflow: hidden; white-space: nowrap;
+      flex: 0 1 auto; line-height: 1;
     }
-    .sftp-root .disconnect-dot {
+    .sftp-root .conn-seg:hover { background: var(--_border); opacity: 1; }
+    .sftp-root .conn-seg.active { background: var(--_border); border-color: var(--_primary); opacity: 1; }
+    /* ★ 2026-10-19（Deepseek-V4.1-Flash）：唤起方式设为「终端标识」时，顶栏连接标题只显示不再响应点击 */
+    .sftp-root .conn-seg.picker-off { cursor: default; }
+    .sftp-root .conn-seg.picker-off:hover { background: transparent; }
+    .sftp-root .conn-address-single.picker-off { cursor: default; }
+    .sftp-root .conn-address-single.picker-off:hover { background: transparent; }
+    /* ★ issue #27 P3：↔ 两侧间距完全对称——间距由「分段 6px 内边距 + 此处 4px 外边距」构成，两端相等；
+       不再依赖容器 gap（避免与分段内边距叠加导致左右不等），line-height:1 消除行高带来的基线偏差。 */
+    .sftp-root .conn-sep { flex-shrink: 0; opacity: 0.6; margin: 0 4px; line-height: 1; }
+    .sftp-root .conn-address-single {
+      cursor: pointer; user-select: none;
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 1px 6px; border-radius: 4px; border: 1px solid transparent;
+      font-size: 0.92em; opacity: 0.85;
+      flex: 0 1 auto; min-width: 0; overflow: hidden; white-space: nowrap; line-height: 1;
+    }
+    .sftp-root .conn-address-single:hover { background: var(--_border); opacity: 1; }
+    .sftp-root .conn-address-single.active { background: var(--_border); border-color: var(--_primary); opacity: 1; }
+    /* ★ 2026-10-16 issue #27 P1：可点击的连接标识 + 连接选择器 */
+    .sftp-root .conn-identity {
+      cursor: pointer; user-select: none;
+      display: inline-flex; align-items: center; gap: 3px;
+      padding: 1px 5px; border-radius: 4px;
+      border: 1px solid transparent;
+    }
+    /* ★ 2026-10-19 P2-38：.conn-identity:hover 与 .conn-identity.active 特异性打平 (0,3,0)，
+       只靠源码先后决胜 ⇒ 选中项一被悬停就有丢高亮的风险。补一条 .active:hover（(0,4,0) 更高），
+       与同文件 .btn-path-mode.active:hover 的既有写法保持一致。 */
+    .sftp-root .conn-identity:hover { opacity: 0.95; background: var(--_border); }
+    .sftp-root .conn-identity.active,
+    .sftp-root .conn-identity.active:hover { background: var(--_border); border-color: var(--_primary); opacity: 1; }
+    /* ★ issue #27 P3：地址栏包裹层（相对定位锚点，承载下沉到地址栏下方的全局选择器浮层） */
+    .sftp-root .conn-address-wrap { position: relative; flex: 0 1 auto; min-width: 0; overflow: visible; }
+    .sftp-root .conn-picker {
+      position: absolute; top: calc(100% - 2px); right: 6px; z-index: 60;
+      min-width: 220px; max-width: 320px;
+      background: var(--_content); border: 1px solid var(--_border);
+      border-radius: 8px; box-shadow: 0 6px 22px rgba(0,0,0,0.28);
+      padding: 6px; display: flex; flex-direction: column; gap: 4px;
+    }
+    /* ★ issue #27 P3：全局唯一选择器浮层——锚定在地址栏正下方（左对齐），覆盖 .conn-picker 的右上对齐 */
+    .sftp-root .global-conn-picker {
+      top: 100%; left: 0; right: auto;
+      max-height: 280px;
+    }
+    /* ★ 2026-10-20 续二十九（Deepseek-V4.1-Flash，用户反馈「连接选择器的滚动条有点丑，需要对齐」）：
+       这里原先只有 overflow-y:auto，走的是 Chromium **默认滚动条**（≈15px 浅灰方块 + 常驻滚动槽），
+       在 220~320px 宽的浮层里既吃掉大半可用宽度、又和面板列表 / 书签列表那两套细滚动条完全不同款。
+       现补齐项目统一的细滚动条（尺寸与 .bookmark-list 同款 6px；颜色走同一组 --_scroll-* 变量，
+       跟随主题与透明面板联动）。scrollbar-gutter:stable 让滚动条出现/消失时条目宽度不跳。 */
+    .sftp-root .conn-opt-list {
+      display: flex; flex-direction: column; gap: 2px; max-height: 240px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--_scroll-thumb, rgba(128,128,128,0.32)) var(--_scroll-track, rgba(128,128,128,0.06));
+      scrollbar-gutter: stable;
+      /* gutter 常驻占最右 6px ⇒ 条目右留白会变成 6(浮层 padding)+6 = 12px，
+         而左边只有 6px，条目 hover 底色明显偏左。负 margin 把列表盒右缘推进浮层的
+         padding 区，滚动条正好落在那 6px 里 ⇒ 条目恢复「左右各 6px」对称，滚动条也贴着右边框。 */
+      margin-right: -6px;
+    }
+    .sftp-root .conn-opt-list::-webkit-scrollbar { width: 6px; height: 6px; }
+    .sftp-root .conn-opt-list::-webkit-scrollbar-track {
+      background: var(--_scroll-track, rgba(128,128,128,0.06));
+      border-radius: 3px;
+    }
+    .sftp-root .conn-opt-list::-webkit-scrollbar-thumb {
+      background: var(--_scroll-thumb, rgba(128,128,128,0.32));
+      border-radius: 3px;
+      min-height: 24px;
+    }
+    .sftp-root .conn-opt-list::-webkit-scrollbar-thumb:hover {
+      background: var(--_scroll-thumb-hover, rgba(128,128,128,0.5));
+    }
+    .sftp-root .conn-opt-list::-webkit-scrollbar-thumb:active {
+      background: var(--_primary, #4dabff);
+    }
+    .sftp-root .conn-opt-list::-webkit-scrollbar-corner {
+      background: var(--_scroll-track, rgba(128,128,128,0.06));
+    }
+    /* ★ 2026-10-20 续三十（Deepseek-V4.1-Flash，用户诉求「每个选项的右侧都有一个减号图标按钮」）：
+       行布局从 flex-direction:column 改为「左：文本两行（.conn-opt-body）/ 右：关闭减号（.conn-opt-kill）」。
+       原 column 布局下图标会被排到第三行，撑高每一条候选。 */
+    .sftp-root .conn-opt {
+      display: flex; flex-direction: row; align-items: center; gap: 6px;
+      text-align: left; padding: 5px 8px; border: 1px solid transparent;
+      border-radius: 5px; background: transparent; color: inherit;
+      cursor: pointer; font: inherit;
+    }
+    .sftp-root .conn-opt-body {
+      display: flex; flex-direction: column; align-items: flex-start; gap: 1px;
+      flex: 1 1 auto; min-width: 0;
+    }
+    /* 减号：宽度恒占位（悬停显隐时行宽不跳），只有悬停本行 / 键盘聚焦才显形 */
+    .sftp-root .conn-opt-kill {
+      flex: 0 0 auto;
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 16px; height: 16px; border-radius: 4px;
+      color: rgb(239,68,68);
+      opacity: 0; transition: opacity 0.12s, background 0.12s;
+      cursor: pointer;
+    }
+    .sftp-root .conn-opt-kill svg { width: 12px; height: 12px; display: block; }
+    .sftp-root .conn-opt:hover .conn-opt-kill,
+    .sftp-root .conn-opt-kill:focus-visible { opacity: 1; }
+    .sftp-root .conn-opt-kill:hover { background: rgba(239,68,68,0.16); }
+    /* ★ 2026-10-19 P2-38：同上（conn-identity）——hover 与 active 打平 (0,3,0) 靠顺序决胜，
+       补 .active:hover（(0,4,0)）让当前选中项悬停时仍是蓝底 + 左竖条。 */
+    .sftp-root .conn-opt:hover { background: var(--_border); }
+    .sftp-root .conn-opt.active,
+    .sftp-root .conn-opt.active:hover { border-color: var(--_primary); background: rgba(59,130,246,0.18); box-shadow: inset 2px 0 0 rgba(59,130,246,0.9); }
+    /* ★ issue #27 P3：另一栏已选中的连接——弱高亮（淡背景 + 半透明左条），区别于本栏当前选中的强高亮 */
+    .sftp-root .conn-opt.other { border-color: rgba(59,130,246,0.45); background: rgba(59,130,246,0.06); box-shadow: inset 2px 0 0 rgba(59,130,246,0.4); }
+    /* ★ 2026-10-20：候选列表里的「已断开」占位行（那个连接标签页已被关掉，只剩身份信息）。
+       与顶栏分段的断开态同色（#ef4444），不可点、无悬停反馈 —— 它不是可选项，只是让列表与顶栏对齐。
+       注意 :disabled 按钮在部分平台上会套用 UA 的 opacity，必须显式盖回来，否则字会灰到看不清。 */
+    .sftp-root .conn-opt.dead,
+    .sftp-root .conn-opt.dead:hover,
+    .sftp-root .conn-opt.dead:disabled {
+      color: rgb(239,68,68); opacity: 1; background: transparent;
+      border-color: transparent; box-shadow: none; cursor: default;
+    }
+    .sftp-root .conn-opt.dead .conn-opt-sub { opacity: 0.75; }
+    /* ★ 2026-10-20 续二十六：候选里的「配置里有、但没在 Tabby 打开」的连接。
+       这类项点下去会先开一个标签页拿会话，用前置「+」表达「尚未连接、点它会新建」，
+       文字略降对比度与已打开项区分；仍可点、仍带 hover 反馈。 */
+    .sftp-root .conn-opt.unopened .conn-opt-plus { margin-right: 4px; font-weight: 700; opacity: 0.55; }
+    .sftp-root .conn-opt.unopened .conn-opt-label { font-weight: 500; opacity: 0.92; }
+    /* ★ 续三十：行内减号占掉 22px（16 图标 + 6 gap），长主机名更容易顶破浮层 max-width:320px
+       —— 原先文本没有任何截断，超长会直接溢出浮层右缘。两行各自单行省略。 */
+    .sftp-root .conn-opt-label {
+      font-size: 0.9em; font-weight: 600;
+      display: block; max-width: 100%;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .sftp-root .conn-opt-sub {
+      font-size: 0.72em; opacity: 0.6;
+      display: block; max-width: 100%;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    /* ★ 2026-10-20 续三十：原浮层底部的 .conn-opt-disc「断开连接」按钮已移除
+       （改为每条连接右侧的 .conn-opt-kill 减号），这里不再保留该规则。 */
+    /* ★ 2026-10-20（用户诉求）：连接状态内联进顶栏连接分段 ——「● 远程(user@host) ⟳」。
+       取代原先顶栏右侧那条独立的「● 已断开 [重连]」徽标：那玩意一断开就挤占顶栏宽度，
+       而且双远程时只能表达「某个连接断了」，无法指出是左栏还是右栏。
+       ⛔ 省略号必须由 .conn-seg-label 承担：分段自身是 inline-flex 容器，
+         在容器上写 text-overflow:ellipsis 对子元素里的文本不生效（长主机名会溢出）。 */
+    .sftp-root .conn-seg-label {
+      flex: 0 1 auto; min-width: 0;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .sftp-root .conn-dot {
       width: 7px; height: 7px; border-radius: 50%;
       background: #ef4444; flex-shrink: 0;
       animation: pulse-dot 1.5s ease-in-out infinite;
+    }
+    /* 建立通道中（首次切换 / 重连）：改为主题色慢闪，与「已断开」的红点区分开 */
+    .sftp-root .conn-dot--busy {
+      background: var(--_primary); opacity: 0.55;
+      animation: pulse-dot 1.1s ease-in-out infinite;
     }
     @keyframes pulse-dot {
       0%, 100% { opacity: 1; }
       50% { opacity: 0.4; }
     }
-    .sftp-root .disconnect-tag { color: #ef4444; font-weight: 500; }
-    .sftp-root .disconnect-indicator .reconnect-btn {
-      padding: 1px 8px; border-radius: 3px;
-      border: 1px solid rgba(239, 68, 68, 0.4);
-      background: transparent;
-      color: #ef4444; font-size: 11px; cursor: pointer;
-      transition: background 0.12s;
-      line-height: 20px;
+    /* 断开态：连接名一并泛红，否则 7px 红点在长主机名前面太不起眼 */
+    .sftp-root .conn-seg.is-down .conn-seg-label,
+    .sftp-root .conn-address-single.is-down .conn-seg-label { color: #ef4444; }
+    /* 重连图标按钮：图标本身 14px，但上下各 -1px 外边距把**占位高度**压回 12px（≈0.92em 文本行高），
+       否则 16px 的按钮会把连接分段的内容盒从 12px 撑到 16px —— 顶栏（尤其「SFTP+」标题基线）
+       会跟着整体位移 4px。溢出那 1px 正好落在分段的 padding 里，不压边框。 */
+    .sftp-root .conn-retry {
+      flex-shrink: 0;
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 14px; height: 14px; margin: -1px 0 -1px 2px; padding: 0;
+      border: none; border-radius: 3px; background: transparent;
+      color: #ef4444; cursor: pointer; line-height: 1;
     }
-    .sftp-root .disconnect-indicator .reconnect-btn:hover { background: rgba(239, 68, 68, 0.15); }
-    .sftp-root .disconnect-indicator .reconnect-btn:disabled { opacity: 0.4; cursor: default; }
+    .sftp-root .conn-retry svg { width: 12px; height: 12px; display: block; }
+    .sftp-root .conn-retry:hover { background: rgba(239, 68, 68, 0.16); }
+    .sftp-root .conn-retry:disabled { opacity: 0.4; cursor: default; background: transparent; }
     .sftp-root .top-actions { display: flex; gap: 2px; align-items: center; margin-left: auto; flex-shrink: 0; }
+    /* ★ 2026-10-19（Deepseek-V4.1-Flash）：顶栏 ⋯ 折叠菜单（按钮定制）。
+       锚定在 .top-bar（其 position:relative）右下；z-index 高于面板内容但低于 toast（200010）。 */
+    .sftp-root .topbar-overflow-menu {
+      position: absolute;
+      top: calc(100% - 2px);
+      right: 6px;
+      min-width: 150px;
+      padding: 4px;
+      background: var(--_bg);
+      border: 1px solid var(--_border);
+      border-radius: 6px;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.22);
+      z-index: 200005;
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+    /* ★ 2026-10-23（Deepseek-V4.1-Flash）：每行 = 「执行按钮 + 图钉」，所以行本身从 <button> 改成 div。
+       ⛔ 别改回 button：HTML 不允许 button 嵌套 button，浏览器会把图钉拆到行外。 */
+    .sftp-root .topbar-overflow-item {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      width: 100%;
+      padding: 1px;
+      border-radius: 4px;
+      color: var(--_text);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .sftp-root .topbar-overflow-item:hover { background: var(--_hover); }
+    .sftp-root .topbar-overflow-item.active { color: var(--_primary); font-weight: 600; }
+    /* 行内执行区（点它 = 执行该按钮动作并收起菜单），占据剩余宽度 */
+    .sftp-root .topbar-overflow-run {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+      min-width: 0;
+      padding: 4px 6px;
+      background: none;
+      border: none;
+      border-radius: 4px;
+      color: inherit;
+      font-size: 12px;
+      font-family: inherit;
+      text-align: left;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    /* 行内固定开关：未固定时淡显，已固定时用主色实心（＝这个按钮就在顶栏上）
+       ★ 2026-10-23（Deepseek-V4.1-Flash）：20px/12px 图标实测「太小、太淡」（用户截图反馈），
+       放大到 26px 按钮 / 17px 图标（用户两次反馈后才定），未固定态不透明度 .4 → .55。
+       行高仍由文字撑（约 26px ⇒ 26px 按钮时行高 28px，菜单整体只高几像素）。
+       ★ 同日再改：未固定的斜杠改成**图标自带的 SVG**（tbPinOff），这里不再用 CSS 叠线。 */
+    .sftp-root .topbar-overflow-pin {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 26px;
+      flex: none;
+      background: none;
+      border: none;
+      border-radius: 5px;
+      color: var(--_text);
+      opacity: 0.55;
+      cursor: pointer;
+      transition: opacity 0.15s, background 0.15s;
+    }
+    .sftp-root .topbar-overflow-pin:hover { opacity: 0.9; background: rgba(128, 128, 128, 0.14); }
+    .sftp-root .topbar-overflow-pin.pinned { opacity: 1; color: var(--_primary); }
+    .sftp-root .topbar-overflow-pin svg { width: 17px; height: 17px; display: block; }
+    /* ★ 2026-10-19（Deepseek-V4.1-Flash）：菜单项图标与顶栏同一份 SVG（tbIcon*），此处只管尺寸与对齐 */
+    .sftp-root .topbar-overflow-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 16px;
+      height: 16px;
+      flex: none;
+      opacity: 0.8;
+    }
+    .sftp-root .topbar-overflow-icon svg { width: 14px; height: 14px; }
+    .sftp-root .topbar-overflow-label { flex: 1; }
     .sftp-root .btn-link {
       background: none; border: none; color: var(--_text);
       cursor: pointer; border-radius: 4px;
@@ -388,7 +687,7 @@ export const SFTP_PANEL_STYLES = `
     .sftp-root:not(.workspace-mode) .top-bar { cursor: move; }
     .sftp-root:not(.workspace-mode) .top-bar button,
     .sftp-root:not(.workspace-mode) .top-bar a,
-    .sftp-root:not(.workspace-mode) .top-bar .disconnect-indicator { cursor: pointer; }
+    .sftp-root:not(.workspace-mode) .top-bar .conn-retry { cursor: pointer; }
     .sftp-root:not(.workspace-mode).dragging,
     .sftp-root:not(.workspace-mode).resizing { user-select: none; }
     .sftp-root:not(.workspace-mode).dragging .sftp-main { cursor: move; }
@@ -517,8 +816,25 @@ export const SFTP_PANEL_STYLES = `
       border-bottom: 1px solid var(--_border);
       border-radius: 8px 8px 0 0;
       min-width: 0;
+      /* ★ issue #27 P0：作为面板级连接选择器浮层的定位上下文 */
+      position: relative;
     }
     .sftp-root .pane-label { font-weight: 600; font-size: 1em; white-space: nowrap; flex-shrink: 0; }
+    /* ★ 2026-10-19（Deepseek-V4.1-Flash）：端点标识可点（连接切换器入口）时的可交互提示 */
+    .sftp-root .pane-label--clickable { cursor: pointer; border-radius: 4px; padding: 0 3px; margin: 0 -3px; }
+    .sftp-root .pane-label--clickable:hover { background: var(--_hover); }
+    /* ★ 2026-10-19（Hy3）：可点标识右侧的小角标（▾）——「这儿能点」的可发现性提示；
+       展开该栏切换器时翻转 180°，兼作开关状态反馈。 */
+    .sftp-root .pane-label-caret {
+      display: inline-block;
+      margin-left: 3px;
+      font-size: 0.78em;
+      line-height: 1;
+      opacity: 0.5;
+      transition: transform 0.15s ease, opacity 0.15s ease;
+    }
+    .sftp-root .pane-label--clickable:hover .pane-label-caret { opacity: 1; }
+    .sftp-root .pane-label-caret.is-open { transform: rotate(180deg); opacity: 1; color: var(--_primary); }
     .sftp-root .pane-path { display: flex; gap: 4px; min-width: 0; overflow: hidden; flex: 1 1 auto; }
     .sftp-root .path-input {
       flex: 1; min-width: 40px; padding: 3px 6px; border-radius: 4px;
@@ -607,7 +923,10 @@ export const SFTP_PANEL_STYLES = `
     .sftp-root .btn-close:active,
     .sftp-root .reconnect-btn:focus,
     .sftp-root .reconnect-btn:focus-visible,
-    .sftp-root .reconnect-btn:active {
+    .sftp-root .reconnect-btn:active,
+    .sftp-root .conn-retry:focus,
+    .sftp-root .conn-retry:focus-visible,
+    .sftp-root .conn-retry:active {
       outline: none !important;
       box-shadow: none !important;
       -webkit-tap-highlight-color: transparent;
@@ -793,12 +1112,21 @@ export const SFTP_PANEL_STYLES = `
     }
     /* 面板圆角通过 sftp-body 的 border-radius + overflow:hidden 实现 */
 
-    .sftp-root.has-zebra .entry:not(.header):nth-child(even) { background: var(--_surface); }
+    /* ★ 2026-10-20（Deepseek-V4.1-Flash）：nth-child 斑马纹**仅用于非分组列表**（.pane-list:not(.has-groups)）。
+       分组模式下组头行也是 .entry，nth-child 的奇偶被组头错位，与 .entry.zebra 的组内奇偶
+       恰好「互补覆盖」→ 组内几乎所有条目都被染色，整组看起来一片同色 = 没有斑马纹（2026-10-20 实测）。 */
+    .sftp-root.has-zebra .pane-list:not(.has-groups) .entry:not(.header):nth-child(even) { background: var(--_surface); }
     /* 斑马纹偶数行 hover 需更高优先级覆盖斑马纹背景 */
-    .sftp-root.has-zebra .entry:not(.header):nth-child(even):hover { background: color-mix(in srgb, var(--_primary) 57%, transparent); }
+    .sftp-root.has-zebra .pane-list:not(.has-groups) .entry:not(.header):nth-child(even):hover { background: color-mix(in srgb, var(--_primary) 57%, transparent); }
     /* 选中行 - 优先级最高，不受斑马纹影响 */
     .sftp-root .entry.selected,
-    .sftp-root.has-zebra .entry:not(.header):nth-child(even).selected {
+    .sftp-root.has-zebra .pane-list:not(.has-groups) .entry:not(.header):nth-child(even).selected {
+      /* ★ 2026-10-13：静态回退先行 —— color-mix() 在较旧 Electron/Chromium 上整体不被支持，
+         声明会被丢弃；选中态是**最高频视觉状态**（点击、框选、Shift 选都依赖它），
+         一旦失效用户完全看不出选中了哪些文件。不支持时回落到半透明中性灰底。
+         注意：同一条规则里重复声明 background 属标准 fallback 写法（后者不被识别即
+         保留前者），但这里两条声明的特异性相同、且带 !important，务必保持此顺序。 */
+      background: rgba(128, 128, 128, 0.32) !important;
       background: color-mix(in srgb, var(--_primary) 77%, transparent) !important;
     }
     .sftp-root .entry:hover:not(.selected):not(.header) { background: color-mix(in srgb, var(--_primary) 57%, transparent); }
@@ -878,10 +1206,14 @@ export const SFTP_PANEL_STYLES = `
        选中高亮连成整块（不再被 2px 缝隙切成一段段）；配合行高统一，视觉完全均匀 */
     .sftp-root .pane-list.has-groups .entry:not(.header) { margin: 0; }
     .sftp-root .pane-list.has-groups .entry.group-row { margin: 0; }
-    /* ★ 2026-09-29：斑马纹 nth-child 在分组模式下奇偶被分组头打乱 → 不规则底色带，
-       视觉上像间距不一；Windows 分组视图无斑马纹，分组模式整体禁用（选中/hover 不受影响） */
-    .sftp-root.has-zebra .pane-list.has-groups .entry:not(.header):nth-child(even) { background: transparent; }
-    .sftp-root.has-zebra .pane-list.has-groups .entry:not(.header):nth-child(even):hover {
+    /* ★ 2026-09-29：斑马纹 nth-child 在分组模式下奇偶被分组头打乱 → 不规则底色带，当日整体禁用。
+       ★ 2026-10-20（Deepseek-V4.1-Flash）：改为按「组内序号」类名驱动（buildGroupedRows 里算 zebra，
+       模板挂 .entry.zebra），每组第 1 条带类 ⇒ 单条分组也显示斑马色；组头不参与计数，折叠组也不占号。
+       ★ 2026-10-20：上方 nth-child 斑马纹已限定 :not(.has-groups)，分组模式只走本规则，
+       否则两者奇偶互补覆盖、组内条目几乎全被染色（整组同色 = 看着没有斑马纹）。
+       选中态仍由上方 .selected(!important) 压过，hover 单独提权覆盖。 */
+    .sftp-root.has-zebra .pane-list.has-groups .entry.zebra:not(.header) { background: var(--_surface); }
+    .sftp-root.has-zebra .pane-list.has-groups .entry.zebra:not(.header):hover {
       background: color-mix(in srgb, var(--_primary) 57%, transparent);
     }
     /* ★ 2026-09-29（五次）的分组头子 span 规则（padding 3px 0 / contain:none / overflow:visible）
@@ -1046,6 +1378,14 @@ export const SFTP_PANEL_STYLES = `
       user-select: none !important;
       cursor: grabbing !important;
     }
+    /* ★ 2026-10-12 修复：拖拽列宽期间保持 col-resize 手势。原仅在把手上设 cursor:col-resize，
+       鼠标移出把手落到其它列即变回默认箭头；此处对齐 .col-header-reordering 的做法，
+       由 .sftp-root.col-header-resizing 类强制贯穿全程（控制器在 resize 开始/结束加卸该类）。 */
+    .sftp-root.col-header-resizing,
+    .sftp-root.col-header-resizing * {
+      user-select: none !important;
+      cursor: col-resize !important;
+    }
     /* 跟随鼠标的幽灵表头 */
     .header-col-ghost {
       display: inline-flex !important;
@@ -1102,6 +1442,18 @@ export const SFTP_PANEL_STYLES = `
       100% { background-color: transparent; }
     }
 
+    /* ★ 2026-10-16 issue #26：地址栏输入含文件名的绝对路径后，对定位到的条目做一次高亮闪烁。
+       仅用 box-shadow 画一圈琥珀色描边，不碰 background（background 已被 .selected 的
+       !important 主色底占用），故与选中态叠加而不互相覆盖；动画结束后描边淡出。 */
+    .sftp-root .entry.locate-flash {
+      animation: entry-locate-flash 1.2s ease-out;
+    }
+    @keyframes entry-locate-flash {
+      0%   { box-shadow: inset 0 0 0 2px #f59e0b, 0 0 10px 2px rgba(245,158,11,0.6); }
+      75%  { box-shadow: inset 0 0 0 2px #f59e0b, 0 0 10px 2px rgba(245,158,11,0.6); }
+      100% { box-shadow: none; }
+    }
+
     /* 桌面文件拖拽悬停高亮（边框画在不滚动的 wrap 上，不随横向滚动偏移） */
     .sftp-root .pane-list-wrap.pane-drag-over .pane-list {
       background-color: color-mix(in srgb, var(--primary-color, #3b82f6) 8%, transparent);
@@ -1136,15 +1488,20 @@ export const SFTP_PANEL_STYLES = `
     .sftp-root .action-buttons button:hover { background: var(--_hover); }
     .sftp-root .action-buttons button:disabled { opacity: 0.4; cursor: default; }
 
+    /* ★ 2026-10-19 P2-37：同样去掉写死的 z-index:100 —— 本规则 (0,2,0) 与组件
+       .overlay[_ngcontent-x] (0,2,0) 打平，胜负全看 style 元素插入顺序，属同一类隐患。
+       去掉后各对话框沿用组件自声明值（详见上方 .sftp-overlays .overlay 处的注释）。 */
     .sftp-root .overlay {
       position: absolute; inset: 0;
       background: rgba(0,0,0,0.6);
-      display: flex; align-items: center; justify-content: center; z-index: 100;
+      display: flex; align-items: center; justify-content: center;
       /* 立即显示，无淡入动效 */
       transition: none !important;
       animation: none !important;
     }
-    /* ★ 2026-08-26 C3：删除确认必须压过查看器(z=110)，避免被盖住后 Enter 隐形确认 */
+    /* ★ 2026-08-26 C3：删除确认必须压过查看器(z=110)，避免被盖住后 Enter 隐形确认。
+       ★ 2026-10-19 P2-37 补充：现在查看器的 110 才真正生效（此前被上方 (0,3,0) 摁成 100），
+       故这条 120 特例**必须保留**——它是有意压过组件值的唯一例外（删除框组件自身只声明 100）。 */
     .sftp-root .overlay.sftp-delete-overlay,
     .sftp-root sftp-delete-dialog .overlay {
       z-index: 120;
@@ -1187,73 +1544,32 @@ export const SFTP_PANEL_STYLES = `
     }
     .sftp-root .danger { background: #d32f2f !important; border-color: #ef5350 !important; }
 
-    .sftp-root .delete-dialog {
-      background: var(--_bg);
-      border: 1px solid var(--_border);
-      border-radius: 12px; padding: 20px; min-width: 340px; max-width: 420px;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
-    }
-    .sftp-root .delete-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
-    .sftp-root .delete-header-icon { flex-shrink: 0; width: 14px !important; height: 14px !important; }
-    .sftp-root .delete-warn-icon { flex-shrink: 0; width: 18px !important; height: 18px !important; }
-    .sftp-root .delete-title { font-size: 15px; font-weight: 600; color: var(--_text); }
-    .sftp-root .delete-text { font-size: 13px; color: var(--_text); margin-bottom: 12px; opacity: 0.85; }
-    .sftp-root .delete-preview {
-      border: 1px solid var(--_border);
-      border-radius: 8px; padding: 12px; margin-bottom: 16px;
-      background: var(--_content);
-    }
-    .sftp-root .delete-preview-row {
-      display: flex; align-items: center; gap: 8px;
-      font-size: 12px; padding: 2px 0;
-    }
-    .sftp-root .delete-preview-row + .delete-preview-row { margin-top: 3px; }
-    .sftp-root .delete-preview-icon { flex-shrink: 0; color: var(--_text); opacity: 0.6; }
-    .sftp-root .delete-preview-name { font-weight: 500; color: var(--_text); }
-    .sftp-root .delete-preview-label { color: var(--_text); opacity: 0.5; min-width: 60px; }
-    .sftp-root .delete-preview-value { color: var(--_text); }
+    /* ★ 2026-10-19 P2-36：本段原为「删除确认对话框」的 .delete-* 规则，现整体删除。
+       删除框早已抽成独立组件（sftp-delete-dialog）并在自己的 styles 里声明了同套规则；
+       而本文件是 ViewEncapsulation.None + 选择器带 .sftp-root 前缀（特异性 (0,2,0)），
+       与组件经 emulated 封装后的 .delete-dialog[_ngcontent-x]（同为 (0,2,0)）**打平**，
+       只能靠 style 元素插入顺序决胜 ⇒ 典型的「改对了却不生效」。
+       逐类核对（组件 sftp-delete-dialog.component.ts 的 styles 均已定义同名规则）：
+       delete-dialog / delete-header / delete-header-icon / delete-warn-icon / delete-title /
+       delete-text / delete-preview / delete-preview-row / delete-preview-row 相邻间距 /
+       delete-preview-icon / delete-preview-name / delete-preview-label / delete-preview-value。
+       差异仅一处：delete-header-icon 本文件 14px、组件 16px —— 按「以组件为准」取 16px。
+       约定：**对话框样式一律以组件自身为准**，本文件只保留布局 / overlay / 跨组件那类规则。 */
 
-    .sftp-root .bookmark-popup {
-      position: absolute;
-      width: 320px;
-      max-height: 420px;
-      box-sizing: border-box;
-      display: flex; flex-direction: column;
-      background: var(--_bg);
-      border: 1px solid var(--_border);
-      border-radius: 10px;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.15);
-      z-index: 200;
-      overflow: visible;
-      transform: translateZ(0);
-      transition: none !important;
-      animation: none !important;
-    }
-    .sftp-root .popup-arrow {
-      position: absolute; top: -7px;
-      width: 12px; height: 12px;
-      background: var(--_bg);
-      border-left: 1px solid var(--_border);
-      border-top: 1px solid var(--_border);
-      transform: rotate(45deg);
-      z-index: 1;
-      pointer-events: none;
-    }
-    .sftp-root .popup-title {
-      padding: 10px 14px 6px;
-      font-weight: 700; color: var(--_primary); font-size: 13px;
-    }
-    .sftp-root .popup-footer {
-      display: flex; justify-content: flex-end;
-      padding: 6px 10px; border-top: 1px solid var(--_border);
-    }
-    .sftp-root .popup-footer button {
-      padding: 4px 10px; border-radius: 6px; font-size: 11px;
-      border: 1px solid var(--_border);
-      background: var(--_content);
-      color: var(--_text); cursor: pointer;
-    }
-    .sftp-root .popup-footer button:hover { background: var(--_hover); }
+    /* ★ 2026-10-19 P2-36：本段原为书签弹层的 .bookmark-popup / .popup-* 规则，现整体删除。
+       书签弹层已抽成组件（sftp-bookmark-popup）并在自己的 styles 里声明同套规则；
+       本文件带 sftp-root 前缀的同类规则（(0,2,0)）与组件封装后的
+       .bookmark-popup[_ngcontent-x]（(0,2,0)）打平靠顺序决胜，属同一类隐患。
+       逐类核对（组件 styles 均已定义同名规则）：
+       bookmark-popup / popup-arrow / popup-title / popup-footer / popup-footer button /
+       popup-footer button:hover。
+       差异：popup-title 内边距本文件 10px 14px 6px、组件 2px 2px（组件另有 .popup-header
+       承担外padding，属组件化后的重新分工，以组件为准）。 */
+
+    /* ★ 2026-10-19 P2-36 待验证：以下 bookmark-add-btns / add-btn / add-icon / bookmark-empty /
+       bookmark-add-form .bm-form-row 几组在 sftp-bookmark-popup 组件里**没有**同名规则
+       （未随组件迁移），但全仓搜索也没有任何 markup 用到它们（疑似组件化改造遗留的死代码）。
+       按「宁可少删不可删错」本次保留，待真机确认无引用后再一并清除。 */
     .sftp-root .bookmark-add-btns { display: flex; gap: 6px; padding: 0 14px 10px; }
     .sftp-root .add-btn {
       display: flex; align-items: center; gap: 4px;
@@ -1263,200 +1579,53 @@ export const SFTP_PANEL_STYLES = `
       color: var(--_text); cursor: pointer;
     }
     .sftp-root .add-btn:hover { background: var(--_hover); }
-    .sftp-root .add-btn.active { border-color: var(--_primary); background: rgba(59,130,246,0.08); }
+    /* ★ 2026-10-19 P2-38：同上——补 .active:hover（(0,4,0)），选中态悬停不丢高亮。 */
+    .sftp-root .add-btn.active,
+    .sftp-root .add-btn.active:hover { border-color: var(--_primary); background: rgba(59,130,246,0.08); }
     .sftp-root .add-icon { font-weight: 700; font-size: 14px; color: var(--_primary); }
-    .sftp-root .bookmark-add-form {
-      display: flex; flex-direction: column; gap: 6px;
-      padding: 0 10px 10px;
-    }
+    /* ★ 2026-10-19 P2-36：书签弹层其余同名规则（bookmark-add-form / 其 input 与 :focus /
+       btn-confirm / btn-confirm:disabled / bookmark-scope-label / bookmark-list）一并删除，
+       组件 sftp-bookmark-popup 的 styles 里均有同名定义（input 字号组件为 12px、本文件为 1em，
+       以组件为准）。保留 .bm-form-row 见上方「待验证」注释。 */
     .sftp-root .bookmark-add-form .bm-form-row {
       display: flex; gap: 6px; align-items: center;
-    }
-    .sftp-root .bookmark-add-form input {
-      width: 100%; padding: 6px 8px; border-radius: 4px;
-      border: 1px solid var(--_border);
-      background: var(--_input-bg);
-      color: var(--_text); font-size: 1em;
-      caret-color: var(--_text, currentColor);
-      -webkit-text-fill-color: var(--_text, currentColor);
-      cursor: text;
-      user-select: text !important;
-      -webkit-user-select: text !important;
-      box-sizing: border-box; outline: none;
-    }
-    .sftp-root .bookmark-add-form input:focus,
-    .sftp-root .bookmark-add-form input:focus-visible {
-      border-color: var(--_primary) !important;
-      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.35) !important;
-      box-shadow: 0 0 0 2px color-mix(in srgb, var(--_primary) 35%, transparent) !important;
-      outline: none !important;
-    }
-    .sftp-root .bookmark-add-form .btn-confirm {
-      align-self: flex-end;
-      padding: 6px 16px; border-radius: 4px;
-      border: 1px solid var(--_primary);
-      background: var(--_primary);
-      color: #fff; cursor: pointer; font-size: 12px; white-space: nowrap;
-    }
-    .sftp-root .bookmark-add-form .btn-confirm:disabled { opacity: 0.4; }
-    .sftp-root .bookmark-scope-label {
-      padding: 4px 10px 2px; font-size: 10px; font-weight: 600;
-      color: var(--_primary); opacity: 0.6; text-transform: uppercase;
-      border-bottom: 1px solid var(--_border); margin-bottom: 2px;
-    }
-    .sftp-root .bookmark-list {
-      flex: 1; overflow-y: auto; min-height: 0;
-      padding: 0 4px;
-      scrollbar-width: thin;
-      scrollbar-color: var(--_scroll-thumb, rgba(128,128,128,0.35)) var(--_scroll-track, rgba(128,128,128,0.06));
     }
     .sftp-root .bookmark-empty {
       padding: 24px 8px; text-align: center;
       font-size: 12px; opacity: 0.4; color: var(--_text);
     }
-    .sftp-root .bookmark-item {
-      display: flex; align-items: center; gap: 8px;
-      padding: 5px 8px; border-radius: 6px; margin: 1px 0;
-      cursor: pointer; transition: background 0.1s, opacity 0.15s;
-    }
-    .sftp-root .bookmark-item:hover { background: var(--_hover); }
-    .sftp-root .bookmark-item.dragging { opacity: 0.4; }
-    .sftp-root .bookmark-item.drag-over-top {
-      border-top: 2px solid var(--_primary);
-      padding-top: 3px;
-    }
-    .sftp-root .bookmark-item.drag-over-bottom {
-      border-bottom: 2px solid var(--_primary);
-      padding-bottom: 3px;
-    }
-    .sftp-root .bm-drag-handle {
-      flex-shrink: 0; font-size: 14px; line-height: 1; color: var(--_text-muted);
-      cursor: grab; opacity: 0.5; user-select: none; letter-spacing: -2px;
-    }
-    .sftp-root .bm-drag-handle:hover { opacity: 0.8; }
-    .sftp-root .bm-info {
-      flex: 1; min-width: 0;
-      display: flex; flex-direction: column; gap: 1px;
-    }
-    .sftp-root .bm-name {
-      font-size: 13px; font-weight: 500; color: var(--_text);
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    }
-    .sftp-root .bm-path {
-      font-size: 10px; color: var(--_text); opacity: 0.45;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    }
-    .sftp-root .bm-remove {
-      flex-shrink: 0; width: 22px; height: 22px;
-      display: flex; align-items: center; justify-content: center;
-      border: none; border-radius: 4px; background: transparent;
-      color: var(--_text); opacity: 0.3; font-size: 12px;
-      cursor: pointer; line-height: 1;
-    }
-    .sftp-root .bm-remove:hover { opacity: 0.8; background: var(--_hover); }
+    /* ★ 2026-10-19 P2-36：书签条目相关规则（bookmark-item 及其 :hover / .dragging /
+       .drag-over-top / .drag-over-bottom，bm-drag-handle 及其 :hover，bm-info / bm-name /
+       bm-path / bm-remove 及其 :hover）一并删除 —— 组件 styles 里均有同名定义且逐条比对一致。 */
 
-    .sftp-root .context-menu {
-      position: fixed;
-      z-index: 902;
-      background: var(--_bg);
-      border: 1px solid var(--_border);
-      border-radius: 6px;
-      padding: 4px 0;
-      min-width: 140px;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.12);
-    }
-    .sftp-root .ctx-item {
-      padding: 5px 14px;
-      cursor: pointer;
-      font-size: 12px;
-      color: var(--_text);
-      white-space: nowrap;
-    }
-    .sftp-root .ctx-check {
-      display: inline-block;
-      width: 14px;
-      text-align: center;
-    }
-    .sftp-root .ctx-item:hover {
-      background: var(--_hover);
-    }
-    .sftp-root .ctx-item.ctx-danger:hover {
-      background: rgba(244,67,54,0.15);
-      color: #f44336;
-    }
-    .sftp-root .ctx-sep {
-      height: 1px;
-      background: var(--_border, #334155);
-      margin: 3px 0;
-    }
-    .sftp-root .ctx-item.ctx-disabled {
-      cursor: default;
-      opacity: 0.5;
-    }
-    .sftp-root .ctx-item.ctx-disabled:hover {
-      background: transparent;
-    }
-    .sftp-root .ctx-shortcut {
-      float: right;
-      margin-left: 20px;
-      opacity: 0.5;
-      font-size: 11px;
-    }
+    /* ★ 2026-10-19 P2-36：本段原为右键菜单的 .context-menu / .ctx-* 规则，现整体删除。
+       菜单已抽成组件（sftp-context-menu）并在自己的 styles 里声明同套规则（另含
+       .ctx-submenu 等新增规则）；本文件带 sftp-root 前缀的同类规则（(0,2,0)）与组件封装后的
+       .ctx-item[_ngcontent-x]（(0,2,0)）打平靠顺序决胜，属同一类隐患。
+       逐类核对（组件 styles 均已定义同名规则且逐条一致）：
+       context-menu / ctx-item / ctx-check / ctx-item:hover / ctx-item.ctx-danger:hover /
+       ctx-sep / ctx-item.ctx-disabled / ctx-item.ctx-disabled:hover / ctx-shortcut。
+       说明：全仓只有 sftp-context-menu 使用 ctx-* 类名（文本右键菜单用的是 tctx-* 前缀，
+       与本段无关），删除不会影响其它组件。 */
+    /* ★ 2026-10-19 P2-36 待验证：.sftp-root .mode 未在任何组件的 styles 中找到同名规则，
+       也不属于上述四组中的任何一组（疑似更早年代的遗留）。按「宁可少删不可删错」保留。 */
     .sftp-root .mode { font-size: 1em; font-family: inherit; text-align: left; }
-    /* 详细信息对话框 */
-    .sftp-root .details-dialog { min-width: 400px; max-width: 500px; }
-    .sftp-root .details-body { margin: 8px 0; }
-    .sftp-root .details-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-    .sftp-root .details-table td { padding: 4px 6px; vertical-align: top; border-bottom: 1px solid var(--_border, #334155); }
-    .sftp-root .dt-label { width: 80px; opacity: 0.7; white-space: nowrap; }
-    .sftp-root .dt-value { word-break: break-all; }
-    .sftp-root .dt-path { font-family: monospace; font-size: 11px; }
-    /* 权限编辑对话框 */
-    .sftp-root .perm-dialog { min-width: 360px; }
-    .sftp-root .perm-target-name {
-      font-size: 13px;
-      font-weight: 600;
-      margin-bottom: 8px;
-      padding: 4px 8px;
-      border-radius: 4px;
-      background: var(--_input-bg);
-      word-break: break-all;
-    }
-    .sftp-root .perm-grid {
-      display: grid;
-      grid-template-columns: 80px repeat(3, auto);
-      gap: 8px;
-      align-items: center;
-      justify-items: center;
-      margin: 12px 0;
-    }
-    .sftp-root .perm-header {
-      text-align: center;
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--_primary);
-    }
-    .sftp-root .perm-label {
-      font-size: 12px;
-      font-weight: 600;
-      justify-self: start;
-    }
-    .sftp-root .perm-grid input[type="checkbox"] {
-      width: 18px;
-      height: 18px;
-      accent-color: var(--_primary);
-      cursor: pointer;
-    }
-    .sftp-root .perm-preview {
-      font-family: monospace;
-      font-size: 13px;
-      padding: 6px 8px;
-      border-radius: 4px;
-      background: var(--_input-bg);
-      border: 1px solid var(--_border);
-      color: var(--_text);
-      margin-bottom: 12px;
-    }
+    /* ★ 2026-10-19 P2-36：本段原为「文件属性（详细信息）对话框」的 .details-* / .dt-* 规则，
+       现整体删除 —— 对话框已抽成组件（sftp-details-dialog）并在自己的 styles 里声明同套规则
+       （另含 details-head / dt-calc-* 等新增规则），同特异性打平的问题同上。
+       逐类核对（组件 styles 均已定义同名规则且逐条一致）：
+       details-dialog / details-body / details-table / details-table td / dt-label / dt-value / dt-path。 */
+    /* ★ 2026-10-16：本段原为「权限编辑对话框」的 .perm-* 规则，现整体删除。
+       它们是权限对话框**还内联在面板模板里**那个年代留下的残留：对话框早已抽成独立组件
+       （sftp-perm-dialog）并在自己的 styles 里声明样式，而本文件是 ViewEncapsulation.None +
+       选择器带 sftp-root 前缀（特异性 (0,2,0)），与组件经 Angular emulated 封装后的
+       perm-preview[_ngcontent-x]（同为 (0,2,0)）**打平**，只能靠 style 元素插入顺序决胜
+       ⇒ 典型的「改对了却不生效」。
+       实测：本轮把组件里 .perm-preview 去底去框后界面仍旧是带框的，就是被这里的
+       .sftp-root .perm-preview 覆盖。
+       另：perm-grid / perm-header / perm-label / perm-target-name 所对应的 markup 早已不存在，
+       属纯死代码（矩阵现已改为 .perm-table）。
+       约定：**对话框样式一律以组件自身为准**，本文件只保留布局/overlay/跨组件那类规则。 */
 
     .sftp-root sftp-transfer-queue {
       display: contents;
@@ -1568,6 +1737,27 @@ export const FILE_DIALOG_SHARED_STYLES = `
     opacity: 0.65; margin-bottom: 8px;
     word-break: break-all; flex-shrink: 0;
   }
+  /* ★ 2026-10-23（Deepseek-V4.1-Flash）：外部编辑保存后「本地已改动、尚未上传」——
+     用户要求不再用黄色横幅提醒，改成 **面板边框高亮 + 保存按钮高亮**：
+       · .dialog.has-external-dirty  → 整块对话框描边 + 外圈用警告色（含标题变色呼应）
+       · .btn-primary.is-attention   → 底栏保存键改警告色底 + 光晕（⛔ 文案恒为「保存」，用户要求高亮不改名）
+     ⛔ 别只留边框不开后门：两道视觉提示缺一，用户会以为「文件已同步」
+     （真实语义是本地临时副本已改、服务器还是旧内容）。 */
+  .dialog.has-external-dirty {
+    border-color: var(--_warn-border, rgba(255, 170, 0, 0.62));
+    box-shadow: 0 0 0 1px var(--_warn-border, rgba(255, 170, 0, 0.62)),
+                0 8px 32px rgba(0, 0, 0, 0.15);
+  }
+  .dialog.has-external-dirty .dialog-title { color: var(--_warn-border, #e0a000); }
+  .dialog-buttons .btn-primary.is-attention {
+    background: var(--_warn-border, #e0a000);
+    border-color: var(--_warn-border, #e0a000);
+    color: #1b1b1b;
+    box-shadow: 0 0 0 2px rgba(255, 170, 0, 0.28);
+  }
+  .dialog-buttons .btn-primary.is-attention:hover {
+    box-shadow: 0 0 0 3px rgba(255, 170, 0, 0.38);
+  }
   .file-dialog-body {
     position: relative;
     flex: 1 1 auto;
@@ -1619,6 +1809,16 @@ export const FILE_DIALOG_SHARED_STYLES = `
   }
   .file-dialog-status {
     padding: 24px; text-align: center; font-size: 13px;
+  }
+  /* ★ 2026-10-14：底部按钮行上方的单行提示（目前用于查看器「文件过大，仅选中当前屏幕内容」） */
+  .file-dialog-hint {
+    flex-shrink: 0;
+    padding: 2px 12px 6px;
+    font-size: 11px;
+    line-height: 1.5;
+    color: var(--_text);
+    opacity: 0.72;
+    text-align: left;
   }
   /* 加载中：覆盖整个内容区、居中旋转图标，效果对齐面板文件加载（pane-loading） */
   .file-dialog-loading {
@@ -1714,11 +1914,56 @@ export const FILE_DIALOG_SHARED_STYLES = `
     white-space: pre;
     overflow: auto;
     border-radius: 0;
+    /* ★ 2026-10-16：显式声明 tab-size:8 —— 与查看器 .file-dialog-vs 的制表位口径一致
+       （查看器切行按 tab = 8× 半角，见组件常量 VIEWER_TAB_SIZE）。两处一旦分叉，
+       同一个文件在「查看」与「编辑」下制表符占宽不同，看起来像内容被改了；
+       此前这里只靠浏览器默认值 8 巧合对齐。 */
+    tab-size: 8;
+    -moz-tab-size: 8;
+  }
+  /* ★ 2026-10-13 P1 修复：编辑器「自动换行」开关的落地样式。此前全仓没有任何 .is-soft-wrap
+     规则——模板 [class.is-soft-wrap] 加了类也没有样式响应，同时被上方 white-space:pre 与
+     静态 wrap="off" 双重锁死（勾选后仅行号栏消失，长行依然横向滚动）。特异性 (0,3,0)
+     压过上方 (0,2,0) 的 pre 规则。 */
+  .file-dialog-editor-wrap .file-dialog-textarea.is-soft-wrap {
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+    overflow-x: hidden;
   }
   /* wrap 已画焦点环，避免 textarea 再叠一层 */
   .file-dialog-editor-wrap .file-dialog-textarea:focus {
     box-shadow: none;
   }
+  /* ★ 2026-10-13：底部「自动换行 / 显示行号」开关此前全仓无样式定义，走浏览器默认 label
+     排版（复选框与文字基线不齐、与相邻按钮间距不一致），且 .is-disabled（换行开启时行号
+     开关置灰）没有任何置灰效果 —— 用户看不出它为什么点不动。 */
+  .file-dialog-view-opt {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-left: 4px;
+    padding: 2px 4px;
+    font-size: 12px;
+    line-height: 18px;
+    color: var(--_text);
+    opacity: 0.85;
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+  }
+  .file-dialog-view-opt input[type='checkbox'] {
+    width: 13px;
+    height: 13px;
+    margin: 0;
+    accent-color: var(--_primary);
+    cursor: pointer;
+  }
+  .file-dialog-view-opt:hover { opacity: 1; }
+  .file-dialog-view-opt.is-disabled {
+    opacity: 0.45;
+    cursor: default;
+  }
+  .file-dialog-view-opt.is-disabled input[type='checkbox'] { cursor: default; }
   /* ★ 2026-09-20：查看器文本虚拟滚动（inner 撑滚动高度 + 窗口 translate；左侧行号） */
   .file-dialog-vs {
     flex: 1 1 auto;
@@ -1734,6 +1979,12 @@ export const FILE_DIALOG_SHARED_STYLES = `
     font-family: ui-monospace, 'Cascadia Code', 'Consolas', monospace;
     font-size: 12px;
     line-height: 18px;
+    /* ★ 2026-10-13：显式声明 tab-size，与组件常量 VIEWER_TAB_SIZE=8 绑定——
+       此前 .file-dialog-vs 没写 tab-size，只是恰好撞上浏览器默认值 8 才与度量对齐；
+       一旦宿主/主题注入 tab-size 或浏览器默认变动，渲染宽度与度量就会分叉
+       （切行位置错、光标列偏移）。 */
+    tab-size: 8;
+    -moz-tab-size: 8;
     outline: none;
     overflow: auto;
     overscroll-behavior: contain;
@@ -1771,18 +2022,28 @@ export const FILE_DIALOG_SHARED_STYLES = `
     0%, 100% { opacity: 1; }
     50% { opacity: 0; }
   }
+  /* ★ 2026-10-13 P1 修复：window 由 left:0;right:0（宽恒等于视口）改为
+     width:max-content + min-width:100%——原结构下没有超宽内容，.file-dialog-vs 的
+     overflow:auto 永不产生横向滚动，长行只能被文本层的 ellipsis 截断（「横向滚不动」）。
+     换行模式行宽受 packRows 预切行约束，不依赖 ellipsis。 */
   .file-dialog-vs-window {
     position: absolute;
     left: 0;
-    right: 0;
     top: 0;
+    width: max-content;
+    min-width: 100%;
     will-change: transform;
   }
   .file-dialog-vs-line {
     display: flex;
     align-items: stretch;
-    height: 18px;
-    line-height: 18px;
+    /* ★ 2026-10-19 P1（audit）：原写死 height/line-height:18px，而 JS 侧为绕 Chromium
+       32M px 高度上限会按行数动态压缩行高并写 --vs-row-h（_applyVsRowHeightVar），
+       总高 vsTotalHeight 也按压缩值算 —— 但**没有任何 CSS 消费该变量** ⇒
+       DOM 行仍是 18px、inner 总高按压缩值算，滚动上限偏小，末尾约 17% 的行永远滚不到。
+       改为变量优先、18px 兜底（变量在旧版本/首次渲染未写入时保持原外观）。 */
+    height: var(--vs-row-h, 18px);
+    line-height: var(--vs-row-h, 18px);
   }
   .file-dialog-vs-gutter {
     flex: 0 0 auto;
@@ -1795,13 +2056,15 @@ export const FILE_DIALOG_SHARED_STYLES = `
     user-select: none;
     pointer-events: none;
   }
+  /* ★ 2026-10-13 P1 修复：去掉 overflow:hidden + text-overflow:ellipsis——window 已按
+     max-content 撑到最宽行，.file-dialog-vs 负责横向滚动；ellipsis 只会把长行截成
+     「……」（且原结构下 scrollLeft 恒 0，根本滚不动）。min-width:0 保留：
+     换行模式下预切行受 avail 约束，允许压缩。 */
   .file-dialog-vs-text {
     flex: 1 1 auto;
     min-width: 0;
     padding-left: 16px;
     white-space: pre;
-    overflow: hidden;
-    text-overflow: ellipsis;
     cursor: text !important;
   }
   .file-dialog-vs-text-nogutter {

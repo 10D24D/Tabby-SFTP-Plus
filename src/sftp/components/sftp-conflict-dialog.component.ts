@@ -3,8 +3,16 @@
  * 功能描述：上传/下载覆盖冲突确认对话框，展示本地/远程两侧文件大小、修改时间、路径供用户选择
  * @创建人：DD1024z + Hy3
  * @创建时间：2026-07-16
- * @修改人：DD1024z + Deepseek-V4.1-Flash
- * @修改时间：2026-09-29 — 两侧内容摘要相同时，「跳过」按钮加绿色高亮（.conflict-btn-skip--identical：
+ * @修改人：DD1024z + Step-5-Preview
+ * @修改时间：2026-10-19 — 2026-10-19 全量审计 P2-19：摘要行的「—」占位 tooltip 原是**硬编码中文**
+ *              （远程/本地各一句），英文等界面会直接露出中文；改为 i18n key
+ *              conflict.digestUnavailableRemote / conflict.digestUnavailableLocal。
+ *              2026-10-13 — P1 修复：冲突框的 Enter 劫持焦点按钮——overlay 级 Enter 原被无条件
+ *              映射为 skip，焦点在「× / 取消 / 覆盖」上按 Enter 时按钮的标准激活被
+ *              preventDefault 掉，overwrite-all / rename-all 等批量链接用键盘永远无法触达。
+ *              onKeyDown 收口到 dialog-focus helper：焦点在可激活元素上时交还原生行为，
+ *              仅焦点在遮罩本身时才映射为非破坏性默认动作 skip；同时补 Tab 焦点陷阱。
+ *              2026-09-29 — 两侧内容摘要相同时，「跳过」按钮加绿色高亮（.conflict-btn-skip--identical：
  *              绿色描边 + 浅绿底，与绿色提示条同色，不做实心填充以免抢「覆盖」的主次）——
  *              与 onKeyDown 的 Enter 默认动作（skip）语义对齐，让非破坏性默认项一眼可辨；
  *              内容不同时不加该类，保持普通次要按钮外观
@@ -19,6 +27,7 @@
 import { ChangeDetectorRef, Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, Output, SimpleChanges, ViewChild } from '@angular/core'
 
 import { SftpI18nService } from '../../services/sftp-i18n.service'
+import { handleOverlayKeydown } from './dialog-focus'
 import type { ConflictFileInfo } from '../core/panel-types'
 import { formatDate, formatSize } from '../core/file-utils'
 
@@ -51,7 +60,8 @@ import { formatDate, formatSize } from '../core/file-utils'
         <div class="conflict-body">
           <div class="conflict-compare">
             <div class="conflict-side conflict-side-remote">
-              <div class="conflict-side-title">{{ data.isSamePane ? '📄 ' + i18n.t('conflict.sourceFile') : '🌐 ' + i18n.t('conflict.remoteFile') }}</div>
+              <!-- ★ 2026-10-20 续三十五：r2r 冲突时显示源 host label，避免写死为「远程文件」 -->
+              <div class="conflict-side-title">{{ data.isSamePane ? '📄 ' + i18n.t('conflict.sourceFile') : (data.srcHostLabel && data.dstHostLabel ? '🌐 ' + data.srcHostLabel : '🌐 ' + i18n.t('conflict.remoteFile')) }}</div>
               <div class="conflict-file-info">
                 <div class="conflict-info-row" [class.conflict-diff]="sizeDiffers">
                   <span class="conflict-label">{{ i18n.t('conflict.size') }}</span>
@@ -71,7 +81,7 @@ import { formatDate, formatSize } from '../core/file-utils'
                 <div class="conflict-info-row conflict-digest" [class.conflict-diff]="digestDiffers">
                   <span class="conflict-label">{{ i18n.t('conflict.digest') }}</span>
                   <span class="conflict-val conflict-digest-val" *ngIf="data.remoteDigest" [title]="data.remoteDigest">{{ shortDigest(data.remoteDigest) }}</span>
-                  <span class="conflict-val conflict-digest-val conflict-digest-unavailable" *ngIf="!data.remoteDigest" title="摘要不可用（文件大小不同或远程服务器不支持）">—</span>
+                  <span class="conflict-val conflict-digest-val conflict-digest-unavailable" *ngIf="!data.remoteDigest" [title]="i18n.t('conflict.digestUnavailableRemote')">—</span>
                   <span class="conflict-diff-dot" *ngIf="digestDiffers">≠</span>
                 </div>
               </div>
@@ -82,7 +92,8 @@ import { formatDate, formatSize } from '../core/file-utils'
               <span class="conflict-vs-line"></span>
             </div>
             <div class="conflict-side conflict-side-local">
-              <div class="conflict-side-title">{{ data.isSamePane ? '📂 ' + i18n.t('conflict.targetFileExists') : '🖥 ' + i18n.t('conflict.localFile') }}</div>
+              <!-- ★ 2026-10-20 续三十五：r2r 冲突时显示目标 host label，避免写死为「本地文件」 -->
+              <div class="conflict-side-title">{{ data.isSamePane ? '📂 ' + i18n.t('conflict.targetFileExists') : (data.srcHostLabel && data.dstHostLabel ? '🌐 ' + data.dstHostLabel : '🖥 ' + i18n.t('conflict.localFile')) }}</div>
               <div class="conflict-file-info">
                 <div class="conflict-info-row" [class.conflict-diff]="sizeDiffers">
                   <span class="conflict-label">{{ i18n.t('conflict.size') }}</span>
@@ -102,7 +113,7 @@ import { formatDate, formatSize } from '../core/file-utils'
                 <div class="conflict-info-row conflict-digest" [class.conflict-diff]="digestDiffers">
                   <span class="conflict-label">{{ i18n.t('conflict.digest') }}</span>
                   <span class="conflict-val conflict-digest-val" *ngIf="data.localDigest" [title]="data.localDigest">{{ shortDigest(data.localDigest) }}</span>
-                  <span class="conflict-val conflict-digest-val conflict-digest-unavailable" *ngIf="!data.localDigest" title="摘要不可用（文件大小不同或本地读取失败）">—</span>
+                  <span class="conflict-val conflict-digest-val conflict-digest-unavailable" *ngIf="!data.localDigest" [title]="i18n.t('conflict.digestUnavailableLocal')">—</span>
                   <span class="conflict-diff-dot" *ngIf="digestDiffers">≠</span>
                 </div>
               </div>
@@ -431,12 +442,14 @@ export class SftpConflictDialogComponent implements OnChanges, OnDestroy {
       // 与右上角 × /「取消」一致，关闭对话框而不跳过当前项
       this.resolve.emit('cancel')
     }
-    // 冲突对话框的 Enter 使用非破坏性默认动作，避免误触直接覆盖本地或远程文件。
-    if (event.key === 'Enter') {
-      event.preventDefault()
-      event.stopImmediatePropagation()
-      this.resolve.emit('skip')
-    }
+    // ★ 2026-10-13 P1 修复：Enter 收口到 dialog-focus helper——焦点已在按钮
+    //   （× / 取消 / 覆盖 / 批量链接）上时交还原生激活，仅焦点在遮罩本身时才映射
+    //   为非破坏性默认动作 skip。此前无条件劫持导致焦点按钮的 Enter 全部失效
+    //   （ overwrite-all / rename-all 等批量链接用键盘永远无法触达）。
+    //   同时补上 Tab 焦点陷阱（不逃逸到背景）。
+    handleOverlayKeydown(event, this.overlayEl?.nativeElement, {
+      onEnter: () => this.resolve.emit('skip'),
+    })
   }
 
   /** ★ 2026-08-17：格式化后相同但字节数不同时，括号内显示精确值 */
@@ -477,10 +490,19 @@ export class SftpConflictDialogComponent implements OnChanges, OnDestroy {
   }
 
   /** ★ 2026-08-11：冲突方向标签（复用既有键拼装，无需新 i18n）：
-   *  上传 → 「⬆ 上传：本地 → 远程」；下载 → 「⬇ 下载：远程 → 本地」；同面板冲突不显示 */
+   *  上传 → 「⬆ 上传：本地 → 远程」；下载 → 「⬇ 下载：远程 → 本地」；同面板冲突不显示
+   *  ★ 2026-10-20 续三十五：远程↔远程时显示两端 host label，避免写死为「本地→远程」。 */
   get directionLabel(): string {
     const d = this.data
     if (!d || d.isSamePane) return ''
+    // r2r / 端点化冲突：优先用 host label 展示方向
+    if (d.srcHostLabel && d.dstHostLabel) {
+      const arrow = d.direction === 'download' ? '⬇' : '⬆'
+      const verb = d.direction === 'download'
+        ? this.i18n.t('transfer.download')
+        : this.i18n.t('transfer.upload')
+      return `${arrow} ${verb}：${d.srcHostLabel} → ${d.dstHostLabel}`
+    }
     const local = this.i18n.t('pane.local')
     const remote = this.i18n.t('pane.remote')
     return d.direction === 'download'

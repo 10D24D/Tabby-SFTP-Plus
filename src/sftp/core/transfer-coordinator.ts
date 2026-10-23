@@ -1,9 +1,61 @@
-/**
+﻿/**
  * 功能描述：SFTP+ transfer-coordinator 逻辑聚合模块（由旧 core 多文件合并）
  * @创建人：DD1024z + Hy3
  * @创建时间：2026-07-16
- * @修改人：DD1024z + Deepseek-V4.1-Flash
- * @修改时间：2026-09-29 — ★ 新增多选批量上传 uploadBatchToRemote()（用户提议：多选一批文件、
+ * @修改人：DD1024z + Step-5-Preview
+ * @修改时间：2026-10-19 — 2026-10-19 全量审计修复：
+ *              ① P1 单文件下载无重复入队保护：streamDownloadOne 原先直接进
+ *                 DownloadOneUseCase，不认领 _activeTransferSlots（目录下载/上传各入口
+ *                 都有）⇒ 同一文件短时间内两次下载都通过冲突预检、并发双流写同一
+ *                 .tmp，交叉写坏或双失败。现入口认领（键与用例内的本地目标同名计算一致）、
+ *                 finally 释放；目录不在此认领（经 downloadDir → downloadRemoteDir 内部
+ *                 认领，重复认领同一键会让内层 claim 失败、目录被静默跳过）。
+ *              ② P1 续传能力检测加固（_resumeWithRawRead）：原检测只查 typeof open/read，
+ *                 分不清 API 形态——russh 宿主也有 promise 式 open()，回调式调用永不回调。
+ *                 现行 russh 主机因无顶层 read() 侥幸走全量重下回退（安全），但未来宿主补上
+ *                 顶层 read() 而 open 仍 promise 式时会永久挂起；且 read 即便存在也须是
+ *                 **位置读**（顺序读会忽略 position ⇒ 源从 0 读 + sink 从 offset 写 =
+ *                 错位拼接损坏文件）。新增 _probeCallbackStyleRawRead：形参元数
+ *                 （open≥3 / read≥6）+ 带 5s 超时的探测 open，任一不过即回退全量重下。
+ *              ③ P2-9 finishFolderTransfer 新增可选 `reason` 尾参并透传到面板：目录传输
+ *                 失败时把「取消 / 中断 / 出错」写进日志 failReason（此前恒为空）。
+ *                 folder.finish 端口在调用方未传时按 isAborted 补 'cancelled'。
+ *              2026-10-13 — 2026-10-13 全量审计第一批修复（均为「暂停/恢复/取消」状态机与
+ *              未知大小续传的数据面缺陷）：
+ *              ① P0→P1 续传竞态（取消失效）：resumeTransfer 先置 entry.paused=false 再异步
+ *                 装配新传输，期间用户点取消——cancelTransfer 取消的是**旧** transfer 对象，
+ *                 _cleanupPausedDownloadTmp 又因 paused 已置 false 而跳过；新 dl/up 装配完成后
+ *                 没有任何取消来源，照常 rename 落盘（覆盖场景即本地原文件被覆盖）。现引入
+ *                 _resuming / _resumeCancelRequested 交接标记：取消时置标记 + 强制清理，
+ *                 新传输装配完成即刻自取消；清理函数增加 force 形参（判据从「entry.paused」
+ *                 改为「无活动写入方」）。
+ *              ② P1 暂停即失败：pauseTransfer 对下载方向会调 transfer.cancel() 停流，而
+ *                 2026-10-09 去掉 tick 的 paused continue 后，完成判定把 isCancelled 当成
+ *                 用户取消 ⇒ 单文件下载暂停约一个 tick（200ms）后被记失败、条目消失、
+ *                 .tmp 成孤儿、「恢复」按钮一并消失。现 paused+cancelled（且未 complete/failed）
+ *                 的条目不收尾，留在列表等 resume。
+ *              ③ P1 暂停被 stall 判死：lastProgressTime 的更新在 if (!isPaused) 块内，
+ *                 暂停期间 stallMs 持续增长，满 15 分钟被 tick 杀并记 error，远端
+ *                 .tabby-upload 还成孤儿。现 stall 判死对 paused 条目豁免。
+ *              ④ P1 未知大小(-1)续传静默截断：totalSize = (await getSize()) || 0 把 -1 折成 0
+ *                 ⇒ _rawReadLoop 循环条件恒假、一个字节都不读 ⇒ 大小校验被跳过 ⇒ 半截 .tmp
+ *                 被 rename 成正式文件且记成功。现归一为 -1（未知哨兵），循环读到 EOF 后
+ *                 由 _remoteSizeOrNegative 复核完整性。
+ *              2026-10-13 — 第三批/四批补充修复：
+ *              ⑤ P1 空文件上传提前记成功：trackTransfer 对 sz===0 原先直接写 success 日志
+ *                 并 return（认领分支还移除占位条目）——上传方向此时真实传输还没开始，
+ *                 随后失败（权限/会话失效）时日志永久显示成功、无条目可取消/观察
+ *                 （用户侧：「日志说成功，远端却没有」）。现取消两处短路，空文件也走
+ *                 正常条目生命周期，tick 据 isComplete/isFailed 记真实终态；日志的
+ *                 pending 恒为 true 直到收尾。
+ *              ⑥ P1 粘性取消标记误杀同路径重传：新增 clearQueuedCancel，面板两个排队
+ *                 入口（_streamDownloadOne/_streamUploadOne）在 push 占位条目前调用——
+ *                 取消排队条目后 10s 内对同一路径重新发起，旧标记会在 trackTransfer
+ *                 认领前把新传输静默 abort（无条目、无提示）。旧标记只为 abort「已过
+ *                 liveness 检查、认领前被取消」的那一个任务，窗口微秒级。
+ *              ⑦ P1 目录上传行级实时进度：host 接口与 _buildPorts 的 uploadRaw 增加
+ *                 onProgress 可选尾参并逐跳转发（与 downloadRaw 对称）。
+ *              2026-09-29 — ★ 新增多选批量上传 uploadBatchToRemote()（用户提议：多选一批文件、
  *              可含文件夹，其实也能走一个 tar 归档）。此前多选被拆成 N 个独立任务，
  *              「一次选一批小文件」完全用不上打包通道。本入口的要点：
  *                · 逐条认领 _activeTransferSlots（键与逐项路径完全相同）→ 批量与逐项
@@ -94,9 +146,10 @@ import { LocalPathFileDownload, LocalPathFileUpload, uploadViaRawToTemp } from '
 
 import { TarChannel } from './tar-channel'
 
-import { execSshCommand } from './path-utils'
+import { execSshCommand, safeEntryName, localEntryName } from './path-utils'
 
-import { ContentDigestService, type DigestAlgo } from './digest'
+import { probeRemoteBase64 } from './fs-ops'
+import { ContentDigestService, type ContentDigestPort, type DigestAlgo } from './digest'
 
 import { log } from '../../services/sftp-logger'
 ﻿/**
@@ -171,7 +224,8 @@ export interface PanelTransferHost {
     /** ★ 2026-08-11：复用既有传输记录条目（冲突覆盖合并用） */
     reuseLogEntryId?: string,
   ): FolderTransferCtx
-  finishFolderTransfer(ctx: FolderTransferCtx, success: boolean): void
+  /** ★ 2026-10-19 P2-9：reason 透传到日志的 failReason（取消/中断/出错可区分） */
+  finishFolderTransfer(ctx: FolderTransferCtx, success: boolean, reason?: 'cancelled' | 'interrupted' | 'error'): void
   /** ★ 2026-09-20：放弃文件夹进度条目（不留失败日志），tar 可恢复失败后回退用 */
   discardFolderTransfer?(ctx: FolderTransferCtx): void
   /** ★ 2026-08-11：回填传输记录的真实目录大小（tar 打包通道用） */
@@ -197,7 +251,7 @@ export interface PanelTransferHost {
   onTransferSkipped?(info: AutoSkippedInfo): void
   // ★ 2026-08-10：传输方法返回 boolean（true=完整成功），供剪切粘贴删源前校验
   uploadTopLevel(remotePath: string, localPath: string): Promise<boolean>
-  uploadRaw(remotePath: string, localPath: string): Promise<boolean>
+  uploadRaw(remotePath: string, localPath: string, onProgress?: (bytes: number) => void): Promise<boolean>
   downloadTopLevel(remotePath: string, localPath: string, mode?: number, size?: number): Promise<boolean>
   /** ★ 2026-09-26：onProgress = 本文件已落盘字节（目录内单文件的**行级实时进度**，
    *   原先只在文件传完时上报一次，大文件期间整行静止）；实现见面板 _doDownloadRaw */
@@ -269,15 +323,64 @@ export class PanelTransferCoordinator {
    */
   private readonly _activeTransferSlots = new Set<string>()
 
+  /**
+   * 面板销毁后不再接受新传输。
+   *
+   * ★ 2026-10-09 审计 P0-1 根治：本字段原先**只声明在 PanelTransferRuntime 上**，
+   *   而三处使用（uploadPathToRemote / downloadRemoteDir / mergeLocalDirToRemote）
+   *   都在本类里 → TS2339 直接编译失败；运行期 `this._disposed` 为 undefined（falsy）
+   *   ⇒ 注释宣称的「dispose 后不再启动新传输」从未生效。
+   *   根治不是删掉这三行（那只是让编译通过、守卫依旧失效），而是：
+   *     ① 本类补上真正的状态字段；
+   *     ② 本类补 dispose()（顺带释放 _activeTransferSlots，否则 Set 永久持有槽位键）；
+   *     ③ 面板 ngOnDestroy 接线调用。
+   */
+  private _disposed = false
+
+  /** 内容摘要服务缓存（仅供 _currentDigestService 使用） */
+  private _digestSvc: ContentDigestPort | null = null
+  private _digestSvcKey = ''
+
+  /**
+   * ★ 2026-10-09 审计根治：按**当前**设置返回内容摘要服务（enabled 为 false 时返回 null）。
+   *
+   * 由 SftpConflictDetector 在每次冲突判定时调用（经构造函数注入的回调），
+   * 因此「用户改设置」能即时生效 —— 与下方 isAutoSkipSameContent 是同一套范式。
+   * 服务本身按 `algo|maxBytes` 作为 key 缓存复用，避免每次判定都 new；
+   * 一旦改了算法或阈值，key 变化即重建（服务内含 cache/pending Map，必须换新实例）。
+   */
+  private _currentDigestService(): ContentDigestPort | null {
+    const s = this.host.conflictDigestOptions?.() ?? null
+    // enabled 关闭 ⇒ 真正旁路（清缓存，让已建服务可被回收，不再跑远端 sha1sum）
+    if (!s?.enabled) {
+      this._digestSvc = null
+      this._digestSvcKey = ''
+      return null
+    }
+    const key = `${s.algo}|${s.maxBytes}`
+    if (!this._digestSvc || this._digestSvcKey !== key) {
+      this._digestSvc = new ContentDigestService(() => this.host.sshSession ?? null, {
+        algo: s.algo,
+        maxBytes: s.maxBytes,
+      })
+      this._digestSvcKey = key
+    }
+    return this._digestSvc
+  }
+
   constructor(private readonly host: PanelTransferHost) {
     // ★ 2026-09-07 issue #15：内容摘要服务（可选）。未启用时传 null，退化为仅 size+mtime 判定。
     const digestSettings = host.conflictDigestOptions?.() ?? null
-    const digestService = digestSettings?.enabled
-      ? new ContentDigestService(() => host.sshSession ?? null, {
-          algo: digestSettings.algo,
-          maxBytes: digestSettings.maxBytes,
-        })
-      : null
+    // ★ 2026-10-09 审计根治：原先在**构造期**把 algo/maxBytes/enabled 全部固化进
+    //   ContentDigestService 的 readonly 字段（协调器早于面板 ngOnInit 构造，读到的是类默认值）：
+    //     · algo / maxBytes 永久冻结为 sha1 / 256MB → 改设置不生效；
+    //     · enabled 为 false 时构造期读到的仍是默认 true → **服务仍被创建**，
+    //       之后面板把 enabled 改成 false 也无法销毁它 ⇒ 用户关了摘要却仍在跑远端 sha1sum。
+    //   根治：digestService 不再在构造期求值，改为传入**回调**
+    //   （与本文件下方 autoSkipSameContent 同一范式），由 _currentDigestService() 按当前设置现取：
+    //   enabled 为 false 直接返回 null（真正旁路，不留残留服务）；否则按 algo|maxBytes 缓存复用，
+    //   设置变更即重建。
+    const digestService = () => this._currentDigestService()
     this.conflictDetection = new SftpConflictDetector(
       () => host.sftpSession as any,
       host.mtimeToleranceMs,
@@ -357,6 +460,8 @@ export class PanelTransferCoordinator {
   }
 
   uploadPathToRemote(remoteDir: string, localPath: string, top?: FolderTransferCtx): Promise<boolean> {
+    // ★ 建议#52修复：dispose后不再启动新传输
+    if (this._disposed) return Promise.resolve(false)
     // ★ 2026-09-25 P1：顶层调用做重复入队拦截（嵌套子目录/冲突覆盖重入必须放行）
     if (top) {
       return this._runScopedFolderTask(() => this.uploadUseCase.execute(remoteDir, localPath, top))
@@ -369,6 +474,22 @@ export class PanelTransferCoordinator {
   }
 
   streamDownloadOne(file: SFTPFile, targetLocalDir?: string): Promise<void> {
+    // ★ 2026-10-19 P1 修复：单文件下载认领槽位（与目录下载 downloadRemoteDir / 上传各入口
+    //   对称）。此前唯独单文件下载不认领——同一文件短时间内两次下载会都通过冲突预检、
+    //   都写 localPath + '.tmp'，并发双流交叉写坏或双失败（上传侧早有槽位+toast 兜底，
+    //   下载侧漏修）。目录不在此认领：它经 downloadDir → downloadRemoteDir 内部认领，
+    //   重复认领同一键会让内层claim失败、目录被静默跳过。
+    if (this._disposed) return Promise.resolve()
+    if (!file.isDirectory) {
+      const localBase = targetLocalDir?.trim() || this.host.localPath
+      const safeName = safeEntryName(file.name) ?? localEntryName(file.name) ?? file.name
+      const localTarget = path.join(localBase, safeName)
+      if (!this._claimTransferSlot('download', file.fullPath, localTarget, safeName)) {
+        return Promise.resolve()
+      }
+      return this.downloadOneUseCase.execute(file, targetLocalDir)
+        .finally(() => this._releaseTransferSlot('download', file.fullPath, localTarget))
+    }
     return this.downloadOneUseCase.execute(file, targetLocalDir)
   }
 
@@ -379,6 +500,8 @@ export class PanelTransferCoordinator {
     localName?: string,
     forceOverwrite?: boolean,
   ): Promise<boolean> {
+    // ★ 建议#52修复：dispose后不再启动新传输
+    if (this._disposed) return Promise.resolve(false)
     const run = () => this._runScopedFolderTask(
       () => this.downloadDirUseCase.execute(remoteSrc, localDest, top, localName, undefined, !!forceOverwrite),
     )
@@ -391,6 +514,8 @@ export class PanelTransferCoordinator {
   }
 
   mergeLocalDirToRemote(localSrc: string, remoteDest: string, reuseLogEntryId?: string): Promise<boolean> {
+    // ★ 建议#52修复：dispose后不再启动新传输
+    if (this._disposed) return Promise.resolve(false)
     // remoteDest 即最终目标目录（已含本地文件夹名），故键直接用 (remoteDest, localSrc)
     const slotName = path.basename(localSrc)
     if (!this._claimTransferSlot('upload', remoteDest, localSrc, slotName)) return Promise.resolve(false)
@@ -447,8 +572,10 @@ export class PanelTransferCoordinator {
     localPath: string,
     localSize: number,
     localMtime: number,
+    srcSession?: any,
+    dstSession?: any,
   ): Promise<ConflictCheckOutcome> {
-    return this.conflictDetection.checkUploadConflict(remotePath, localPath, localSize, localMtime)
+    return this.conflictDetection.checkUploadConflict(remotePath, localPath, localSize, localMtime, srcSession, dstSession)
   }
 
   checkLocalConflict(
@@ -456,8 +583,10 @@ export class PanelTransferCoordinator {
     remotePath: string,
     remoteSize: number,
     remoteMtime: number,
+    srcSession?: any,
+    dstSession?: any,
   ): Promise<ConflictCheckOutcome> {
-    return this.conflictDetection.checkLocalConflict(localPath, remotePath, remoteSize, remoteMtime)
+    return this.conflictDetection.checkLocalConflict(localPath, remotePath, remoteSize, remoteMtime, srcSession, dstSession)
   }
 
   checkRemotePathExists(remotePath: string, expectDir?: boolean): Promise<boolean> {
@@ -476,7 +605,16 @@ export class PanelTransferCoordinator {
     const host = this.host
     return new TarChannel({
       hasSsh: () => !!host.sshSession,
-      exec: (cmd, timeoutMs, opts) => execSshCommand(host.sshSession, cmd, timeoutMs, opts),
+      // ★ 2026-10-12：tar 通道**所有**远程命令的唯一出口，在此转义前先探测 base64。
+      //   tar-channel 的命令构造器（buildRemoteUploadLanding 等）是**同步纯函数**，
+      //   拿不到 ssh 也无法 await；在此处探测一次即可让全部命令受益
+      //   （探测结果全局锁定，不会每次多一次往返）。
+      //   缺 base64 的精简镜像（BusyBox/Alpine）上，原先路径会被替换成空串、
+      //   命令变成 `mkdir -p ''` 之类而静默失败 —— 现回退到同样安全的单引号转义。
+      exec: async (cmd, timeoutMs, opts) => {
+        await probeRemoteBase64(host.sshSession)
+        return execSshCommand(host.sshSession, cmd, timeoutMs, opts)
+      },
       uploadFile: async (localPath, remotePath, onProgress, shouldAbort) => {
         const raw = host.sftpSession as any
         if (!raw) return false
@@ -565,12 +703,13 @@ export class PanelTransferCoordinator {
       readdir: async (remoteSrc) => {
         const entries = await (host.sftpSession as any).readdir(remoteSrc)
         return entries.map((e: any) => ({
-          name: e.name,
+          // ★ 中危#25修复：为每个字段提供默认值，避免后端缺失字段时导致后续处理异常
+          name: e.name ?? '',
           isDirectory: !!e.isDirectory,
           isSymlink: !!(e.isSymlink || e.isSymbolicLink),
-          size: e.size,
-          mode: e.mode,
-          modified: e.modified,
+          size: e.size ?? 0,
+          mode: e.mode ?? 0,
+          modified: e.modified ?? undefined,
         }))
       },
       stat: async (remotePath) => {
@@ -622,7 +761,11 @@ export class PanelTransferCoordinator {
     }
     const folder: FolderTransferPort = {
       start: (...args) => host.startFolderTransfer(...args),
-      finish: (ctx, success) => host.finishFolderTransfer(ctx, success),
+      // ★ 2026-10-19 P2-9：目录传输失败时把原因带出去（此前日志只有 success:false，
+      //   取消与真出错无法区分）。被中断/取消的条目由 isAborted 判定为 'cancelled'，
+      //   其余按 'interrupted'（通道异常）与 'error'（子项失败）由调用方传入。
+      finish: (ctx, success, reason) =>
+        host.finishFolderTransfer(ctx, success, reason ?? (folder.isAborted(ctx) ? 'cancelled' : undefined)),
       discard: (ctx) => {
         try { host.discardFolderTransfer?.(ctx) } catch { /* ignore */ }
       },
@@ -651,7 +794,7 @@ export class PanelTransferCoordinator {
     }
     const execution: TransferExecutionPort = {
       uploadTopLevel: (remotePath, localPath) => host.uploadTopLevel(remotePath, localPath),
-      uploadRaw: (remotePath, localPath) => host.uploadRaw(remotePath, localPath),
+      uploadRaw: (remotePath, localPath, onProgress) => host.uploadRaw(remotePath, localPath, onProgress),
       downloadTopLevel: (remotePath, localPath, mode, size) =>
         host.downloadTopLevel(remotePath, localPath, mode, size),
       downloadRaw: (remotePath, localPath, mode, size, onProgress) =>
@@ -681,6 +824,22 @@ export class PanelTransferCoordinator {
       },
       conflictQueue,
     }
+  }
+
+  /**
+   * ★ 2026-10-09 审计 P0-1 根治：面板销毁时释放本类持有的状态。
+   *
+   * 为什么必须有：_activeTransferSlots 是本类私有的 Set，槽位键由
+   * buildTransferSlotKey(direction, remotePath, localPath) 拼成，内含**完整的远端与本地路径**。
+   * dispose 后若不 clear，面板实例被回收前这段 Set 会一直持有这些字符串；
+   * 更重要的是三处入口的 _disposed 守卫依赖本类自身的状态，
+   * 没人调 dispose 的话守卫永远为 false（等价于没接线）。
+   *
+   * 调用方：面板 ngOnDestroy，须与 _transferRuntime.dispose() 成对。
+   */
+  dispose(): void {
+    this._disposed = true
+    this._activeTransferSlots.clear()
   }
 }
 
@@ -770,6 +929,25 @@ export class PanelTransferRuntime {
     return false
   }
 
+  /**
+   * ★ 2026-10-13 P1 修复：清除指定键的粘性取消标记（新排队条目创建时调用）。
+   *
+   * 为什么需要：标记的语义是「这个排队条目被取消时，它的任务可能已过调度检查、
+   *   尚未认领」，用于 abort 那个**特定**任务。但标记只按 (direction, localPath,
+   *   remotePath) 聚合，没有身份——用户取消后 10s 内对同一路径**重新发起**传输时，
+   *   新任务在 trackTransfer 认领前会被旧标记拦截、静默 abort（无条目、无提示，
+   *   占位条目滞留到队列计时器回收）。「取消后立刻重试同一路径」是常见操作。
+   * 在面板的排队入口（_streamDownloadOne / _streamUploadOne push 占位条目之前）
+   * 调用本方法：新意图产生时旧标记即失效。真正需要标记的场景（任务已过 liveness
+   * 检查、认领前被取消）窗口是微秒~毫秒级，用户不可能在同一窗口内先取消再重发，
+   * 因此不会放跑真正的孤儿传输。
+   */
+  clearQueuedCancel(direction?: string, localPath?: string, remotePath?: string): void {
+    if (!direction || !localPath) return
+    this._queuedCancelKeys.delete(this._queuedCancelKey(direction, localPath, remotePath))
+    this._queuedCancelKeys.delete(this._queuedCancelKey(direction, localPath))
+  }
+
   async trackTransfer(
     t: any,
     direction: 'upload' | 'download',
@@ -777,6 +955,8 @@ export class PanelTransferRuntime {
     localPath: string,
     logOperation?: 'upload' | 'download' | 'edit-upload' | 'edit-download',
   ): Promise<void> {
+    // ★ 建议#52修复：dispose后不再处理新传输
+    if (this._disposed) return
     // ★ 2026-08-10 修复：排队期间已被取消（竞态窗口内传输已启动）——
     //   直接 abort 底层传输且不认领/新建条目，避免"取消后文件照传、条目再现"
     // ★ 2026-09-14 F6：消费也带 remotePath（consumeQueuedCancel 兼容新旧两种键）
@@ -801,14 +981,11 @@ export class PanelTransferRuntime {
       e => e.queued && e.direction === direction && e.localPath === localPath && e.remotePath === remotePath,
     )
     if (claimed) {
-      if (sz === 0) {
-        // 空文件立即完成：移除占位并收尾日志
-        this.host.transfers = this.host.transfers.filter(x => x !== claimed)
-        if (claimed.logEntryId != null) {
-          this.host.transferLog.update(claimed.logEntryId, { success: true, duration: 0, endTime: Date.now(), pending: false })
-        }
-        return
-      }
+      // ★ 2026-10-13 P1 修复：空文件**不再**提前收尾。原实现对 sz===0 直接移除占位并记
+      //   success——而上传方向此时真实传输还没开始（trackTransfer 在 uploadLocalFile 里
+      //   于上传前调用），随后失败（权限/会话失效）时日志永久显示成功、且没有条目可供
+      //   取消或观察（用户侧：「日志说成功，远端却没有」）。改为走正常条目生命周期：
+      //   tick 据 isComplete/isFailed 记真实终态（0 字节的 up/dl 都会立即 complete）。
       claimed.transfer = t
       claimed.queued = false
       claimed.bytesTotal = sz
@@ -837,15 +1014,11 @@ export class PanelTransferRuntime {
       size: sz >= 0 ? sz : undefined,
       duration: 0,
       startTime: Date.now(),
-      // ★ 修复：sz=0 立即完成无需 pending；sz=-1（未知大小）仍在传输，必须标进行中
-      pending: sz !== 0,
+      // ★ 2026-10-13 P1 修复：sz===0 也标 pending——原实现 `sz !== 0` 让空文件的日志
+      //   在传输开始前就显示完成（同上：上传失败会永久显示成功）。终态由 tick 收尾。
+      pending: true,
       transferMode: 'sftp',
     })
-
-    if (sz === 0) {
-      this.host.transferLog.update(logEntry.id, { success: true, duration: 0, endTime: Date.now() })
-      return
-    }
 
     const entry: PanelTransferItem = {
       transfer: t,
@@ -872,6 +1045,8 @@ export class PanelTransferRuntime {
   }
 
   cancelTransfer(entry: { transfer: any; logEntryId?: string; paused?: boolean; isFolder?: boolean }): void {
+    // ★ 建议#52修复：dispose后不再处理取消操作
+    if (this._disposed) return
     // ★ 2026-08-10：排队占位条目尚未开始传输——直接移除条目并删掉占位日志（不产生"已取消"记录）。
     //   同时记粘性取消标记：若传输已过调度检查正在启动（尚未认领），trackTransfer/认领处会拦截 abort
     // ★ 2026-09-21 P1 修复：取消标记必须带 remotePath——只记 direction+localPath 旧键时，
@@ -898,16 +1073,26 @@ export class PanelTransferRuntime {
     if (entry.isFolder) {
       ;(entry as any)._aborted = true
     }
+    // ★ 2026-10-13 P1 修复（续传竞态窗口内取消失效）：正在装配新传输时（_resuming），
+    //   entry.paused 已被 resumeTransfer 置 false，下方两个清理函数的旧判据会整体跳过，
+    //   而取消的又是早已停止的旧 transfer。置 _resumeCancelRequested 让装配完成后的
+    //   第一时刻自取消（见 resumeTransfer），并强制清理半成品临时文件。
+    if ((entry as any)._resuming) (entry as any)._resumeCancelRequested = true
     // ★ 2026-07-25 B12：取消"暂停态"的下载时清理孤儿 .tmp——
     //   活动中的下载由 downloadRemoteFile 自己收尾；但暂停态的下载其收尾逻辑早已退出
     //   （暂停分支特意保留 .tmp 供续传），此时取消便无人删除半截 .tmp，永久残留。
-    this._cleanupPausedDownloadTmp(entry)
-    this._cleanupPausedUploadTmp(entry)
+    this._cleanupPausedDownloadTmp(entry, !!(entry as any)._resuming)
+    void this._cleanupPausedUploadTmp(entry, !!(entry as any)._resuming)
     this.host.transfers = this.host.transfers.filter(x => x !== entry)
     if (this._transferMeta.has(entry as any)) {
       this._transferMeta.delete(entry as any)
       this._trackedTransferCount--
-      if (this._trackedTransferCount <= 0) {
+      // ★ 2026-10-09 审计根治：停表判据原是「本条删完后计数 <= 0」，但计数是**全局**的 ——
+      //   取消其中一条时，只要还有别的条目在传，计数就 > 0，定时器不会被停；
+      //   而若计数因别处双减而失真（见 _tickAllTransfers 的 toRemove 段，已一并修），
+      //   这里会误停。改为**以 host.transfers 是否还有条目为准** —— 这是唯一的事实来源：
+      //   列表空了才真没有东西需要 tick。
+      if (this.host.transfers.length <= 0) {
         this._trackedTransferCount = 0
         this._stopTransferTimer()
       }
@@ -927,9 +1112,12 @@ export class PanelTransferRuntime {
    * ★ 2026-07-25 B12：清理"暂停态下载"取消后的孤儿 .tmp。
    *   仅对 paused 的单文件下载生效（无活动写入方，删除安全）；
    *   活动中的下载各自的收尾逻辑（downloadRemoteFile / 续传路径）负责自清理。
+   *   ★ 2026-10-13 P1 修复：新增 force 形参——续传装配窗口内（_resuming）entry.paused
+   *   已被置 false，旧判据会跳过清理；force=true 表示调用方已确认无活动写入方。
    */
-  private _cleanupPausedDownloadTmp(entry: any): void {
-    if (entry?.isFolder || !entry?.paused) return
+  private _cleanupPausedDownloadTmp(entry: any, force = false): void {
+    if (entry?.isFolder) return
+    if (!force && !entry?.paused) return
     if (entry.direction !== 'download' || !entry.localPath) return
     const tmp = entry.localPath + '.tmp'
     try { fsSync.unlinkSync(tmp) } catch { /* 不存在或已被清理 */ }
@@ -939,9 +1127,11 @@ export class PanelTransferRuntime {
    * ★ 2026-07-25 B13：清理"暂停态上传"取消后的孤儿 .tabby-upload 临时文件。
    *   上传暂停时 uploadViaRawToTemp 已结束流但保留临时文件（供续传）；若此时再取消，
    *   上传循环已退出、无人删临时文件，需在此补删。仅对 paused 的单文件上传生效（无活动写入方）。
+   *   ★ 2026-10-13 P1 修复：新增 force 形参，语义同 _cleanupPausedDownloadTmp。
    */
-  private _cleanupPausedUploadTmp(entry: any): void {
-    if (entry?.isFolder || !entry?.paused) return
+  private async _cleanupPausedUploadTmp(entry: any, force = false): Promise<void> {
+    if (entry?.isFolder) return
+    if (!force && !entry?.paused) return
     if (entry.direction !== 'upload' || !entry.remotePath) return
     // ★ 2026-08-10 修复：remotePath 是远程 POSIX 路径，必须用 SFTP 会话删除。
     //   旧实现用本地 fsSync.unlinkSync：Windows 上被解析为当前盘符相对路径，
@@ -951,7 +1141,7 @@ export class PanelTransferRuntime {
     try {
       const p = session.unlink(entry.remotePath + '.tabby-upload')
       if (p && typeof (p as Promise<void>).catch === 'function') {
-        (p as Promise<void>).catch(() => { /* 不存在或已改名 */ })
+        await (p as Promise<void>).catch(() => { /* 不存在或已改名 */ })
       }
     } catch { /* ignore */ }
   }
@@ -967,6 +1157,8 @@ export class PanelTransferRuntime {
    *      resume 又起新传输 → 两个传输同时写同一文件 → 数据损坏。
    */
   async pauseTransfer(entry: any): Promise<void> {
+    // ★ 建议#52修复：dispose后不再处理暂停操作
+    if (this._disposed) return
     if (entry.queued) return  // ★ 2026-08-10：排队条目无底层传输对象，不可暂停
     if (entry.paused) return
     if (entry.isFolder) {
@@ -1013,6 +1205,15 @@ export class PanelTransferRuntime {
     try {
       this.host.zone.run(() => { entry.paused = false })
       this._detect()
+      // ★ 2026-10-13 P1 修复（续传竞态窗口内取消失效）：下面到「新传输装配完成」之间有一系列
+      //   await（getSize / 上传方向还含一次远端 stat 网络 RTT）。这期间用户点取消时：
+      //     · cancelTransfer 取消的是 entry.transfer（**旧**对象，早已停止）；
+      //     · _cleanupPausedDownloadTmp 因 entry.paused 已被上面置 false 而跳过；
+      //     · 新 dl/up 装配完成后没有任何取消来源 ⇒ 照常跑完并 rename 落盘。
+      //   引入交接标记：_resuming 让取消方知道「正在装配、旧判据不可信」，
+      //   _resumeCancelRequested 让装配完成后的第一时刻就能自取消。
+      ;(entry as any)._resuming = true
+      ;(entry as any)._resumeCancelRequested = false
       // 上传和下载必须走不同续传实现。此前这里无条件调用 _resumeWithRawRead，
       // 会把远端半成品下载回来并最终覆盖本地上传源文件。
       const direction = entry.direction as 'upload' | 'download'
@@ -1020,7 +1221,12 @@ export class PanelTransferRuntime {
       const localPath = entry.localPath as string
       const tmpPath = localPath + '.tmp'
       const mode = entry.transfer.getMode?.() || 0o644
-      const totalSize = (await Promise.resolve(entry.transfer.getSize?.())) || 0
+      // ★ 2026-10-13 P1 修复（未知大小续传静默截断）：getSize() 不可用时返回 -1（未知大小
+      //   哨兵），原先 `|| 0` 把它折成 0 ⇒ _rawReadLoop 的 `totalSize < 0 || position < totalSize`
+      //   恒假、一个字节都不读 ⇒ 大小校验被跳过 ⇒ 半截 .tmp 被 rename 成正式文件且记成功。
+      //   归一：有限且 >=0 才采用，否则保持 -1（循环读到 EOF 后由 _remoteSizeOrNegative 复核）。
+      const rawSize = await Promise.resolve(entry.transfer.getSize?.())
+      const totalSize = Number.isFinite(rawSize) && (rawSize as number) >= 0 ? (rawSize as number) : -1
       const offset = entry._pauseOffset ?? 0
       const info = direction === 'upload'
         ? await this._resumeTransfer(entry, 'upload', remotePath, localPath, offset)
@@ -1037,11 +1243,30 @@ export class PanelTransferRuntime {
           meta.lastProgressTime = Date.now()
         }
       })
+      // ★ 2026-10-13 P1 修复（续传竞态窗口内取消失效）：装配期间用户点了取消——
+      //   条目已被 cancelTransfer 移出列表，新传输必须即刻自取消并清理半成品，
+      //   否则它会照常跑完并把 .tmp rename 成正式文件（覆盖场景即丢用户原文件）。
+      if ((entry as any)._resumeCancelRequested) {
+        try {
+          const r = typeof entry.transfer.cancel === 'function' ? entry.transfer.cancel()
+            : typeof entry.transfer.destroy === 'function' ? entry.transfer.destroy()
+            : undefined
+          void Promise.resolve(r).catch(() => { /* ignore */ })
+        } catch { /* ignore */ }
+        this._cleanupPausedDownloadTmp(entry, true)
+        void this._cleanupPausedUploadTmp(entry, true)
+        log.info('Transfer cancelled during resume handoff, new transfer aborted:', entry.name)
+        return
+      }
       delete entry._pauseOffset
       log.info(`Transfer resumed: ${entry.name} (${direction})`)
     } catch (e) {
       log.error('Resume failed', e)
       entry.paused = true
+    } finally {
+      // ★ 2026-10-13：交接标记必须成对清理——失败路径上 _resuming 残留会让后续取消误判
+      ;(entry as any)._resuming = false
+      ;(entry as any)._resumeCancelRequested = false
     }
   }
 
@@ -1068,15 +1293,19 @@ export class PanelTransferRuntime {
         } catch {}
       }
       if (t.transfer) {
+        // ★ 2026-10-13 P2：cancel()/destroy() 是 async，同步 try/catch 抓不到其 rejection；
+        //   当前各实现内部吞错故不爆，一旦实现改动即产生 unhandled rejection。统一挂 .catch。
         try {
-          if (typeof t.transfer.cancel === 'function') t.transfer.cancel()
-          else if (typeof t.transfer.destroy === 'function') t.transfer.destroy()
-        } catch {}
+          const r = typeof t.transfer.cancel === 'function' ? t.transfer.cancel()
+            : typeof t.transfer.destroy === 'function' ? t.transfer.destroy()
+            : undefined
+          void Promise.resolve(r).catch(() => { /* 清理阶段失败可忽略 */ })
+        } catch { /* ignore */ }
       }
       // ★ 2026-07-25 B12：批量清理时同样处理暂停态下载的孤儿 .tmp
       // ★ 2026-07-25 B13：以及暂停态上传的孤儿 .tabby-upload
       this._cleanupPausedDownloadTmp(t)
-      this._cleanupPausedUploadTmp(t)
+      void this._cleanupPausedUploadTmp(t)
     }
     this.host.transfers = []
     // ★ 2026-09-20 P2-1 审计修复：清空列表必须同步清 _transferMeta（BUG-3 由 WeakMap 改强引用 Map 后
@@ -1119,7 +1348,7 @@ export class PanelTransferRuntime {
       return
     }
     let needsDetect = false
-    const toRemove: PanelTransferItem[] = []
+    const toRemove = new Set<PanelTransferItem>()
     for (const entry of this.host.transfers) {
       const meta = this._transferMeta.get(entry as any)
       if (!meta) continue
@@ -1129,10 +1358,12 @@ export class PanelTransferRuntime {
           // ★ 2026-08-15 修复 #2：断连后暂停传输也无法恢复（SFTP 会话已丢失），
           //   一并清理避免 UI 永久僵尸
           try {
-            if (typeof t.cancel === 'function') t.cancel()
-            else if (typeof t.destroy === 'function') t.destroy()
+            const r = typeof t.cancel === 'function' ? t.cancel()
+              : typeof t.destroy === 'function' ? t.destroy()
+              : undefined
+            void Promise.resolve(r).catch(() => { /* 清理阶段失败可忽略 */ })
           } catch { /* ignore */ }
-          toRemove.push(entry)
+          toRemove.add(entry)
           this.host.transferLog.update(entry.logEntryId!, {
             success: false,
             duration: Date.now() - meta.startTime,
@@ -1145,13 +1376,29 @@ export class PanelTransferRuntime {
         // ★ 2026-09-26：暂停时只清显示文本，**保留 speedBps**（不再置 0）。
         //   置 0 会让「恢复后到下一个速度窗口产出真速率之前」这段时间先闪一下 `剩余 ∞`；
         //   而 etaText 对「暂停中」本来就返回空串，不需要靠清零来隐藏。
-        if (entry.paused) { entry.speed = ''; continue }
+        //
+        // ★ 2026-10-09 审计根治：原写法是 `if (entry.paused) { entry.speed=''; continue }`，
+        //   那个 continue 落在**完成判定之前** ⇒ 暂停期间即便底层已 complete/failed/cancelled
+        //   也永远走不到下方收尾。而 pauseTransfer 对下载会调 t.cancel()
+        //   （raw stream 场景下不 cancel 会让重开的流重开 fd 截断文件，见 pauseTransfer 注释②），
+        //   也就是「暂停」的底层状态其实已经是 cancelled —— 于是该记录永久滞留 host.transfers、
+        //   _transferMeta 强引用 transfer 适配器闭包、_trackedTransferCount 不归零、定时器不停。
+        //   根治：**去掉 continue**，暂停时只跳过「字节/速率/百分比更新」这一段
+        //   （用 isPaused 分支包住），让执行流继续往下走到 stall 判定与完成判定。
+        //   这样暂停中若底层已落终态，照常被收尾移除；仍在跑则原地等待，与原行为一致。
+        const isPaused = !!entry.paused
+        // done / now 提到 if 之外：下方的 stall 判定与完成收尾都要用它们
         const done = Number(t.getCompletedBytes?.()) || 0
+        const now = Date.now()
+        if (isPaused) {
+          entry.speed = ''
+          needsDetect = true
+        }
+        if (!isPaused) {
         // ★ 兜底：bytesTotal 若出现非有限数字（如历史 Promise 残留），按 0 处理避免 percent=NaN 污染 UI
         const total = Number(entry.bytesTotal) || 0
         const newPercent = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0
         entry.bytesDone = done
-        const now = Date.now()
         if (done > meta.prevBytes || newPercent >= 100) {
           meta.lastProgressTime = now
         }
@@ -1195,13 +1442,22 @@ export class PanelTransferRuntime {
         } else if (elapsed >= 1000) {
           needsDetect = true
         }
+        } // ← if (!isPaused) 闭合：以上是「字节/速率/百分比」更新，暂停时整段跳过。
+          //    但**刻意不 continue** —— 下面的 stall 判定与完成判定必须照常执行，
+          //    否则暂停中的条目会永久滞留（见上方根治说明）。
         const stallMs = now - meta.lastProgressTime
-        if (stallMs > 900000) {
+        // ★ 2026-10-13 P1 修复（暂停被 stall 判死）：暂停不是「零推进停滞」——lastProgressTime
+        //   的更新本就在 if (!isPaused) 块内，暂停期间 stallMs 必然持续增长。不豁免的话暂停
+        //   满 15 分钟会被 tick 杀并记 error（用户只是暂停），远端 .tabby-upload 还成孤儿
+        //   （tick 杀不走 _cleanupPausedUploadTmp）。暂停条目的停滞计时没有意义，直接豁免。
+        if (!isPaused && stallMs > 900000) {
           try {
-            if (typeof t.cancel === 'function') t.cancel()
-            else if (typeof t.destroy === 'function') t.destroy()
+            const r = typeof t.cancel === 'function' ? t.cancel()
+              : typeof t.destroy === 'function' ? t.destroy()
+              : undefined
+            void Promise.resolve(r).catch(() => { /* 清理阶段失败可忽略 */ })
           } catch { /* ignore */ }
-          toRemove.push(entry)
+          toRemove.add(entry)
           this.host.transferLog.update(entry.logEntryId!, {
             success: false,
             duration: now - meta.startTime,
@@ -1211,29 +1467,52 @@ export class PanelTransferRuntime {
           })
           continue
         }
-        if (t.isComplete?.() || t.isCancelled?.() || t.isFailed?.() || entry.percent >= 100) {
+        const termComplete = !!t.isComplete?.()
+        const termCancelled = !!t.isCancelled?.()
+        const termFailed = !!t.isFailed?.()
+        // ★ 2026-10-13 P1 修复（暂停即失败）：pauseTransfer 对下载方向会调 transfer.cancel()
+        //   停流（否则重开的流会重开 fd 截断文件），于是「暂停」的底层状态就是 cancelled。
+        //   2026-10-09 去掉 paused continue 后，完成判定把它当成用户取消 ⇒ 单文件下载暂停
+        //   约一个 tick（200ms）后被记失败、条目消失、.tmp 成孤儿、「恢复」按钮一并消失。
+        //   判定规则：paused + cancelled 且未 complete/failed ⇒ 这是暂停自停流，留在列表等
+        //   resume，不收尾、不记失败；其余终态（含 paused 但底层已 complete/failed）照常收尾。
+        const pausedSelfCancelled = isPaused && termCancelled && !termFailed && !termComplete
+        if (!pausedSelfCancelled && (termComplete || termCancelled || termFailed || entry.percent >= 100)) {
           // 兜底：若速率窗口未触发（极快传输 <500ms 完成），用总平均速度填充，避免最后仍显示 '--'
           if (!entry.speed && done > 0) {
             const dur = Math.max(1, now - meta.startTime)
             entry.speed = this.host.formatSpeed(done, dur)
           }
-          toRemove.push(entry)
+          toRemove.add(entry)
           // ★ 2026-08-10：失败标记（raw 读错误等）也计入失败，避免非取消类错误被误报成功
-          const finalSuccess = !t.isCancelled?.() && !t.isFailed?.()
+          const finalSuccess = !termCancelled && !termFailed
           this.host.transferLog.update(entry.logEntryId!, { success: finalSuccess, duration: now - meta.startTime, endTime: now, failReason: finalSuccess ? undefined : 'error', pending: false })
         }
       } catch {
-        toRemove.push(entry)
+        toRemove.add(entry)
         this.host.transferLog.update(entry.logEntryId!, { success: false, duration: Date.now() - meta.startTime, endTime: Date.now(), failReason: 'error', pending: false })
       }
     }
     for (const entry of toRemove) {
-      this._transferMeta.delete(entry as any)
+      // ★ 2026-10-09 审计根治（计数双减）：本循环原先**无条件** `_trackedTransferCount--`，
+      //   而 cancelTransfer 里有 `if (this._transferMeta.has(entry))` 守卫 —— 两处口径不一致。
+      //   竞态：同一条目在 tick 的 for 循环执行期间被 cancelTransfer 移除
+      //   （cancelTransfer 会 `host.transfers = host.transfers.filter(...)`），
+      //   但它早已被本轮 toRemove.add 收集 ⇒ 这里再 delete（无害）+ 再 --（**计数双减**）。
+      //   后果比「多减一次」严重：计数提前归零 → 下面的 `<= 0` 分支停掉轮询定时器
+      //   ⇒ **尚在传输的其它条目从此不再被 tick**，进度条永久冻结、传输记录永远停在「传输中」。
+      //   根治：以 _transferMeta 是否有该条目为**唯一**计数口径（delete 的返回值即真相），
+      //   与 cancelTransfer 完全对齐；已删条目不再重复计数。
+      const wasTracked = this._transferMeta.delete(entry as any)
       this.host.transfers = this.host.transfers.filter(x => x !== entry)
-      this._trackedTransferCount--
+      if (wasTracked) this._trackedTransferCount--
     }
     if (needsDetect) this._detect()
-    if (this._trackedTransferCount <= 0) {
+    // ★ 2026-10-09 审计根治：停表判据从 `_trackedTransferCount <= 0` 改为「列表是否为空」。
+    //   计数是**推导量**（trackTransfer ++、移除时 --），任何一处口径不一致都会失真，
+    //   而误判 <= 0 的后果是「尚在传输的条目从此不再被 tick、进度永久冻结」——
+    //   比多跑几轮定时器严重得多。host.transfers 是唯一事实来源，用它判定最稳。
+    if (this.host.transfers.length <= 0) {
       this._trackedTransferCount = 0
       this._stopTransferTimer()
     }
@@ -1248,7 +1527,11 @@ export class PanelTransferRuntime {
   ): Promise<{ transfer: any; percent: number }> {
     if (!this.host.sftpSession) throw new Error('No SFTP session')
     // 兼容异步 getSize（LocalPathFileUpload 返回 Promise）
-    const totalSize = (await Promise.resolve(entry.transfer.getSize?.())) || 0
+    // ★ 2026-10-13 P1 修复：与 resumeTransfer 同款归一——不可用时保持 -1 而不是 `|| 0` 折成 0，
+    //   避免「未知大小」与「真的是 0」混淆（上传方向 -1 时下方 tempSize<=totalSize 不成立，
+    //   走完整重传，安全）。
+    const rawSize = await Promise.resolve(entry.transfer.getSize?.())
+    const totalSize = Number.isFinite(rawSize) && (rawSize as number) >= 0 ? (rawSize as number) : -1
     const rawSftp = this.host.sftpSession as any
     const hasRawStream = direction === 'upload'
       ? typeof rawSftp.createWriteStream === 'function'
@@ -1272,27 +1555,28 @@ export class PanelTransferRuntime {
       if (hasRawStream) {
         up = new LocalPathFileUpload(localPath, remoteOffset)
         // ★ 2026-08-10：补 catch——流错误时避免 unhandled rejection（对比非 raw 分支已有 catch）
-        // ★ 2026-08-15 修复 #1：流失败时标记 failed，避免 UI 僵尸态（最长等 15 分钟 stall 超时）
+        // ★ 高危#7修复：追加.catch(()=>{})确保Promise不会unhandled rejection
         uploadViaRawToTemp(rawSftp, remotePath, up, remoteOffset).catch(async (e: unknown) => {
           if (this._disposed) return
           if (!up.isCancelled?.() && !up.isPaused()) {
             try { await up._markFailed?.() } catch {}
             log.error('Resume raw upload failed', e)
           }
-        })
+        }).catch(() => { /* 二次兜底，避免.catch内部异常导致unhandled rejection */ })
       } else {
         // 标准 upload API 不支持远端 offset；传入本地 offset 会只上传后缀并截断目标。
         // 因此不支持 raw stream 时必须完整重传，优先保证数据完整性。
         remoteOffset = 0
         up = new LocalPathFileUpload(localPath)
         // ★ 2026-08-15 修复 #1：标准 upload 失败也标记 failed
+        // ★ 高危#7修复：追加.catch(()=>{})确保Promise不会unhandled rejection
         this.host.sftpSession.upload(remotePath, up as any).catch(async (e: any) => {
           if (this._disposed) return
           if (!up.isCancelled?.()) {
             try { await up._markFailed?.() } catch {}
             log.error('Resume upload failed', e)
           }
-        })
+        }).catch(() => { /* 二次兜底 */ })
       }
       const percent = totalSize > 0 ? Math.min(99, Math.round((remoteOffset / totalSize) * 100)) : 0
       return { transfer: up, percent }
@@ -1339,6 +1623,16 @@ export class PanelTransferRuntime {
   /**
    * ★ 2026-07-24：用底层 SFTP open/read（支持 offset）实现真正的断点续传下载。
    *   绕过 Tabby download API（不支持 offset）和 createReadStream（start 不靠谱）。
+   *   ★ 2026-10-19 P1 修复（脆弱检测加固）：原能力检测只查 `typeof open/read === 'function'`，
+   *   分不清 API **形态**——russh 版宿主同样有 open()，但它是 promise 式
+   *   `open(p, mode) → Promise<handle>`，回调式调用永远不会回调。现行 russh 主机上因
+   *   宿主没有顶层 read() 而侥幸走全量重下回退（见 transfer-adapters 文件头 2026-09-25
+   *   的记录），但一旦未来宿主补上顶层 read() 而 open 仍是 promise 式，_rawReadLoop 会
+   *   永久挂起（条目卡到 stall 超时才移除）。且即便 open 是回调式，read 也必须真的是
+   *   **位置读**（ssh2 的 read(handle, buf, off, len, position, cb)）——顺序读的 read
+   *   会让 position 参数被忽略，源从 0 读而 sink 从 offset 写 ⇒ 错位拼接出损坏文件。
+   *   修复：先用带超时的探测 open 验证「回调式 API 真实存在且能回调」，配合形参元数
+   *   检查（open≥3 / read≥6），任一不过即回退全量重下（安全语义）。
    */
   private async _resumeWithRawRead(
     entry: any, remotePath: string, tmpPath: string, localPath: string,
@@ -1346,8 +1640,8 @@ export class PanelTransferRuntime {
   ): Promise<{ transfer: any; percent: number }> {
     const rawSftp = this.host.sftpSession as any
     // ★ 检测底层 API 是否存在——不存在则回退全量重下
-    if (!rawSftp || typeof rawSftp.open !== 'function' || typeof rawSftp.read !== 'function') {
-      log.warn('Raw SFTP open/read not available, fallback to full redownload')
+    if (!(await this._probeCallbackStyleRawRead(rawSftp, remotePath))) {
+      log.warn('Raw SFTP callback-style open/read not available, fallback to full redownload')
       // 清理 .tmp，全量重下
       try { fsSync.unlinkSync(tmpPath) } catch {}
       // ★ 2026-09-14 F10：不再预删 localPath——全量重下走 .tmp + rename 原子覆盖，无需先删；
@@ -1361,6 +1655,54 @@ export class PanelTransferRuntime {
       (e: any) => { if (!dl.isCancelled?.()) log.error('Raw resume failed', e) },
     )
     return { transfer: dl, percent }
+  }
+
+  /**
+   * ★ 2026-10-19 P1 修复：探测宿主是否真的提供「回调式 + 位置读」的 SFTP API。
+   *   三层校验：① open/read 均存在；② 形参元数（open≥3：path/flags/cb；read≥6：
+   *   handle/buf/off/len/position/cb）——russh 的 open(p, mode) 只有 2 形参， promise 式；
+   *   ③ 真调一次 open 并限时 5s 等回调（防形参判断被宿主改写骗过），探测句柄立即关闭。
+   *   任一不过返回 false，调用方回退全量重下。
+   */
+  private async _probeCallbackStyleRawRead(rawSftp: any, remotePath: string): Promise<boolean> {
+    if (!rawSftp || typeof rawSftp.open !== 'function' || typeof rawSftp.read !== 'function') return false
+    if (rawSftp.open.length < 3) {
+      log.warn('Raw SFTP open is not callback-style (arity ' + rawSftp.open.length + ')')
+      return false
+    }
+    if (rawSftp.read.length < 6) {
+      log.warn('Raw SFTP read is not positional (arity ' + rawSftp.read.length + ')')
+      return false
+    }
+    try {
+      const handle = await new Promise<Buffer>((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error('callback-style open probe timed out')), 5000)
+        try {
+          rawSftp.open(remotePath, 'r', (err: any, h: Buffer) => {
+            clearTimeout(timer)
+            if (err) reject(err); else resolve(h)
+          })
+        } catch (e) {
+          clearTimeout(timer)
+          reject(e)
+        }
+      })
+      // 探测句柄立即关掉（循环会自己重开）；关闭失败不影响续传主流程
+      try {
+        await new Promise<void>((resolve) => {
+          const closeTimer = setTimeout(resolve, 3000)
+          try {
+            rawSftp.close(handle, () => { clearTimeout(closeTimer); resolve() })
+          } catch {
+            clearTimeout(closeTimer); resolve()
+          }
+        })
+      } catch { /* ignore */ }
+      return true
+    } catch (e) {
+      log.warn('Raw SFTP callback-style open probe failed:', (e as Error)?.message ?? e)
+      return false
+    }
   }
 
   /** 取远端文件字节数；不可用时返回 -1（供未知大小续传落盘前复核完整性） */

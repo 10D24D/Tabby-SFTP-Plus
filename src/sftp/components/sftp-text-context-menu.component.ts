@@ -84,6 +84,10 @@ export type TextMenuAction =
     .tctx-item.tctx-disabled {
       cursor: default;
       opacity: 0.45;
+      /* ★ 2026-10-13：禁用项必须同时屏蔽指针事件——否则点击仍会命中该项的 (click)
+         处理器（仅靠业务侧的 if (!canPaste) return 才没出事），且 hover 透明背景的
+         写法在「禁用项被覆盖层遮住」时会露出高亮。 */
+      pointer-events: none;
     }
     .tctx-item.tctx-disabled:hover { background: transparent; }
     .tctx-sep {

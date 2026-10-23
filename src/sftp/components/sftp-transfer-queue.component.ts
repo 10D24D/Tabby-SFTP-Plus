@@ -2,8 +2,14 @@
  * SFTP+ 传输队列面板（从主面板抽离）
  * 创建人：DD1024z + Hy3
  * 创建时间：2026-07-11
- * 修改人：DD1024z + Deepseek-V4.1-Flash
- * 修改时间：2026-09-26 — 新增「预估剩余时间」显示（etaText）：用 bytesTotal/bytesDone 与
+ * 修改人：DD1024z + Step-5-Preview
+ * 修改时间：2026-10-19 — 2026-10-19 全量审计 P2-20：去掉两处**硬编码文案兜底**——
+ *              ① 隐藏面板按钮的 title 原写 `i18n.t('transfer.hidePanel') || 'Hide'`；
+ *              ② 「已跳过」标签的 title 是**纯硬编码英文**（issue #15 说明），没有任何 i18n。
+ *              i18n.t() 本身已有「当前语言 → en-US → 返回 key」三级回退（见 sftp-i18n.service），
+ *              硬编码兜底只在 key 被改名/缺失时生效，而那时它做的是**静默显示错语言**，
+ *              反倒掩盖了缺 key 的事实；故一律去掉兜底、硬编码 title 换成 i18n key。
+ *              2026-09-26 — 新增「预估剩余时间」显示（etaText）：用 bytesTotal/bytesDone 与
  *              EMA 平滑后的数值速率 speedBps 估算，随速度/百分比一同展示；总量未知、
  *              暂停、排队、已跳过、或字节停止推进 >5s 时自动隐藏，不给假数字
  *              （⚠「停流即隐藏」已于当日二次修正中**删除**，见下方最后一条）
@@ -87,7 +93,7 @@ const ETA_INFINITE_TEXT = '∞'
         <span>{{ i18n.t('transfer.inProgress') }} <span class="transfer-count" *ngIf="transfers.length">({{ transfers.length }})</span></span>
         <div class="transfer-header-btns">
           <button class="btn-link" (click)="minimizeChange.emit(true)" title="{{ i18n.t('transfer.minimizePanel') }}">─</button>
-          <button class="btn-link" (click)="hiddenChange.emit(true)" title="{{ i18n.t('transfer.hidePanel') || 'Hide' }}">✕</button>
+          <button class="btn-link" (click)="hiddenChange.emit(true)" title="{{ i18n.t('transfer.hidePanel') }}">✕</button>
         </div>
       </div>
       <div class="transfer" *ngFor="let t of transfers; trackBy: trackByTransfer">
@@ -108,7 +114,7 @@ const ETA_INFINITE_TEXT = '∞'
             <span class="paused-tag" *ngIf="t.paused">{{ i18n.t('transfer.paused') }}</span>
             <span class="queued-tag" *ngIf="t.queued" title="{{ i18n.t('transfer.queued') }}">⏳</span>
             <!-- ★ 2026-09-07 issue #15+：自动跳过（内容相同），用灰色 tag + 不显示速度/百分比区分于常规成功 -->
-            <span class="skipped-tag" *ngIf="t.skippedAsDuplicate" title="issue #15: content identical, transfer not executed">↪ {{ i18n.t('transfer.skippedAsDuplicate') }}</span>
+            <span class="skipped-tag" *ngIf="t.skippedAsDuplicate" [title]="i18n.t('transfer.skippedAsDuplicateHint')">↪ {{ i18n.t('transfer.skippedAsDuplicate') }}</span>
           </div>
           <div class="transfer-sub" *ngIf="t.isFolder && t.currentItem">
             {{ t.currentItem }}<span *ngIf="t.currentItemSize != null">  {{ formatSize(t.currentItemSize) }}</span> ({{ t.itemDone }}{{ t.itemCount > 0 ? '/' + t.itemCount : '' }})

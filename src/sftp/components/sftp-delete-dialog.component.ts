@@ -2,14 +2,28 @@
  * SFTP+ 删除确认对话框（从主面板抽离）
  * @创建人：DD1024z + Auto(未确认底层模型)
  * @创建时间：2026-07-07
- * @修改人：DD1024z + Claude Opus 5
- * @修改时间：2026-09-21 — 单项与批量删除都显示目标所在目录（此前只显示文件名，
+ * @修改人：DD1024z + Step-5-Preview
+ * @修改时间：2026-10-19 — 2026-10-19 全量审计 P2-20：回收站/永久删除两条提示的硬编码英文兜底
+ *              （`i18n.t('app.trashHint') || '📥 Move to Recycle Bin'`、
+ *               `i18n.t('app.permDeleteHint') || 'This action cannot be undone'`）去掉。
+ *              i18n.t() 已有「当前语言 → en-US → 返回 key」三级回退，硬编码兜底只在 key 缺失时
+ *              生效，而那时它做的是**静默显示错语言**，反而掩盖缺 key；故直接取 t() 结果。
+ *              2026-10-13 — P0 修复：删除确认框「假取消」——焦点在「否」按钮上按 Enter 时，
+ *              overlay 级 Enter 被无条件映射为 confirm 且 stopImmediatePropagation，
+ *              「否」的默认激活被 preventDefault 掉、宿主 document 层兜底也收不到，
+ *              删除仍会执行（批量模式同样受影响）。
+ *              2026-10-13 — 同族 P1 修复：onKeyDown 收口到 dialog-focus helper
+ *              （handleOverlayKeydown）——Enter 按 event.target 分流（焦点在按钮上时
+ *              交还原生激活）+ Tab/Shift+Tab 焦点陷阱（此前无陷阱，可逃逸到背景控件，
+ *              在模态背后触发暂停/取消传输的幽灵交互）。
+ *              2026-09-21 — 单项与批量删除都显示目标所在目录（此前只显示文件名，
  *              选择残留跨目录时用户无法判断删的是哪个目录下的文件）
  *              2026-09-21 — visible 切换时清理过期焦点定时器，避免隐藏对话框抢焦点
  */
 import { Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, Output, SimpleChanges, ViewChild } from '@angular/core'
 
 import { SftpI18nService } from '../../services/sftp-i18n.service'
+import { handleOverlayKeydown } from './dialog-focus'
 
 @Component({
   selector: 'sftp-delete-dialog',
@@ -84,8 +98,8 @@ import { SftpI18nService } from '../../services/sftp-i18n.service'
           </div>
         </ng-template>
         <!-- 单文件与批量删除都提示：移入回收站 / 永久删除 -->
-        <div *ngIf="toTrash" class="delete-action-hint">{{ i18n.t('app.trashHint') || '📥 Move to Recycle Bin' }}</div>
-        <div *ngIf="!toTrash" class="delete-action-hint delete-action-perm">{{ '⚠️ ' + (i18n.t('app.permDeleteHint') || 'This action cannot be undone') }}</div>
+        <div *ngIf="toTrash" class="delete-action-hint">{{ i18n.t('app.trashHint') }}</div>
+        <div *ngIf="!toTrash" class="delete-action-hint delete-action-perm">{{ '⚠️ ' + i18n.t('app.permDeleteHint') }}</div>
         <div class="dialog-buttons">
           <button class="danger" (click)="confirm.emit()">{{ i18n.t('app.yes') }}</button>
           <button (click)="cancel.emit()">{{ i18n.t('app.no') }}</button>
@@ -197,11 +211,14 @@ export class SftpDeleteDialogComponent implements OnChanges, OnDestroy {
   }
 
   onKeyDown(event: KeyboardEvent): void {
-    if (event.key === 'Enter') {
-      event.preventDefault()
-      event.stopImmediatePropagation()
-      this.confirm.emit()
-    } else if (event.key === 'Escape') {
+    // ★ 2026-10-13 P0/P1 修复：收口到 dialog-focus helper——
+    //   ① Enter 按焦点目标分流：焦点已在按钮上时交还原生激活（此前无条件映射为
+    //      confirm，焦点在「否」上按回车也会执行删除）；
+    //   ② Tab/Shift+Tab 在对话框内循环（此前无焦点陷阱，可逃逸到背景产生幽灵交互）。
+    handleOverlayKeydown(event, this.overlayEl?.nativeElement, {
+      onEnter: () => this.confirm.emit(),
+    })
+    if (event.key === 'Escape') {
       event.preventDefault()
       event.stopImmediatePropagation()
       this.cancel.emit()

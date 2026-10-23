@@ -1,15 +1,36 @@
 ﻿/**
  * SFTP+ 右键菜单（文件列表 + 表头列配置）
- * 修改人：DD1024z + Hy3
- * 修改时间：2026-09-28 — 「分组依据」改为 Windows 风格侧边子菜单（悬停「分组依据」项展开、
+ * 修改人：DD1024z + Hy4 preview
+ * 修改时间：2026-10-21 — 新增 peerSameConnection 输入：远程↔远程**不同连接**时显示「上传」
+ *              （本栏推到另一台服务器，本质是上传）；同一连接（服务端 cp 直传、不过网）
+ *              仍显示「传输」，本机↔本机同理。
+ *              2026-10-20 — 文件动作改按「端点类型」判定：新增 dataPane 输入，上传/下载/打开/
+ *              在文件夹中显示/权限 五项消费它而不是 pane。pane 只表达「配置槽位」（表头菜单的
+ *              创建列、分组依据等），dataPane 才表达「这栏连的是本机磁盘还是 SFTP 远程」——
+ *              左栏切远程后两者不一致，混用会让左栏远程显示「上传」、右栏本地不显示「上传」。
+ *              同日续：新增 peerPane 输入与 transfer 动作 —— 上传/下载只在两端**异类**时成立，
+ *              两端同类（本机↔本机 / 远程↔远程）统一显示「传输」；此前只判 dataPane，
+ *              远程↔远程的两栏会一起显示「下载」。
+ *              同日续二：「传输」默认顺序改排**首位**；新增 fillMenuOrder 按默认顺序的**相对位置**
+ *              补齐缺失动作（原 strategy 一律 push 到末尾，导致老配置升级后「传输」沉底），
+ *              并把「transfer 压在末位」视作旧版残留自动提到首位（设置页即时写回配置，需迁移）。
+ *              2026-10-19 全量审计 P2-22：位置钳制定时器只在**销毁**时清，菜单
+ *              **关闭**时不清（ngOnChanges 只处理 visible→true）。菜单在定时器兑现前关闭
+ *              （右键其它位置 / Esc / 点菜单项）后，迟到的回调仍会去量一个已卸载的元素，并把
+ *              结果**写回 @Input**（menuX/menuY）⇒ 既是对已销毁视图的变更检测，也违反单向
+ *              数据流。现 visible→false 时一并撤掉定时器。
+ *              2026-09-28 — 「分组依据」改为 Windows 风格侧边子菜单（悬停「分组依据」项展开、
  *              ✓ 勾选当前模式，::before 桥接悬停间隙；悬停时测量视口边界——靠右翻转左侧、
  *              靠底上移对齐）；此前为菜单内平铺五项：
  *              无/名称/修改日期/类型/大小，经 groupByAction 通知父面板
  *              2026-09-20 — A8/A9 审计修复：删除死输入 isZh / hasFileActions（模板均未使用）；
  *              新增 sanitizeMenuOrder 收敛菜单顺序配置，消除 string[] 与 ContextMenuAction[] 的类型漂移并过滤未知 action
  *              2026-09-17 — 移除「以文本方式查看」菜单项（改由设置页「允许查看所有文件类型」承担）
+ *              2026-10-20 全量审计：orderedVisibleActions 写入 _visibleActions 快照供 needsSep 直接读
+ *              ——原先每行 needsSep() 各自再调一次该 getter，单轮 CD 构建 n+1 份数组、扫描 O(n²)。
+ *              仍返回**字符串数组**（换成对象数组会让 ngFor 每行标识每轮变化、整块 DOM 重建）。
  */
-import { Component, EventEmitter, Input, Output, ViewChild, ElementRef, AfterViewInit, OnChanges, SimpleChanges } from '@angular/core'
+import { Component, EventEmitter, Input, Output, ViewChild, ElementRef, AfterViewInit, OnChanges, OnDestroy, SimpleChanges } from '@angular/core'
 
 import { SftpI18nService } from '../../services/sftp-i18n.service'
 import { GroupByMode } from '../core/grouping'
@@ -19,7 +40,7 @@ export const GROUP_BY_MODES: GroupByMode[] = ['none', 'name', 'modified', 'type'
 
 export type ContextMenuAction =
   | 'newFolder' | 'newFile' | 'rename' | 'delete'
-  | 'openLocal' | 'viewFile' | 'editFile' | 'upload' | 'download'
+  | 'openLocal' | 'viewFile' | 'editFile' | 'upload' | 'download' | 'transfer'
   | 'revealInExplorer' | 'chmod' | 'details'
   | 'copy' | 'cut' | 'paste' | 'refresh' | 'selectAll' | 'selectInvert' | 'copyPath'
 
@@ -55,6 +76,8 @@ interface FileMenuItemDef {
 export const FILE_MENU_REGISTRY: Record<ContextMenuAction, FileMenuItemDef> = {
   upload:           { labelKey: 'app.upload', category: 'transfer' },
   download:         { labelKey: 'app.download', category: 'transfer' },
+  // ★ 2026-10-20：两栏端点类型相同（本机↔本机 / 远程↔远程）时没有「上/下」方向之分
+  transfer:         { labelKey: 'app.transfer', category: 'transfer' },
   openLocal:        { labelKey: 'file.open', category: 'open' },
   viewFile:         { labelKey: 'file.view', category: 'open' },
   editFile:         { labelKey: 'file.edit', category: 'open' },
@@ -74,11 +97,45 @@ export const FILE_MENU_REGISTRY: Record<ContextMenuAction, FileMenuItemDef> = {
   copyPath:         { labelKey: 'pane.copyPath', category: 'panel' },
 }
 
+/**
+ * ★ 2026-10-20：`transfer` 默认排最前 —— 它是「两端同类」时唯一的传输入口，而 upload/download
+ *   在同类两端下都不显示（不会与它同时出现），放首位符合「主要动作在上」的直觉。
+ * ★ 2026-10-21：`transfer` 只剩两种场景 —— 本机↔本机（跨盘/跨目录复制）、远程↔远程**同一连接**
+ *   （服务端 cp 直传）；远程↔远程**不同连接**改用 `upload`（推到另一台服务器＝上传）。
+ */
 export const DEFAULT_FILE_MENU_ORDER: ContextMenuAction[] = [
-  'upload', 'download', 'openLocal', 'viewFile', 'editFile', 'revealInExplorer',
+  'transfer', 'upload', 'download', 'openLocal', 'viewFile', 'editFile', 'revealInExplorer',
   'copy', 'cut', 'paste', 'rename', 'delete', 'chmod', 'details',
   'newFolder', 'newFile', 'refresh', 'selectAll', 'selectInvert', 'copyPath',
 ]
+
+/**
+ * 把缺失的已知动作按**默认顺序的相对位置**补进 `order`（而非一律追加到末尾）。
+ * ★ 2026-10-20：此前补齐策略是 `push`，导致老配置（存盘时还没有 transfer）升级后「传输」
+ *   永远排在最后；改成「插到默认顺序里它前面最近的那一项之后」即可自动归位，
+ *   用户**手动**排过的相对顺序不受影响（只在缺失项处插入）。
+ */
+export function fillMenuOrder(order: ContextMenuAction[]): ContextMenuAction[] {
+  const out = [...order]
+  for (const a of DEFAULT_FILE_MENU_ORDER) {
+    if (out.includes(a)) continue
+    let insertAt = 0
+    const di = DEFAULT_FILE_MENU_ORDER.indexOf(a)
+    for (let i = di - 1; i >= 0; i--) {
+      const vi = out.indexOf(DEFAULT_FILE_MENU_ORDER[i])
+      if (vi >= 0) { insertAt = vi + 1; break }
+    }
+    out.splice(insertAt, 0, a)
+  }
+  // ★ 2026-10-20 迁移：上一版把 transfer 一律 `push` 到末尾，且设置页改动会即时写回配置 ⇒
+  //   老配置里它可能已经落在最后一位。仅当它正好压在末位时视作升级残留、提到首位；
+  //   用户把它排到其它任何位置都不动（只认这一个明确信号，避免覆盖手动排序）。
+  if (out.length > 1 && out[out.length - 1] === 'transfer') {
+    out.pop()
+    out.unshift('transfer')
+  }
+  return out
+}
 
 /**
  * ★ 2026-09-20 A9 审计修复：把任意来源的菜单顺序配置收敛为合法的 ContextMenuAction[]。
@@ -91,7 +148,11 @@ export function sanitizeMenuOrder(value: unknown): ContextMenuAction[] {
   const valid = value.filter(
     (a): a is ContextMenuAction => typeof a === 'string' && Object.prototype.hasOwnProperty.call(FILE_MENU_REGISTRY, a),
   )
-  return valid.length ? valid : DEFAULT_FILE_MENU_ORDER
+  // ★ 2026-10-20：补齐新增动作。菜单顺序数组是**白名单**，老配置（存盘时还没有 transfer）
+  //   里缺项的话新菜单项永远不会出现；设置页加载时本来就会补齐，这里同步同一策略，
+  //   否则「用户没打开过设置页」的机器上「传输」一直缺失。
+  //   ★ 位置走 fillMenuOrder（按默认顺序相对位置插入），不是 push 到末尾。
+  return fillMenuOrder(valid)
 }
 
 @Component({
@@ -216,15 +277,42 @@ export function sanitizeMenuOrder(value: unknown): ContextMenuAction[] {
     .ctx-submenu-trigger:hover { background: var(--_hover); }
   `],
 })
-export class SftpContextMenuComponent implements OnChanges {
+export class SftpContextMenuComponent implements OnChanges, OnDestroy {
   @ViewChild('menuEl') menuEl!: ElementRef<HTMLElement>
   @ViewChild('headerMenuEl') headerMenuEl!: ElementRef<HTMLElement>
+  /** ★ 2026-10-13：位置钳制的延时句柄（ngOnDestroy 清理） */
+  private _clampTimer: ReturnType<typeof setTimeout> | null = null
   @ViewChild('groupBySubEl') groupBySubEl?: ElementRef<HTMLElement>
 
   @Input() menuVisible = false
   @Input() menuX = 0
   @Input() menuY = 0
   @Input() pane: 'local' | 'remote' = 'local'
+  /**
+   * ★ 2026-10-20：右键所在栏的**端点类型**（true 侧=本机磁盘 / false 侧=SFTP 远程）。
+   *   与 `pane` 是两个正交的轴，不能合并：
+   *   - `pane`   = 配置槽位。表头菜单的「创建时间」列、分组依据读哪一份配置，都按槽位走；
+   *   - `dataPane` = 数据在哪。上传/下载/打开/在文件夹中显示/权限这五个文件动作按它判定。
+   *   双端点模式下左栏可以切到 SFTP 远程：此时槽位仍是 'local'，但数据是 remote ——
+   *   只看 `pane` 会给左栏远程显示「上传」、给右栏本地（rl）漏掉「上传」（2026-10-20 实测缺陷）。
+   */
+  @Input() dataPane: 'local' | 'remote' = 'local'
+  /**
+   * ★ 2026-10-20：**另一栏**的端点类型。上传/下载只在两端异类时成立：
+   *   本机 → 远程 = 上传，远程 → 本机 = 下载；两端同类（本机↔本机、远程↔远程）
+   *   没有方向可言，统一显示「传输」。只看 `dataPane` 的话，远程↔远程的两栏都会显示「下载」。
+   */
+  @Input() peerPane: 'local' | 'remote' = 'remote'
+  /**
+   * ★ 2026-10-21（用户诉求）：远程↔远程时两栏是否**同一台机**（同一 SSH 连接）。
+   *
+   *   - 同一连接：服务端 `cp` 直传，没有「上/下」方向 ⇒ 仍显示「传输」；
+   *   - **不同连接**：从本栏推到另一台服务器，本质就是一次上传（走 r2r 流式通道）
+   *     ⇒ 显示「上传」，不再显示含义含糊的「传输」。
+   *
+   *   本机↔本机不读此值（跨盘/跨目录复制仍叫「传输」）。
+   */
+  @Input() peerSameConnection = true
   @Input() entry: any = null
   @Input() hasSelection = false
   @Input() singleSelected = false
@@ -237,7 +325,7 @@ export class SftpContextMenuComponent implements OnChanges {
   //   hasFileActions 已 @deprecated 且模板从未读取（父组件却每轮变更检测都计算并传值，整条链路空转）。
 
   get hasLocalOpen(): boolean {
-    return this.pane === 'local' && this.singleSelected && !!this.entry
+    return this.dataPane === 'local' && this.singleSelected && !!this.entry
   }
 
   get hasView(): boolean {
@@ -249,15 +337,32 @@ export class SftpContextMenuComponent implements OnChanges {
   }
 
   get hasLocalReveal(): boolean {
-    return this.pane === 'local' && this.singleSelected && !!this.entry
+    return this.dataPane === 'local' && this.singleSelected && !!this.entry
   }
 
+  /**
+   * 「上传」：本栏 → 另一栏，且落点是**另一台服务器**。
+   *   -= 本机 → 远程；
+   *   -= 远程 A → 远程 B（不同连接）—— ★ 2026-10-21 用户诉求：这也是上传，不该显示「传输」。
+   */
   get hasUpload(): boolean {
-    return this.pane === 'local' && this.hasSelection && this.canTransfer
+    if (!this.hasSelection || !this.canTransfer) return false
+    if (this.dataPane === 'local' && this.peerPane === 'remote') return true
+    return this.dataPane === 'remote' && this.peerPane === 'remote' && !this.peerSameConnection
   }
 
   get hasDownload(): boolean {
-    return this.pane === 'remote' && this.hasSelection && this.canTransfer
+    return this.dataPane === 'remote' && this.peerPane === 'local' && this.hasSelection && this.canTransfer
+  }
+
+  /**
+   * 两栏端点同类且**没有上传语义**：本机↔本机（跨盘/跨目录复制）或远程↔远程**同一连接**
+   * （服务端 `cp` 直传，不过网）。
+   */
+  get hasTransfer(): boolean {
+    if (this.dataPane !== this.peerPane || !this.hasSelection || !this.canTransfer) return false
+    if (this.dataPane === 'local') return true
+    return this.peerSameConnection
   }
 
   get hasOpenActions(): boolean {
@@ -265,7 +370,7 @@ export class SftpContextMenuComponent implements OnChanges {
   }
 
   get hasTransferActions(): boolean {
-    return this.hasUpload || this.hasDownload
+    return this.hasUpload || this.hasDownload || this.hasTransfer
   }
 
   get hasClipboardActions(): boolean {
@@ -277,7 +382,7 @@ export class SftpContextMenuComponent implements OnChanges {
   }
 
   get hasRemoteChmod(): boolean {
-    return this.pane === 'remote' && this.singleSelected
+    return this.dataPane === 'remote' && this.singleSelected
   }
 
   get hasInfoActions(): boolean {
@@ -389,6 +494,7 @@ export class SftpContextMenuComponent implements OnChanges {
     switch (a) {
       case 'upload': return this.hasUpload
       case 'download': return this.hasDownload
+      case 'transfer': return this.hasTransfer
       case 'openLocal': return this.hasLocalOpen
       case 'viewFile': return this.hasView
       case 'editFile': return this.hasEdit
@@ -410,17 +516,30 @@ export class SftpContextMenuComponent implements OnChanges {
     }
   }
 
+  /**
+   * ★ 2026-10-20 全量审计：本次 CD 算出的可见列表快照。
+   *   模板 `*ngFor` 每轮先取一次 `orderedVisibleActions`，随后每行 `needsSep()` 各自再调一次
+   *   该 getter ⇒ 单轮 CD 内构建 n+1 份数组、扫描 O(n²) 次。这里由 getter 写入快照，
+   *   needsSep 直接读快照，每轮 CD 只算一次。
+   *   保留返回**字符串数组**（而非对象数组）：ngFor 按项标识 diff，换成对象会导致
+   *   每轮 CD 全部行标识变化 ⇒ 整块 DOM 重建，反而更糟。
+   */
+  private _visibleActions: ContextMenuAction[] = []
+
   /** 按 menuOrder 过滤出的当前可见菜单项（已排序） */
   get orderedVisibleActions(): ContextMenuAction[] {
     // ★ A9：入口统一收敛，杜绝未知 action 进入 MENU_REGISTRY 查表
     const order = sanitizeMenuOrder(this.menuOrder)
-    return order.filter(a => this.isActionVisible(a) && !this.disabledMenuEntries.has(a))
+    const list = order.filter(a => this.isActionVisible(a) && !this.disabledMenuEntries.has(a))
+    this._visibleActions = list
+    return list
   }
 
   /** 相邻两项类别不同则插入分隔符 */
   needsSep(a: ContextMenuAction, i: number): boolean {
     if (i <= 0) return false
-    const prev = this.orderedVisibleActions[i - 1]
+    const prev = this._visibleActions[i - 1]
+    if (!prev) return false
     return FILE_MENU_REGISTRY[prev].category !== FILE_MENU_REGISTRY[a].category
   }
 
@@ -448,12 +567,41 @@ export class SftpContextMenuComponent implements OnChanges {
 
   ngOnChanges(changes: SimpleChanges): void {
     // 菜单显示后自动钳制位置，防止超出视口
-    if (changes['menuVisible'] && this.menuVisible) {
-      setTimeout(() => this._clampMenu(this.menuEl, 'menuX', 'menuY'))
+    if (changes['menuVisible']) {
+      // ★ 2026-10-19 P2-22：关闭时也要撤掉在途定时器 —— 迟到的回调会去量已卸载的元素并
+      //   把结果写回 @Input（menuX/menuY），既是对已销毁视图的变更检测，也违反单向数据流。
+      if (this.menuVisible) this._scheduleClamp(this.menuEl, 'menuX', 'menuY')
+      else this._clearClampTimer()
     }
-    if (changes['headerVisible'] && this.headerVisible) {
-      setTimeout(() => this._clampMenu(this.headerMenuEl, 'headerX', 'headerY'))
+    if (changes['headerVisible']) {
+      if (this.headerVisible) this._scheduleClamp(this.headerMenuEl, 'headerX', 'headerY')
+      else this._clearClampTimer()
     }
+  }
+
+  /**
+   * ★ 2026-10-13 P2 修复：原实现直接 `setTimeout(...)` 且从不清理 —— 菜单在定时器兑现前
+   *   关闭（右键其它位置、Esc、点击菜单项）后，回调仍会去量一个已卸载的元素并改写
+   *   @Input（menuX/menuY），既是对已销毁视图的变更检测，也违反单向数据流。
+   *   现登记句柄，ngOnDestroy 统一清理。
+   */
+  private _scheduleClamp(ref: ElementRef<HTMLElement> | undefined, xProp: 'menuX' | 'headerX', yProp: 'menuY' | 'headerY'): void {
+    this._clearClampTimer()
+    this._clampTimer = setTimeout(() => {
+      this._clampTimer = null
+      this._clampMenu(ref, xProp, yProp)
+    })
+  }
+
+  private _clearClampTimer(): void {
+    if (this._clampTimer) {
+      clearTimeout(this._clampTimer)
+      this._clampTimer = null
+    }
+  }
+
+  ngOnDestroy(): void {
+    this._clearClampTimer()
   }
 
   private _clampMenu(ref: ElementRef<HTMLElement> | undefined, xProp: 'menuX' | 'headerX', yProp: 'menuY' | 'headerY'): void {

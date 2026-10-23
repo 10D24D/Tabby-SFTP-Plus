@@ -1,9 +1,18 @@
-/**
+﻿/**
  * 功能描述：SFTP+ 目录打包传输通道（tar channel）
  * @创建人：DD1024z + Hy3
  * @创建时间：2026-08-11
- * @修改人：DD1024z + Deepseek-V4.1-Flash
- * @修改时间：2026-09-29 — ★★ 修复「仅 TAR 模式下**上传**目录仍走 SFTP」（用户实测质问：
+ * @修改人：DD1024z + Step-5-Preview
+ * @修改时间：2026-10-19 — P2 修复（tar 通道，两项）：
+ *              ① 远端解包前的 zip-slip 预检 `! tar tzf <包> | grep -E '…' >/dev/null`
+ *                 在**包损坏/远端 tar 读不出清单**时会**假通过**（tar tzf 非 0 退出 ⇒
+ *                 stdout 空 ⇒ grep 无匹配退出 1 ⇒ `!` 取反为真），命令带着「已通过安全检查」
+ *                 的假象继续 `tar xzf`，用户只看到解包报错（误导性：与安全无关的表象）。
+ *                 改为「取清单 → 清单必须非空 → 再查越界」三步，任一步失败即整链失败
+ *                 ⇒ 无法验证即拒绝解包（见 remoteTarGuard）。
+ *              ② detectLocalTarFlavor 的 5s 超时 timer 未存句柄：进程正常 close 后该
+ *                 timer 仍挂到点触发、句柄也拖到 5s 后才释放。补句柄 + error/close/超时三处清理。
+ *              2026-09-29 — ★★ 修复「仅 TAR 模式下**上传**目录仍走 SFTP」（用户实测质问：
  *              「不是已经开启了仅 TAR 模式吗？怎么还是有走 SFTP 模式？」）。
  *              根因＝**上传方向缺少与下载方向对称的「覆盖即允许打包」入口**：
  *                09-26 已为下载修过同一问题（DownloadDirUseCase 增加 forceOverwrite，
@@ -176,6 +185,7 @@ import * as path from 'path'
 import type { FolderTransferPort } from './transfer-types'
 import type { FolderTransferCtx } from './panel-types'
 import { shellQuotePosix } from './fs-ops'
+import { resolveStagingRoot, STAGING_DIR_NAME } from './staging'
 import { log } from '../../services/sftp-logger'
 
 export type TarChannelResult = 'fallback' | 'success' | 'failed'
@@ -333,7 +343,10 @@ function tarRecoverableFallback(folder: FolderTransferPort, ctx: FolderTransferC
  */
 function tarWorthwhile(
   mode: TarChannelMode,
-  stats: { size: number; count: number } | null,
+  // ★ 2026-10-12：stats 允许带 probeNote（探测不可用成因）。
+  //   调用方在传参时应把 probeNote 非空的条目**转成 null**（那里已处理），
+  //   这里的字段声明只是为了兼容 _remoteDirStats 的返回类型。
+  stats: { size: number; count: number; probeNote?: string } | null,
 ): { ok: boolean; reason: string } {
   if (mode === 'sftpOnly') return { ok: false, reason: 'channel mode = SFTP-only: skip tar channel' }
   if (mode === 'tarOnly') {
@@ -383,13 +396,30 @@ const LOCAL_TAR_TIMEOUT_MS = 10 * 60_000
  * 还支持 pax 归档的 UTF-8 文件名（跨系统中文目录名的关键，见 TarFailureCode 注释）。
  * 非 Windows 平台仍用 PATH 里的 `tar`（macOS 自带 bsdtar、Linux 自带 GNU tar 均正常）。
  */
+/**
+ * ★ 2026-10-20：增加缓存失效机制 —— 当 System32\tar.exe 从「不存在」变为「存在」时
+ *   自动刷新缓存，解决 Windows 精简版用户在 Tabby 运行期间补装 tar 后缓存不生效的问题。
+ */
 let localTarCmdCache: string | null = null
+/** 缓存快照：记录缓存时 SystemRoot 和 System32\tar.exe 的存在性，任一变化即失效 */
+let localTarCmdCacheSnapshot = { root: '', exists: false }
+
 function resolveLocalTarCmd(): string {
-  if (localTarCmdCache) return localTarCmdCache
+  const root = process.env.SystemRoot || process.env.windir || 'C:\\Windows'
+  const candidate = path.join(root, 'System32', 'tar.exe')
+  const candidateExists = existsSync(candidate)
+
+  // 环境变化检测：SystemRoot 变了，或 tar.exe 的存在性变了，都刷新缓存
+  const snapshotChanged =
+    localTarCmdCacheSnapshot.root !== root ||
+    localTarCmdCacheSnapshot.exists !== candidateExists
+
+  if (localTarCmdCache && !snapshotChanged) return localTarCmdCache
+
+  // 重新探测
+  localTarCmdCacheSnapshot = { root, exists: candidateExists }
   if (process.platform === 'win32') {
-    const root = process.env.SystemRoot || process.env.windir || 'C:\\Windows'
-    const candidate = path.join(root, 'System32', 'tar.exe')
-    if (existsSync(candidate)) {
+    if (candidateExists) {
       localTarCmdCache = candidate
       return candidate
     }
@@ -398,6 +428,12 @@ function resolveLocalTarCmd(): string {
   }
   localTarCmdCache = 'tar'
   return 'tar'
+}
+
+/** 显式使本地 tar 命令缓存失效（供外部调用，如环境变化后） */
+export function invalidateLocalTarCmdCache(): void {
+  localTarCmdCache = null
+  localTarCmdCacheSnapshot = { root: '', exists: false }
 }
 
 /**
@@ -434,9 +470,16 @@ function runLocalTar(args: string[]): Promise<LocalTarResult> {
     try {
       const child = spawn(resolveLocalTarCmd(), args, { stdio: ['ignore', 'ignore', 'pipe'] })
       child.stderr?.on('data', take)
-      child.on('error', (e) => done({ ok: false, code: null, output: `spawn failed: ${(e as Error)?.message ?? e}` }))
-      child.on('close', (code) => done({ ok: code === 0, code, output: text() }))
-      setTimeout(() => {
+      // ★ 2026-10-12 P2 修复：超时定时器句柄原先**未保存** —— 进程正常 close 后
+      //   这个 timer 仍留在 Node 事件循环里到点触发（done 有 settled 守卫所以不会
+      //   重复 resolve，但 timer 本身泄漏）。海量小文件目录传输会反复调 runLocalTar，
+      //   泄漏的 timer 累积会拖慢事件循环，也让进程无法自然退出（handle 未释放）。
+      //   根治：保存句柄，**两条正常出口（error / close）与超时自身都清**。
+      let timer: ReturnType<typeof setTimeout> | null = null
+      const clearTimer = () => { if (timer !== null) { clearTimeout(timer); timer = null } }
+      child.on('error', (e) => { clearTimer(); done({ ok: false, code: null, output: `spawn failed: ${(e as Error)?.message ?? e}` }) })
+      child.on('close', (code) => { clearTimer(); done({ ok: code === 0, code, output: text() }) })
+      timer = setTimeout(() => {
         try { child.kill() } catch { /* ignore */ }
         const tail = text()
         done({ ok: false, code: null, output: `${tail}${tail ? ' | ' : ''}timed out after ${LOCAL_TAR_TIMEOUT_MS}ms` })
@@ -465,14 +508,24 @@ async function detectLocalTarFlavor(): Promise<LocalTarFlavor> {
     let settled = false
     const chunks: string[] = []
     const done = (s: string) => { if (!settled) { settled = true; resolve(s) } }
+    // ★ 2026-10-19 P2 修复：超时 timer 句柄原先**未保存** —— 进程正常 close 之后这个 5s
+    //   timer 仍留在 Node 事件循环里到点触发（done 有 settled 守卫所以不会重复 resolve，
+    //   但句柄要拖满 5s 才释放，也让进程无法自然退出）。与 runLocalTar 同一手法：
+    //   保存句柄，error / close 两条正常出口与超时自身都清。
+    let timer: ReturnType<typeof setTimeout> | null = null
+    const clearTimer = () => { if (timer !== null) { clearTimeout(timer); timer = null } }
     try {
       const child = spawn(resolveLocalTarCmd(), ['--version'], { stdio: ['ignore', 'pipe', 'pipe'] })
       const take = (b: Buffer) => { if (chunks.join('').length < 2000) chunks.push(b.toString('utf8')) }
       child.stdout?.on('data', take)
       child.stderr?.on('data', take)
-      child.on('error', () => done(''))
-      child.on('close', () => done(chunks.join('')))
-      setTimeout(() => { try { child.kill() } catch { /* ignore */ }; done(chunks.join('')) }, 5000)
+      child.on('error', () => { clearTimer(); done('') })
+      child.on('close', () => { clearTimer(); done(chunks.join('')) })
+      timer = setTimeout(() => {
+        clearTimer()
+        try { child.kill() } catch { /* ignore */ }
+        done(chunks.join(''))
+      }, 5000)
     } catch { done('') }
   })
   const lower = text.toLowerCase()
@@ -554,32 +607,9 @@ async function containsSymlink(root: string, depth = 0): Promise<boolean> {
   return false
 }
 
-/** ★ 2026-09-26：暂存区目录名 —— 放目标/源目录下的隐藏目录，见 resolveStagingRoot */
-const STAGING_DIR_NAME = '.sftp-plus-tmp'
+/* ★ 2026-10-12：暂存区目录名已移至 staging.ts 统一导出（与 resolveStagingRoot 同处），
+   避免本文件与 staging.ts 各定义一份、取值漂移导致临时目录散落到不同位置。 */
 
-/**
- * ★ 2026-09-26：本地暂存区 —— **优先与目标同盘**。
- *
- * 原实现一律用 `os.tmpdir()`，在 Windows 上通常是 C 盘，而用户目标常在 D 盘，于是：
- *   ① 收尾把解包结果搬进目标目录时跨盘 —— `fs.rename` 抛 EXDEV，退化成 `fs.cp` **全量复制一遍**
- *      （用户「传输完成后还要迁移文件、又需要时间」的直觉正是这一步）；
- *   ② 大目录下载要临时占用**系统盘**等量空间，几个 GB 就危险。
- * 放到「目标父目录 / 源父目录下的隐藏目录」= 同盘同文件系统，收尾 rename 只是改 inode（零拷贝），
- * 也不占用系统盘。目录不可写（只读盘/权限受限）时回退系统临时目录，行为与旧版一致。
- *
- * 注：位置**不影响传输速度**（瓶颈在网络），只影响收尾迁移这一步 —— 这是它唯一的作用。
- */
-async function resolveStagingRoot(nearDir: string): Promise<string> {
-  const candidate = path.join(nearDir, STAGING_DIR_NAME)
-  try {
-    await fs.mkdir(candidate, { recursive: true })
-    return candidate
-  } catch (e) {
-    // ★ 2026-09-26：内联错误详情（Tabby 文件日志只写首参，多参数会被丢弃）
-    log.warn(`tar channel: staging dir unusable near target, falling back to system temp: ${candidate} :: ${String((e as Error)?.message ?? e)}`)
-    return os.tmpdir()
-  }
-}
 
 /**
  * ★ 2026-09-26：清理暂存子目录；随后尝试移除空的暂存根。
@@ -617,6 +647,30 @@ function sanitizeNameSegment(name: string): string {
     .trim()
   if (!cleaned) return 'archive'
   return Array.from(cleaned).slice(0, 40).join('')
+}
+
+/**
+ * ★ 2026-10-19 P2 修复：远端解包前的成员名预检（zip-slip 闸门）——单目录与批量两条落地命令的
+ *   **唯一**构造点（此前这句是各自内联的，两处必须同步，抽出来避免再跑偏一条）。
+ *
+ * 为什么必须改：原写法 `! tar tzf <包> | grep -E '(^/|(^|/)\.\.((/|$)))' >/dev/null` 依赖
+ *   「grep 有匹配 ⇒ 整条管道退出 0 ⇒ `!` 取反为假 ⇒ 拒绝」这一条链。而管道只看**最后一个**
+ *   命令的退出码：包损坏 / 远端 tar 读不出清单时 `tar tzf` 以非 0 退出且 stdout 为空 ⇒
+ *   grep 无匹配退出 1 ⇒ `!` 取反为 0（真）⇒ 预检「通过」⇒ 命令继续 `tar xzf`。
+ *   于是「检查通过」是假的（我们其实什么都没验证到），用户看到的却是后面解包的报错，
+ *   表象与安全完全无关，真正的风险是带着「已安检」的假象继续往下走。
+ *
+ * 现改成三步，任一步失败即整条 `&&` 链中断（⇒ 拿不到 TAR_OK ⇒ 如实报 remotePackFailed）：
+ *   ① `list=$(tar tzf <包>)` —— 取清单；tar 失败时变量为空（赋值的退出码=命令替换的退出码）；
+ *   ② `test -n "$list"` —— 空清单（列不出 / 空包）一律拒绝：无法验证 ⇒ 不放行；
+ *   ③ 再对清单做越界匹配，命中绝对路径或 `..` 段即拒绝。
+ */
+function remoteTarGuard(remoteTar: string): string {
+  return (
+    `list=$(tar tzf ${shellQuotePosix(remoteTar)}) ` +
+    `&& test -n "$list" ` +
+    `&& ! printf '%s\\n' "$list" | grep -E '(^/|(^|/)\\.\\.((/|$)))' >/dev/null `
+  )
 }
 
 /**
@@ -659,7 +713,8 @@ function buildRemoteUploadLanding(opts: {
   return {
     cmd:
       // ★ 2026-09-20：解包前用 tar tz 拒绝绝对路径与 .. 成员（本地有 assertExtractedUnderRoot，远端此前缺失）
-      `! tar tzf ${shellQuotePosix(opts.remoteTar)} | grep -E '(^/|(^|/)\\.\\.((/|$)))' >/dev/null ` +
+      // ★ 2026-10-19 P2：改为 remoteTarGuard —— 包损坏导致的「空清单」不再被误判为检查通过
+      remoteTarGuard(opts.remoteTar) +
       `&& mkdir -p ${shellQuotePosix(opts.remoteExtractDir)} ` +
       `&& tar xzf ${shellQuotePosix(opts.remoteTar)} -C ${shellQuotePosix(opts.remoteExtractDir)} ` +
       `&& test -e ${shellQuotePosix(extractDirEntry)} ` +
@@ -700,7 +755,8 @@ function buildRemoteUploadBatchLanding(opts: {
   const targetChecks = opts.names.map(n => `&& test ! -e ${at(opts.remoteDir, n)} `).join('')
   const moves = opts.names.map(n => `&& mv ${at(opts.remoteExtractDir, n)} ${at(opts.remoteDir, n)} `).join('')
   return (
-    `! tar tzf ${shellQuotePosix(opts.remoteTar)} | grep -E '(^/|(^|/)\\.\\.((/|$)))' >/dev/null ` +
+    // ★ 2026-10-19 P2：同单目录版，改用 remoteTarGuard（见其注释）
+    remoteTarGuard(opts.remoteTar) +
     `&& mkdir -p ${shellQuotePosix(opts.remoteExtractDir)} ` +
     `&& tar xzf ${shellQuotePosix(opts.remoteTar)} -C ${shellQuotePosix(opts.remoteExtractDir)} ` +
     entryChecks +
@@ -1438,20 +1494,51 @@ export class TarChannel {
    * （`scanRemoteSize` 那套要几百次网络往返，只为做个判断不值得）。GNU find 的 `-printf`
    * 不可用（busybox/BSD）或输出不可解析时返回 null，调用方按「照旧走打包」处理。
    */
-  private async _remoteDirStats(dir: string): Promise<{ size: number; count: number } | null> {
+  /**
+   * 远端目录统计（文件数 + 总字节）—— 一次 exec 完成。
+   *
+   * ★ 2026-10-12 P2 修复：返回 null 的**两种成因原先无法区分**，导致日志误导。
+   *   原命令 `find <dir> -type f -printf '%s\n' | awk ...` 里 `-printf` 是 **GNU find 专有**：
+   *   BusyBox / Alpine / macOS / 部分国产系统的 find **根本不认这个选项**，
+   *   于是 stderr 被 2>/dev/null 吞掉、stdout 为空 ⇒ 返回 null。
+   *   而 tarWorthwhile 对 null 是 fail-open（smart 照旧打包），所以功能上没错，
+   *   但 tarOnly / 探测真失败时，日志只会说「only 0 files / no stats」——
+   *   用户据此去查 find 命令本身，方向完全错（真因是「这台机器没有 GNU find」）。
+   *
+   *   根治（两层）：
+   *   ① 命令改用 **POSIX find + wc**，不再依赖 -printf：
+   *        `find <dir> -type f -exec wc -c {} + | awk ...`
+   *      `find -exec ... +` 与 `wc` 都是 POSIX 必需项，BusyBox 同样支持。
+   *      （先试 POSIX 版；仍拿不到再试 GNU 版作为补充，两条都失败才 null。）
+   *   ② null 时**区分成因**并落到日志：把 exec 的原始输出/错误带进返回值，
+   *      让上层能打「probe unavailable: 远端 find/wc 不可用」而不是「only 0 files」。
+   */
+  private async _remoteDirStats(dir: string): Promise<{ size: number; count: number; probeNote?: string } | null> {
+    const q = shellQuotePosix(dir)
+    // ① POSIX 版：find -exec wc -c + （-printf 是 GNU 专有，BusyBox 不认）
+    // ⚠ wc -c 在**多个文件**时最后一行是 `<N> total'（汇总行，不是文件），必须排除，
+    //   否则会把汇总值再算一次（实测 3 个文件会被数成 4、字节多加一份 total）。
+    //   awk 侧：逐行取「行首数字 + 后面跟非数字」的行，并跳过末字段为 total 的行。
+    const posixCmd =
+      `find ${q} -type f -exec wc -c {} + 2>/dev/null | ` +
+      `awk 'NF>=2 && $NF!="total" && $1 ~ /^[0-9]+$/ {n++; s+=$1} END {print n+0, s+0}'`
     try {
-      const q = shellQuotePosix(dir)
-      const out = await this.deps.exec(
+      const out = await this.deps.exec(posixCmd, REMOTE_STATS_TIMEOUT_MS, { retryOnEmpty: false })
+      const m = String(out ?? '').trim().match(/^(\d+)\s+(\d+)$/)
+      if (m) return { count: parseInt(m[1], 10), size: parseInt(m[2], 10) }
+    } catch { /* 落到下一层 */ }
+    // ② GNU 版补充（-printf 路径更快：省去 wc 的逐文件输出）；仅当 POSIX 版也解析不出结果时试
+    try {
+      const gnuOut = await this.deps.exec(
         `find ${q} -type f -printf '%s\\n' 2>/dev/null | awk '{n++; s+=$1} END {print n+0, s+0}'`,
         REMOTE_STATS_TIMEOUT_MS,
         { retryOnEmpty: false },
       )
-      const m = String(out ?? '').trim().match(/^(\d+)\s+(\d+)$/)
-      if (!m) return null
-      return { count: parseInt(m[1], 10), size: parseInt(m[2], 10) }
-    } catch {
-      return null
-    }
+      const m = String(gnuOut ?? '').trim().match(/^(\d+)\s+(\d+)$/)
+      if (m) return { count: parseInt(m[1], 10), size: parseInt(m[2], 10) }
+    } catch { /* 两种都失败，按探测不可用处理 */ }
+    // ③ 探测不可用：返回 null 但**带上成因**，供上层日志区分「没有 GNU find」与「目录真为空」
+    return { size: 0, count: 0, probeNote: 'remote find/wc probe unavailable (no POSIX find -exec wc nor GNU find -printf)' }
   }
 
   /** 下载：服务端打包 → SFTP → 本地解包。目标不存在，或已存在但用户已确认覆盖（mergeIntoExisting） */
@@ -1492,7 +1579,12 @@ export class TarChannel {
     //   根因就是通道选择没看规模：本通道单流、逐文件通道 3 路并发（见 tarWorthwhile）。
     //   此时**还没创建进度条目**，返回 fallback 后调用方直接走逐文件通道，不需要 discard。
     const dirStats = await this._remoteDirStats(remoteSrc)
-    const verdict = tarWorthwhile(mode, dirStats)
+    // ★ 2026-10-12：探测不可用时把成因带进日志 —— 否则只会看到「only 0 files」，
+    //   用户会去查 find 命令本身，而真因是「这台机器没有 GNU find」（见 _remoteDirStats 注释）。
+    if (dirStats?.probeNote) {
+      log.info(`tar channel: ${dirStats.probeNote}: ${remoteSrc} (规模择路退化为 fail-open)`)
+    }
+    const verdict = tarWorthwhile(mode, dirStats?.probeNote ? null : dirStats)
     if (!verdict.ok) {
       // tarOnly 在此永远 ok=true（见 tarWorthwhile），该分支实际只服务 smart/preferSftp/preferTar
       return this._decline(mode, name, 'other', `not worthwhile (${verdict.reason}): ${remoteSrc} -> ${localDest}`)

@@ -1,9 +1,45 @@
-/**
+﻿/**
  * 功能描述：SFTP+ conflict 逻辑聚合模块（由旧 core 多文件合并）
  * @创建人：DD1024z + Hy3
  * @创建时间：2026-07-16
- * @修改人：DD1024z + Claude Opus 5
- * @修改时间：2026-09-21 — P1 修复：applyAction 的 overwrite/rename 把 isSamePane 判断提到 isDirectory
+ * @修改人：DD1024z + Deepseek-V4.1-Flash
+ * @修改时间：2026-10-23 — 冲突「重命名」命名风格可配（conflictRenameStyle：seq 序号堆叠 / time 时间戳 /
+ *              random 随机后缀，默认 seq）。新增 conflictRenameSeqCandidate / buildConflictRenameTimeName /
+ *              makeRemoteNameExists / makeLocalNameExists / normalizeConflictRenameStyle，以及
+ *              ConflictResolvePorts.renameStyle 端口；applyAction 的五个 rename 分支统一改走
+ *              `_pickRenameName`（seq 需探测目标目录，取第一个未占用的序号；探测不可用回退随机）。
+ *              ⛔ 目标端点的探测必须用**目标自己的会话**（右栏远程 / r2r 都不是主会话）。
+ *              2026-10-20 — 冲突**执行体端点化**：ConflictExecutionPort 新增 doEndpointTransfer? /
+ *              deleteAtEndpoint?，applyAction 的 overwrite / rename 两个分支最前面插入
+ *              `item.endpointTransfer` 分派（rename 的新目标目录按 dst.isLocal 选 path / path.posix），
+ *              剪切清理新增 _deleteSourceIfCutEndpoint（成功才删源，端口未实现则保留源 —— 宁可
+ *              不删也不误删）。至此左栏远程端点、右栏本地(rl) 等组合也能真正执行覆盖/重命名，
+ *              不再只有「目标已存在即跳过」。
+ *              2026-10-19 — P0 修复：本地同面板冲突「重命名」落点错误。_samePaneRename 的
+ *              dest 用 path.posix.dirname(item.localPath) 计算，而本地同面板时
+ *              localPath 是 Windows 路径（D:\photos\a.txt），posix.dirname 只认 '/'
+ *              ⇒ 返回 '.' ⇒ dest 退化为相对路径 newName ⇒ copyLocalFile/Dir 把文件
+ *              复制进 Tabby 进程 CWD。该 dest 本意只服务远程同面板分支（远程分支另有
+ *              destRemote 正确计算）。修复：本地分支改用 win32 的 path.dirname/path.join
+ *              另行计算 destLocal；sameFile 自比较校验同步改为 win32 口径。
+ *              2026-10-13 — P0 修复：跨栏上传冲突「重命名」目标目录推导错误。2026-10-12 的
+ *              修复用 path.posix.dirname(item.localPath) 拼新目标，注释声称「localPath 恒为
+ *              目标侧完整路径」——该前提只对同栏成立：跨栏上传时 localPath 是**本地源路径**
+ *              （paste.ts:493 source==='local' ? entry.fullPath : destFilePath；transfer-ops
+ *               的入队处同样如此）。Windows 上 dirname('D:\\photos\\a.txt') → '.'，拼出
+ *              **相对路径**落到 SFTP 会话 CWD；macOS/Linux 上则把本地目录结构镜像到服务器。
+ *              cut 模式下 _deleteSourceIfCut 随后删掉本地源 ⇒ 用户视角「源没了、副本不知去哪」。
+ *              根治：上传方向目标目录改从 **item.remotePath** 取（跨栏上传时它恒为远端目标；
+ *              同栏远程→远程走 _samePaneRename，到不了本分支）。
+ *              2026-10-13 — P1 修复：checkLocalConflict 补 mtime 可用性守卫（与上传侧
+ *              checkUploadConflict 2026-10-09 的 mtimeUsable 根治对称）。下载侧调用方
+ *              （transfer-ops 目录/单文件下载）在 listing 与 stat 都拿不到 mtime 时把未知
+ *              强制写成 0；本地 mtime 恰在 epoch 附近（容器/解压/--mtime=@0）且 size 相同
+ *              时 |0-0| <= 容差成立 ⇒ 误判「内容相同」⇒ 文件根本不下载却记「已跳过」。
+ *              归一：非有限或 <= 0 的 remoteMtime 一律按不可用处理（NaN），不参与相同判定。
+ *              2026-10-13 — P2 修复：下载覆盖/重命名落地透传远端 mode（item.remoteFileMode
+ *              ?? 0o644）——原先硬编码 0o644，可执行脚本（0755）落地后不可执行。
+ *              2026-09-21 — P1 修复：applyAction 的 overwrite/rename 把 isSamePane 判断提到 isDirectory
  *              之前 —— 同面板目录冲突原会落进跨栏分支走 mergeLocalDirToRemote/downloadRemoteDir，
  *              本地→本地的目录复制被当成「合并上传到远程」，方向完全错；同面板处理器按
  *              item.isDirectory 传递 copyRemoteDir 的 isDir；目录剪切不再走 backup 策略
@@ -23,7 +59,7 @@ import { type ConflictQueueItem, type ConflictFileInfo, type FolderTransferCtx }
 
 import * as fs from 'fs/promises'
 
-import { buildDownloadConflictInfo, buildUploadConflictInfo, DEFAULT_MTIME_TOLERANCE_MS, filesAreSame, isContentIdentical, type ConflictDigestInfo } from './transfer-types'
+import { buildDownloadConflictInfo, buildUploadConflictInfo, DEFAULT_MTIME_TOLERANCE_MS, filesAreSame, isContentIdentical, isNotFoundError, errText, type ConflictDigestInfo } from './transfer-types'
 import type { ContentDigestPort } from './digest'
 
 
@@ -82,6 +118,78 @@ export function buildConflictRenameName(fileName: string): string {
 export function buildConflictRenameDirName(dirName: string): string {
   const suffix = Date.now().toString(36).toUpperCase() + (++_renameCounter).toString(36).toUpperCase() + Math.floor(Math.random() * 0xFFFF).toString(16).toUpperCase().padStart(4, '0')
   return `${dirName}_${suffix}`
+}
+
+// ─── 冲突重命名风格（2026-10-23）────────────────────────────
+
+/**
+ * 冲突重命名风格（设置页「传输」分区可改）：
+ * - `seq`    序号堆叠（默认）—— `报告 (1).docx` → `报告 (2).docx`，Windows 资源管理器风格。
+ *            取目标目录里**第一个不存在**的序号，用户能一眼找到「刚才那份」。
+ * - `time`   时间戳 —— `报告_20261023-103512.docx`，适合需要看新旧顺序的场景。
+ * - `random` 随机后缀 —— `报告_A1B2C3D4.docx`，2026-10 之前的唯一行为（保留作兼容/可选）。
+ *
+ * ⛔ 为什么默认改成 seq（用户 2026-10-23）：随机后缀生成的文件名事后无法凭直觉找回
+ *   （「另存为的那一份到底是哪个？」），序号堆叠与系统文件管理器一致、可预期。
+ */
+export type ConflictRenameStyle = 'seq' | 'time' | 'random'
+
+/** 归一化重命名风格（未知值一律回落到 seq） */
+export function normalizeConflictRenameStyle(v: unknown): ConflictRenameStyle {
+  return v === 'time' || v === 'random' ? v : 'seq'
+}
+
+/** 序号堆叠的第 n 个候选名（目录不带扩展名，文件保留扩展名在最末） */
+export function conflictRenameSeqCandidate(fileName: string, isDirectory: boolean, n: number): string {
+  if (isDirectory) return `${fileName} (${n})`
+  const ext = path.extname(fileName)
+  if (!ext) return `${fileName} (${n})`
+  return `${path.basename(fileName, ext)} (${n})${ext}`
+}
+
+/** 时间戳命名：`名_YYYYMMDD-HHmmss.ext`（本地时间，秒级；目录不带扩展名处理） */
+export function buildConflictRenameTimeName(fileName: string, isDirectory: boolean, now: Date = new Date()): string {
+  const p2 = (n: number) => String(n).padStart(2, '0')
+  const stamp = `${now.getFullYear()}${p2(now.getMonth() + 1)}${p2(now.getDate())}`
+    + `-${p2(now.getHours())}${p2(now.getMinutes())}${p2(now.getSeconds())}`
+  if (isDirectory) return `${fileName}_${stamp}`
+  const ext = path.extname(fileName)
+  if (!ext) return `${fileName}_${stamp}`
+  return `${path.basename(fileName, ext)}_${stamp}${ext}`
+}
+
+/**
+ * 远程目录名探测器：**首次调用 readdir 一次**并缓存，之后只查集合（序号堆叠会连续试多个候选名，
+ * 每次 stat 一轮太贵）。返回 `null` 表示探测不可用（readdir 抛错）⇒ 调用方回退随机命名。
+ */
+export function makeRemoteNameExists(
+  dir: string,
+  readdir: (dir: string) => Promise<Array<{ name: string }>>,
+): (fullPath: string) => Promise<boolean | null> {
+  let cache: Set<string> | null | undefined
+  return async (fullPath: string) => {
+    if (cache === undefined) {
+      try {
+        const entries = await readdir(dir)
+        cache = new Set(entries.map(e => e.name))
+      } catch { cache = null }
+    }
+    if (cache === null) return null
+    return cache.has(path.posix.basename(fullPath))
+  }
+}
+
+/**
+ * 本地路径存在性探测器（复用执行体的 statLocal）。
+ * 注：`statLocal` 内部把「不存在」与「stat 失败」都收敛成 null ⇒ 这里只能表达「存在 / 不存在」，
+ * 拿不到「无法探测」第三态；目标目录可写时二者等价，够用。
+ */
+export function makeLocalNameExists(
+  statLocal: (p: string) => Promise<unknown>,
+): (fullPath: string) => Promise<boolean | null> {
+  return async (fullPath: string) => {
+    try { return (await statLocal(fullPath)) !== null } catch { return null }
+  }
 }
 
 /** Unix epoch 阈值：小于此值的毫秒时间戳视为 1970-01-01 附近的无效时间 */
@@ -158,6 +266,8 @@ export interface ConflictDetectionPort {
     localPath: string,
     localSize: number,
     localMtime: number,
+    srcSession?: any,
+    dstSession?: any,
   ): Promise<ConflictCheckOutcome>
   /**
    * 下载方向冲突检测，语义同上：
@@ -170,6 +280,8 @@ export interface ConflictDetectionPort {
     remotePath: string,
     remoteSize: number,
     remoteMtime: number,
+    srcSession?: any,
+    dstSession?: any,
   ): Promise<ConflictCheckOutcome>
   checkRemotePathExists(remotePath: string, expectDir?: boolean): Promise<boolean>
 }
@@ -208,6 +320,17 @@ export interface ConflictResolveExecutionPort {
   /** ★ 2026-09-20：目录剪切需递归删除（单文件 unlink 对目录常 EISDIR） */
   deleteLocalRecursive(path: string): Promise<void>
   deleteRemoteRecursive(path: string): Promise<void>
+  /** ★ issue #27 P3：远程↔远程冲突（覆盖/重命名）执行体——源/目标会话由 item.r2rTransfer 携带。
+   *  可选成员：未实现时按「失败」处理（仅记日志，不中断队列）。 */
+  doR2rTransfer?(srcPath: string, dstPath: string, isDir: boolean, payload: NonNullable<ConflictQueueItem['r2rTransfer']>): Promise<boolean>
+  /**
+   * ★ 2026-10-20：**端点化冲突**执行体——源/目标可以是「本机磁盘 / 左栏远程 / 右栏远程 / 右栏本地」
+   * 任意组合（左栏远程用第二会话，右栏本地用本机 fs）。执行体负责按 isLocal 分派并写传输记录。
+   * 可选成员：未实现时按「失败」处理（只记日志，不中断队列）。
+   */
+  doEndpointTransfer?(srcPath: string, dstPath: string, payload: NonNullable<ConflictQueueItem['endpointTransfer']>): Promise<boolean>
+  /** 端点化冲突的剪切清理：按 payload.src 的会话 / 本机 fs 删除源（可选，未实现则保留源） */
+  deleteAtEndpoint?(path: string, isDir: boolean, payload: NonNullable<ConflictQueueItem['endpointTransfer']>): Promise<void>
 }
 
 export interface ConflictPendingPastePort {
@@ -244,6 +367,11 @@ export interface ConflictResolvePorts {
   pendingPaste: ConflictPendingPastePort
   queue: ConflictQueueStatePort
   ui: ConflictResolveUiPort
+  /**
+   * ★ 2026-10-23：冲突重命名风格（seq 序号堆叠 / time 时间戳 / random 随机后缀）。
+   *   由宿主从设置读（`conflictRenameStyle`）；缺省或抛错时按 `seq` 处理。
+   */
+  renameStyle?: () => ConflictRenameStyle
 }
 
 // ─── 冲突解决用例 ───────────────────────────────────────────
@@ -257,7 +385,14 @@ export class ConflictResolveUseCase {
   private _ctxHadSuccess = new Set<string>()
 
   async resolve(action: string): Promise<void> {
-    if (this._processing) return
+    // ★ 2026-10-13 P2 修复：重入时**留下可诊断的痕迹**。原实现 `if (this._processing) return`
+    //   静默丢弃 —— 批量执行期间若用户又点了一次（双击 / 新冲突项入队后对话框被重新拉起），
+    //   点击既不生效也无任何反馈，表现为「对话框看着还开着、点了没反应」，日志里一片空白，
+    //   事后完全无法判断是用户点了没生效还是事件根本没送达。
+    if (this._processing) {
+      log.warn('Conflict resolve ignored: already processing an item (re-entrant click dropped), action=' + String(action))
+      return
+    }
     this._processing = true
     try {
       this.ports.ui.hideDialog()
@@ -352,6 +487,29 @@ export class ConflictResolveUseCase {
         this._finalizeSharedCtxOnSkip(item)
         return true
       case 'overwrite':
+        // ★ 2026-10-20：端点化冲突优先于一切「本地 ↔ 主会话」的假定 —— 两端真实身份在
+        //  item.endpointTransfer 里（左栏远程第二会话 / 右栏本地 rl / 任意组合）。
+        if (item.endpointTransfer) {
+          if (!exec.doEndpointTransfer) {
+            log.error('endpoint conflict overwrite: doEndpointTransfer port not implemented, skip:', item.fileName)
+            return true
+          }
+          const ok = await exec.doEndpointTransfer(item.localPath, item.remotePath, item.endpointTransfer)
+          await this._deleteSourceIfCutEndpoint(item, ok)
+          return true
+        }
+        // ★ issue #27 P3：远程↔远程拖拽冲突优先于 isSamePane 判断——r2r 的两端会话由
+        //  item.r2rTransfer 携带，_samePaneOverwrite 只会摸面板主 SFTP 会话，对 r2r 是错的。
+        if (item.r2rTransfer) {
+          if (!exec.doR2rTransfer) {
+            log.error('r2r conflict overwrite: doR2rTransfer port not implemented, skip:', item.fileName)
+            return true
+          }
+          // localPath=源路径、remotePath=目标路径（r2r 字段映射，见 ConflictQueueItem.r2rTransfer 注释）
+          const ok = await exec.doR2rTransfer(item.localPath, item.remotePath, !!item.isDirectory, item.r2rTransfer)
+          this._flipTransferLog(item, ok)
+          return true
+        }
         // ★ 2026-09-21 P1 修复：isSamePane 必须先于 isDirectory 判断。
         //   同面板（本地→本地 / 远程→远程）目录冲突若落进下面的 isDirectory 分支，
         //   会被当成跨栏传输去走 mergeLocalDirToRemote / downloadRemoteDir——
@@ -372,7 +530,9 @@ export class ConflictResolveUseCase {
           }
           await this._deleteSourceIfCut(item, ok)
         } else if (item.direction === 'download') {
-          const ok = await exec.doDownload(item.remotePath, item.localPath, 0o644, item.remoteFileSize)
+          // ★ 2026-10-13 P2 修复：透传远端 mode（原先硬编码 0o644，可执行脚本落地后
+          //   不可执行）；取不到时回退 0o644，行为与原来一致
+          const ok = await exec.doDownload(item.remotePath, item.localPath, item.remoteFileMode ?? 0o644, item.remoteFileSize)
           await this._deleteSourceIfCut(item, ok)
           this._flipTransferLog(item, ok)
         } else {
@@ -382,43 +542,160 @@ export class ConflictResolveUseCase {
         }
         return true
       case 'rename': {
+        // ★ 2026-10-20：端点化冲突的重命名 —— 目标目录语义按**落点**（本地 path / 远程 posix），
+        //   新路径拼好后交给同一个端点执行体（它负责按 isLocal 分派 + 写记录）。
+        if (item.endpointTransfer) {
+          if (!exec.doEndpointTransfer) {
+            log.error('endpoint conflict rename: doEndpointTransfer port not implemented, skip:', item.fileName)
+            return true
+          }
+          const dstRef = item.endpointTransfer.dst
+          const dstIsLocal = dstRef.isLocal
+          const dstDir = dstIsLocal
+            ? path.dirname(item.remotePath)
+            : path.posix.dirname(item.remotePath)
+          const joinPath = (n: string) => (dstIsLocal ? path.join(dstDir, n) : path.posix.join(dstDir, n))
+          // ★ 2026-10-23：序号堆叠需要先知道目标目录里有哪些名字 —— 本地走 statLocal、远程走
+          //   **目标端点自己的会话** readdir（不能用主会话：右栏远程/跨连接时不是同一个服务器）。
+          let exists: (fullPath: string) => Promise<boolean | null>
+          if (dstIsLocal) {
+            exists = makeLocalNameExists((p) => exec.statLocal(p))
+          } else {
+            const dstSess: any = dstRef.session
+            exists = typeof dstSess?.readdir === 'function'
+              ? makeRemoteNameExists(dstDir, (d) => dstSess.readdir(d))
+              : async () => null
+          }
+          const newName = await this._pickRenameName(item, joinPath, exists)
+          const ok = await exec.doEndpointTransfer(item.localPath, joinPath(newName), item.endpointTransfer)
+          await this._deleteSourceIfCutEndpoint(item, ok)
+          return true
+        }
+        // ★ issue #27 P3：远程↔远程冲突的重命名——目标目录取 item.remoteDir（r2r 入队时
+        //  已填为目标侧目录），源/目标会话走 r2rTransfer 凭据（理由同 overwrite 分支）。
+        if (item.r2rTransfer) {
+          if (!exec.doR2rTransfer) {
+            log.error('r2r conflict rename: doR2rTransfer port not implemented, skip:', item.fileName)
+            return true
+          }
+          const dstDir = item.remoteDir
+          const joinPath = (n: string) => path.posix.join(dstDir, n)
+          const dstSess: any = item.r2rTransfer.dstSession
+          const exists = typeof dstSess?.readdir === 'function'
+            ? makeRemoteNameExists(dstDir, (d) => dstSess.readdir(d))
+            : async () => null
+          const newName = await this._pickRenameName(item, joinPath, exists)
+          const newDest = joinPath(newName)
+          const ok = await exec.doR2rTransfer(item.localPath, newDest, !!item.isDirectory, item.r2rTransfer)
+          this._flipTransferLog(item, ok)
+          return true
+        }
         // ★ 2026-09-21 P1 修复：同面板优先（理由同 overwrite 分支）；目录用目录命名规则
         if (item.isSamePane) {
-          const newName = item.isDirectory
-            ? buildConflictRenameDirName(item.fileName)
-            : buildConflictRenameName(item.fileName)
+          // ★ 2026-10-23：同栏目标目录 = dirname(localPath)，但本地/远端两套路径语义不同
+          //   （本地必须 win32 的 path，远端必须 posix，理由见 _samePaneRename 注释）。
+          const srcIsLocal = item.samePaneSource === 'local'
+          const destDir = srcIsLocal
+            ? path.dirname(item.localPath)
+            : path.posix.dirname(item.localPath)
+          const joinPath = (n: string) => (srcIsLocal ? path.join(destDir, n) : path.posix.join(destDir, n))
+          const exists = srcIsLocal
+            ? makeLocalNameExists((p) => exec.statLocal(p))
+            : makeRemoteNameExists(destDir, (d) => exec.readdirRemote(d))
+          const newName = await this._pickRenameName(item, joinPath, exists)
           const outcome = await this._samePaneRename(item, newName)
           if (outcome === 'copied') await this._deleteSourceIfCut(item, true)
           return true
         }
         if (item.isDirectory) {
-          const newName = buildConflictRenameDirName(item.fileName)
           let ok: boolean
           if (item.direction === 'upload') {
-            const newRemote = path.posix.join(item.remoteDir, newName)
-            ok = await exec.mergeLocalDirToRemote(item.localPath, newRemote, item.transferCtx?.logEntryId)
+            // ★ 2026-10-13 P0 修复：目标目录一律从 **item.remotePath** 取，不再用 localPath。
+            //   字段语义（跨栏上传，paste.ts:493 / transfer-ops 入队处均已实证）：
+            //     · remotePath —— 跨栏上传时恒为**远端目标**完整路径（destFilePath）；
+            //     · localPath  —— 跨栏上传时装的是**本地源**路径，dirname 它是把本地目录
+            //       结构当远程目录用（Windows 上得到 '.' → 相对路径 → 落到会话 CWD）。
+            //   同栏远程→远程的 rename 走上面的 _samePaneRename 分支，到不了这里。
+            const dstDir = path.posix.dirname(item.remotePath)
+            const joinPath = (n: string) => path.posix.join(dstDir, n)
+            const newName = await this._pickRenameName(
+              item, joinPath, makeRemoteNameExists(dstDir, (d) => exec.readdirRemote(d)),
+            )
+            ok = await exec.mergeLocalDirToRemote(item.localPath, joinPath(newName), item.transferCtx?.logEntryId)
           } else {
-            ok = await exec.downloadRemoteDir(item.remotePath, path.dirname(item.localPath), newName, true)
+            const dstDir = path.dirname(item.localPath)
+            const joinPath = (n: string) => path.join(dstDir, n)
+            const newName = await this._pickRenameName(
+              item, joinPath, makeLocalNameExists((p) => exec.statLocal(p)),
+            )
+            ok = await exec.downloadRemoteDir(item.remotePath, dstDir, newName, true)
             this._flipTransferLog(item, ok)
           }
           await this._deleteSourceIfCut(item, ok)
           return true
         }
-        const newName = buildConflictRenameName(item.fileName)
         if (item.direction === 'download') {
-          const newLocal = path.join(path.dirname(item.localPath), newName)
-          const ok = await exec.doDownload(item.remotePath, newLocal, 0o644, item.remoteFileSize)
+          const dstDir = path.dirname(item.localPath)
+          const joinPath = (n: string) => path.join(dstDir, n)
+          const newName = await this._pickRenameName(
+            item, joinPath, makeLocalNameExists((p) => exec.statLocal(p)),
+          )
+          const newLocal = joinPath(newName)
+          // ★ 2026-10-13 P2 修复：透传远端 mode（同 overwrite 分支）
+          const ok = await exec.doDownload(item.remotePath, newLocal, item.remoteFileMode ?? 0o644, item.remoteFileSize)
           await this._deleteSourceIfCut(item, ok)
           this._flipTransferLog(item, ok)
         } else {
-          const newRemote = path.posix.join(item.remoteDir, newName)
-          const ok = await exec.doUpload(newRemote, item.localPath)
+          // ★ 2026-10-13 P0 修复：同目录分支——不再用 item.localPath（跨栏上传时它是本地源），
+          //   改从 item.remotePath（恒为远端目标）取目标目录，理由见上方 isDirectory 分支注释。
+          const dstDir = path.posix.dirname(item.remotePath)
+          const joinPath = (n: string) => path.posix.join(dstDir, n)
+          const newName = await this._pickRenameName(
+            item, joinPath, makeRemoteNameExists(dstDir, (d) => exec.readdirRemote(d)),
+          )
+          const ok = await exec.doUpload(joinPath(newName), item.localPath)
           await this._deleteSourceIfCut(item, ok)
           this._flipTransferLog(item, ok)
         }
         return true
       }
     }
+  }
+
+  /**
+   * ★ 2026-10-23：选冲突「重命名」的目标名（风格由设置页 `conflictRenameStyle` 决定）。
+   *   - `seq`：从 1 开始试 `名 (n).ext`，取目标目录里第一个不存在的序号；
+   *     探测不可用（端口缺失 / readdir 失败）或 1..999 全被占 ⇒ **回退随机后缀**，不把用户卡死。
+   *   - `time`：`名_YYYYMMDD-HHmmss.ext`（不探测，秒级撞名概率可忽略）。
+   *   - `random`：旧行为（时间戳 36 进制 + 计数器 + 随机十六进制）。
+   *
+   * @param joinPath 候选名 → 目标完整路径（调用方按目标端点选 `path` / `path.posix`，
+   *                 ⛔ 别在这里统一用 `path.join`：远端路径会变成反斜杠混合分隔符）
+   * @param exists   `true` 已存在 / `false` 不存在 / `null` 探测不可用
+   */
+  private async _pickRenameName(
+    item: ConflictQueueItem,
+    joinPath: (name: string) => string,
+    exists: (fullPath: string) => Promise<boolean | null>,
+  ): Promise<string> {
+    const isDir = !!item.isDirectory
+    const randomName = () => (isDir
+      ? buildConflictRenameDirName(item.fileName)
+      : buildConflictRenameName(item.fileName))
+    let style: ConflictRenameStyle = 'seq'
+    try { style = normalizeConflictRenameStyle(this.ports.renameStyle?.()) } catch { style = 'seq' }
+    if (style === 'time') return buildConflictRenameTimeName(item.fileName, isDir)
+    if (style === 'random') return randomName()
+    for (let n = 1; n <= 999; n++) {
+      const cand = conflictRenameSeqCandidate(item.fileName, isDir, n)
+      let has: boolean | null = null
+      try { has = await exists(joinPath(cand)) } catch { has = null }
+      if (has === null) break                 // 探测不可用 ⇒ 回退随机
+      if (!has) return cand
+    }
+    const fallback = randomName()
+    log.info('[SFTP+] conflict rename: sequence unavailable, fallback to random:', item.fileName, '->', fallback)
+    return fallback
   }
 
   /** 队列中仍挂着同一 transferCtx 的冲突项数量（当前项已 shift） */
@@ -504,6 +781,28 @@ export class ConflictResolveUseCase {
     }
   }
 
+  /**
+   * ★ 2026-10-20：端点化冲突的剪切清理 —— 源可能是本机磁盘 / 左栏远程 / 右栏远程任意一个，
+   * 只能由执行体按端点删除（`deleteAtEndpoint`）。端口未实现时**保留源**（宁可不删也不误删）。
+   */
+  private async _deleteSourceIfCutEndpoint(item: ConflictQueueItem, transferOk = true): Promise<void> {
+    if (item.mode !== 'cut') return
+    if (!transferOk) {
+      log.warn('Cut source delete skipped (endpoint conflict): transfer not completed', item.fileName)
+      return
+    }
+    const exec = this.ports.execution
+    if (!exec.deleteAtEndpoint) {
+      log.warn('Cut source delete skipped (endpoint conflict): deleteAtEndpoint port not implemented')
+      return
+    }
+    try {
+      await exec.deleteAtEndpoint(item.localPath, !!item.isDirectory, item.endpointTransfer!)
+    } catch (e) {
+      log.error('Cut source delete failed (endpoint conflict)', item.localPath, e)
+    }
+  }
+
   /** @returns moved=源已挪走；copied=拷贝成功（剪切需再删源）；failed=失败勿删源 */
   private async _samePaneOverwrite(item: ConflictQueueItem): Promise<'moved' | 'copied' | 'failed'> {
     const src = item.remotePath
@@ -586,20 +885,33 @@ export class ConflictResolveUseCase {
 
   private async _samePaneRename(item: ConflictQueueItem, newName: string): Promise<'moved' | 'copied' | 'failed'> {
     const src = item.remotePath
-    const destDir = path.dirname(item.localPath)
-    const dest = path.join(destDir, newName)
+    // ★ 2026-10-13 P3 修复：同栏远程→远程，src/dest 都是 **POSIX 远端路径**，
+    //   原用 win32 的 path.dirname / path.join：dirname 侥幸能用（win32 也认 `/`），
+    //   但 path.join('/home/a', 'new.txt') 在 Windows 上产出 `\\home\\a\\new.txt`
+    //   ——**混合分隔符**的远端路径，服务端多半直接 ENOENT。
+    // ★ 2026-10-19 P0 修复：此 dest 只服务于**远程同面板**分支（下方远程分支另有
+    //   destRemote 正确计算）。本地同面板分支的 localPath 是 Windows 路径，必须走
+    //   win32 语义另行计算（见下方 local 分支）——曾误用此 posix dest 把本地文件
+    //   复制进 Tabby 进程 CWD。
+    const destDir = path.posix.dirname(item.localPath)
+    const dest = path.posix.join(destDir, newName)
     const exec = this.ports.execution
     const sameFile = item.samePaneSource === 'local'
-      ? path.resolve(src) === path.resolve(dest)
+      ? path.resolve(src) === path.resolve(path.join(path.dirname(item.localPath), newName))
       : src === dest
     if (sameFile) return 'failed'
     if (item.samePaneSource === 'local') {
       try {
         const st = await exec.statLocal(src)
         if (!st) return 'failed'
-        log.info('_samePaneRename local:', { src, dest, isDir: st.isDirectory })
-        if (st.isDirectory) await exec.copyLocalDir(src, dest)
-        else await exec.copyLocalFile(src, dest)
+        // ★ 2026-10-19 P0 修复：本地路径必须用 win32 的 dirname/join——
+        //   path.posix.dirname('D:\\photos\\a.txt') 返回 '.'，拼出的 dest 是相对
+        //   路径 newName，copyLocalFile 会把它复制进 Tabby 进程 CWD（安装目录/
+        //   用户主目录），目标目录里反而看不到文件。
+        const destLocal = path.join(path.dirname(item.localPath), newName)
+        log.info('_samePaneRename local:', { src, dest: destLocal, isDir: st.isDirectory })
+        if (st.isDirectory) await exec.copyLocalDir(src, destLocal)
+        else await exec.copyLocalFile(src, destLocal)
         return 'copied'
       } catch (e) {
         log.error('Same-pane rename failed', e)
@@ -667,11 +979,36 @@ export interface SftpConflictSession {
 }
 
 export class SftpConflictDetector implements ConflictDetectionPort {
+  /**
+   * ★ 2026-10-09 审计根治：内容摘要服务改为**按当前设置动态求值**（此前是 readonly 实例快照）。
+   *
+   * 背景：coordinator 在面板 constructor 期间构造（早于 ngOnInit 的 _readBehaviorConfig），
+   *   于是 `new ContentDigestService(..., { algo, maxBytes })` 里的 algo/maxBytes 是**构造当时的值**
+   *   （类默认值 sha1 / 256MB），且两者在服务内是 readonly 字段 ⇒ 永久冻结。
+   *   更严重的是 `digestSettings.enabled` 为 false 时构造期读到的是默认 true ⇒ **服务仍被创建**，
+   *   之后即便面板把 enabled 改成 false 也无法销毁它 ⇒ 用户关了摘要却仍在对每个冲突文件
+   *   跑远端 sha1sum（拖慢 + 在无 exec 权限的服务器上刷失败日志）。
+   *
+   * 根治：与相邻的 isAutoSkipSameContent 保持同一种「回调」范式 ——
+   *   调用时才按当前设置取服务；enabled 为 false 返回 null（退化为仅 size+mtime 判定，
+   *   绝不残留旧服务）。服务实例自身的缓存由注入方负责（协调器按 algo|maxBytes 作 key 复用）。
+   *
+   * 命名说明：本字段是「摘要服务**提供者**」，与下方同名的 _resolveDigest（**方法**，
+   *   负责算两端摘要）是两件事，故命名 _digestProvider 以免混淆。
+   */
+  private readonly _digestProvider: (() => ContentDigestPort | null) | null
+
   constructor(
     private readonly getSession: () => SftpConflictSession | null,
     private readonly mtimeToleranceMs = DEFAULT_MTIME_TOLERANCE_MS,
-    /** ★ 2026-09-07 issue #15：可选内容摘要服务；未提供时退化为仅 size+mtime 判定（与旧行为一致） */
-    private readonly digest: ContentDigestPort | null = null,
+    /**
+     * 可选内容摘要服务。
+     * 两种传法（均为合法）：
+     *   ① ContentDigestPort 实例 —— 固定服务（测试 / 单一配置场景）；
+     *   ② () => ContentDigestPort | null —— **按当前设置动态求值**（生产用，见上）。
+     * 未提供时退化为仅 size+mtime 判定（与旧行为一致）。
+     */
+    digest?: ContentDigestPort | null | (() => ContentDigestPort | null),
     /**
      * ★ 2026-09-07 issue #15+：内容被确认相同时是否自动跳过（不弹冲突框）。
      * 必须是回调而不是 boolean —— panel 字段在 ngOnInit 之后才会被 _readBehaviorConfig 填充，
@@ -685,7 +1022,22 @@ export class SftpConflictDetector implements ConflictDetectionPort {
      * 默认空函数，回调由 PanelTransferCoordinator 注入。
      */
     private readonly onAutoSkipped: (info: AutoSkippedInfo) => void = () => {},
-  ) {}
+  ) {
+    if (typeof digest === 'function') {
+      this._digestProvider = digest
+    } else {
+      const fixed = digest ?? null
+      this._digestProvider = fixed ? () => fixed : null
+    }
+  }
+
+  /**
+   * 取当前应当使用的摘要服务（未启用返回 null）。
+   * 每次判定都调用 ⇒ 用户改 enabled/algo/maxBytes 后立即生效。
+   */
+  private get digest(): ContentDigestPort | null {
+    return this._digestProvider ? this._digestProvider() : null
+  }
 
   // ★ 2026-08-22 修复（fork #8）：同目录多文件上传不再逐文件 stat。
   //   按 parentDir 缓存一次 readdir 结果（并发单飞），目录内所有文件复用同一份 listing，
@@ -736,6 +1088,8 @@ export class SftpConflictDetector implements ConflictDetectionPort {
     localPath: string,
     localSize: number,
     localMtime: number,
+    srcSession?: any,
+    dstSession?: any,
   ): Promise<ConflictCheckOutcome> {
     const session = this.getSession()
     if (!session) return { kind: 'no-conflict' }
@@ -792,10 +1146,18 @@ export class SftpConflictDetector implements ConflictDetectionPort {
     }
 
     const rs = remoteSize
-    const rm = remoteMtime ?? 0
+    // ★ 2026-10-09 审计根治：原先写 `const rm = remoteMtime ?? 0` —— 把「mtime 取不到」
+    //   编码成 epoch（0），而 filesAreSame 用 Math.abs(localMtime - rm) <= tolerance 比较。
+    //   若本地 mtime 也在 epoch 附近（容器 / 解压工具 / 复制保留源时间的场景很常见），
+    //   两边都是 0 ⇒ |0-0| <= 2000 成立 ⇒ 判「内容相同」⇒ auto-skipped
+    //   ⇒ **文件根本不传，传输记录还标成「已跳过」，用户以为传过了**。
+    //   这与模块头部「绝不允许在元数据缺失时判定相同」的铁律直接冲突。
+    //   根治：mtime 不可用时**不参与「相同」判定**，保守判冲突交给用户决定。
+    const rm = remoteMtime ?? Number.NaN
+    const mtimeUsable = Number.isFinite(localMtime) && Number.isFinite(rm)
     // ★ 2026-09-20：size+mtime 相同应跳过，而非 no-conflict（旧注释写「不存在才 no-conflict」，
     //   实现却把「相同」也返回 no-conflict 导致整文件无意义重传）
-    if (filesAreSame(localSize, localMtime, rs, rm, this.mtimeToleranceMs)) {
+    if (mtimeUsable && filesAreSame(localSize, localMtime, rs, rm, this.mtimeToleranceMs)) {
       log.info('[check-upload-conflict] size+mtime same, auto-skipped:', remotePath)
       this.onAutoSkipped({ direction: 'upload', localPath, remotePath, digest: null })
       return { kind: 'auto-skipped', digest: null }
@@ -803,12 +1165,13 @@ export class SftpConflictDetector implements ConflictDetectionPort {
 
     // ★ 2026-09-07 issue #15：size 相同但 mtime 超出容差时，用内容摘要判断内容是否真的变了。
     //   典型场景：Git 切换分支 / rsync 同步后 mtime 变化但内容一致，不应反复弹冲突框。
-    const digest = await this._resolveDigest(localPath, remotePath, localSize, localMtime, rs, rm)
+    const digest = await this._resolveDigest(localPath, remotePath, localSize, localMtime, rs, rm, srcSession, dstSession)
     if (this.isAutoSkipSameContent() && isContentIdentical(digest)) {
       log.info('[check-upload-conflict] content identical, auto-skipped:', remotePath)
       this.onAutoSkipped({ direction: 'upload', localPath, remotePath, digest: digest ?? null })
       return { kind: 'auto-skipped', digest: digest ?? null }
     }
+    // mtime 不可用时把 NaN 传下去：UI 层 formatDate 对非有限值渲染为空串（不显示假日期）
     return { kind: 'conflict', info: buildUploadConflictInfo(remotePath, localPath, fileName, localSize, localMtime, rs, rm, digest) }
   }
 
@@ -817,6 +1180,8 @@ export class SftpConflictDetector implements ConflictDetectionPort {
     remotePath: string,
     remoteSize: number,
     remoteMtime: number,
+    srcSession?: any,
+    dstSession?: any,
   ): Promise<ConflictCheckOutcome> {
     try {
       // ★ 2026-09-14 F8 审计修复：先 lstat 识别符号链接。下载覆盖走 .tmp + rename，
@@ -833,20 +1198,45 @@ export class SftpConflictDetector implements ConflictDetectionPort {
         }
       }
       const st = await fs.stat(localPath)
-      if (filesAreSame(st.size, st.mtimeMs, remoteSize, remoteMtime, this.mtimeToleranceMs)) {
+      // ★ 2026-10-13 P1 修复：mtime 不可用时**不参与「相同」判定**（与上传侧
+      //   checkUploadConflict 2026-10-09 的 mtimeUsable 守卫对称）。
+      //   下载侧的调用方（transfer-ops 的目录/单文件下载路径）在 listing 与 stat
+      //   都拿不到 mtime 时把未知**强制写成 0**；若本地文件 mtime 恰在 epoch 附近
+      //   （容器 / 解压工具 / --mtime=@0 产物很常见）且 size 相同，
+      //   |0-0| <= 容差成立 ⇒ 误判「内容相同」⇒ **文件根本不下载**，传输记录却
+      //   显示「已跳过」，用户以为传过了。归一：非有限或 <= 0 一律按不可用处理
+      //   （epoch 0 不是可信的「修改时间」，parseRemoteMtime 在上传侧同样过滤它）。
+      const rm = Number.isFinite(remoteMtime) && remoteMtime > 0 ? remoteMtime : Number.NaN
+      const mtimeUsable = Number.isFinite(st.mtimeMs) && Number.isFinite(rm)
+      if (mtimeUsable && filesAreSame(st.size, st.mtimeMs, remoteSize, rm, this.mtimeToleranceMs)) {
         log.info('[check-local-conflict] size+mtime same, auto-skipped:', localPath)
         this.onAutoSkipped({ direction: 'download', localPath, remotePath, digest: null })
         return { kind: 'auto-skipped', digest: null }
       }
 
-      const digest = await this._resolveDigest(localPath, remotePath, st.size, st.mtimeMs, remoteSize, remoteMtime)
+      const digest = await this._resolveDigest(localPath, remotePath, st.size, st.mtimeMs, remoteSize, rm, srcSession, dstSession)
       if (this.isAutoSkipSameContent() && isContentIdentical(digest)) {
         log.info('[check-local-conflict] content identical, auto-skipped:', remotePath)
         this.onAutoSkipped({ direction: 'download', localPath, remotePath, digest: digest ?? null })
         return { kind: 'auto-skipped', digest: digest ?? null }
       }
-      return { kind: 'conflict', info: buildDownloadConflictInfo(localPath, remotePath, remoteSize, remoteMtime, st.size, st.mtimeMs, digest) }
-    } catch { /* 文件不存在，不冲突 */ }
+      return { kind: 'conflict', info: buildDownloadConflictInfo(localPath, remotePath, remoteSize, rm, st.size, st.mtimeMs, digest) }
+    } catch (e) {
+      // ★ 2026-10-09 审计根治：原先是 `catch { /* 文件不存在，不冲突 */ }` —— 无差别吞掉
+      //   **所有**异常，而 ENOENT 只是其中一种失败原因。EACCES（父目录无 +x）、
+      //   EBUSY（Windows 独占锁定，sharing violation）、EMFILE（fd 耗尽）、ELOOP（链接成环）
+      //   全部落进来 → 返回 no-conflict → 上游直接覆盖下载 ⇒ **静默丢数据**。
+      //   根治：只把「确实不存在」当 no-conflict；其余错误保守判冲突（size/mtime 传 NaN，
+      //   UI 层 formatSize/formatDate 对非有限值渲染为空串，不显示假元数据）。
+      if (!isNotFoundError(e)) {
+        log.warn('[check-local-conflict] stat failed with non-ENOENT error, forcing conflict:', localPath, errText(e))
+        return {
+          kind: 'conflict',
+          info: buildDownloadConflictInfo(localPath, remotePath, remoteSize, remoteMtime, Number.NaN, Number.NaN),
+        }
+      }
+      // 真的不存在（ENOENT / ENOTDIR）→ 不冲突
+    }
     return { kind: 'no-conflict' }
   }
 
@@ -862,6 +1252,8 @@ export class SftpConflictDetector implements ConflictDetectionPort {
     localMtime: number,
     remoteSize: number | undefined,
     remoteMtime: number | undefined,
+    srcSession?: any,
+    dstSession?: any,
   ): Promise<ConflictDigestInfo | undefined> {
     if (!this.digest) {
       log.info('[resolveDigest] skipped: digest service not enabled')
@@ -869,8 +1261,10 @@ export class SftpConflictDetector implements ConflictDetectionPort {
     }
     try {
       const [localDigest, remoteDigest] = await Promise.all([
-        this.digest.localDigest(localPath, localSize, localMtime),
-        remoteSize != null ? this.digest.remoteDigest(remotePath, remoteSize, remoteMtime) : Promise.resolve(null),
+        srcSession
+          ? this.digest.remoteDigest(localPath, localSize, localMtime, srcSession)
+          : this.digest.localDigest(localPath, localSize, localMtime),
+        remoteSize != null ? this.digest.remoteDigest(remotePath, remoteSize, remoteMtime, dstSession) : Promise.resolve(null),
       ])
       // ★ 2026-09-20：单端失败仍返回另一端，供冲突框展示；auto-skip 仍要求两端齐全且相等
       if (!localDigest && !remoteDigest) {

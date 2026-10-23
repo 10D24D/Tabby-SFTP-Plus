@@ -1,9 +1,15 @@
-/**
+﻿/**
  * 功能描述：SFTP+ path-utils 逻辑聚合模块（由旧 core 多文件合并）
  * 创建人：DD1024z + Hy3
  * 创建时间：2026-07-16
- * 修改人：DD1024z + Kimi-K3
- * 修改时间：2026-09-21 — 第六轮审计 P2 修复：safeEntryName 删除 includes('..') 误杀（a..b 等合法名曾被静默跳过）
+ * 修改人：DD1024z + Step-5-Preview
+ * 修改时间：2026-10-13 — P1 修复：新增 safeRemoteEntryName——**纯远端操作**（远程→远程复制）
+ *              的条目名净化。原先用 safeEntryName（套用 Windows 落地规则：保留名/尾随点空格/
+ *              含 \），导致 `CON`、`file `、`a\b` 等 Linux 合法名在 Windows 客户端上被
+ *              **静默跳过**（复制完文件少几个、无提示，且行为随客户端平台变化）。
+ *              win32 规则只应在生成本地路径时叠加，远端场景只拒绝对远端真正危险的成分
+ *              （空/'.'/'..'/控制字符/含 '/'）。
+ *              2026-09-21 — 第六轮审计 P2 修复：safeEntryName 删除 includes('..') 误杀（a..b 等合法名曾被静默跳过）
  *              2026-09-20 — N3 审计修复：safeEntryName 拦截控制字符（含换行），防恶意服务器下发带换行文件名
  * 合并来源：panel-id-resolver
  */
@@ -147,7 +153,7 @@ export async function execSshCommand(
   sshSession: unknown,
   command: string,
   timeoutMs = 12000,
-  opts?: { retryOnEmpty?: boolean },
+  opts?: { retryOnEmpty?: boolean; onTimeout?: 'resolve' | 'reject' },
 ): Promise<string> {
   const typed = sshSession as { ssh?: {
     openSessionChannel?: () => Promise<unknown>
@@ -208,7 +214,18 @@ export async function execSshCommand(
           if (!channelClosed) {
             try { void channel?.close() } catch { /* ignore */ }
           }
-          done()
+          // ★ 2026-10-13 P2 修复：超时原先一律 `done()` —— 即**按成功 resolve**，调用方
+          //   拿到的是"命令跑完了但没输出"，与"命令真的失败且无输出"完全无法区分。
+          //   对 rm -rf 这类大目录操作尤其致命：60s 超时后服务端那条命令很可能**还在跑**
+          //   （甚至马上就跑完），调用方却把它当成"失败"去触发 SFTP 逐文件递归重删，
+          //   两条删除并发跑在同一个目录上，报出一堆莫名的 ENOENT。
+          //   现在由调用方按需选 'reject'（抛可辨识的超时错误），默认仍是 'resolve'
+          //   以保住既有调用点的行为。
+          if (opts?.onTimeout === 'reject') {
+            done(new Error(`execSshCommand timed out after ${timeoutMs}ms: ${command.slice(0, 120)}`))
+          } else {
+            done()
+          }
         }, timeoutMs)
       })
 
@@ -366,7 +383,21 @@ const WIN_RESERVED_NAME = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\.|$)/i
 
 export function safeEntryName(name: string): string | null {
   if (typeof name !== 'string' || name.length === 0) return null
-  const base = path.basename(name) // path.basename 同时处理 / 与 \ 分隔符
+  // ★ 2026-10-12 P2 修复（根因）：改用 **path.posix.basename**，不再用 path.basename。
+  //
+  //   原用 path.basename —— 在 Windows 上它是 win32 语义，把 `\` 也当分隔符。
+  //   而本函数的入参绝大多数是**远端（Linux）目录项名**，在 Linux 上 `\` 是合法
+  //   文件名字符（实测：`a\b.txt`、`with\slash` 都是合法文件名）。
+  //   win32.basename('a\\b.txt') 返回 `b.txt` —— 名字被**悄悄改写**（而非被拦截）：
+  //     · 下载时按 `b.txt` 落地，用户发现文件名变了；
+  //     · 某些调用点拿改写后的 basename 反查远端条目 ⇒ 找不到 ⇒ **静默跳过**（文件消失）；
+  //     · 远端路径含 `\` 时反查同样失败。
+  //   实测（path.win32）：`a\b.txt`→`b.txt`、`C:\notes.txt`→`notes.txt`、`with\slash`→`slash`。
+  //
+  //   根治：远端名字一律按 **POSIX** 语义取 basename（只认 `/`），
+  //   这样 `\` 会被当作普通字符保留；随后由下面的控制字符 / 保留名检查
+  //   决定它在**本地 Windows** 上是否可安全创建（不可创建则明确拒绝，而不是悄悄改名）。
+  const base = path.posix.basename(name)
   if (base === '' || base === '.' || base === '..') return null
   // ★ 2026-09-20 N3 审计修复：拦截控制字符（含换行 \n / \r 与所有 C0/C1 控制符），
   //   恶意服务器下发带换行文件名时本地不应创建带真实换行的怪异文件（Linux 合法、Windows 抛错）。
@@ -374,13 +405,84 @@ export function safeEntryName(name: string): string | null {
   // ★ 2026-09-21 P2 修复：删除 base.includes('..') 误杀——basename 之后已无路径语义，
   //   `..` 单独成段不可能出现（上一行已拦 base === '..'），含双点的合法文件名
   //   （如 a..b、report..txt、..foo）此前被静默跳过（下载/上传该文件直接消失）
-  if (/[\x00-\x1f\x7f]/.test(base) || base.includes('/') || base.includes('\\')) return null
+  if (/[\x00-\x1f\x7f]/.test(base)) return null
+  // 防御性兜底：posix.basename 之后不应再有 /；若调用方传的是 Windows 侧名字
+  //   且含 \，也一并拦掉（宁可拒绝也不要制造穿越路径）
+  if (base.includes('/') || base.includes('\\')) return null
   // ★ 2026-08-26：拦截 Windows 保留设备名与尾随点/空格
   if (process.platform === 'win32') {
     if (WIN_RESERVED_NAME.test(base)) return null
     if (/[. ]$/.test(base)) return null
   }
   return base
+}
+
+/**
+ * ★ 2026-10-13 P1 修复：**远端条目名**安全判定（远程→远程操作用）。
+ *
+ * 与 safeEntryName 的分工（刻意分开，避免纯远端操作误杀合法名）：
+ *   · safeEntryName      —— 「名字能否安全使用」，套用 **Windows 落地规则**（保留名 /
+ *                          尾随点空格 / 含 \），不可用返回 null，调用方跳过该条目；
+ *   · safeRemoteEntryName —— 纯远端场景（远程→远程复制等）只拒绝真正危险的成分：
+ *                          空 / '.' / '..' / 控制字符 / 含 '/'。**不套用 Windows 规则**。
+ *
+ * 为什么需要：远程→远程复制目录时原先也用 safeEntryName，于是名为 `CON`、`aux`、
+ * `file `（尾随空格）、`a\b` 的远端条目在 **Windows 客户端**上被静默跳过——这些名字在
+ * Linux 上完全合法，复制完成后文件「少了几个」且无任何提示，且行为随客户端平台变化。
+ * win32 规则只应在「生成本地路径」时叠加（本地落地场景），纯远端操作不适用。
+ */
+export function safeRemoteEntryName(name: string): string | null {
+  if (typeof name !== 'string' || name.length === 0) return null
+  const base = path.posix.basename(name)
+  if (base === '' || base === '.' || base === '..') return null
+  // 控制字符（含 \0 / 换行）在任何文件系统上都不应出现
+  if (/[\x00-\x1f\x7f]/.test(base)) return null
+  // basename 之后不应再有 /；防御性兜底
+  if (base.includes('/')) return null
+  return base
+}
+
+/**
+ * ★ 2026-10-12 新增：把**远端名字**转成可在本地 Windows 安全落地的名字。
+ *
+ * 与 safeEntryName 的分工（刻意分开，避免破坏既有拒绝语义）：
+ *   · safeEntryName —— 「这个名字是否安全可用」，不安全返回 null，调用方**跳过**该条目；
+ *   · localEntryName —— 「怎么把远端名字落到本地」，**永不返回 null**，
+ *     不可直接落地时做**可逆度更高的转写**（而不是丢弃）。
+ *
+ * 为什么需要：Linux 上 `\`、`:`、`*`、`?`、`"`、`<`、`>`、`|` 都是合法文件名字符，
+ *   但 Windows 一律不允许。原先这些名字走 safeEntryName 被拦 ⇒ 下载时**文件直接消失**
+ *   （用户看到「传了 100 个、本地只有 97 个」却没有任何提示）。
+ *
+ * 策略：把 Windows 保留字符替换为**全角对应字符**（`\`→`＼` 等）。
+ *   选全角而不是下划线/URL 编码的原因：
+ *     · 全角字符在 Windows 文件名合法，且**视觉上可辨认**（用户看得出原字符是什么）；
+ *     · 不会与「本来就叫 a_b.txt 的文件」撞名；
+ *     · 不引入 `%XX` 这类对用户不友好的形态。
+ *   尾随点/空格与保留设备名（CON/PRN/AUX/NUL/COM1..）同样按全角转写。
+ *   ⚠ 不保证与原名可程序化还原（用户可能重命名），但视觉可读性优先。
+ */
+export function localEntryName(name: string): string {
+  const base = path.posix.basename(String(name ?? ''))
+  // Windows 文件名非法字符 → 全角对应（U+FF3C 等）
+  const WIN_ILLEGAL: Record<string, string> = {
+    '<': '＜', '>': '＞', ':': '：', '"': '＂',
+    '\\': '＼', '/': '／', '|': '｜', '?': '？', '*': '＊',
+  }
+  let out = ''
+  for (const ch of base) {
+    out += WIN_ILLEGAL[ch] ?? ch
+  }
+  // 控制字符一律剔除（本地不可能创建，也没有可读的全角对应）
+  out = out.replace(/[\x00-\x1f\x7f]/g, '')
+  // 尾随点/空格：Windows 会静默去掉，补一个全角句点避免改名歧义
+  out = out.replace(/[. ]+$/, (m) => '．'.repeat(m.length))
+  if (out === '') out = 'unnamed'
+  // Windows 保留设备名（CON/PRN/AUX/NUL/COM1..9/LPT1..9，不分扩展名）：
+  //   直接创建会失败或落到设备上。前缀加全角下划线既保持可读又确保不冲突。
+  const RESERVED = /^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(\..*)?$/i
+  if (RESERVED.test(out)) out = '＿' + out
+  return out
 }
 
 /**

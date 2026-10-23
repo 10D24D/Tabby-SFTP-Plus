@@ -3,14 +3,21 @@
  * 功能描述：提供多语言支持，自动跟随 Tabby 系统语言设置
  * 创建人：DD1024z + Claude
  * 创建时间：2026-06-21
- * 修改人：DD1024z + Hy3
- * 修改时间：2026-07-21
+ * @修改人：DD1024z + Step-5-Preview
+ * @修改时间：2026-10-19 — P2-27 修复：新增 _readRawLanguageFromConfigYaml()，在 store 读取失败
+ *              回退读 config.yaml 时自取**原始** language 值按本服务的映射解析（zh-tw/zh-hk⇒zh-TW），
+ *              不再直接采信 @common/utils 的 detectTabbyLanguage()（它把繁体一并映射成 zh-CN，
+ *              导致繁体用户拿到简体译文）；共享模块为同步产物，本次不在其上改动。
+ *   2026-07-21
  *   新增 zh-TW 繁体中文翻译；Locale 类型/词典/语言检测按语言代码排序
  *   重构：从硬编码 TRANSLATIONS 改为加载 .po 文件
  *   新增 setLocale() 方法支持动态切换语言
  *   新增 settings.* 翻译 key（统一设置面板 i18n）
  */
 import { Injectable, Optional } from '@angular/core'
+import * as fs from 'fs'
+import * as path from 'path'
+import * as os from 'os'
 import { detectTabbyLanguage } from '@common/utils'
 
 export type Locale = 'af-ZA' | 'bg-BG' | 'cs-CZ' | 'da-DK' | 'de-DE' | 'en-GB' | 'en-US' | 'es-ES' | 'fr-FR' | 'hr-HR' | 'id-ID' | 'it-IT' | 'ja-JP' | 'ko-KR' | 'pl-PL' | 'pt-BR' | 'pt-PT' | 'ru-RU' | 'sr-Latn' | 'sv-SE' | 'tr-TR' | 'uk-UA' | 'zh-CN' | 'zh-TW'
@@ -156,6 +163,73 @@ function detectLocaleFromString(lang: string): Locale | null {
 export class SftpI18nService {
   private locale: Locale = 'en-US'
 
+  /**
+   * ★ 2026-10-09 新增：从宿主 ConfigService 的**内存 store** 读取界面语言。
+   *
+   * 为什么必须读 store 而不是调 configService.get()：
+   *   宿主 ConfigService 没有 get() 方法（那是 lodash 风格 API），调它恒抛 TypeError。
+   *   语言的真实位置是 store.appearance.language —— appearance 在 CoreConfigProvider
+   *   的 defaults 里是**结构成员**（对象），经 ConfigProxy 包装后依然可正常读取。
+   *
+   * 多位置兼容（宿主不同版本 / 用户自定义 config.yaml 的字段位置可能不同）：
+   *   appearance.language → language → appearance.locale → locale
+   * 逐个尝试，任一命中且能被 detectLocaleFromString 识别即返回；全不中返回 null
+   * （交由后续兜底策略处理，绝不猜一个默认值出来）。
+   */
+  private _readLanguageFromConfigService(configService: any): Locale | null {
+    if (!configService) return null
+    try {
+      // 必须整体放在 try 内：store 是 ConfigProxy，任意子字段读取都可能抛（未就绪等）
+      const store = configService.store
+      if (!store) return null
+      const appearance = store.appearance
+      const candidates = [
+        appearance?.language,
+        store.language,
+        appearance?.locale,
+        store.locale,
+      ]
+      for (const raw of candidates) {
+        if (!raw) continue
+        const detected = detectLocaleFromString(String(raw))
+        if (detected) return detected
+      }
+      return null
+    } catch {
+      // store 未就绪 / 结构成员 getter 抛错 —— 属正常情况，交后续兜底
+      return null
+    }
+  }
+
+  /**
+   * 直接读取 Tabby config.yaml 里 `language:` 的**原始**值，由本服务自己的映射解析。
+   *
+   * ★ 2026-10-19 P2-27 修复（双轨分歧）：@common/utils 的 detectTabbyLanguage() 内部
+   *   LOCALE_MAP 把 'zh-tw' / 'zh-hk' 一并映射成 'zh-CN'（tabby-plugin-common/src/utils.ts:31），
+   *   而本服务的 detectLocaleFromString 是 zh-tw/zh-hk → 'zh-TW'。两处映射不一致的后果：
+   *   首选策略 `_readLanguageFromConfigService` 读 store 失败时（ConfigProxy 结构成员 getter
+   *   抛错 / 首帧未就绪），回退到 detectTabbyLanguage() ⇒ 繁体用户拿到**简体**译文。
+   *   该映射表是多个插件共享的同步产物（sync-common.sh 单向覆盖），本次不改动它，
+   *   改为在 SFTP+ 侧自取原值、按本文件的正确映射解析；读取失败返回 null 交后续兜底。
+   *   （根治建议：把 utils.ts:31 的 'zh-tw'/'zh-hk' 改成 'zh-TW' 并重新同步。）
+   */
+  private _readRawLanguageFromConfigYaml(): Locale | null {
+    try {
+      const home = os.homedir()
+      const dir = os.platform() === 'win32'
+        ? path.join(process.env.APPDATA || path.join(home, 'AppData', 'Roaming'), 'tabby')
+        : os.platform() === 'darwin'
+          ? path.join(home, 'Library', 'Application Support', 'tabby')
+          : path.join(home, '.config', 'tabby')
+      const raw = fs.readFileSync(path.join(dir, 'config.yaml'), 'utf-8')
+      // 与 @common/utils 同一形式的匹配式：行首无缩进的 `language: xx-XX`（支持引号）
+      const match = raw.match(/^language\s*:\s*['"]?([a-zA-Z-]+)['"]?\s*$/m)
+      return match ? detectLocaleFromString(match[1]) : null
+    } catch {
+      return null
+    }
+  }
+
   constructor(@Optional() configService?: any) {
     // 策略0: SFTP+ 设置页手动选择的语言（最高优先级）
     // 优先从 Tabby 配置读取
@@ -175,23 +249,41 @@ export class SftpI18nService {
     }
     if (sftpLocale) { this.locale = sftpLocale; return }
 
-    // 策略1: 直接读取 Tabby config.yaml 文件
+    // ★ 2026-10-09 审计根治（策略顺序 + 一个真 bug）：
+    //
+    // 【实测澄清】上一轮报告称「策略1 的正则匹配不到缩进在 appearance: 下的 language」——
+    //   经读本机真实 config.yaml 确认**该结论错误**：`language: zh-CN` 是与 appearance: 平级的
+    //   **顶层键、位于行首、无缩进**，插件正则实测匹配成功。策略1 本身是好的，
+    //   用户之所以「测不出跟随 Tabby 语言有没有问题」，是因为他的 Tabby 语言与系统语言同为中文，
+    //   后续所有兜底（documentElement.lang / localStorage / navigator）都落到中文 —— 结果一致，
+    //   差异被掩盖。只有当「Tabby 语言 ≠ 系统语言」时问题才会暴露。
+    //
+    // 【真正的 bug】原「策略2」调 `configService.get()` —— 宿主 ConfigService **没有这个方法**
+    //   （真实成员只有 store / ready$ / changed$ / mergeDefaults / getDefaults / load / save /
+    //     readRaw / writeRaw / requestRestart / enabledServices），故该行恒抛
+    //   `TypeError: configService.get is not a function` 并被空 catch 吞掉。
+    //   而插件**从不读取语言真正所在的位置** `store.appearance.language`。
+    //
+    // 【根治】把「读 ConfigService 内存 store」提到**策略1 之前**作为新的最高优先级兜底：
+    //   · store 是宿主已解析好的内存对象，无需解析 YAML、不依赖文件路径/权限/时序，
+    //     比策略1 的同步读文件更可靠（渲染进程首帧时 config.yaml 可能尚未落盘完成）；
+    //   · 直读 store.appearance.language（宿主真实字段，CoreConfigProvider 里 appearance 是结构成员），
+    //     不再调用不存在的 get()；
+    //   · 保留策略1（读文件）作为 store 不可用（如未注入 ConfigService）时的下一道兜底。
+    const storeLang = this._readLanguageFromConfigService(configService)
+    if (storeLang) { this.locale = storeLang; return }
+
+    // 策略1: 直接读取 Tabby config.yaml 文件（store 不可用时的兜底）
+    // ★ 2026-10-19 P2-27：先自取 config.yaml 里的**原始** language 值（见方法注释），
+    //   取到就按本服务的 zh-tw/zh-hk → zh-TW 映射解析；取不到再退回共享模块的
+    //   detectTabbyLanguage()（其繁体映射会退化成简体，仅作最后一道兜底）。
+    const rawCfgLang = this._readRawLanguageFromConfigYaml()
+    if (rawCfgLang) { this.locale = rawCfgLang; return }
+
     const tabbyLang = detectTabbyLanguage()
     if (tabbyLang) { this.locale = tabbyLang as Locale; return }
 
-    // 策略2: Tabby ConfigService（仅 Angular DI 场景）
-    if (configService) {
-      try {
-        const cfg = configService.get()
-        const lang = cfg?.appearance?.language ?? cfg?.language ?? ''
-        if (lang) {
-          const detected = detectLocaleFromString(String(lang))
-          if (detected) { this.locale = detected; return }
-        }
-      } catch {}
-    }
-
-    // 策略2: document.documentElement.lang（Tabby 可能设置此属性）
+    // 策略1b: document.documentElement.lang（宿主可能在此属性上暴露界面语言）
     try {
       const dl = document.documentElement?.lang || ''
       if (dl) {

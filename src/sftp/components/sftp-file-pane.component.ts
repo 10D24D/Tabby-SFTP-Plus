@@ -4,7 +4,18 @@
  * @创建人：DD1024z + Hy3
  * @创建时间：2026-07-29
  * @修改人：DD1024z + Deepseek-V4.1-Flash
- * @修改时间：2026-09-30 — 分组表头行改用与条目行**同一份列模板**（[style.gridTemplateColumns]="colWidths"
+ * @修改时间：2026-10-20 — 新增 connLost 输入：连接断开且列表为空时显示「连接已断开」，
+ *             不再落到 hasError 分支误报「无法访问（权限不足或路径不存在）」（用户截图为证）。
+ *             2026-10-19 — 修书签按钮 tooltip 显示成 {pane} 书签（bookmark.title 的占位未传参）；
+ *             可点的端点标识右侧加 ▾ 角标（labelActive 驱动翻转），提升「可点」可发现性；
+ *             端点标识（label）支持点击：新增 labelClickable/labelTitle/labelClick/labelActive 与 onPaneLabelClick，
+ *             供面板把它当作「连接切换器」入口（点哪栏开哪栏候选）。
+ *             2026-10-12 — 修复名称列拖拽重排后「表头顺序与数据行内容错位」：原数据行把 name 写死在首列、
+ *             其余列走 contentCols（去掉 name）跟随，拖拽 name 到非首位后两边顺序对不上。
+ *             改为数据行也按完整 visibleCols 顺序渲染，name 用 *ngIf 分支走原 displayName / inaccessiblePrefix
+ *             逻辑、其余列走 colValue；表头（含 name 可拖拽）与数据行的列数 / 列序 / 列宽由此完全一致
+ *             （列宽由 panel-column-controller._buildColWidths 统一循环含 name）。删除已无引用的 contentCols getter。
+ *             2026-09-30 — 分组表头行改用与条目行**同一份列模板**（[style.gridTemplateColumns]="colWidths"
  *              + 样式侧 display:grid），内容收进新的 .group-inner 里做 flex 紧凑排列。修复用户实测的
  *              「整组选中后分组头右上角露出一个缺口」：条目行 width:max-content 会被列宽合计撑得比
  *              面板内容宽（有意为之——整行底色/边框要盖住横向滚动区），而分组头此前是 display:flex、
@@ -67,16 +78,27 @@ export type PaneSortAction = { col: string }
     <div class="pane" (mousedown)="onPaneAreaMouseDown($event)">
       <div class="pane-title" *ngIf="resolvedPaneCustomOrder.length">
         <ng-container *ngFor="let item of resolvedPaneCustomOrder">
-          <span *ngIf="item === 'label'" class="pane-label">{{ labelIcon }} {{ paneLabel }}</span>
+          <!-- ★ 2026-10-19（Deepseek-V4.1-Flash）：端点标识可作为「连接切换器」入口（按配置开启）
+               ★ 2026-10-19（Hy3）：可点时在标识右侧加一个小角标（▾），让「这儿能点」可发现；
+                 角标随该栏切换器展开/收起翻转，作为开关状态反馈。 -->
+          <span *ngIf="item === 'label'" class="pane-label"
+            [class.pane-label--clickable]="labelClickable"
+            [title]="labelClickable ? labelTitle : null"
+            (click)="onPaneLabelClick($event)">{{ labelIcon }} {{ paneLabel }}<span
+              *ngIf="labelClickable" class="pane-label-caret" [class.is-open]="labelActive"
+              aria-hidden="true">▾</span></span>
           <div *ngIf="item === 'path'" class="pane-path">
+            <!-- ★ 2026-10-20（Deepseek-V4.1-Flash）：正在建立连接时地址栏留空 ——
+                 此刻 pathModel 是「上一个端点的占位路径」（左栏切远程时是本机目录），
+                 显示出来会让用户以为已经在那儿了（与顶栏「连接中 <目标>」自相矛盾）。 -->
             <input #pathInputEl class="path-input" [class.path-input--focused]="pathFocused"
-              [ngModel]="pathModel"
+              [ngModel]="pathPending ? '' : pathModel"
               (ngModelChange)="onPathModelChange($event)"
               (keyup.enter)="pathEnter.emit()"
               (focus)="onPathFocus()"
               (blur)="onPathBlur()"
               (mousedown)="$event.stopPropagation()"
-              [disabled]="pathDisabled" />
+              [disabled]="pathDisabled || pathPending" />
           </div>
           <button *ngIf="isToolbarItem(item)"
             (click)="onToolbarAction(item, $event)"
@@ -130,15 +152,9 @@ export type PaneSortAction = { col: string }
             (dragover)="onHeaderDragOver($event)"
             (drop)="onHeaderDragOver($event)">
             <span class="icon"></span>
-            <span class="name sortable"
-              [class.header-col-resizing]="resizingCol === 'name'"
-              (click)="sort.emit({ col: 'name' })">
-              {{ labels.name }}<span class="sort-arrow" *ngIf="sortBy === 'name'">{{ sortAsc ? '▲' : '▼' }}</span>
-              <div class="col-resize-handle"
-                [class.resizing]="resizingCol === 'name'"
-                (mousedown)="onColResizeMouseDown('name', $event)"
-                (dblclick)="onColResizeDblClick('name', $event)"></div>
-            </span>
+            <!-- ★ 2026-10-12：name 现已纳入列顺序体系（见 panel-column-controller），与其他列走同一套
+                 渲染/排序/缩放/拖拽重排逻辑，不再写死独立 span。colHeaderLabels[name] 即 i18n 的
+                 「名称」文案；(mousedown)=onColHeaderMouseDown 使其可拖拽重排；(click)=onSortCol 单击排序。 -->
             <span *ngFor="let col of headerColsResolved; trackBy: trackByCol"
               class="{{col}} sortable"
               [class.header-col-resizing]="resizingCol === col"
@@ -155,7 +171,10 @@ export type PaneSortAction = { col: string }
             </span>
           </div>
           <!-- 分组模式关闭：维持原有扁平渲染（性能路径不变） -->
-          <ng-container *ngIf="!groupRows">
+          <!-- ★ 2026-10-20（Deepseek-V4.1-Flash）：pending 期间绝不渲染 entries ——
+               左栏切远程的等待窗口里 entries 还是**本机**目录的内容，用户看到的就是
+               「顶栏写连接中、下面列着本地文件」（截图实证）。 -->
+          <ng-container *ngIf="!groupRows && !pending">
             <div class="entry" *ngFor="let e of entries; let i = index; trackBy: trackByFn"
             [attr.data-path]="e.fullPath"
             [attr.data-isdir]="e.isDirectory ? '1' : '0'"
@@ -165,6 +184,7 @@ export type PaneSortAction = { col: string }
             [class.selected]="isSelected(e)"
             [class.nav-focus]="isNavFocusedEntry(e)"
             [class.hidden-entry]="isHiddenEntry(e)"
+            [class.locate-flash]="!!locatedPath && locatedPath === e.fullPath"
             [draggable]="draggable && isSelected(e)"
             (dragstart)="entryDragStart.emit({ entry: e, event: $event })"
             (dragend)="entryDragEnd.emit()"
@@ -186,13 +206,15 @@ export type PaneSortAction = { col: string }
                 <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 10.5 L10.5 5.5 M7 5.5 H10.5 V9"/></svg>
               </span>
             </span>
-            <span class="name" [attr.title]="e.name">{{ inaccessiblePrefix(e) }}{{ displayName(e) }}</span>
-            <span *ngFor="let col of visibleCols; trackBy: trackByCol" class="{{col}}" [attr.title]="colValue(col, e)">{{ colValue(col, e) }}</span>
+            <ng-container *ngFor="let col of visibleCols; trackBy: trackByCol">
+              <span *ngIf="col === 'name'" class="name" [attr.title]="e.name">{{ inaccessiblePrefix(e) }}{{ displayName(e) }}</span>
+              <span *ngIf="col !== 'name'" class="{{col}}" [attr.title]="colValue(col, e)">{{ colValue(col, e) }}</span>
+            </ng-container>
             </div>
           </ng-container>
           <!-- 分组模式开启：分组表头行（点击箭头收展 / 点击其余区域全选该组）+ 条目行。
                表头行带 .header 类 → 框选/右键/空白判定等既有的 :not(.header) 选择器自动跳过 -->
-          <ng-container *ngIf="groupRows">
+          <ng-container *ngIf="groupRows && !pending">
             <ng-container *ngFor="let row of groupRows; trackBy: trackGroupRowFn">
               <div class="entry header group-row" *ngIf="row.kind === 'header'"
                 [style.gridTemplateColumns]="colWidths"
@@ -200,7 +222,7 @@ export type PaneSortAction = { col: string }
                 [class.selected]="groupSelState(row) === 'all'"
                 [class.partial]="groupSelState(row) === 'partial'"
                 [class.nav-focus]="isNavFocusedHeader(row)"
-                (click)="groupSelect.emit(row.bucketKey)">
+                (click)="groupSelect.emit({ key: row.bucketKey, event: $event })">
                 <!-- ★ 2026-09-30：内容包一层 .group-inner（跨全部列后内部 flex 排列）。
                      这一层是「宽度对齐」与「紧凑视觉」能同时成立的关键：行本身用父级绑定的
                      同一份列模板撑宽（与条目行逐像素一致），紧凑排列交给内层 flex。
@@ -213,6 +235,7 @@ export type PaneSortAction = { col: string }
                 </span>
               </div>
               <div class="entry" *ngIf="row.kind === 'entry'"
+                [class.zebra]="row.zebra"
                 [attr.data-path]="row.entry.fullPath"
                 [attr.data-isdir]="row.entry.isDirectory ? '1' : '0'"
                 (click)="entryClick.emit({ entry: row.entry, event: $event, index: row.index })"
@@ -221,6 +244,7 @@ export type PaneSortAction = { col: string }
                 [class.selected]="isSelected(row.entry)"
                 [class.nav-focus]="isNavFocusedEntry(row.entry)"
                 [class.hidden-entry]="isHiddenEntry(row.entry)"
+                [class.locate-flash]="!!locatedPath && locatedPath === row.entry.fullPath"
                 [draggable]="draggable && isSelected(row.entry)"
                 (dragstart)="entryDragStart.emit({ entry: row.entry, event: $event })"
                 (dragend)="entryDragEnd.emit()"
@@ -238,14 +262,25 @@ export type PaneSortAction = { col: string }
                     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 10.5 L10.5 5.5 M7 5.5 H10.5 V9"/></svg>
                   </span>
                 </span>
-                <span class="name" [attr.title]="row.entry.name">{{ inaccessiblePrefix(row.entry) }}{{ displayName(row.entry) }}</span>
-                <span *ngFor="let col of visibleCols; trackBy: trackByCol" class="{{col}}" [attr.title]="colValue(col, row.entry)">{{ colValue(col, row.entry) }}</span>
+                <ng-container *ngFor="let col of visibleCols; trackBy: trackByCol">
+                  <span *ngIf="col === 'name'" class="name" [attr.title]="row.entry.name">{{ inaccessiblePrefix(row.entry) }}{{ displayName(row.entry) }}</span>
+                  <span *ngIf="col !== 'name'" class="{{col}}" [attr.title]="colValue(col, row.entry)">{{ colValue(col, row.entry) }}</span>
+                </ng-container>
               </div>
             </ng-container>
           </ng-container>
-          <div class="pane-empty" *ngIf="showEmpty">
-            <ng-container *ngIf="hasError">{{ labels.errorAccess }}</ng-container>
-            <ng-container *ngIf="!hasError">{{ filterActive ? labels.noMatch : labels.empty }}</ng-container>
+          <!-- ★ 2026-10-20：连接断开时优先给「连接已断开」空态——
+               原先左栏（本地 pane 承载远程端点）断开后会落到 hasError 分支，
+               显示「无法访问（权限不足或路径不存在）」，把断线误报成权限问题（用户截图实证）。 -->
+          <div class="pane-empty" *ngIf="pending || showEmpty || (connLost && entries.length === 0)">
+            <ng-container *ngIf="pending; else notPending">{{ pendingLabel || labels.pending }}</ng-container>
+            <ng-template #notPending>
+              <ng-container *ngIf="connLost; else notConnLost">{{ labels.connLost }}</ng-container>
+              <ng-template #notConnLost>
+                <ng-container *ngIf="hasError">{{ labels.errorAccess }}</ng-container>
+                <ng-container *ngIf="!hasError">{{ filterActive ? labels.noMatch : labels.empty }}</ng-container>
+              </ng-template>
+            </ng-template>
           </div>
         </div>
       </div>
@@ -263,6 +298,12 @@ export class SftpFilePaneComponent {
 
   @Input() labelIcon = '🖥'
   @Input() paneLabel = ''
+  /** ★ 2026-10-19（Deepseek-V4.1-Flash）：端点标识是否可点（唤起该栏的连接切换器）及其 tooltip */
+  @Input() labelClickable = false
+  @Input() labelTitle = ''
+  /** ★ 2026-10-19（Hy3）：该栏切换器当前是否展开（驱动标识右侧角标翻转） */
+  @Input() labelActive = false
+  @Output() labelClick = new EventEmitter<MouseEvent>()
   @Input() listClass = 'local-pane'
   @Input() pathInput = ''
   @Input() pathDisabled = false
@@ -276,8 +317,27 @@ export class SftpFilePaneComponent {
   @Input() bookmarksActive = false
   @Input() loading = false
   @Input() flash = false
+  /** 地址栏定位高亮：需要闪烁定位的条目 fullPath（null = 不高亮）；与 [class.selected] 叠加提供一次性视觉强调 */
+  @Input() locatedPath: string | null = null
   @Input() dragOver = false
   @Input() hasError = false
+  /** ★ 2026-10-20：该栏的远程连接已断开（空态文案改报「连接已断开」，不再误报权限不足） */
+  @Input() connLost = false
+  /**
+   * ★ 2026-10-20（Deepseek-V4.1-Flash，用户诉求「连接中的时候文件列表不是默认显示本地，
+   *   不应该有内容才对」）：该栏正在建立连接。
+   *   置位时：① 不渲染 entries（此刻内容还是**上一个端点**的，会误导）；
+   *          ② 空态显示「连接中」而不是「此文件夹为空」。
+   */
+  @Input() pending = false
+  /** 地址栏同步留空（pending 期间 pathModel 仍是上一个端点的占位路径，显示出来会自相矛盾） */
+  @Input() pathPending = false
+  /**
+   * ★ 2026-10-20 续三十三（用户纠正文案）：pending 占位文案由父组件给 ——
+   *   「等待连接」（等 Tabby 标签页/认证就绪）与「连接中」（自己开 SFTP 通道）语义不同，
+   *   留空则回落 labels.pending（= status.connecting）。
+   */
+  @Input() pendingLabel = ''
   @Input() showNoSession = false
   @Input() showHeader = true
   @Input() showEmpty = false
@@ -467,6 +527,13 @@ export class SftpFilePaneComponent {
     try { return 'file://' + path.join(dir, svg) } catch { return null }
   }
 
+  /** 端点标识点击（面板据此打开该栏的连接切换器） */
+  onPaneLabelClick(ev: MouseEvent): void {
+    if (!this.labelClickable) return
+    ev.stopPropagation()
+    this.labelClick.emit(ev)
+  }
+
   @Output() pathInputChange = new EventEmitter<string>()
   @Output() pathEnter = new EventEmitter<void>()
   @Output() pathBlur = new EventEmitter<void>()
@@ -498,8 +565,18 @@ export class SftpFilePaneComponent {
   @Output() toggleBookmarks = new EventEmitter<MouseEvent>()
   /** ★ 2026-09-28：分组表头行箭头点击（收/展该分组，参数=分组 key） */
   @Output() groupToggle = new EventEmitter<string>()
-  /** ★ 2026-09-28：分组表头行其余区域点击（全选该分组下条目，参数=分组 key） */
-  @Output() groupSelect = new EventEmitter<string>()
+  /**
+   * ★ 2026-10-12：分组表头行其余区域点击。
+   *
+   * 载荷由 `string`（分组 key）改为 `{ key, event }` —— 必须带原始 MouseEvent，
+   * 因为父组件要按 **修饰键**区分三种语义（无修饰=清空本侧选中 / Ctrl=切换整组 /
+   * Shift 同义），只有事件对象才拿得到 ctrlKey / metaKey / shiftKey。
+   * （此前只传 key，父组件无法区分修饰键 ⇒ 框选后点分组头会变成「整组全选」，
+   *   与「点击条目行 = 单选覆盖」的通用心智不符。）
+   *
+   * ⚠ 破坏性变更：本输出全项目仅面板模板两处消费（已同步修改），无其他调用方。
+   */
+  @Output() groupSelect = new EventEmitter<{ key: string; event: MouseEvent }>()
 
   @Input() i18n!: SftpI18nService
 
@@ -565,12 +642,12 @@ export class SftpFilePaneComponent {
    * 创建人：DD1024z + Hy3
    * 创建时间：2026-07-23
    */
-  labels = { filter: '', filterApply: '', filterClear: '', noSession: '', name: '', errorAccess: '', noMatch: '', empty: '', groupExpand: '', groupCollapse: '' }
+  labels = { filter: '', filterApply: '', filterClear: '', noSession: '', name: '', errorAccess: '', connLost: '', pending: '', noMatch: '', empty: '', groupExpand: '', groupCollapse: '' }
   private _toolbarTitles: Record<string, string> = {}
   colHeaderLabels: Record<string, string> = {}
 
   private _rebuildLabels(): void {
-    const t = (k: string) => (this.i18n ? this.i18n.t(k) : '')
+    const t = (k: string, params?: Record<string, string | number>) => (this.i18n ? this.i18n.t(k, params) : '')
     this.labels = {
       filter: t('pane.filter'),
       filterApply: t('filter.apply'),
@@ -578,6 +655,9 @@ export class SftpFilePaneComponent {
       noSession: t('notify.noSSHSession'),
       name: t('file.name'),
       errorAccess: t('pane.errorAccess'),
+      connLost: t('pane.connLost'),
+      // ★ 2026-10-20（Deepseek-V4.1-Flash）：连接建立中的占位文案（复用既有 key，24 语言已齐）
+      pending: t('status.connecting'),
       noMatch: t('pane.noMatch'),
       empty: t('pane.empty'),
       groupExpand: t('group.expand'),
@@ -586,7 +666,10 @@ export class SftpFilePaneComponent {
     this._toolbarTitles = {
       back: t('pane.back'), forward: t('pane.forward'), up: t('pane.up'),
       refresh: t('pane.refresh'), home: t('pane.home'), filter: t('pane.filterBtn'),
-      bookmark: t('bookmark.title'), hidden: t('pane.showHidden'),
+      // ★ 2026-10-19（Deepseek-V4.1-Flash）：bookmark.title 带 {pane} 占位（"{pane}书签"），
+      //   原先只传 key 不传参 ⇒ 按钮 tooltip 直接显示成「{pane} 书签」。这里补上 { pane }。
+      bookmark: t('bookmark.title', { pane: this.paneLabel }),
+      hidden: t('pane.showHidden'),
     }
     // 预算所有可能列的表头文案（按 col 查表，列增减/重排无需重算）
     const cols = ['name', 'size', 'date', 'created', 'perms', 'mode', 'access', 'owner', 'group', 'path', 'ext']
@@ -606,7 +689,8 @@ export class SftpFilePaneComponent {
       this.pathModel = this.pathInput
     }
     // 语言切换时父组件会重建 i18n 实例（引用变化）；列头映射函数也可能随之更新 → 重算文案缓存
-    if (changes.i18n || changes.colHeaderLabelFn) {
+    // ★ 2026-10-19（Deepseek-V4.1-Flash）：paneLabel 参与书签按钮 tooltip 插值，变化时同样要重算
+    if (changes.i18n || changes.colHeaderLabelFn || changes.paneLabel) {
       this._rebuildLabels()
     }
     // 图标目录变化时让缓存失效，下次 iconSrc/folderIconSrc 重新 readdir

@@ -219,19 +219,90 @@ export function isBinaryBuffer(buf: Buffer): boolean {
   return sample.includes(0)
 }
 
+/**
+ * 把字节缓冲区解码为文本，并**如实报告**用了哪种编码。
+ *
+ * ★ 2026-10-09 审计根治（原 latin1 回退会永久损坏用户文件）：
+ *   原实现对「非合法 UTF-8」回退到 `buf.toString('latin1')`。latin1 是「字节 ↔ 码点一一映射」，
+ *   **不是任何真实字符编码**。中文 Windows 上大量 .txt / .csv / .ini / .sql 是 GBK / GB18030：
+ *     · TextDecoder('utf-8', {fatal:true}) 对它们抛错 → 落到该分支；
+ *     · isBinaryBuffer（只看前 8192 字节有没有 NUL）不会把它们判为二进制
+ *       （汉字双字节高位 0x81-0xFE、低位可含 0x40-0x7E 但不等于 0x00）→ 被当文本打开；
+ *     · 用户看到乱码，**一旦按保存**，panel-viewer-controller 的 saveEditor 就把 latin1
+ *       映射后的字符串按 UTF-8 写回 → 原文的 GBK 字节被永久替换成 mojibake。
+ *   返回的 encoding: 'latin-1' 也从未被调用方用于阻止保存（三处都是直接取 .text）。
+ *
+ *   根治：按「真实编码」解码，顺序符合中文用户实际分布：
+ *     ① BOM 显式指定（utf-8 / utf-16le），与原逻辑一致；
+ *     ② 严格 UTF-8 —— 成功即最常见情形，不变；
+ *     ③ 严格 UTF-8 失败 ⇒ 用 **GB18030**（GBK 的超集，覆盖简繁中文与生僻字）严格解码：
+ *        Node 内置 TextDecoder 全 ICU 构建支持它，无需任何依赖；
+ *     ④ GB18030 也失败（真正的二进制内容）⇒ 返回 text:'' 由调用方按二进制处理，
+ *        绝不用 latin1 假映射「看起来能显示」的乱码去污染文件。
+ *
+ * ⚠ **重要约束（实测得出）**：Node 运行时**只有 gb18030 解码器、没有编码器**
+ *   （Buffer.from(text,'gb18030') 抛 "Unknown encoding"；TextEncoder 按 WHATWG 规范
+ *   只支持 utf-8）。因此本模块返回 gb18030 后，**无法按同一编码写回**。
+ *   调用方（编辑器保存路径）必须据此**禁止保存**并提示改用系统编辑器 ——
+ *   若强行按 UTF-8 写回，只会把「打开时乱码」升级成「保存后编码被改」，
+ *   依然破坏用户的文件。见 canRoundTripSafely()。
+ */
 export function bufferToText(buf: Buffer): { text: string; encoding: string } {
+  const strictUtf8 = (b: Buffer): string => new TextDecoder('utf-8', { fatal: true }).decode(b)
+  const strictGb = (b: Buffer): string => new TextDecoder('gb18030', { fatal: true }).decode(b)
+
+  // ★ 2026-10-13 P2 修复：两条 BOM 分支原先都是**非致命**解码
+  //   （`subarray(n).toString('utf8')` / `'utf16le'`），无效字节被静默替换成 U+FFFD。
+  //   典型受害者是「UTF-8 BOM + GBK 正文」的混合文件（记事本另存、跨工具拼接极易产生）：
+  //   有 BOM ⇒ 直接进本分支 ⇒ 整篇汉字变成 ￿，看起来"打开成功了"，用户一保存就
+  //   把替换字符写回磁盘，原文永久丢失。其余路径早已是 fatal 严格解码后逐级回落，
+  //   唯独这两条漏了。现统一改为严格解码，失败即回落到通用顺序。
   if (buf.length >= 3 && buf[0] === 0xef && buf[1] === 0xbb && buf[2] === 0xbf) {
-    return { text: buf.subarray(3).toString('utf8'), encoding: 'utf-8' }
+    try {
+      return { text: strictUtf8(buf.subarray(3)), encoding: 'utf-8' }
+    } catch { /* BOM 后并非合法 UTF-8 */ }
+    // BOM + GBK 正文：按 GB18030 解 BOM 之后的部分（不把 BOM 三个字节当正文，
+    // 否则会解出「ï»¿」前缀）
+    try {
+      return { text: strictGb(buf.subarray(3)), encoding: 'gb18030' }
+    } catch { /* 继续走通用顺序 */ }
   }
   if (buf.length >= 2 && buf[0] === 0xff && buf[1] === 0xfe) {
-    return { text: buf.subarray(2).toString('utf16le'), encoding: 'utf-16le' }
+    try {
+      return { text: new TextDecoder('utf-16le', { fatal: true }).decode(buf.subarray(2)), encoding: 'utf-16le' }
+    } catch { /* BOM 后并非合法 UTF-16LE：继续走通用顺序 */ }
   }
+  // ① 严格 UTF-8（最常见，必须先试且不能用非致命模式 —— 非致命会把坏字节替换成 U+FFFD）
   try {
     const decoder = new TextDecoder('utf-8', { fatal: true })
     return { text: decoder.decode(buf), encoding: 'utf-8' }
-  } catch {
-    return { text: buf.toString('latin1'), encoding: 'latin-1' }
-  }
+  } catch { /* 不是合法 UTF-8，继续尝试中文编码 */ }
+  // ② GB18030（GBK 超集）：中文 Windows 存量文本的绝大多数
+  try {
+    const gb = new TextDecoder('gb18030', { fatal: true })
+    return { text: gb.decode(buf), encoding: 'gb18030' }
+  } catch { /* 连 GB18030 都不合法 → 真二进制 */ }
+  // ③ 真二进制：交由调用方按二进制处理（图片/压缩包等）。**绝不** latin1 假映射 ——
+  //    那会把「无法解码」变成「看起来能显示的乱码」，用户一保存就永久损坏文件。
+  return { text: '', encoding: 'binary' }
+}
+
+/**
+ * ★ 2026-10-09 新增：该编码能否「解码→编码」往返无损（决定能否允许保存）。
+ *
+ * 判据：
+ *   · utf-8 / utf-16le —— Node 原生支持双向读写 ⇒ 可安全往返，允许保存；
+ *   · gb18030 —— **只能解码不能编码**（实测 Buffer.from(text,'gb18030') 抛
+ *     "Unknown encoding"，TextEncoder 规范限定 utf-8）⇒ 无法按原编码写回，
+ *     强行按 UTF-8 保存会把用户的 GBK 文件改成 UTF-8（依赖原编码的软件全部失效）。
+ *     故此类文件**只读**：编辑器应禁用保存并提示改用系统编辑器。
+ *   · binary —— 不进入文本编辑路径。
+ *
+ * 这是「根治」的必要一环：仅修解码方向，只能把「打开即乱码」升级为
+ * 「显示正常但保存后编码被改」，两者都是破坏。
+ */
+export function canRoundTripSafely(encoding: string): boolean {
+  return encoding === 'utf-8' || encoding === 'utf-16le'
 }
 
 export function bufferToDataUrl(buf: Buffer, fileName: string): string {

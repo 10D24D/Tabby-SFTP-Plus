@@ -2,8 +2,25 @@
  * 功能描述：SFTP+ paste 逻辑聚合模块（由旧 core 多文件合并）
  * @创建人：DD1024z + Hy3
  * @创建时间：2026-07-16
- * @修改人：DD1024z + Claude Opus 5
- * @修改时间：2026-09-21 — P1 修复：scanConflicts 补同面板目录的同名冲突预检 —— 原先 source===destPane
+ * @修改人：DD1024z + Hy4 preview
+ * @修改时间：2026-10-20 — 同栏本地复制补 `local-copy` 传输记录：新增可选端口
+ *              2026-10-20 全量审计：同栏**远程**复制补 remote-copy 传输记录 —— 新增可选端口 onRemoteCopy
+ *                （PasteFsPort / PanelPasteHost / 适配器逐跳转发 / 面板实现），与右键「传输」口径一致。
+ *              `PasteFsPort.onLocalCopy` / `PanelPasteHost.onLocalCopy`（逐跳显式转发），
+ *              `_pasteSamePane` 的本地复制分支成功后回调面板写日志——「粘贴」与右键「传输」
+ *              口径一致（此前 `local-copy` 只有类型与 UI 渲染，全项目没有任何写入点）。
+ *              2026-10-13 — P1 修复：粘贴无 localEntryName 回退 ⇒ 远端合法但 Windows 不可直建的
+ *              名字（a\b.txt、a:b.txt、CON.txt）粘贴到本地栏时**静默丢失**（无弹窗、无提示）。
+ *              scanConflicts / execute 两处原先只用 safeEntryName，null 即 continue；而
+ *              transfer-ops 的下载路径 2026-10-12 已补 `?? localEntryName(...)` 回退，paste 遗漏。
+ *              现按同一约定补：**落本地**时 safeEntryName 不可用则转写为 localEntryName
+ *              （全角替换，视觉可辨）；**落远端**时保持严格拒绝（远端名不经 Windows 规则），与
+ *              transfer-ops 上传侧 safeEntryName 无回退的口径一致。
+ *              2026-10-13 — P2 修复（F10）：三处下载冲突入队（scanConflicts 目录分支 /
+ *              _pasteRemoteToLocal 目录分支 / _buildFileConflictItem 文件分支）透传
+ *              remoteFileMode（entry.mode）——下载覆盖/重命名落地时保留远端权限位，
+ *              不再硬编码 0o644（可执行脚本落地后不可执行）。
+ *              2026-09-21 — P1 修复：scanConflicts 补同面板目录的同名冲突预检 —— 原先 source===destPane
  *              时直接 continue，execute 会径直 copyLocalDir/copyRemoteDir 合并进已存在的同名目录
  *              并覆盖同名文件，既无对话框也无提示（同面板的「文件」本就走 checkDestExists，只有目录漏了）
  *              2026-09-21 — 第六轮审计 P2 修复：execute 的 try/catch 挪进条目循环
@@ -20,7 +37,7 @@ import { type Stats } from 'fs'
 
 import { pasteEntryKey, parseRemoteMtime } from './conflict'
 
-import { safeEntryName } from './path-utils'
+import { safeEntryName, localEntryName } from './path-utils'
 
 import { type ConflictQueueItem } from './panel-types'
 
@@ -81,6 +98,17 @@ export interface PasteFsPort {
     mtime?: number
     attrs?: { size?: number; mtime?: number; modified?: Date | number | string }
   }>>
+  /**
+   * ★ 2026-10-20：同栏本地复制成功后回调（面板侧据此写一条 `local-copy` 传输记录）。
+   * 可选：未实现时不记录 —— 只影响日志完整性，不影响复制本身。
+   */
+  onLocalCopy?(srcPath: string, dstPath: string, isDirectory: boolean): void
+  /**
+   * ★ 2026-10-20 全量审计：同栏**远程**复制成功后回调（写一条 `remote-copy` 传输记录）。
+   * 对齐铁律「同一动作多入口必须写同一种 operation」：右键「传输」/拖拽/粘贴的远程↔远程
+   * 都记 remote-copy，唯独同栏远程粘贴此前静默无记录。可选端口，未实现则不记。
+   */
+  onRemoteCopy?(srcPath: string, dstPath: string, isDirectory: boolean): void
 }
 
 export interface PasteConflictPort {
@@ -130,7 +158,10 @@ export class PasteUseCase {
   ): Promise<boolean> {
     for (const entry of entries) {
       // ★ 2026-08-10 修复 #4：冲突预检同样净化文件名，防止 ../ 路径穿越参与落点计算
+      // ★ 2026-10-13 P1 修复：落本地时补 localEntryName 回退——safeEntryName 对 Windows 保留名/
+      //   尾随点/含 \ 的远端合法名返回 null，原先直接 continue ⇒ 文件静默丢失；落远端仍严格拒绝。
       const safeName = safeEntryName(entry.name)
+        ?? (destPane === 'local' ? localEntryName(entry.name) : null)
       if (!safeName) {
         log.warn('skip unsafe paste entry in scanConflicts:', entry.name)
         continue
@@ -181,10 +212,47 @@ export class PasteUseCase {
           const exists = await this.ports.conflict.checkDestExists(destPane, destFilePath)
           if (exists) {
             const srcPath = entry.fullPath ?? ''
-            const destStat: Stats = { size: entry.size ?? 0, mtimeMs: entry.mtimeMs ?? Date.now() } as Stats
+            // ★ 2026-10-12 P1 修复（两处不对称，均为「用源侧元数据冒充目标侧」）：
+            //
+            // (1) destStat 原先直接取 `entry.size / entry.mtimeMs` —— 那是**源目录**的
+            //     size/mtime，而 localStat 的契约是「目标侧（本地）元数据」，
+            //     由 _computeConflictDigests 与冲突框的「目标侧」信息展示消费。
+            //     同面板的**文件**分支（下方 233 行起）是老老实实 statLocal /
+            //     readdirRemote 取目标元数据的，只有目录分支抄了近路。
+            //     后果：本地↔本地同面板粘贴目录时，冲突框「目标侧大小/时间」显示的是
+            //     **源**的大小时间（内容摘要对比也会拿错的一侧去算）。
+            //
+            // (2) remoteDir 原先写 `destPane === 'remote' ? destPath : dirname(srcPath)`。
+            //     同栏时 localPath/remotePath 装的是**同一侧的两个路径**（目标/源），
+            //     而 remoteDir 描述的是「远端目录」—— 同栏本地时 destPane 是 'local'，
+            //     此时根本没有远端路径可用，传 dirname(srcPath)（一个本地路径）
+            //     会在后续按字段名推断所在侧的逻辑里把它误当远端目录。
+            //     改为只在该字段确实有意义时给值，否则留空由消费方按 isSamePane 判定。
+            let destStat: Stats = { size: 0, mtimeMs: Date.now() } as Stats
+            let remoteDir = ''
+            if (destPane === 'local') {
+              const st = await this.ports.fs.statLocal(destFilePath)
+              if (st) destStat = st as Stats
+            } else {
+              remoteDir = destPath
+              if (this.ports.ui.hasSftpSession()) {
+                try {
+                  const dir = path.posix.dirname(destFilePath)
+                  const name = path.posix.basename(destFilePath)
+                  const remoteEntries = await this.ports.fs.readdirRemote(dir)
+                  const found = remoteEntries.find(e => e.name === name)
+                  if (found) {
+                    destStat = {
+                      size: found.size ?? found.attrs?.size ?? 0,
+                      mtimeMs: parseRemoteMtime(found) ?? Date.now(),
+                    } as Stats
+                  }
+                } catch { /* 目标元数据取不到：保留零值兜底，不影响冲突流程本身 */ }
+              }
+            }
             this.ports.conflict.enqueue({
               localPath: destFilePath,
-              remoteDir: destPane === 'remote' ? destPath : path.posix.dirname(srcPath),
+              remoteDir,
               fileName: safeName,
               remotePath: srcPath,
               localStat: destStat,
@@ -192,6 +260,7 @@ export class PasteUseCase {
               isDirectory: true,
               isSamePane: true,
               samePaneSource: source,
+              // remoteFileSize/Mtime 才是**源侧**元数据，保持原语义（源 = entry）
               remoteFileSize: entry.size ?? 0,
               remoteFileMtime: entry.mtimeMs ?? Date.now(),
               entryKey: pasteEntryKey(entry),
@@ -214,6 +283,8 @@ export class PasteUseCase {
               isDirectory: true,
               remoteFileSize: remoteMeta.size ?? entry.size,
               remoteFileMtime: remoteMeta.mtimeMs ?? entry.mtimeMs,
+              // ★ 2026-10-13 P2 修复：透传远端 mode，下载覆盖/重命名落地时保留权限位
+              remoteFileMode: entry.mode,
               entryKey: pasteEntryKey(entry),
               mode,
             })
@@ -284,7 +355,9 @@ export class PasteUseCase {
         const srcPath = entry.fullPath ?? ''
         if (!srcPath) continue
         // ★ 2026-07-25：剥离服务器返回文件名中的目录组件与 ..，防止路径穿越
+        // ★ 2026-10-13 P1 修复：同 scanConflicts——落本地补 localEntryName 回退，避免静默丢失
         const safeName = safeEntryName(entry.name)
+          ?? (destPane === 'local' ? localEntryName(entry.name) : null)
         if (!safeName) {
           log.warn('skip unsafe paste entry name:', entry.name)
           continue
@@ -344,6 +417,8 @@ export class PasteUseCase {
       if (mode === 'copy') {
         if (entry.isDirectory) await this.ports.fs.copyLocalDir(srcPath, destFilePath)
         else await this.ports.fs.copyLocalFile(srcPath, destFilePath)
+        // ★ 2026-10-20：本地复制也写传输记录（`local-copy`）——「粘贴」与右键「传输」口径一致
+        try { this.ports.fs.onLocalCopy?.(srcPath, destFilePath, !!entry.isDirectory) } catch { /* 日志失败不影响复制 */ }
       } else {
         await this.ports.fs.renameLocal(srcPath, destFilePath)
       }
@@ -351,6 +426,9 @@ export class PasteUseCase {
     }
     if (mode === 'copy') {
       await this.ports.fs.copyRemoteDir(srcPath, destFilePath, entry.isDirectory)
+      // ★ 2026-10-20 全量审计：同栏远程复制与右键「传输」/拖拽走的是不同代码路径，
+      //   但都是 remote-copy 动作 —— 补上记录，日志口径才一致（日志失败不影响复制本身）。
+      try { this.ports.fs.onRemoteCopy?.(srcPath, destFilePath, !!entry.isDirectory) } catch { /* 记录失败不影响复制 */ }
     } else if (this.ports.ui.hasSftpSession()) {
       await this.ports.fs.renameRemote(srcPath, destFilePath)
     }
@@ -402,6 +480,8 @@ export class PasteUseCase {
             localStat: { size: 0, mtimeMs: Date.now() } as Stats,
             direction: 'download',
             isDirectory: true,
+            // ★ 2026-10-13 P2 修复：透传远端 mode，下载覆盖/重命名落地时保留权限位
+            remoteFileMode: entry.mode,
             entryKey: pasteEntryKey(entry),
             mode,
         })
@@ -453,13 +533,22 @@ export class PasteUseCase {
         : destStat)
     return {
       localPath: isSamePane ? destFilePath : (source === 'local' ? (entry.fullPath ?? '') : destFilePath),
-      remoteDir: destPane === 'remote' ? destPath : path.posix.dirname(entry.fullPath ?? ''),
+      // ★ 2026-10-13 P2 修复：与上方**目录**分支（约 208-220 行）保持同口径 —— 目录分支早在
+      //   2026-09 就改成「只在 destPane==='remote' 时给值、否则留空」，文件分支却还写着
+      //   `dirname(entry.fullPath)`：同栏本地→本地时那是一个 **Windows 本地路径**，
+      //   被塞进名为 remoteDir 的字段里，正是铁律「按字段名推断所在侧」的残留。
+      //   消费方 panel-conflict-resolver 以 `remotePath || join(remoteDir, fileName)` 兜底，
+      //   一旦 remotePath 为空就会拼出 `D:\photos\a.txt` 这种混合分隔符路径。
+      remoteDir: destPane === 'remote' ? destPath : '',
       fileName: entry.name,
       remotePath: isSamePane ? (entry.fullPath ?? '') : (destPane === 'remote' ? destFilePath : (entry.fullPath ?? '')),
       localStat,
       direction,
       remoteFileSize: remoteSize,
       remoteFileMtime: remoteMtime,
+      // ★ 2026-10-13 P2 修复：透传来源条目 mode——下载覆盖/重命名落地时保留远端权限位
+      //   （消费方只在 direction==='download' 时使用）
+      remoteFileMode: entry.mode,
       isSamePane,
       samePaneSource: isSamePane ? source : undefined,
       entryKey: pasteEntryKey(entry),
@@ -530,6 +619,10 @@ export interface PanelPasteHost {
   renameRemote(src: string, dest: string): Promise<void>
   refreshLocal(): Promise<void>
   refreshRemote(): Promise<unknown>
+  /** ★ 2026-10-20：同栏本地复制记录回调（可选，未实现则不记 local-copy） */
+  onLocalCopy?(srcPath: string, dstPath: string, isDirectory: boolean): void
+  /** ★ 2026-10-20 全量审计：同栏远程复制记录回调（可选，未实现则不记 remote-copy） */
+  onRemoteCopy?(srcPath: string, dstPath: string, isDirectory: boolean): void
 }
 
 export class PanelPasteAdapter {
@@ -625,6 +718,13 @@ export class PanelPasteAdapter {
         statLocal: (p) => fs.stat(p).catch(() => null),
         scanLocalDir: host.scanLocalDir
           ? (p) => host.scanLocalDir!(p)
+          : undefined,
+        // ★ 2026-10-20：可选端口逐跳转发（两端都是 `?` 成员时 TS 不报漏转发）
+        onLocalCopy: host.onLocalCopy
+          ? (src, dest, isDir) => host.onLocalCopy!(src, dest, isDir)
+          : undefined,
+        onRemoteCopy: host.onRemoteCopy
+          ? (src, dest, isDir) => host.onRemoteCopy!(src, dest, isDir)
           : undefined,
         readdirRemote: async (parentDir) => {
           const entries = await (host.sftpSession as any).readdir(parentDir)

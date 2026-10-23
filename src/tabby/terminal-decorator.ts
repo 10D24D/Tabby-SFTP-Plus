@@ -4,8 +4,17 @@
  *   完全参照 tabby-sftp-ui-next 的已验证实现模式
  * 创建人：DD1024z + Claude
  * 创建时间：2026-06-21
- * 修改人：DD1024z + Deepseek-V4.1-Flash
- * 修改时间：2026-09-25 — 第七轮审计修复：① 隐藏原生 SFTP 按钮改为只扫描已知工具栏容器
+ * @修改人：DD1024z + Step-5-Preview
+ * @修改时间：2026-10-19 — P2-28 修复（两项）：① 工具栏按钮注入失败不再「20 次后永久放弃」：
+ *              轮询超限也（只要能定位到工具栏容器）挂上 MutationObserver，工具栏因
+ *              session.open / reconnect 重建时仍能补注入，不必重启 Tabby；成功/失败共用
+ *              watchToolbar()，避免两份重复逻辑。
+ *              ② openFloatingPanel 中途抛错不再留下半截现场：overlay 已挂到 body、syncRect 的
+ *              rAF 循环已起的情况下，原 catch 只打日志+弹通知 ⇒ 残留一个空面板框、每帧空转的
+ *              rAF、以及恒为 true 的 __sftpPlusOpen（此后再点按钮全走「已打开」分支、彻底打不开）。
+ *              现把 overlay / cmpRef 提到 try 外声明，catch 内按关闭流程停 rAF、解 resize、
+ *              销毁半成品组件、移除 overlay 并清干净 __sftpPlus* 标记。
+ *              2026-09-25 — 第七轮审计修复：① 隐藏原生 SFTP 按钮改为只扫描已知工具栏容器
  *              （不再全 document 扫描，防误隐藏其它插件/设置页里含 <span>SFTP</span> 的按钮）；
  *              ② 多段补扫定时器改数组统一清理（原单槽重入会丢后续段落、dispose 只清一段）；
  *              ③ _mapCfgToNewPath 原先指向并不存在的 ui/* 子树（死映射），改回真实根级键
@@ -93,12 +102,12 @@ export class SftpTerminalDecorator extends TerminalDecorator {
   private _hideObserver: MutationObserver | null = null
   /** ★ 2026-09-25 P2-3 修复：多段补扫的全部待触发定时器（原为单槽 —— 重入时只 clear 当前段，
    *   后续段落被丢弃；dispose 也只清得掉一段）。改为数组，重排/销毁时统一清空。
-   * @修改人：DD1024z + Deepseek-V4.1-Flash @修改时间：2026-09-25 */
+   * @修改人：DD1024z + Step-5-Preview @修改时间：2026-09-25 */
   private _hideNativeTimers: ReturnType<typeof setTimeout>[] = []
   /** ★ 2026-09-25 P2-2 修复：已注入 SFTP+ 按钮的工具栏容器集合。
    *   隐藏原生 SFTP 按钮只在这些容器内扫描（不再全 document 扫描），
    *   避免误隐藏其它插件/设置页里恰好含 `<span>SFTP</span>` 的按钮。
-   * @修改人：DD1024z + Deepseek-V4.1-Flash @修改时间：2026-09-25 */
+   * @修改人：DD1024z + Step-5-Preview @修改时间：2026-09-25 */
   private _toolbars = new Set<ParentNode>()
   private static _hotkeySubscribed = false
   private static _hotkeySub: { unsubscribe(): void } | null = null
@@ -423,36 +432,45 @@ export class SftpTerminalDecorator extends TerminalDecorator {
       }
     }
 
+    // ★ 2026-10-19 P2-28：原先这套 MutationObserver 只写在「注入成功」分支里，成功/失败
+    //   两条路径各写一遍；而 20 次轮询（约 10s）仍失败时是直接 clearInterval 后**永久放弃**——
+    //   之后工具栏因 session.open / reconnect 重建时再没人把按钮补回去，按钮就此消失，
+    //   用户只能重启 Tabby。故抽成 watchToolbar()，成功即装，**放弃时只要能定位到工具栏容器
+    //   也装上**，把后续任意一次容器 DOM 变化当作补偿机会（唯一补偿不到的是「容器本身尚未
+    //   挂载」的情形，彼时无从观察，保持原行为）。
+    const watchToolbar = (): void => {
+      const container = findToolbar()
+      if (!container) return
+      const obs = new MutationObserver(() => {
+        if (!container.querySelector('[data-tabby-sftp-plus-button="1"]')) {
+          log.info('Button removed from toolbar, re-injecting...')
+          tryInsert()
+        }
+        // 工具栏 DOM 变化（如 reconnect / session.open）可能重新创建原生 SFTP 按钮
+        if (this._shouldHideNativeBtn()) {
+          this._hideNativeBtnsOnce(container)
+          this._scheduleHideNativeBtns(container, [300, 1000])
+        }
+      })
+      obs.observe(container, { childList: true, subtree: true })
+      this.subscribeUntilDetached(terminal, { unsubscribe: () => obs.disconnect() })
+    }
+
     // try a few times while the view is settling and SSH session establishes
     let attempts = 0
-    let btnInjected = false
     const timer = setInterval(() => {
       attempts++
       if (tryInsert()) {
-        btnInjected = true
         clearInterval(timer)
         // 注入成功后，监听工具栏 DOM 变化：按钮被移除时自动重新注入（如 reconnect 重建工具栏）
-        const container = findToolbar()
-        if (container) {
-          const obs = new MutationObserver(() => {
-            if (!container.querySelector('[data-tabby-sftp-plus-button="1"]')) {
-              log.info('Button removed from toolbar, re-injecting...')
-              tryInsert()
-            }
-            // 工具栏 DOM 变化（如 reconnect / session.open）可能重新创建原生 SFTP 按钮
-            if (this._shouldHideNativeBtn()) {
-              this._hideNativeBtnsOnce(container)
-              this._scheduleHideNativeBtns(container, [300, 1000])
-            }
-          })
-          obs.observe(container, { childList: true, subtree: true })
-          this.subscribeUntilDetached(terminal, { unsubscribe: () => obs.disconnect() })
-        }
+        watchToolbar()
         return
       }
       if (attempts > 20) {
         clearInterval(timer)
-        log.info('No SSH session found on this tab after 20 attempts, hiding SFTP+ button')
+        log.info('No SSH session found on this tab after 20 attempts, giving up polling')
+        // 补偿：不再轮询 ≠ 彻底放弃，observer 仍会在工具栏重建时尝试补注入
+        watchToolbar()
       }
     }, 500)
 
@@ -535,7 +553,7 @@ export class SftpTerminalDecorator extends TerminalDecorator {
    *  ★ 2026-09-25 P3-2 修复：原先映射到并不存在的 `ui/*` 子树（defaults 无 ui 节点），
    *  该路径恒读不到值 → 死映射，只能靠 _readBoolConfig 的根级 fallback 兜。改为直接映射
    *  真实根级键（设置页写入的也是这些键），让统一配置服务读到实时值。
-   * @修改人：DD1024z + Deepseek-V4.1-Flash @修改时间：2026-09-25 */
+   * @修改人：DD1024z + Step-5-Preview @修改时间：2026-09-25 */
   private _mapCfgToNewPath(cfgKey: string): string | null {
     const map: Record<string, string> = {
       openInNewTabByDefault: 'openInNewTabByDefault',
@@ -760,8 +778,24 @@ export class SftpTerminalDecorator extends TerminalDecorator {
    * 按钮点击、快捷键切换、关闭三处必须共用同一解析，否则 __sftpPlus* 标记会错位。
    */
   private _resolveHostEl(terminal: any): HTMLElement | null {
-    const frontendEl = terminal?.frontend?.element?.nativeElement as HTMLElement | null
-    return (frontendEl || terminal?.element?.nativeElement) as HTMLElement | null
+    // ★ 2026-10-09 审计 P0-3 根治：宿主 `Frontend` 抽象类**没有** element 成员，
+    //   各前端实现各自持有 `private element?: HTMLElement`（裸 HTMLElement，
+    //   见 tabby-terminal/src/frontends/xtermFrontend.ts:98/389 `this.element = host`）。
+    //   原代码写 `frontend.element?.nativeElement` —— 对 HTMLElement 取 .nativeElement
+    //   恒为 undefined ⇒ frontendEl 永远为 null ⇒ 整函数恒等于回退分支，
+    //   注释宣称的「优先用终端 front-end 元素（每个 pane 独有）」从未生效，
+    //   分屏时两个 pane 的 __sftpPlus* 标记互相覆盖。
+    //   根治：两种形态都认（兼容 ElementRef 包装），并对 ElementRef 做 instanceof 判定，
+    //   避免再次把 HTMLElement 当 ElementRef 取属性。
+    const raw = terminal?.frontend?.element
+    const frontendEl = (raw instanceof HTMLElement
+      ? raw
+      : raw?.nativeElement instanceof HTMLElement ? raw.nativeElement : null) as HTMLElement | null
+    const fallback = terminal?.element
+    const fallbackEl = (fallback instanceof HTMLElement
+      ? fallback
+      : fallback?.nativeElement instanceof HTMLElement ? fallback.nativeElement : null) as HTMLElement | null
+    return frontendEl || fallbackEl
   }
 
   private openFloatingPanel(terminal: any): void {
@@ -801,9 +835,18 @@ export class SftpTerminalDecorator extends TerminalDecorator {
       return
     }
 
+    // ★ 2026-10-19 P2-28 修复：开面板是一条多阶段链路（appendChild overlay → 起 rAF 贴合循环
+    //   → 绑 resize → factory.create → attachView），原先 catch 只做「打日志 + 弹通知」，而
+    //   overlay 早先已 appendChild 到 document.body、syncRect 也已经跑起来 ⇒ 抛错即三样泄漏：
+    //   ① overlay 永久残留在页面上（用户看得见一个空面板框）；
+    //   ② syncRect 每帧执行、宿主 tab 切走后仍在 requestAnimationFrame；
+    //   ③ __sftpPlusOpen 残留 true ⇒ 再点按钮走「面板已打开」分支，此后再也打不开。
+    //   故把 overlay / cmpRef 提到 try 外声明，catch 里按关闭流程把残留逐一拆解复位。
+    let overlay: HTMLElement | null = null
+    let cmpRef: any = null
     this.zone.run(() => {
       try {
-        const overlay = document.createElement('div')
+        overlay = document.createElement('div')
         overlay.className = 'sftp-plus-overlay'
         // 非模态：遮罩背景透明 + pointer-events:none，点击事件穿透到下方终端，
         // 点击面板外部即"不聚焦 SFTP+ 面板"，可正常操作终端 / 连接配置。
@@ -872,7 +915,7 @@ export class SftpTerminalDecorator extends TerminalDecorator {
         ;(hostEl as any).__sftpPlusOverlay = overlay
 
         const factory = this.resolver.resolveComponentFactory(SftpFloatingPanel)
-        const cmpRef = factory.create(this.injector, [], panelHost)
+        cmpRef = factory.create(this.injector, [], panelHost)
         const cmp = cmpRef.instance
         ;(hostEl as any).__sftpPlusCmpRef = cmpRef
 
@@ -923,6 +966,20 @@ export class SftpTerminalDecorator extends TerminalDecorator {
         log.info('Panel opened for tab')
       } catch (e) {
         log.error('Panel error', e)
+        // ★ 2026-10-19 P2-28：无论卡在哪一阶段，都按「面板从未打开」复位——
+        //   停 rAF / 解 resize / 销毁半成品组件 / 移除 overlay / 清 __sftpPlus* 标记，
+        //   保证下一次点击还能重新开（拆解清单与 closeFloatingPanel 的兜底路径一致）。
+        try { (hostEl as any).__sftpPlusStopRectSync?.() } catch { /* ignore */ }
+        try { delete (hostEl as any).__sftpPlusStopRectSync } catch { /* ignore */ }
+        try { (hostEl as any).__sftpPlusResizeCleanup?.() } catch { /* ignore */ }
+        try { delete (hostEl as any).__sftpPlusResizeCleanup } catch { /* ignore */ }
+        try { cmpRef?.destroy() } catch { /* ignore */ }
+        try { overlay?.remove() } catch { /* ignore */ }
+        try { delete (hostEl as any).__sftpPlusOpen } catch { /* ignore */ }
+        try { delete (hostEl as any).__sftpPlusMinimized } catch { /* ignore */ }
+        try { delete (hostEl as any).__sftpPlusOverlay } catch { /* ignore */ }
+        try { delete (hostEl as any).__sftpPlusCmpRef } catch { /* ignore */ }
+        this._syncToolbarBtnState(hostEl)
         this.notifications.error('SFTP+', 'Failed to open: ' + (e as Error).message)
       }
     })

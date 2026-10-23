@@ -2,9 +2,10 @@
  * SFTP+ 终端目录上报配置确认对话框
  * 不会自动向终端注入命令；需用户明确选择「仅本次」或「永久写入」
  */
-import { Component, EventEmitter, Input, Output } from '@angular/core'
+import { Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, Output, SimpleChanges, ViewChild } from '@angular/core'
 
 import { SftpI18nService } from '../../services/sftp-i18n.service'
+import { handleOverlayKeydown } from './dialog-focus'
 
 export type CwdSetupChoice = 'session' | 'permanent' | 'cancel'
 
@@ -31,7 +32,7 @@ export const CWD_ZSH_SNIPPET = [
 @Component({
   selector: 'sftp-cwd-setup-dialog',
   template: `
-    <div class="overlay" *ngIf="visible" (click)="onBackdrop($event)">
+    <div class="overlay" #overlayEl *ngIf="visible" tabindex="-1" (keydown)="onOverlayKeydown($event)" (click)="onBackdrop($event)">
       <div class="dialog" (click)="$event.stopPropagation()">
         <div class="dialog-title">{{ i18n.t('path.cwdSetupTitle') }}</div>
         <div class="dialog-body">
@@ -125,7 +126,35 @@ export const CWD_ZSH_SNIPPET = [
     }
   `],
 })
-export class SftpCwdSetupDialogComponent {
+export class SftpCwdSetupDialogComponent implements OnChanges, OnDestroy {
+  /** ★ 2026-10-13 P1 修复：焦点陷阱用——overlay 根元素 */
+  @ViewChild('overlayEl', { static: false }) overlayEl?: ElementRef<HTMLDivElement>
+
+  /** ★ 2026-10-13 P1 修复：打开时把焦点移入 overlay——焦点陷阱（Tab 循环）只在焦点位于
+   *  对话框内时生效；此前打开后焦点留在背后的文件列表，Tab 会操作背景控件（幽灵交互）。 */
+  private _focusTimer: ReturnType<typeof setTimeout> | null = null
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['visible']) {
+      if (this._focusTimer) { clearTimeout(this._focusTimer); this._focusTimer = null }
+      if (this.visible) {
+        this._focusTimer = setTimeout(() => {
+          this._focusTimer = null
+          this.overlayEl?.nativeElement?.focus()
+        })
+      }
+    }
+  }
+
+  ngOnDestroy(): void {
+    if (this._focusTimer) { clearTimeout(this._focusTimer); this._focusTimer = null }
+  }
+
+  /** ★ 2026-10-13 P1 修复：Tab/Shift+Tab 在对话框内循环，不逃逸到背景（幽灵交互）。
+   *   Esc 由宿主 Esc 栈处理（cwdSetupVisible 分支）。 */
+  onOverlayKeydown(event: KeyboardEvent): void {
+    handleOverlayKeydown(event, this.overlayEl?.nativeElement)
+  }
   @Input() visible = false
   @Input() i18n!: SftpI18nService
   @Output() choose = new EventEmitter<CwdSetupChoice>()

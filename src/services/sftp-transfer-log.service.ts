@@ -4,8 +4,17 @@
  *   存储到 localStorage，避免污染 Tabby 配置文件
  * @创建人：DD1024z + Claude
  * @创建时间：2026-06-21
- * @修改人：DD1024z + Deepseek-V4.1-Flash
- * @修改时间：2026-09-26 — 清除记录不再吞掉「正在传输中」的条目：clear()/clearProfile() 跳过
+ * @修改人：DD1024z + Step-5-Preview
+ * @修改时间：2026-10-19 — P2-25 修复：僵尸收口（>10min 的 pending 改判 interrupted）原先只由
+ *              实例级 `_bootReaped` 把关，而本服务每个面板/设置页各 new 一个实例 ⇒
+ *              「第二个面板一构造」就把第一个面板正在跑的长传输标成「已中断」（传输毫发无损，
+ *              只有日志/对话框显示错位）。改为进程级认主（mainInstance）：只有本进程第一个
+ *              构造的实例做收口，后续实例一律不收口；真正的异常退出会连带进程一起没，
+ *              下次启动的第一个实例照旧清僵尸。
+ *              2026-10-18 — issue #27 收尾：TransferLogEntry 新增 remote-copy/local-copy 操作与
+ *              srcPath/dstPath/srcHostLabel/dstHostLabel 端点字段，使「服务器互传/本地复制」
+ *              不再误标上传/下载，并能在日志里记录两端连接归属；导入白名单同步放开
+ *              2026-09-26 — 清除记录不再吞掉「正在传输中」的条目：clear()/clearProfile() 跳过
  *              pending 条目（原实现一并 tombstone → 传输结束时 update(id) 找不到 id，
  *              这次传输在记录里彻底消失：既无「进行中」也无最终结果）；配套新增
  *              countClearable()，供「清除」按钮在无「可清除记录」时禁用
@@ -24,9 +33,22 @@ export type TransferLogEntry = {
   id: string
   timestamp: number
   operation: 'upload' | 'download' | 'edit-upload' | 'edit-download' | 'delete' | 'rename' | 'mkdir' | 'chmod'
+    | 'remote-copy' | 'local-copy'
   localPath: string
   remotePath: string
   profileName?: string
+  /**
+   * ★ issue #27：远程↔远程（服务器互传）时两端都是远程会话，没有上传/下载之分，用
+   *   `remote-copy` 区分；本地↔本地复制用 `local-copy`。二者记录源/目标**完整路径**与
+   *   **两端主机标签**，使「是哪个连接传的」在日志里一目了然。
+   *   经典上传/下载不填这四个字段，对话框按 🖥/🌐 方向渲染（保持旧行为）。
+   */
+  srcPath?: string
+  dstPath?: string
+  /** 源端可读主机标签（远程互传=源远程主机；本地复制=本地标识「本机」） */
+  srcHostLabel?: string
+  /** 目标端可读主机标签（远程互传=目标远程主机；本地复制=本地标识「本机」） */
+  dstHostLabel?: string
   success: boolean
   error?: string
   size?: number
@@ -62,6 +84,28 @@ const MAX_LOGS = 1000
 const TOMBSTONE_KEY = 'sftp-plus-transfer-logs-deleted'
 const MAX_TOMBSTONES = 1000
 
+/**
+ * ★ 2026-10-19 P2-25：本进程的「主实例」（第一个构造出来的那个服务实例）。
+ *
+ * 背景：本服务**不是 root 单例**——浮动面板（`sftp-floating-panel.component.ts` 内
+ * `new SftpTransferLogService(...)`，每个面板一个）与设置页各 new 一个实例，共享同一份
+ * localStorage。而「把超过 10 分钟的 pending 条目改判 interrupted」的僵尸收口
+ * （_reapStaleEntries / save() 合并时的就地收口）原先只看实例自己的 `_bootReaped` 标志
+ * ⇒ **每个新实例都算一次「应用启动」**：第二个面板（或设置页）一构造就把存储里年龄超阈值的
+ * pending 条目改判中断并立刻写盘。于是「面板 A 正在跑一个 20 分钟的大文件下载」时再开一个
+ * 面板，这条仍在传输的记录就被标成「已中断」——传输本身毫发无损，只有日志/传输对话框错位。
+ *
+ * 修法（保守，按指令优先加「实例身份」判据）：收口认定为**进程级一次性**动作，只有本进程
+ * 第一个构造的实例（主实例）有权执行；同窗口里后开的面板/设置页实例一律不收口 —— 它们既
+ * 无从判断别人是不是在传，也没有比主实例更及时的信息。
+ * 这样既不再误伤在传任务，又保留了原有价值：**真正的异常退出会连带进程一起没**，下次启动的
+ * 第一个实例照旧会把僵尸清掉。
+ * 遗留：跨窗口（各窗口是独立渲染进程、模块级变量不共享）仍是历史口径 —— 窗口 B 打开面板时
+ * 可能收口窗口 A 的超长传输条目。该取舍与原先注释里写的「10min 阈值仅可能误伤其它窗口」
+ * 一致，本次不扩大改动面。
+ */
+let mainInstance: SftpTransferLogService | null = null
+
 function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).substring(2, 8)
 }
@@ -77,6 +121,8 @@ export class SftpTransferLogService {
   private _bootReaped = false
 
   constructor(@Optional() private configService?: ConfigService) {
+    // ★ 2026-10-19 P2-25：认主（详见 mainInstance 注释）——先到先得，只有主实例做僵尸收口
+    if (!mainInstance) mainInstance = this
     this.load()
   }
 
@@ -115,13 +161,18 @@ export class SftpTransferLogService {
   }
 
   /**
-   * 清理残留的"传输中"条目：服务构造（应用启动）时本实例必然没有任何进行中的传输，
+   * 清理残留的"传输中"条目：主实例构造（应用启动）时本实例必然没有任何进行中的传输，
    * pending=true 的条目都是上次异常退出/卡死（如目录并发死锁）遗留的僵尸记录。
+   * ★ 2026-10-19 P2-25：限定主实例执行（非主实例可能是「第二个面板」，它构造时主实例
+   *   的长传输正在跑，见 mainInstance 注释）。
    * ★ 2026-08-10 修复 #8：短阈值（10min）兜底清理——仅可能误伤其它窗口刚开始的
    *   超长传输，属可接受代价；原 24h 阈值让当天遗留的僵尸记录整天显示"传输中"。
    */
   private _reapStaleEntriesOnce(): void {
     if (this._bootReaped) return
+    // ★ 2026-10-19 P2-25：非主实例（第二个面板 / 设置页）不做收口 —— 它们构造时本进程
+    //   可能正有其它实例的传输在跑，>10min 的 pending 不是「僵尸」而是「正在传」。
+    if (this !== mainInstance) return
     this._bootReaped = true
     this._reapStaleEntries()
   }
@@ -212,7 +263,10 @@ export class SftpTransferLogService {
           const REAP_PENDING_MAX_AGE_MS = 10 * 60 * 1000
           for (const l of stored) {
             if (!l?.id || deleted.has(l.id) || merged.has(l.id)) continue
-            if (l.pending) {
+            // ★ 2026-10-19 P2-25：这里的就地收口同样只由主实例执行 —— 非主实例（第二个面板 /
+            //   设置页）一次普通的 save() 合并就会把别的实例正在跑的长条目标成中断，
+            //   判据与来源见 mainInstance 注释。
+            if (l.pending && this === mainInstance) {
               const age = now - (l.startTime ?? l.timestamp)
               if (Number.isFinite(age) && age >= REAP_PENDING_MAX_AGE_MS) {
                 l.pending = false
@@ -265,7 +319,7 @@ export class SftpTransferLogService {
     if (!Array.isArray(raw)) return false
     const operations = new Set<TransferLogEntry['operation']>([
       'upload', 'download', 'edit-upload', 'edit-download',
-      'delete', 'rename', 'mkdir', 'chmod',
+      'delete', 'rename', 'mkdir', 'chmod', 'remote-copy', 'local-copy',
     ])
     const modes = new Set<NonNullable<TransferLogEntry['transferMode']>>(['sftp', 'tar'])
     const now = Date.now()

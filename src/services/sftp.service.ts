@@ -3,8 +3,14 @@
  * 功能描述：封装 Tabby SSH Session 的 SFTP 连接，提供统一的文件操作接口
  * @创建人：DD1024z + Claude
  * @创建时间：2026-06-21
- * @修改人：DD1024z + GPT-5.6 Sol
- * @修改时间：2026-09-21 — 修复共享会话失效后旧 holder 释放时误关闭新代际通道；
+ * @修改人：DD1024z + Hy4 preview
+ * @修改时间：2026-10-20 — 新增 willDestroy$ 会话销毁监听（_watchSessionDestroy / unwatchSessionDestroy）：
+ *              2026-10-20 全量审计：SFTPSessionLike 补可选 end()（类型层面此前缺失，导致旧通道兜底释放
+ *                报类型错误却被 webpack 静默放过）。常规释放仍必须走 closeForSSHSession。
+ *              宿主 SSHSession 被销毁时不通知本服务，sessions 缓存里那条已死的 SFTP 通道会一直留着，
+ *              之后 openFromSSHSession(同一 ssh) 命中缓存直接返回死通道 ⇒ 调用方误判「重连成功」。
+ *              现于销毁时 forceInvalidate 清缓存并 end 通道，让下一次 open 真正走 openSFTP()。
+ *              2026-09-21 — 修复共享会话失效后旧 holder 释放时误关闭新代际通道；
  *              第六轮审计 P1 修复：新增 forceInvalidate()（会话级故障广播），
  *              修复多面板共享会话时心跳恢复缓存命中同一坏对象的死循环
  *              2026-09-20 — P1-1 审计修复：openFromSSHSession 迟到通道清理判定「consumed === late」恒真（死代码）→ 改超时标志，
@@ -257,11 +263,13 @@ export async function resolveRemoteSymlinkStat(
   _visited?: Set<string>,
 ): Promise<{ isDirectory: boolean; mode?: number; size?: number; mtime?: Date } | null> {
   const visited = _visited ?? new Set<string>()
-  if (visited.has(fullPath)) {
-    log.warn('resolveRemoteSymlinkStat: circular symlink detected:', fullPath)
+  // ★ 中危#37修复：规范化路径后再加入visited集合，避免 /a/b 和 /a/../a/b 被误判为不同路径
+  const normalizedPath = posix.normalize(fullPath)
+  if (visited.has(normalizedPath)) {
+    log.warn('resolveRemoteSymlinkStat: circular symlink detected:', normalizedPath)
     return null
   }
-  visited.add(fullPath)
+  visited.add(normalizedPath)
   let st = await statRemotePath(session, fullPath)
   if (st && !st.isDirectory && st.isSymlink) {
     // 个别服务器 STAT 不跟随链接 → 对齐 Tabby 官方 SFTP 面板：readlink 解析真实目标再 stat
@@ -326,6 +334,14 @@ export type SFTPSessionLike = {
     read?: () => Promise<Uint8Array>
     close?: () => Promise<void>
   }>
+  /**
+   * ★ 2026-10-20 全量审计：宿主 SFTPSession 运行时的 `end()`（关闭子通道）。
+   *   此前类型未列出，但代码里已经用 `oldSftp.end?.()` 兜底释放旧通道 ⇒ tsc 报
+   *   「Property 'end' does not exist」而被 webpack 静默放过。声明为可选以保留运行期判断。
+   *   注意：常规释放**必须**走 `SftpConnectionService.closeForSSHSession()`（维护引用计数
+   *   与缓存），裸 `end()` 只用于「拿不到 SSH 会话」的兜底路径。
+   */
+  end?: () => void
 }
 
 export type SSHSessionLike = {
@@ -341,6 +357,10 @@ export class SftpConnectionService {
   // ★ 2026-07-25：B5 引用计数——多个浮动面板可能共用同一 SSH 会话的 SFTP 子通道，
   //   仅当引用归零才真正 end() 通道，避免一个面板关闭/断开连累其它共用面板。
   private refCounts = new WeakMap<SSHSessionLike, number>()
+  /** 已挂销毁监听的 SSH 会话（防止重复订阅 willDestroy$） */
+  private _destroyWatched = new WeakSet<SSHSessionLike>()
+  /** 销毁监听句柄（SSH 会话销毁时自行退订；正常不会长期堆积） */
+  private _destroySubs = new WeakMap<SSHSessionLike, { unsubscribe: () => void }>()
 
   private getGen(sshSession: SSHSessionLike): number {
     return this.sessionGen.get(sshSession) ?? 0
@@ -355,6 +375,8 @@ export class SftpConnectionService {
   }
 
   async openFromSSHSession(sshSession: SSHSessionLike): Promise<SFTPSessionLike> {
+    // ★ 2026-10-20：确保该 SSH 会话销毁时清掉缓存通道（否则重连会拿到死通道）
+    this._watchSessionDestroy(sshSession)
     const gen = this.getGen(sshSession)
     const existing = this.sessions.get(sshSession)
     if (existing) {
@@ -364,6 +386,20 @@ export class SftpConnectionService {
     const pendingSession = this.pending.get(sshSession)
     if (pendingSession) {
       const sftpSession = await pendingSession
+      // ★ 2026-10-09 审计根治（僵尸通道）：本分支原先**没有任何代际/存活校验** ——
+      //   而首个调用者（下方 405 行）是有 getGen 校验的，两者不对称。
+      //   竞态：await pendingSession 期间若发生 forceInvalidate（心跳判死），
+      //   它会 bumpGen + sessions.delete + sftp.end() 无视引用计数把通道关掉；
+      //   本调用者从 await 恢复后拿到的是**一个已被 end() 的通道**，却照样 _addRef 并返回
+      //   ⇒ 面板 c.sftpSession = 已关闭通道、c.connected = true、心跳照常启动
+      //   ⇒ 面板进入「UI 显示已连接、但所有操作报 session closed」的僵尸态，
+      //     只能靠用户手动重连或下一轮心跳（30s 超时后）才恢复。
+      //   根治：与首个调用者用同一套代际校验，失配即抛错让调用方走失败分支
+      //   （不得 _addRef 一个死通道）。注意校验必须在 _addRef **之前**。
+      if (this.getGen(sshSession) !== gen) {
+        log.warn('openFromSSHSession: pending channel superseded, refusing to hand out a closed session')
+        throw new Error('SFTP connection superseded')
+      }
       this._addRef(sshSession) // ★ B5：并发等待同一连接，每方各计一引用
       return sftpSession
     }
@@ -416,7 +452,17 @@ export class SftpConnectionService {
     } finally {
       // ★ 2026-08-10 修复 #15：无论成败都清理超时定时器，不得只在成功路径清
       if (timeoutId != null) clearTimeout(timeoutId)
-      this.pending.delete(sshSession)
+      // ★ 2026-10-09 审计根治（误删后来者的 pending）：
+      //   原先是无条件 `this.pending.delete(sshSession)`，**没有做身份校验**。
+      //   竞态：open 超时（30s）时 394-397 行的超时回调已 `pending.delete` 一次；
+      //   用户重试（第二次 openFromSSHSession）注册了**新的** pending；
+      //   第一个调用的 finally 迟到执行 ⇒ 把新 pending 抹掉
+      //   ⇒ 第三个调用者看不到 pending → 再次 sshSession.openSFTP()
+      //   ⇒ **同一 SSH 会话上同时存在两条 SFTP 子通道**，各自 _addRef，
+      //     缓存只保留后写入者，前者的引用计数成为孤儿（泄漏）。
+      //   根治：只在「pending 里登记的仍是我这一条」时才删（比较 Promise 身份），
+      //   与 sessions 用 expectedSession 做 stale-holder 判定是同一思路。
+      if (this.pending.get(sshSession) === promise) this.pending.delete(sshSession)
     }
   }
 
@@ -459,6 +505,10 @@ export class SftpConnectionService {
    *   最终所有面板收敛到全新会话。
    */
   forceInvalidate(sshSession: SSHSessionLike): void {
+    // ★ 2026-10-09：本行保持原样（bumpGen 已让在途 open 的结果被识别为过期并自行 end()，
+    //   删 pending 是为了让下一次 open 立即重建，属**有意**的强制失效语义）。
+    //   注意与 openFromSSHSession 的 finally 区分：那里是无条件删（会误删后来者，已改为
+    //   按 Promise 身份校验），而这里要的就是「让下一次 open 重新走」，故仍无条件删。
     this.pending.delete(sshSession)
     this.bumpGen(sshSession)
     const sftp = this.sessions.get(sshSession)
@@ -472,6 +522,47 @@ export class SftpConnectionService {
         (result as Promise<unknown>).catch(() => {})
       }
     } catch (e) { log.warn('sftp.end() sync error during forceInvalidate:', (e as Error)?.message) }
+  }
+
+  /**
+   * ★ 2026-10-20（用户反馈：关掉标签后点重连"看起来成功了"，实际仍连不上）：
+   *   宿主 `SSHSession` 被销毁时**不会**通知本服务，`sessions` 缓存里那条 SFTP 通道
+   *   （以及它的 refCount）就一直留着 —— 之后任何 `openFromSSHSession(同一个 ssh)` 都会
+   *   命中缓存、直接返回**已经死掉的通道**，调用方据此以为"重连成功"。
+   *   根治：每个 SSH 会话挂一次 `willDestroy$`，销毁即调 forceInvalidate 清缓存 + end 通道，
+   *   让后续 open 真正走 `openSFTP()`（对死会话会失败，调用方据此报错/保持断开）。
+   *
+   * 说明：宿主只有 `willDestroy$`（没有 closed$ / .closed，`destroy()` 也不把 open 置 false），
+   *   见 tabby-ssh/src/session/ssh.ts。
+   */
+  private _watchSessionDestroy(sshSession: SSHSessionLike): void {
+    const ssh = sshSession as unknown as {
+      willDestroy$?: { subscribe: (o: { next: () => void }) => { unsubscribe: () => void } }
+    }
+    if (!ssh || typeof ssh !== 'object' || this._destroyWatched.has(sshSession)) return
+    if (!ssh.willDestroy$ || typeof ssh.willDestroy$.subscribe !== 'function') return
+    this._destroyWatched.add(sshSession)
+    try {
+      const sub = ssh.willDestroy$.subscribe({
+        next: () => {
+          log.info('SSH session destroyed, dropping cached SFTP channel')
+          this.forceInvalidate(sshSession)
+          try { sub.unsubscribe() } catch { /* ignore */ }
+          this._destroyWatched.delete(sshSession)
+        },
+      })
+      this._destroySubs.set(sshSession, sub)
+    } catch { /* 订阅失败不影响主流程 */ }
+  }
+
+  /** 主动摘掉某个 SSH 会话的销毁监听（测试/诊断用；正常由 willDestroy$ 自行收口） */
+  unwatchSessionDestroy(sshSession: SSHSessionLike): void {
+    const sub = this._destroySubs.get(sshSession)
+    if (sub) {
+      try { sub.unsubscribe() } catch { /* ignore */ }
+      this._destroySubs.delete(sshSession)
+    }
+    this._destroyWatched.delete(sshSession)
   }
 }
 

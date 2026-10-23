@@ -1,7 +1,12 @@
 ﻿/**
  * SFTP+ 面板共享类型
  * 修改人：DD1024z + Deepseek-V4.1-Flash
- * 修改时间：2026-09-26 — PanelTransferItem 增加 speedBps（EMA 平滑的数值速率）：
+ * 修改时间：2026-10-20 — 冲突执行体端点化：新增 EndpointRef（isLocal / side / dir / session / ssh /
+ *              hostLabel）与 ConflictQueueItem.endpointTransfer{src,dst,isDir,mode,size}——源/目标不再
+ *              假定「本机磁盘 ↔ 面板主 SFTP 会话」，左栏远程端点（第二会话）、右栏本地(rl) 组合
+ *              也能弹覆盖/重命名并由 doEndpointTransfer 按端点执行。字段映射与 r2rTransfer 一致：
+ *              localPath=源、remotePath=目标。
+ *              2026-09-26 — PanelTransferItem 增加 speedBps（EMA 平滑的数值速率）：
  *              speed 是给人看的字符串无法参与运算，剩余时间估算需要原始数值
  *              2026-09-26 二次修正：删除 lastProgressAt（停流判据）—— 剩余时间改为
  *              「一旦测到可信速率就始终显示」，不再因「字节停止推进」而隐藏（用户要求保留旧预估）
@@ -14,6 +19,7 @@
 import type { Stats } from 'fs'
 import type { SFTPFile, SFTPSessionLike, SSHSessionLike } from '../../services/sftp.service'
 import type { TaskCancelRef } from './task-scope'
+import type { SshSession } from './session-types'
 
 export type LocalEntry = {
   name: string
@@ -35,8 +41,8 @@ export type LocalEntry = {
 }
 
 export type DragPayload =
-  | { kind: 'local-paths'; paths: Array<{ fullPath: string; name: string; isDirectory: boolean }> }
-  | { kind: 'remote-paths'; paths: Array<{ remotePath: string; name: string; isDirectory: boolean; size?: number; mode?: number; modified?: number }> }
+  | { kind: 'local-paths'; paths: Array<{ fullPath: string; name: string; isDirectory: boolean }>; /** ★ issue #27 P3：拖拽源栏（跨栏同目录拖放需绕过「同目录无操作」早退，改走冲突提示） */ srcPane?: 'left' | 'right' }
+  | { kind: 'remote-paths'; paths: Array<{ remotePath: string; name: string; isDirectory: boolean; size?: number; mode?: number; modified?: number }>; /** ★ issue #27 P3：拖拽源栏 */ srcPane?: 'left' | 'right' }
 
 export type ConflictFileInfo = {
   localPath: string
@@ -50,6 +56,9 @@ export type ConflictFileInfo = {
   direction: 'upload' | 'download'
   isSamePane: boolean
   isDirectory?: boolean
+  /** ★ 2026-10-20 续三十五：远程↔远程冲突时显示两端 host label，避免方向标签和标题写死为「本地→远程」 */
+  srcHostLabel?: string
+  dstHostLabel?: string
   /** ★ 2026-09-17：目录内容总大小仍在递归扫描中，UI 应显示「计算中…」而非元数据占位大小 */
   localSizePending?: boolean
   remoteSizePending?: boolean
@@ -64,6 +73,20 @@ export type ConflictFileInfo = {
   contentDiffers?: boolean
 }
 
+/**
+ * ★ 2026-10-20：冲突项携带的**端点引用**（本机磁盘 / 左栏远程 / 右栏远程 / 右栏本地）。
+ * `side` 只用于日志与调试，执行体按 `isLocal` + `session` 分派。
+ */
+export type EndpointRef = {
+  isLocal: boolean
+  side: 'local' | 'remote' | 'rl'
+  dir: string
+  session?: SFTPSessionLike
+  /** ★ 2026-10-20：SSH 会话（仅远程端点有）——远程↔远程的同服冲突解决可走服务端 cp */
+  ssh?: SshSession
+  hostLabel?: string
+}
+
 export type ConflictQueueItem = {
   localPath: string
   remoteDir: string
@@ -73,6 +96,9 @@ export type ConflictQueueItem = {
   direction: 'upload' | 'download'
   remoteFileSize?: number
   remoteFileMtime?: number
+  /** ★ 2026-10-13 P2 修复：远端文件 mode（下载覆盖/重命名落地时透传，避免可执行脚本
+   *  0755 落到本地变成 644、「系统中打开」不可执行）。取不到时消费方回退 0o644。 */
+  remoteFileMode?: number
   isSamePane?: boolean
   samePaneSource?: 'local' | 'remote'
   isDirectory?: boolean
@@ -83,6 +109,30 @@ export type ConflictQueueItem = {
   /** ★ 2026-08-11：来源传输的上下文（目录传输冲突入队时携带）——冲突解决前条目
    *  已被 finish(false) 记失败，覆盖/重命名成功后用它把传输记录翻正 */
   transferCtx?: FolderTransferCtx
+  /** ★ issue #27 P3：远程↔远程拖拽冲突——携带两端会话与主机标签，冲突解决（覆盖/重命名）
+   *  时由 doR2rTransfer 直接执行 r2r 复制（不走 localPath/remotePath 的常规上传/下载语义：
+   *  本类型字段对 r2r 的映射为 localPath=源路径、remotePath=目标路径）。 */
+  r2rTransfer?: {
+    srcSession: any
+    dstSession: any
+    isDir: boolean
+    mode?: number
+    srcHostLabel?: string
+    dstHostLabel?: string
+  }
+  /**
+   * ★ 2026-10-20：**端点化冲突**——源/目标不再假定为「本机磁盘 ↔ 面板主 SFTP 会话」。
+   *   左栏远程端点（第二会话）、右栏本地面板（rl）、远程→右栏本地等组合都靠它携带两端真实身份，
+   *   由 `doEndpointTransfer` 按两端 isLocal 分派执行（四种组合），日志也由执行体写。
+   *   字段映射与 r2rTransfer 一致：`localPath`=源完整路径、`remotePath`=目标完整路径。
+   */
+  endpointTransfer?: {
+    src: EndpointRef
+    dst: EndpointRef
+    isDir: boolean
+    mode?: number
+    size?: number
+  }
   /** ★ 2026-09-18 issue #15 修复：冲突检测计算出的内容摘要，供对话框展示 */
   localDigest?: string | null
   remoteDigest?: string | null
@@ -158,6 +208,10 @@ export type PanelTransferItem = {
    *   此前面板统一用 _cancelRef（永远指向最后启动的任务）→ 取消旧任务会误杀新任务。
    */
   _taskCancelRef?: TaskCancelRef
+  /**
+   * ★ issue #27 P2：远程↔远程传输失败标记（条目以失败态展示，区别于 skippedAsDuplicate）。
+   */
+  failed?: boolean
 }
 
 export type { SFTPFile, SFTPSessionLike, SSHSessionLike }

@@ -2,8 +2,26 @@
  * 功能描述：SFTP+ transfer-adapters 逻辑聚合模块（由旧 core 多文件合并）
  * @创建人：DD1024z + Hy3
  * @创建时间：2026-07-16
- * @修改人：DD1024z + Deepseek-V4.1-Flash
- * @修改时间：2026-09-26 — P0 修复（「进度条在动又突然消失 + 下载反复失败」第二轮）：
+ * @修改人：DD1024z + Step-5-Preview
+ * @修改时间：2026-10-19 — P1 修复：标准传输通道上「暂停/取消被误判为失败」。宿主 upload()/
+ *              download() 的 catch 对任何异常都先 transfer.setStatus(msg)（本类 setStatus
+ *              会把 failed 置位）再 cancel()——包括我们自己 pause()/cancel() 抛出的
+ *              'Transfer paused'/'Transfer cancelled'。2026-09-25 把 isFailed()&&status
+ *              提到最前以区分远端真实错误，但分不清「宿主替我们中止后背书」：标准通道上
+ *              用户点暂停 ⇒ 首判命中 ⇒ 弹失败通知、unlink 掉供续传的 .tmp、记失败
+ *              （isPaused 分支永远走不到）。raw stream 通道不受影响（暂停不抛错）。
+ *              修复：上传/下载两个 catch 都改为先认「我们自己的中止标记」
+ *              （isPaused → hasUserAbortMark，markUserAbort 只在 pause/cancel 路径写入，
+ *              宿主的 cancel() 不会写它），再判远端真实错误，最后未分类错误。
+ *              2026-10-13 — 2026-10-13 全量审计第三批修复：
+ *              ① P1 现行 Tabby（russh）上传暂停空转：read() 只查 cancelled 不查 paused，
+ *                 而 russh 版 SFTPSession 无 createWriteStream ⇒ 上传全走标准 API 分支，
+ *                 pause() 仅置标 ⇒ 上传继续到完成（目录内该文件随后还被父级记失败）。
+ *                 read() 补 paused 抛错（与 LocalPathFileDownload.write() 对称），
+ *                 抛错走宿主 upload() 的 catch：unlink 远端临时文件、保留原文件。
+ *              ② P1 目录上传行级实时进度：UploadByteOptions 新增 onTransfer（创建后交出
+ *                 up 引用，与 DownloadByteOptions 对称），供面板轮询 getCompletedBytes()。
+ *              2026-09-26 — P0 修复（「进度条在动又突然消失 + 下载反复失败」第二轮）：
  *              ★ 同日第三轮（本轮）：单次 read 超时的重试**不再设次数上限**（原 4 次 ≈ 40s 就
  *              放弃整个文件），改为「连续零字节进展 4 分钟」才判死 + 指数退避（350ms→3s 上限）。
  *              依据：4 次的耐心对被 CPU 积分/云盘 IO 卡住的服务端远远不够（零字节停顿 30~60s
@@ -124,6 +142,11 @@ export class BufferCollectingDownload {
   increaseProgress(_bytes: number): void {}
 
   getBuffer(): Buffer {
+    // ★ 高危#2修复：拼接前检查总大小，防止大文件OOM
+    const totalLen = this.chunks.reduce((sum, c) => sum + c.length, 0)
+    if (totalLen > 256 * 1024 * 1024) {
+      throw new Error(`getBuffer: total size ${totalLen} exceeds 256MB safety limit`)
+    }
     return Buffer.concat(this.chunks)
   }
 }
@@ -226,15 +249,34 @@ export async function downloadRemoteToBuffer(
   return dl.getBuffer()
 }
 
+/**
+ * ★ 2026-10-22（Deepseek-V4.1-Flash）：将任意 stableKey（含 @ : / 等非法字符的连接标识 + 路径）
+ * 映射为文件系统安全的短目录名。相同 key 必得相同目录，保证「同一文件复用同一临时路径」。
+ * 采用 djb2 哈希 → 36 进制，无需引入额外依赖。
+ */
+function stableDirName(key: string): string {
+  let h = 5381
+  for (let i = 0; i < key.length; i++) {
+    h = ((h << 5) + h + key.charCodeAt(i)) | 0
+  }
+  return 'k' + (h >>> 0).toString(36)
+}
+
 export async function downloadRemoteToTempFile(
   sftpSession: SFTPSessionLike,
   remotePath: string,
   size: number,
   mode = 0o644,
-  opts?: { requireExactSize?: boolean; maxBytes?: number },
+  opts?: { requireExactSize?: boolean; maxBytes?: number; stableKey?: string },
 ): Promise<string> {
   const baseName = path.basename(remotePath) || 'file'
-  const dir = path.join(os.tmpdir(), 'tabby-sftp-plus', randomUUID())
+  // ★ 2026-10-22（Deepseek-V4.1-Flash）：方案 C —— 传入 stableKey 时，临时目录按 key 哈希固定，
+  //   使「同一远程文件」的多次编辑复用同一临时路径，避免外部编辑器（VS Code 重开历史 / 最近文件）打开到
+  //   上一轮的旧副本、保存到旧路径导致改动永不触发 watch（issue #28 根因之一）。
+  //   不传 stableKey ⇒ 仍用随机 UUID（查看器 / 「系统中打开」等一次性场景，无需稳定）。
+  const dir = opts?.stableKey
+    ? path.join(os.tmpdir(), 'tabby-sftp-plus', 'edit', stableDirName(opts.stableKey))
+    : path.join(os.tmpdir(), 'tabby-sftp-plus', randomUUID())
   await fsPromises.mkdir(dir, { recursive: true })
   const localPath = path.join(dir, baseName)
 
@@ -397,7 +439,18 @@ export class LocalPathFileUpload {
     //   导致"暂停/取消上传后，远端出现未传完的假文件（且原文件被删）"。
     //   抛错则走其 catch 分支：unlink 远端临时文件、保留原文件，行为正确。
     if (this.cancelled) {
+      markUserAbort(this)
       throw new Error('Transfer cancelled')
+    }
+    // ★ 2026-10-13 P1 修复：暂停同样必须抛错——与 LocalPathFileDownload.write() 的
+    //   paused 分支（下方约 588 行）对称。新版 Tabby（russh）的 SFTPSession 无
+    //   createWriteStream，上传全走 session.upload() 标准 API，该分支下 pause()
+    //   只置 paused 标记、read() 原先不检查 ⇒ 上传继续到完成（暂停空转），
+    //   且目录内该文件随后被父级记失败。抛错走 upload() 的 catch：unlink 远端
+    //   临时文件、保留原文件，与取消路径同款，行为安全。
+    if (this.paused) {
+      markUserAbort(this)
+      throw new Error('Transfer paused')
     }
     if (this.fd === null) {
       this.fd = await fs.promises.open(this.filePath, 'r')
@@ -425,7 +478,8 @@ export class LocalPathFileUpload {
     this.increaseProgress(bytesRead)
     // ★ 2026-09-26 P0：上传方向同样打点——心跳据此判定「通道是否真的在搬数据」
     markTransferProgress()
-    return buf.subarray(0, bytesRead)
+    // ★ 低危#42修复：使用slice替代subarray，避免subarray视图长期持有底层1MB buffer
+    return buf.slice(0, bytesRead)
   }
 
   async close(): Promise<void> {
@@ -580,9 +634,11 @@ export class LocalPathFileDownload {
     //   会以 'w' 重新打开（首次下载 resumeOffset=0）截断已下载部分 → 稀疏损坏文件，
     //   续传后仅大小校验通过即被 rename 成目标。必须先于 cancelled 检查（cancel 紧跟 pause）。
     if (this.paused) {
+      markUserAbort(this)
       throw new Error('Transfer paused')
     }
     if (this.cancelled) {
+      markUserAbort(this)
       throw new Error('Transfer cancelled')
     }
     if (this.fd === null) {
@@ -784,7 +840,8 @@ async function renameWithOverwrite(rawSftp: any, tempPath: string, remotePath: s
     if (typeof rawSftp.stat === 'function') {
       try { await rawSftp.stat(remotePath) } catch { throw renameErr } // 目标不存在 → 保留原始错误
     }
-    const backup = remotePath + `.sftp-plus-bak-${Date.now()}`
+    // ★ 高危#4修复：使用randomUUID替代Date.now，避免并发上传同一文件时backup文件名冲突
+    const backup = remotePath + `.sftp-plus-bak-${randomUUID()}`
     let backedUp = false
     try {
       await rawSftp.rename(remotePath, backup)
@@ -804,17 +861,15 @@ async function renameWithOverwrite(rawSftp: any, tempPath: string, remotePath: s
 
 
 /**
- * ★ 2026-09-25：把 Error 压成「code + message」文本。
+ * ★ 2026-10-09：实现已迁到 transfer-types.ts（工具层，供 conflict.ts 等复用），此处改为转发，
+ *   保持既有 `import { errText } from './transfer-adapters'` 的外部调用点全部可用（不破坏导出面）。
+ *   语义不变：把 Error 压成「code + message」文本——
  *   Tabby 的文件日志（log.txt）只写出第一个字符串参数——`log.error('X', path, e)` 里的
  *   path 与 e 会被整体丢弃，导致线上传输失败**完全无法定位**。故所有失败日志改为
  *   把详情内联进首参字符串，用本函数拼装。
  */
-export function errText(e: unknown): string {
-  const err = e as { code?: unknown; message?: unknown } | null | undefined
-  const code = err?.code != null ? String(err.code) : ''
-  const msg = err?.message != null ? String(err.message) : String(e)
-  return code ? `${code} ${msg}` : msg
-}
+import { errText } from './transfer-types'
+export { errText }
 
 export interface TransferCancelRef {
   current: any
@@ -833,6 +888,26 @@ function unregisterCancelRef(ref: TransferCancelRef | null | undefined, transfer
   if (!ref) return
   ref.active?.delete(transfer)
   if (ref.current === transfer) ref.current = null
+}
+
+/**
+ * ★ 2026-10-13 P2：用户主动取消 / 暂停的**显式标记**（由抛出方自己置位）。
+ *   此前判定「是否用户主动中止」是对宿主转述的 status 文案做正则 /cancel|pause/i
+ *   ——属于从文案反推意图，两个方向都会错：
+ *   ① status 由宿主 `setStatus(e.message)` 写入，除我们自己的 'Transfer cancelled'/
+ *      'Transfer paused' 外也可能是远端/底层错误原文，含 cancel 字样时真实错误被
+ *      误判成「用户取消」而静默吞掉、不报错；
+ *   ② 文案一旦被改写（含 Tabby 侧本地化包装）正则即失配，真的取消反而被记失败并弹
+ *      错误通知（用户视角：我点了取消，却弹了个传输失败）。
+ *   现在由 read()/write() 抛出前自行置位，判定只认标记，文案降级为兜底。
+ */
+export function markUserAbort(t: unknown): void {
+  try { if (t) (t as { __sftpPlusUserAbort?: boolean }).__sftpPlusUserAbort = true } catch { /* 不可写则忽略 */ }
+}
+
+/** 配合 {@link markUserAbort}：读取用户主动中止标记 */
+export function hasUserAbortMark(t: unknown): boolean {
+  try { return (t as { __sftpPlusUserAbort?: boolean } | null | undefined)?.__sftpPlusUserAbort === true } catch { return false }
 }
 
 /**
@@ -884,6 +959,9 @@ export interface UploadByteOptions {
   logOperation?: 'upload' | 'edit-upload'
   /** 暴露 transfer 引用供 cancelRef */
   exposeCancel?: boolean
+  /** ★ 2026-10-13 P1 修复：传输对象创建后回调（与 DownloadByteOptions.onTransfer 对称）——
+   *  目录上传的行级实时进度靠面板轮询 up.getCompletedBytes()，需要先拿到引用 */
+  onTransfer?: (up: LocalPathFileUpload) => void
 }
 
 export interface DownloadByteOptions {
@@ -919,18 +997,33 @@ export async function uploadViaRawToTemp(
   })
   const safeUnlinkTemp = () => { try { rawSftp.unlink(tempPath).catch(() => null) } catch { /* ignore */ } }
   return new Promise<void>((resolve, reject) => {
+    const cleanupListeners = () => { try { writeStream.removeAllListeners() } catch { /* ignore */ } }
     writeStream.on('finish', () => {
-      // 暂停/取消都不在此改名：暂停保留临时文件供续传；取消已在前述分支删临时文件
-      if (up.isPaused() || up.isCancelled?.()) { up.close().catch(() => {}); resolve(); return }
+      // ★ 2026-10-13 P2 修复：原分支把 paused 与 cancelled 一视同仁地「不改名、不删除」→
+      //   若取消发生在 writeStream.end() 之后、'finish' 之前（大文件最后一块写完的窗口），
+      //   流已结束、没有 error 事件、readNext 的取消分支也早已退出，于是既没 rename 也没
+      //   safeUnlinkTemp —— 远端留下一个**完整大小**的 `xxx.tabby-upload` 孤儿，
+      //   且因为大小与源文件一致，用户很容易误以为上传成功了。
+      //   现在区分：暂停保留临时文件供续传（原行为），取消则删除。
+      if (up.isCancelled?.() && !up.isPaused()) {
+        safeUnlinkTemp()
+        up.close().catch(() => {})
+        cleanupListeners()
+        resolve()
+        return
+      }
+      // 暂停：保留临时文件供续传，不改名
+      if (up.isPaused()) { up.close().catch(() => {}); cleanupListeners(); resolve(); return }
       // ★ 2026-07-30 B14：用 renameWithOverwrite 兼容不覆盖已存在目标的服务端（覆盖上传）
       renameWithOverwrite(rawSftp, tempPath, remotePath)
-        .then(() => { up.close().catch(() => {}); resolve() })
-        .catch((e: unknown) => { safeUnlinkTemp(); up.close().catch(() => {}); reject(e) })
+        .then(() => { up.close().catch(() => {}); cleanupListeners(); resolve() })
+        .catch((e: unknown) => { safeUnlinkTemp(); up.close().catch(() => {}); cleanupListeners(); reject(e) })
     })
     writeStream.on('error', (err: Error) => {
       if (!up.isCancelled?.()) log.error('Raw upload stream error', err)
       safeUnlinkTemp()
       up.close().catch(() => {})
+      cleanupListeners()
       reject(err)
     })
     const readNext = () => {
@@ -997,6 +1090,8 @@ export async function uploadLocalFile(
   }
   ctx.activeUploadTargets?.add(remotePath)
   const up = new LocalPathFileUpload(localPath)
+  // ★ 2026-10-13 P1 修复：创建后即交出引用（目录上传行级实时进度用，见 UploadByteOptions.onTransfer）
+  opts.onTransfer?.(up)
   if (opts.track && ctx.trackTransfer) {
     ctx.trackTransfer(up, 'upload', remotePath, localPath, opts.logOperation)
   }
@@ -1019,10 +1114,23 @@ export async function uploadLocalFile(
     if (opts.track) log.info('Upload completed:', localPath)
     return true
   } catch (e) {
-    // ★ 2026-09-25 P0：**必须先判「远端上报过错误」**。tabby-ssh 的 upload() 在 catch 里
-    //   依次 setStatus(msg) → cancel() → throw e；补上 setStatus 后 cancel() 会被执行，
-    //   若先命中下面的 isCancelled() 分支，真实错误就会被当成「用户取消」静默吞掉。
-    //   本插件自己的 _markFailed() 不写 status，故 (isFailed && status) 能精确区分二者。
+    // ★ 2026-10-19 P1 修复：判据顺序重整。宿主 upload() 的 catch 对**任何**异常都先
+    //   transfer.setStatus(e.message)（本类的 setStatus 会把 failed 置位）再 cancel()——
+    //   包括我们自己的 pause()/cancel() 抛出的 'Transfer paused'/'Transfer cancelled'。
+    //   2026-09-25 把 isFailed()&&status 提到最前是为区分「远端真实错误」，但它分不清
+    //   「宿主替我们中止后背书」：标准通道上用户点暂停 ⇒ write/read 抛错 ⇒ 宿主 setStatus
+    //   ⇒ 首判命中 ⇒ 弹失败通知、记失败（isPaused 分支永远走不到）。
+    //   正确顺序：先认**我们自己的中止标记**（markUserAbort 只在 pause/cancel 路径写入，
+    //   宿主的 cancel() 不会写它），再判远端真实错误，最后未分类错误。
+    if (up.isPaused()) {
+      if (opts.track) log.info('Upload paused:', localPath)
+      return false
+    }
+    if (hasUserAbortMark(up)) {
+      if (opts.track) log.info('Upload cancelled:', localPath)
+      return false
+    }
+    // ★ 2026-09-25 P0：远端确实上报过错误（用户未中止时才可能到达这里）
     if (up.isFailed() && up.getStatus()) {
       log.error(`Upload failed: ${remotePath} :: ${up.getStatus()}`)
       if (opts.track) ctx.onUploadError?.(remotePath, localPath, new Error(up.getStatus()))
@@ -1083,6 +1191,10 @@ const READ_RETRY_LOG_EVERY = 5
  *   `Custom { kind: TimedOut, error: Timeout }`（实测日志原文）。
  */
 export function isTimeoutLike(e: unknown): boolean {
+  if (e == null) return false
+  // ★ 中危#24修复：优先检查code属性，避免正则误报文件路径等无关内容
+  const code = (e as any)?.code
+  if (code === 'ETIMEDOUT' || code === 'TimedOut' || code === 'Timeout') return true
   const s = typeof e === 'string'
     ? e
     : `${(e as any)?.code ?? ''} ${(e as any)?.message ?? ''} ${typeof e === 'object' && e !== null ? errText(e) : String(e)}`
@@ -1157,12 +1269,19 @@ async function downloadViaChunkedRead(
       let lastErr: unknown = null
       // ★ 2026-09-26 P0：内层不再用固定次数上限，只由「零字节进展时长」决定退出
       for (;;) {
+        // ★ 2026-10-13 P2：退避醒来后立刻复查一次外部中止，避免白等一个退避周期
+        if (externalAbort?.()) return { kind: 'aborted', reason: 'external' }
         try {
           chunk = await readFn.call(handle)
           lastErr = null
           break
         } catch (e) {
           lastErr = e
+          // ★ 2026-10-13 P2 修复：这里原先只查 dl.isPaused()/isCancelled()，漏了 externalAbort
+          //   ——tar 打包通道的取消正是走 externalAbort 信号。漏查的后果：点取消后内层仍按
+          //   指数退避重试到「零字节进展 READ_STALL_LIMIT_MS（240s）」才退出，用户要等最多
+          //   4 分钟才看到取消生效（外层循环开头的检查要等内层跑完才轮得到）。
+          if (externalAbort?.()) return { kind: 'aborted', reason: 'external' }
           if (dl.isPaused() || dl.isCancelled()) return { kind: 'aborted', reason: dl.isPaused() ? 'paused' : 'cancelled' }
           // 非「请求超时」类错误（句柄失效 / 权限 / 协议错）重试无意义，交回调用方分类
           if (!isTimeoutLike(e)) break
@@ -1345,7 +1464,8 @@ export async function downloadRemoteFile(
           //   注意 Tabby 的失败路径会顺手 transfer.cancel()，不能用 isCancelled() 判断用户意图，
           //   要看 status 文案（我们的 cancel()/pause() 会写入 'Transfer cancelled'/'Transfer paused'）。
           const status = dl.getStatus()
-          const userAbort = dl.isPaused() || /cancel|pause/i.test(status)
+          // ★ 2026-10-13 P2：优先认显式标记（markUserAbort），正则仅作兜底
+          const userAbort = dl.isPaused() || hasUserAbortMark(dl) || /cancel|pause/i.test(status)
           if (userAbort) throw dlErr
           if (!(isTimeoutLike(dlErr) || isTimeoutLike(status))) {
             // ★ 2026-09-26 P0：非超时硬错误 = 彻底失败，先清 .tmp 再抛（原先直接 throw 会留残留）
@@ -1401,22 +1521,27 @@ export async function downloadRemoteFile(
       if (opts.track) log.info('Download completed:', remotePath)
       return true
     } catch (e) {
-      // ★ 2026-09-25 P0：**必须先判「远端上报过错误」**。tabby-ssh 的 download() 在 catch 里
-      //   依次 setStatus(msg) → cancel() → throw e；补上 setStatus 后 cancel() 会被执行，
-      //   若先判下面的 isPaused()/isCancelled() 分支，真实错误就会被当成「暂停/取消」静默吞掉
-      //   （只 unlink 临时文件后 return false，日志里什么都看不到）。
-      //   本插件自己的 _markFailed() 不写 status，故 (isFailed && status) 能精确区分二者。
+      // ★ 2026-10-19 P1 修复：判据顺序重整（与上传侧同因）。宿主 download() 的 catch 对
+      //   **任何**异常都先 setStatus(msg)（本类 setStatus 置 failed）再 cancel()——包括
+      //   我们 pause 时 write() 抛出的 'Transfer paused'。原先首判 isFailed()&&getStatus()
+      //   ⇒ 用户暂停被当成「远端上报失败」：弹失败通知、unlink 掉供续传的 .tmp、
+      //   记失败（下方 isPaused 分支永远走不到，续传链断裂）。
+      //   正确顺序：先认我们自己的中止标记，再判远端真实错误。
+      if (dl.isPaused()) {
+        if (opts.track) log.info('Download paused:', remotePath)
+        return false
+      }
+      if (hasUserAbortMark(dl)) {
+        // 用户取消（非暂停）：清掉半截 .tmp
+        try { await fsPromises.unlink(tmpPath) } catch { /* ignore */ }
+        return false
+      }
+      // ★ 2026-09-25 P0：远端确实上报过错误（用户未中止时才可能到达这里）
       if (dl.isFailed() && dl.getStatus()) {
         log.error(`Download failed: ${remotePath} :: ${dl.getStatus()}`)
         try { await fsPromises.unlink(tmpPath) } catch { /* ignore */ }
         try { await dl._markFailed?.() } catch { /* ignore */ }
         if (opts.track) ctx.onDownloadError?.(remotePath, new Error(dl.getStatus()))
-        return false
-      }
-      // ★ 2026-08-10：暂停必须最先检查——pause() 关 fd 后 cancel() 才置 cancelled，
-      //   在途 chunk 的 write() 中断抛错到达这里时若先命中 cancelled 分支会误删供续传的 .tmp
-      if (dl.isPaused()) {
-        if (opts.track) log.info('Download paused:', remotePath)
         return false
       }
       if (dl.isCancelled()) {
@@ -1438,5 +1563,288 @@ export async function downloadRemoteFile(
     if (opts.exposeCancel && dlRef && ctx.cancelRef) unregisterCancelRef(ctx.cancelRef, dlRef)
     ctx.activeDownloadTargets.delete(localPath)
   }
+}
+
+
+// ─────────────────────────────────────────────────────────────
+// ★ issue #27 P2：远程↔远程（内存流式，双 SFTP 会话，不落本地磁盘）
+//
+// 背景：左栏端点可切换为远程（_leftKind==='remote'）后，传输的两端都是 SFTP 会话。
+//   - 读取侧：源会话 open() + handle.read()（句柄式分块读，与 downloadViaChunkedRead 同款
+//     抗压重试：单次读超时只重试该次、连续 4 分钟零字节进展才判死）。
+//   - 写入侧：目标会话 createWriteStream（raw）或 upload()（标准）——复用 uploadViaRawToTemp
+//     的「.tabby-upload 临时文件 + renameWithOverwrite」全链路（暂停保留 / 取消删除 / 覆盖语义一致）。
+//   全程在内存里「读一块、写一块」，不写本地磁盘。
+//
+// 无 open() 能力的会话（罕见精简镜像）：退回「整文件缓冲到内存再上传」——仅对小文件安全，
+// 由 downloadRemoteToBuffer 的 256MB 上限兜底防 OOM。
+//
+// 创建人：DD1024z + Hy3
+// 创建时间：2026-10-17
+// ─────────────────────────────────────────────────────────────
+
+/** 远程↔远程传输的共享状态（暂停 / 取消 / 已传字节），供面板与源对象双向读写 */
+export interface RemoteToRemoteState {
+  paused: boolean
+  cancelled: boolean
+  completedBytes: number
+}
+
+export function createRemoteToRemoteState(): RemoteToRemoteState {
+  return { paused: false, cancelled: false, completedBytes: 0 }
+}
+
+/**
+ * 把「源会话句柄读」封装成一个 upload 源对象（鸭子类型），喂给目标会话的
+ * upload 通道（uploadViaRawToTemp / session.upload）。其 read() 每次向下游交付从
+ * 源句柄读到的下一块；暂停 / 取消以异常形式中断（与 LocalPathFileUpload 对称，
+ * 下游据此保留 / 删除 .tabby-upload 临时文件）。
+ */
+class RemoteReadSource {
+  private complete = false
+  private failed = false
+  private status = ''
+  private bytes = 0
+  constructor(
+    private readonly handle: any,
+    private readonly readFn: (() => Promise<Uint8Array>) | null,
+    private readonly fileSize: number,
+    private readonly mode: number,
+    private readonly state: RemoteToRemoteState,
+    private readonly onProgress?: (bytes: number) => void,
+  ) {}
+
+  getName(): string { return '' }
+  getMode(): number { return this.mode }
+  getSize(): number { return this.fileSize > 0 ? this.fileSize : -1 }
+  isComplete(): boolean { return this.complete }
+  isCancelled(): boolean { return this.state.cancelled }
+  isPaused(): boolean { return this.state.paused }
+  isFailed(): boolean { return this.failed }
+  getStatus(): string { return this.status }
+  increaseProgress(_b: number): void {}
+  getCompletedBytes(): number { return this.bytes }
+  close(): void {}
+
+  async cancel(): Promise<void> { this.state.cancelled = true }
+  async pause(): Promise<number> { this.state.paused = true; return this.bytes }
+
+  setStatus(status: string): void {
+    this.status = String(status ?? '')
+    if (this.status) {
+      this.failed = true
+      log.error('[r2r] remote reported failure (upload target):', this.status)
+    }
+  }
+  async _markFailed(): Promise<void> { this.failed = true }
+
+  async read(): Promise<Buffer> {
+    if (this.state.cancelled) { markUserAbort(this); throw new Error('Transfer cancelled') }
+    if (this.state.paused) { markUserAbort(this); throw new Error('Transfer paused') }
+    if (this.complete) return Buffer.alloc(0)
+    if (!this.readFn) { this.complete = true; return Buffer.alloc(0) }
+    let chunk: Uint8Array | null = null
+    let lastErr: unknown = null
+    // ★ 与 downloadViaChunkedRead 同款：连续零字节进展 4 分钟才判死（服务端慢 ≠ 死）
+    const start = Date.now()
+    let retry = 0
+    for (;;) {
+      if (this.state.cancelled) { markUserAbort(this); throw new Error('Transfer cancelled') }
+      if (this.state.paused) { markUserAbort(this); throw new Error('Transfer paused') }
+      try {
+        chunk = await this.readFn.call(this.handle)
+        lastErr = null
+        break
+      } catch (e) {
+        if (this.state.cancelled) { markUserAbort(this); throw new Error('Transfer cancelled') }
+        if (this.state.paused) { markUserAbort(this); throw new Error('Transfer paused') }
+        // 非「请求超时」类错误（句柄失效 / 权限 / 协议错）重试无意义，直接抛出
+        if (!isTimeoutLike(e)) throw e
+        const stalled = Date.now() - start
+        if (stalled >= READ_STALL_LIMIT_MS) throw e
+        retry++
+        const backoff = Math.min(READ_RETRY_DELAY_MS * 2 ** Math.min(retry - 1, 4), READ_RETRY_DELAY_MAX_MS)
+        await new Promise(r => setTimeout(r, backoff))
+      }
+    }
+    if (!chunk || !chunk.length) { this.complete = true; return Buffer.alloc(0) }
+    const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk.buffer, chunk.byteOffset, chunk.byteLength)
+    this.bytes += buf.length
+    this.state.completedBytes = this.bytes
+    this.onProgress?.(this.bytes)
+    // ★ 心跳打点：两端都在搬数据，必须如实上报，避免被连接保活误判为死亡
+    markTransferProgress()
+    return buf
+  }
+}
+
+/** 无 open() 能力时的缓冲上传源：把整段 Buffer 按 1MB 切片喂给下游 */
+class BufferUpload {
+  private pos = 0
+  private complete = false
+  private failed = false
+  private status = ''
+  private static readonly CHUNK = 1024 * 1024
+  constructor(
+    private readonly buf: Buffer,
+    private readonly mode: number,
+    private readonly state: RemoteToRemoteState,
+    private readonly onProgress?: (bytes: number) => void,
+  ) {}
+
+  getName(): string { return '' }
+  getMode(): number { return this.mode }
+  getSize(): number { return this.buf.length }
+  isComplete(): boolean { return this.complete }
+  isCancelled(): boolean { return this.state.cancelled }
+  isPaused(): boolean { return this.state.paused }
+  isFailed(): boolean { return this.failed }
+  getStatus(): string { return this.status }
+  increaseProgress(_b: number): void {}
+  getCompletedBytes(): number { return this.pos }
+  close(): void {}
+
+  async cancel(): Promise<void> { this.state.cancelled = true }
+  async pause(): Promise<number> { this.state.paused = true; return this.pos }
+
+  setStatus(status: string): void {
+    this.status = String(status ?? '')
+    if (this.status) {
+      this.failed = true
+      log.error('[r2r] buffered upload failure:', this.status)
+    }
+  }
+  async _markFailed(): Promise<void> { this.failed = true }
+
+  async read(): Promise<Buffer> {
+    if (this.state.cancelled) { markUserAbort(this); throw new Error('Transfer cancelled') }
+    if (this.state.paused) { markUserAbort(this); throw new Error('Transfer paused') }
+    if (this.pos >= this.buf.length) { this.complete = true; return Buffer.alloc(0) }
+    const end = Math.min(this.pos + BufferUpload.CHUNK, this.buf.length)
+    const slice = this.buf.subarray(this.pos, end)
+    this.pos = end
+    this.state.completedBytes = this.pos
+    this.onProgress?.(this.pos)
+    markTransferProgress()
+    return slice
+  }
+}
+
+/** 写一个 upload 源到目标会话（raw 流优先，否则标准 upload API） */
+async function writeUploadSourceToRemote(
+  dstSession: SFTPSessionLike,
+  dstPath: string,
+  up: any,
+): Promise<void> {
+  const rawDst = dstSession as any
+  if (typeof rawDst?.createWriteStream === 'function') {
+    await uploadViaRawToTemp(rawDst, dstPath, up, 0)
+  } else {
+    await rawDst.upload(dstPath, up)
+  }
+}
+
+/**
+ * 单文件：远程会话 → 远程会话（内存流式）。
+ * 返回 true 表示传输完成（取消 / 暂停 / 失败均为 false），与 uploadLocalFile / downloadRemoteFile 对齐。
+ */
+export async function transferRemoteToRemoteFile(
+  srcSession: SFTPSessionLike,
+  srcPath: string,
+  dstSession: SFTPSessionLike,
+  dstPath: string,
+  opts: {
+    size?: number
+    mode?: number
+    state?: RemoteToRemoteState
+    onProgress?: (bytes: number) => void
+  } = {},
+): Promise<boolean> {
+  const state = opts.state ?? createRemoteToRemoteState()
+  let size = opts.size
+  if (size === undefined || size < 0) {
+    size = await statSizeWithRetry(srcSession, srcPath)
+  }
+  const openFn = (srcSession as any)?.open
+  // ── 无句柄读能力：退回整文件缓冲（小文件安全，downloadRemoteToBuffer 有 256MB 上限） ──
+  if (typeof openFn !== 'function') {
+    try {
+      const buf = await downloadRemoteToBuffer(srcSession, srcPath, size, opts.mode ?? 0o644)
+      const up = new BufferUpload(buf, opts.mode ?? 0o644, state, opts.onProgress)
+      await writeUploadSourceToRemote(dstSession, dstPath, up)
+      return !up.isCancelled() && !up.isPaused()
+    } catch (e) {
+      log.error(`[r2r] buffered fallback failed: ${srcPath} -> ${dstPath} :: ${errText(e)}`)
+      return false
+    }
+  }
+  let handle: any = null
+  try {
+    handle = await openFn.call(srcSession, srcPath, RUSSH_OPEN_READ)
+    const readFn = handle?.read ?? null
+    if (typeof readFn !== 'function') {
+      // 打开了却拿不到读方法：同样退回缓冲
+      const buf = await downloadRemoteToBuffer(srcSession, srcPath, size, opts.mode ?? 0o644)
+      const up = new BufferUpload(buf, opts.mode ?? 0o644, state, opts.onProgress)
+      await writeUploadSourceToRemote(dstSession, dstPath, up)
+      return !up.isCancelled() && !up.isPaused()
+    }
+    const up = new RemoteReadSource(handle, readFn, size, opts.mode ?? 0o644, state, opts.onProgress)
+    await writeUploadSourceToRemote(dstSession, dstPath, up)
+    return !up.isCancelled() && !up.isPaused()
+  } catch (e) {
+    log.error(`[r2r] transfer failed: ${srcPath} -> ${dstPath} :: ${errText(e)}`)
+    return false
+  } finally {
+    try { await handle?.close?.() } catch { /* ignore */ }
+  }
+}
+
+/**
+ * 递归目录：远程会话 → 远程会话。目标目录不存在时先 mkdir；逐条目分发到文件 / 子目录。
+ * 返回是否全部成功（任一子项失败即 false，但会继续传其余项）。
+ */
+export async function transferRemoteDirToRemote(
+  srcSession: SFTPSessionLike,
+  srcDir: string,
+  dstSession: SFTPSessionLike,
+  dstDir: string,
+  opts: {
+    state?: RemoteToRemoteState
+    onProgress?: (bytes: number) => void
+  } = {},
+): Promise<boolean> {
+  const readdirFn = (srcSession as any)?.readdir
+  if (typeof readdirFn !== 'function') {
+    log.error('[r2r] source session has no readdir, cannot transfer directory:', srcDir)
+    return false
+  }
+  // 确保目标目录存在（已存在 / 无权限时忽略，交后续子项报错）
+  try { await (dstSession as any).mkdir(dstDir) } catch { /* ignore */ }
+  let entries: any[] = []
+  try {
+    entries = (await readdirFn.call(srcSession, srcDir)) || []
+  } catch (e) {
+    log.error('[r2r] readdir failed:', srcDir, errText(e))
+    return false
+  }
+  let allOk = true
+  for (const e of entries) {
+    const name = e?.name
+    if (!name || name === '.' || name === '..') continue
+    const srcChild = path.posix.join(srcDir, name)
+    const dstChild = path.posix.join(dstDir, name)
+    if (e.isDirectory) {
+      const ok = await transferRemoteDirToRemote(srcSession, srcChild, dstSession, dstChild, opts)
+      if (!ok) allOk = false
+    } else {
+      const ok = await transferRemoteToRemoteFile(
+        srcSession, srcChild, dstSession, dstChild,
+        { size: e.size ?? -1, mode: e.mode ?? 0o644, state: opts.state, onProgress: opts.onProgress },
+      )
+      if (!ok) allOk = false
+    }
+  }
+  return allOk
 }
 

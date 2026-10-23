@@ -2,8 +2,12 @@
  * SFTP+ 传输日志对话框（从主面板抽离）
  * 创建人：DD1024z + Hy3 preview
  * 创建时间：2026-06-21
- * 修改人：DD1024z + Deepseek-V4.1-Flash
- * 修改时间：2026-09-26 — 传输方式标签（tag-tar/tag-sftp）作为**基准配色**保留，并补
+ * 修改人：DD1024z + Step-5-Preview
+ * 修改时间：2026-10-13 — P1 修复：补 Tab 焦点陷阱（overlay 加 #overlayRef/tabindex/
+ *              (keydown) 收口到 dialog-focus helper）——此前无任何键盘处理，Shift+Tab
+ *              可逃逸到背景控件，在模态背后触发暂停/取消传输的幽灵交互。Esc 由宿主
+ *              Esc 栈处理（showTransferLog 分支）。
+ *              2026-09-26 — 传输方式标签（tag-tar/tag-sftp）作为**基准配色**保留，并补
  *              font-weight:600 与「传输中」面板（sftp-transfer-queue）对齐为逐字一致的样式
  *              （原先同名字段两处两套色：此处 📦青 #26c6da，那边 📦绿 #22c55e）
  *              ★ 同日： 「清除」按钮在无「可清除记录」时禁用：新增 clearableCount 输入
@@ -15,9 +19,10 @@
  *              2026-09-20 — 传输方式标签增加 SFTP；与进度条统一展示
  *              2026-09-07 — issue #15+：渲染 skippedAsDuplicate 徽章，区分「真的下载/上传了」与「内容相同自动跳过」
  */
-import { Component, EventEmitter, Input, Output } from '@angular/core'
+import { Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, Output, SimpleChanges, ViewChild } from '@angular/core'
 
 import { SftpI18nService } from '../../services/sftp-i18n.service'
+import { handleOverlayKeydown } from './dialog-focus'
 import type { TransferLogEntry } from '../../services/sftp-transfer-log.service'
 import {
   formatDuration,
@@ -33,7 +38,7 @@ import { onFileDialogOverlayWheel, onFileDialogScrollableWheel } from './file-di
 @Component({
   selector: 'sftp-transfer-log-dialog',
   template: `
-    <div class="overlay" *ngIf="visible" (wheel)="onOverlayWheel($event)">
+    <div class="overlay" #overlayEl *ngIf="visible" tabindex="-1" (keydown)="onOverlayKeydown($event)" (wheel)="onOverlayWheel($event)">
       <div class="dialog log-dialog" (wheel)="onScrollableWheel($event)">
         <div class="dialog-title">
           <span>{{ i18n.t('transfer.log') }}</span>
@@ -46,6 +51,8 @@ import { onFileDialogOverlayWheel, onFileDialogScrollableWheel } from './file-di
             <option value="download">{{ i18n.t('transfer.download') }}</option>
             <option value="edit-upload">{{ i18n.t('transfer.edit-upload') }}</option>
             <option value="edit-download">{{ i18n.t('transfer.edit-download') }}</option>
+            <option value="remote-copy">{{ i18n.t('transfer.remote-copy') }}</option>
+            <option value="local-copy">{{ i18n.t('transfer.local-copy') }}</option>
           </select>
           <select [(ngModel)]="filterStatus" (ngModelChange)="filterStatusChange.emit($event)">
             <option value="">{{ i18n.t('filter.allStatus') }}</option>
@@ -86,7 +93,8 @@ import { onFileDialogOverlayWheel, onFileDialogScrollableWheel } from './file-di
                     [class.op-upload]="entry.operation === 'upload'"
                     [class.op-download]="entry.operation === 'download'"
                     [class.op-edit]="entry.operation === 'edit-upload' || entry.operation === 'edit-download'"
-                    [class.op-other]="entry.operation !== 'upload' && entry.operation !== 'download' && entry.operation !== 'edit-upload' && entry.operation !== 'edit-download'">
+                    [class.op-copy]="entry.operation === 'remote-copy' || entry.operation === 'local-copy'"
+                    [class.op-other]="entry.operation !== 'upload' && entry.operation !== 'download' && entry.operation !== 'edit-upload' && entry.operation !== 'edit-download' && entry.operation !== 'remote-copy' && entry.operation !== 'local-copy'">
                 {{ i18n.t('transfer.' + entry.operation) || entry.operation }}
               </span>
               <span class="log-filename" [title]="isUploadLike(entry) ? entry.localPath + ' → ' + entry.remotePath : entry.remotePath + ' → ' + entry.localPath">
@@ -115,17 +123,25 @@ import { onFileDialogOverlayWheel, onFileDialogScrollableWheel } from './file-di
               </span>
             </div>
             <div class="log-row-paths">
-              <ng-container *ngIf="isUploadLike(entry); else downloadPaths">
+              <!-- ★ issue #27：远程互传/本地复制——两端同类型，显式展示源/目标完整路径与两端主机标签 -->
+              <ng-container *ngIf="entry.operation === 'remote-copy' || entry.operation === 'local-copy'">
+                <span class="log-path-host" *ngIf="entry.srcHostLabel" [title]="entry.srcHostLabel">{{ entry.srcHostLabel }}</span>
+                <span class="log-path-line" [title]="entry.srcPath">{{ endpointIcon(entry) }} {{ entry.srcPath }}</span>
+                <span class="log-path-arrow" aria-hidden="true">→</span>
+                <span class="log-path-host" *ngIf="entry.dstHostLabel" [title]="entry.dstHostLabel">{{ entry.dstHostLabel }}</span>
+                <span class="log-path-line" [title]="entry.dstPath">{{ endpointIcon(entry) }} {{ entry.dstPath }}</span>
+              </ng-container>
+              <ng-container *ngIf="entry.operation !== 'remote-copy' && entry.operation !== 'local-copy' && isUploadLike(entry)">
                 <span class="log-path-line" [title]="entry.localPath">🖥 {{ entry.localPath }}</span>
                 <!-- ★ 2026-09-20：仅加粗加大 →，不加彩色标签底（用户反馈标签形态更难看） -->
                 <span class="log-path-arrow" aria-hidden="true">→</span>
                 <span class="log-path-line" [title]="entry.remotePath">🌐 {{ entry.remotePath }}</span>
               </ng-container>
-              <ng-template #downloadPaths>
+              <ng-container *ngIf="entry.operation !== 'remote-copy' && entry.operation !== 'local-copy' && !isUploadLike(entry)">
                 <span class="log-path-line" [title]="entry.remotePath">🌐 {{ entry.remotePath }}</span>
                 <span class="log-path-arrow" aria-hidden="true">→</span>
                 <span class="log-path-line" [title]="entry.localPath">🖥 {{ entry.localPath }}</span>
-              </ng-template>
+              </ng-container>
               <span class="log-time" *ngIf="entry.startTime">{{ formatLogTime(entry.timestamp) }}</span>
             </div>
           </div>
@@ -287,6 +303,7 @@ import { onFileDialogOverlayWheel, onFileDialogScrollableWheel } from './file-di
     .log-op-badge.op-download { background: rgba(33,150,243,0.15); color: #2196f3; }
     .log-op-badge.op-edit { background: rgba(156,39,176,0.15); color: #ab47bc; }
     .log-op-badge.op-other { background: rgba(158,158,158,0.15); color: #9e9e9e; }
+    .log-op-badge.op-copy { background: rgba(0,150,136,0.15); color: #009688; }
     .log-filename {
       flex: 1; min-width: 60px; font-size: 13px; font-weight: 500; color: var(--_text);
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -343,6 +360,14 @@ import { onFileDialogOverlayWheel, onFileDialogScrollableWheel } from './file-di
       opacity: 0.85;
       padding: 0 2px;
     }
+    /* ★ issue #27：远程互传/本地复制——源/目标端主机标签（如 user@host），区分「是哪个连接传的」 */
+    .log-path-host {
+      font-size: 10px; color: var(--_text); opacity: 0.6;
+      font-weight: 600; max-width: 160px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      padding: 0 4px; border: 1px solid var(--_border); border-radius: 3px;
+      flex-shrink: 0;
+    }
     .log-time {
       margin-left: auto; flex-shrink: 0;
       font-size: 10px; color: var(--_text); opacity: 0.3;
@@ -350,7 +375,35 @@ import { onFileDialogOverlayWheel, onFileDialogScrollableWheel } from './file-di
     }
   `],
 })
-export class SftpTransferLogDialogComponent {
+export class SftpTransferLogDialogComponent implements OnChanges, OnDestroy {
+  /** ★ 2026-10-13 P1 修复：焦点陷阱用——overlay 根元素 */
+  @ViewChild('overlayEl', { static: false }) overlayEl?: ElementRef<HTMLDivElement>
+
+  /** ★ 2026-10-13 P1 修复：打开时把焦点移入 overlay——焦点陷阱（Tab 循环）只在焦点位于
+   *  对话框内时生效；此前打开后焦点留在背后的文件列表，Tab 会操作背景控件（幽灵交互）。 */
+  private _focusTimer: ReturnType<typeof setTimeout> | null = null
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['visible']) {
+      if (this._focusTimer) { clearTimeout(this._focusTimer); this._focusTimer = null }
+      if (this.visible) {
+        this._focusTimer = setTimeout(() => {
+          this._focusTimer = null
+          this.overlayEl?.nativeElement?.focus()
+        })
+      }
+    }
+  }
+
+  ngOnDestroy(): void {
+    if (this._focusTimer) { clearTimeout(this._focusTimer); this._focusTimer = null }
+  }
+
+  /** ★ 2026-10-13 P1 修复：Tab/Shift+Tab 在对话框内循环，不逃逸到背景（幽灵交互）。
+   *   Esc 由宿主 Esc 栈处理（showTransferLog 分支）。 */
+  onOverlayKeydown(event: KeyboardEvent): void {
+    handleOverlayKeydown(event, this.overlayEl?.nativeElement)
+  }
   @Input() visible = false
   @Input() entries: TransferLogEntry[] = []
   @Input() totalCount = 0
@@ -398,6 +451,13 @@ export class SftpTransferLogDialogComponent {
     return isUploadLikeOperation(entry?.operation)
   }
 
+  /** ★ issue #27：远程互传/本地复制——两端同类型，按操作返回端点图标（🌐/🖥） */
+  endpointIcon(entry: TransferLogEntry): string {
+    if (entry.operation === 'local-copy') return '🖥'
+    if (entry.operation === 'remote-copy') return '🌐'
+    return ''
+  }
+
   @Input() i18n!: SftpI18nService
 
   get countLabel(): string {
@@ -419,7 +479,15 @@ export class SftpTransferLogDialogComponent {
   }
 
   trackById(_index: number, entry: TransferLogEntry): string | number {
-    // 回退 index：旧日志可能缺 id 字段，若多条 id 相同/为空，*ngFor 会把它们当同一节点折叠成 1 行
-    return entry.id ?? _index
+    // ★ 2026-10-09 审计根治：注释说「回退 index 防空 id」，但 `entry.id ?? _index` 的
+    //   `??` **只挡 null / undefined**，空字符串 '' 会直接穿过 —— 而 id 的类型声明是
+    //   string（非可选），编译器不会提醒 `??` 在这里是半吊子。
+    //   一旦日志里出现多条 id 为 '' 的条目，*ngFor 会把它们当成同一节点 → 多行折叠成 1 行
+    //   （用户看到「传了 20 个文件，传输记录只有 1 条」）。
+    //   根治：显式判空串与非字符串，与 index 一起兜底。
+    const id = entry?.id
+    if (typeof id === 'string' && id !== '') return id
+    if (typeof id === 'number' && Number.isFinite(id)) return id
+    return _index
   }
 }

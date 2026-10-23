@@ -2,8 +2,18 @@
  * 功能描述：SFTP+ transfer-types 逻辑聚合模块（由旧 core 多文件合并）
  * @创建人：DD1024z + Hy3
  * @创建时间：2026-07-16
- * @修改人：DD1024z + Deepseek-V4.1-Flash
- * @修改时间：2026-09-29 — ★ TarChannelPort 新增**可选**成员 tryUploadBatch?（多选批量上传：把一批
+ * @修改人：DD1024z + Step-5-Preview
+ * @修改时间：2026-10-19 — P2-9：FolderTransferPort.finish 新增可选 `reason`
+ *              （'cancelled' | 'interrupted' | 'error'）——目录传输此前只写 success:false，
+ *              日志里取消/中断/出错无法区分（failReason 恒空 ⇒ 只显示一个「失败」）。
+ *              可选尾参：老实现不传即沿用默认（'error'），TS 不报漏转发，已逐跳核对。
+ *              2026-10-13 — P1 修复：TransferExecutionPort.uploadRaw 新增可选 `onProgress`
+ *              尾参（本文件已上传字节）——与 downloadRaw 的 onProgress 完全对称。目录上传的
+ *              条目进度原先只在「一个文件传完」时上报一次，大文件上传期间整行（百分比/速度/
+ *              当前文件名/剩余时间）完全冻住，用户只能判断成「卡死了」（与 2026-09-26 修复
+ *              下载侧前的反馈完全同构）。⚠ 转发链 4 跳（port → coordinator.execution →
+ *              PanelHost → 面板 _doUploadRaw），可选尾参 TS 不报漏转发，已逐跳核对。
+ *              2026-09-29 — ★ TarChannelPort 新增**可选**成员 tryUploadBatch?（多选批量上传：把一批
  *              同目录条目打进**一个** tar 归档）。可选是刻意的——老产物/测试替身可能没有它；
  *              调用方必须按存在性判断后再调。语义与 tryUploadDir 有本质区别：批量是**叠加在逐项
  *              通道之上的优化层**，因此一切「不适用」都必须返回 'fallback'（由调用方继续逐文件），
@@ -129,7 +139,8 @@ export interface FolderTransferPort {
     /** ★ 2026-08-11：复用既有传输记录条目（冲突覆盖合并时不新建日志，避免重复记录） */
     reuseLogEntryId?: string,
   ): FolderTransferCtx
-  finish(ctx: FolderTransferCtx, success: boolean): void
+  /** ★ 2026-10-19 P2-9：`reason` 为失败原因分类（取消/中断/出错），供日志区分展示 */
+  finish(ctx: FolderTransferCtx, success: boolean, reason?: 'cancelled' | 'interrupted' | 'error'): void
   /**
    * ★ 2026-09-20：放弃已 start 的进度条目（不留失败日志），供 tar 可恢复失败后平滑回退逐文件
    */
@@ -164,7 +175,16 @@ export interface FolderTransferPort {
 export interface TransferExecutionPort {
   /** ★ 2026-08-10：返回是否传输完整成功，供用例层正确统计失败/守护剪切删源 */
   uploadTopLevel(remotePath: string, localPath: string): Promise<boolean>
-  uploadRaw(remotePath: string, localPath: string): Promise<boolean>
+  /**
+   * ★ 2026-10-13 P1 修复：新增可选 `onProgress`（本文件已上传字节，不含同目录其它文件）——
+   *   与 downloadRaw 的 onProgress 完全对称。此前目录上传的条目进度只在「一个文件传完」
+   *   时上报一次，大文件上传期间目录条目整行静止（百分比/速度/当前文件名/剩余时间一起
+   *   冻住），与 2026-09-26 修复下载侧前用户反馈的「似乎又完全不会动了」完全同构。
+   *
+   *   ⚠ 转发链有 4 跳（port → coordinator.execution → PanelHost → 面板 _doUploadRaw），
+   *     可选尾参 TS **不会**报「漏转发」，新增/改动时必须逐跳核对（本项目已踩坑 4 次）。
+   */
+  uploadRaw(remotePath: string, localPath: string, onProgress?: (bytes: number) => void): Promise<boolean>
   downloadTopLevel(remotePath: string, localPath: string, mode?: number, size?: number): Promise<boolean>
   /**
    * ★ 2026-09-26：新增可选 `onProgress`（**本文件**已落盘字节数，不含同目录其它文件）。
@@ -320,5 +340,44 @@ export function buildDownloadConflictInfo(
     // ★ 2026-09-18 issue #15+：两端摘要均可得但不相等 → 内容实际不同
     contentDiffers: bothAvailable && localDigest !== remoteDigest,
   }
+}
+
+/**
+ * 把任意异常压成单行可 grep 文本。
+ *
+ * Tabby 宿主写 log.txt 时只输出**第一个字符串参数**，`log.error('X', path, e)` 里的
+ * path 与 e 会被整体丢弃，导致失败完全无法定位。故详情必须内联进首参字符串。
+ *
+ * ★ 2026-10-09：从 transfer-adapters.ts 迁到本模块（工具层）并由前者转发，
+ *   让 conflict.ts 等能直接复用而不必反向依赖 adapters。
+ */
+export function errText(e: unknown): string {
+  const err = e as { code?: unknown; message?: unknown } | null | undefined
+  const code = err?.code != null ? String(err.code) : ''
+  const msg = err?.message != null ? String(err.message) : String(e)
+  return code ? `${code} ${msg}` : msg
+}
+
+/**
+ * 判断异常是否表示「路径不存在」。
+ *
+ * ★ 2026-10-09 新增。存在的意义：把「文件真的不在」与「stat 失败」区分开。
+ *   此前 conflict.ts 的 checkLocalConflict 用无差别空 catch（注释写「文件不存在」），
+ *   把 EACCES / EBUSY（Windows 独占锁定）/ EMFILE / ELOOP 一并当「不存在」
+ *   ⇒ 返回 no-conflict ⇒ 上游强行覆盖下载 ⇒ 静默丢数据。
+ *
+ * 判定口径：
+ *   - ENOENT  = 某一级路径分量不存在
+ *   - ENOTDIR = 路径分量中存在非目录（例如把文件当目录 stat）
+ *   - 文本兜底只在**明确**提到不存在时才认；不用 /not exist/i 这类宽泛匹配
+ *     （那是 transfer-coordinator 判死通道的既有宽松口径，
+ *      在「判通道是否可用」场景可接受，在「判文件是否存在」场景会误判）
+ */
+export function isNotFoundError(e: unknown): boolean {
+  const err = e as { code?: unknown; message?: unknown } | null | undefined
+  const code = err?.code != null ? String(err.code).toUpperCase() : ''
+  if (code === 'ENOENT' || code === 'ENOTDIR') return true
+  const msg = err?.message != null ? String(err.message) : ''
+  return /no such file or directory|not found\b|does not exist/i.test(msg)
 }
 

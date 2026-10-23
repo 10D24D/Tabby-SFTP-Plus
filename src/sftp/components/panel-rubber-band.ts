@@ -1,9 +1,13 @@
 ﻿/**
  * 框选（Rubber Band Selection）逻辑
- * @修改人：DD1024z + Hy3
- * @修改时间：2026-09-29 — 修复分组模式框选错行：原按「DOM 行序 ↔ 过滤列表序」位置对位，
- *          分组开启后两序不一致（框住下方行、上方行被选中）→ 全链路改为 data-path 路径映射
- *          （几何缓存 / Ctrl 追加基线 / 选中模型同步 / 右键框选菜单命中）
+ * @修改人：DD1024z + Hy4 preview
+ * @修改时间：2026-10-20 — P2-12：框选的 Ctrl 追加态改为**持续采样**（mousedown / 拖拽中每次
+ *              2026-10-20 全量审计：右键框选的菜单抑制定时器由匿名改为 _rbSkipContextMenuTimer，
+ *                重排前清旧句柄、dispose 一并清理。
+ *               mousemove / mouseup 各刷一次），并在 _rbActivate 里把「框选前选中集」快照提前到
+ *               清空选中**之前**拍 —— 原实现只在激活瞬间采样一次，拖拽中途按下 Ctrl 想追加、或
+ *               中途松开 Ctrl 想改成替换，都不生效（界面高亮与实际语义相反）。
+ *               续四：rl 右键菜单对齐左右栏（反馈③）：框选 'remote' 侧路由归 rl（_rbOnMouseUp 计算 visualPane='rl' + _rbOpenContextMenuAfterBoxSelect 去 rl 早退、改接受 'rl' 路由到 _rightPane 数据槽）。含 2026-10-18 rl 接入框选（'remote' 数据槽按端点类型路由、新增 RubberBandHost 右栏端点路由接口）与 2026-09-29 分组模式框选错行修复（DOM 行序↔过滤列表序改为 data-path 路径映射）。续五：分组头（.group-row）允许起手框选（此前长按/拖拽完全无响应），纯点击仍走分组头 click；框选结束落在分组头上时一次性抑制分组头 click 保护框选结果。
  */
 import { ChangeDetectorRef, ElementRef, NgZone } from '@angular/core'
 import type { LocalEntry } from '../core/panel-types'
@@ -33,11 +37,20 @@ export interface RubberBandHost {
   fixContextMenuPosition(x: number, y: number): void
   contextMenuX: number
   contextMenuY: number
-  contextMenuPane: 'local' | 'remote'
+  contextMenuPane: 'local' | 'remote' | 'rl'
   contextMenuEntry: LocalEntry | SFTPFile | null
   contextMenuVisible: boolean
   headerMenuVisible: boolean
-  syncPaneSelectionVisual(pane: 'local' | 'remote'): void
+  syncPaneSelectionVisual(pane: 'local' | 'remote' | 'rl'): void
+  // ★ 2026-10-18 issue #27：右栏端点路由 —— 右栏为本地浏览器（rl）时，'remote' 侧数据槽
+  //   切换到 _rlSelected/getFilteredRlEntries（远程会话槽仍保留供快速切回，不可再直写）。
+  //   DOM 侧不变：rl 面板复用 listClass="remote-pane"，与远程面板互斥渲染。
+  rightPaneIsLocalBrowser(): boolean
+  getRightPaneSelection(): SFTPFile[] | LocalEntry[]
+  setRightPaneSelection(items: SFTPFile[] | LocalEntry[]): void
+  getRightPaneLastSelectedIndex(): number | null
+  setRightPaneLastSelectedIndex(v: number | null): void
+  getRightPaneFilteredEntries(): SFTPFile[] | LocalEntry[]
 }
 
 export class PanelRubberBand {
@@ -60,6 +73,12 @@ export class PanelRubberBand {
   /** 仅抑制框选 mouseup 落在该行时紧随其后的那一次 click */
   private _rbSuppressClickPath: string | null = null
   private _rbSuppressClickTimer: ReturnType<typeof setTimeout> | null = null
+  /** ★ 2026-10-20：右键框选后「抑制下一次右键菜单」定时器（原先匿名、dispose 无法取消） */
+  private _rbSkipContextMenuTimer: ReturnType<typeof setTimeout> | null = null
+  /** ★ 2026-10-19：框选 mouseup 落在分组头上时，抑制紧随其后的一次分组头 click
+   *  （否则框选出的选中集立刻被「整组选中⇄取消」切换覆盖） */
+  private _rbSuppressGroupHeaderClick = false
+  private _rbSuppressGroupHeaderTimer: ReturnType<typeof setTimeout> | null = null
   private _rbSuppressDrag = false
   private _rbDragCancelled = false
   private _rbIsLeftClick = false
@@ -79,7 +98,7 @@ export class PanelRubberBand {
   private _rbCtrlHeld = false
   private _rbRightClick = false
   private _rbCachedLocalEntries: LocalEntry[] | null = null
-  private _rbCachedRemoteEntries: SFTPFile[] | null = null
+  private _rbCachedRemoteEntries: Array<SFTPFile | LocalEntry> | null = null
   private _rbPathToIndex = new Map<string, number>()
   private _rbInitialSelectedIndices: Set<number> | null = null
   private _rbLiveSelectedIndices = new Set<number>()
@@ -96,6 +115,24 @@ export class PanelRubberBand {
     if (this._rbSuppressClickPath !== fullPath) return false
     this.clearClickSuppress()
     return true
+  }
+
+  /** ★ 2026-10-19：一次性消费分组头 click 抑制（框选结束落在分组头上时布防）。
+   *  有副作用守卫：命中即解除，调用点每条交互链只允许一处（与 shouldSuppressEntryClick 同规）。 */
+  shouldSuppressGroupHeaderClick(): boolean {
+    if (!this._rbSuppressGroupHeaderClick) return false
+    this._rbSuppressGroupHeaderClick = false
+    if (this._rbSuppressGroupHeaderTimer) {
+      clearTimeout(this._rbSuppressGroupHeaderTimer)
+      this._rbSuppressGroupHeaderTimer = null
+    }
+    return true
+  }
+
+  private _armGroupHeaderClickSuppress(): void {
+    this._rbSuppressGroupHeaderClick = true
+    if (this._rbSuppressGroupHeaderTimer) clearTimeout(this._rbSuppressGroupHeaderTimer)
+    this._rbSuppressGroupHeaderTimer = setTimeout(() => { this._rbSuppressGroupHeaderClick = false }, 400)
   }
 
   clearClickSuppress(): void {
@@ -126,6 +163,18 @@ export class PanelRubberBand {
       clearTimeout(this._rbContextMenuSuppressTimer)
       this._rbContextMenuSuppressTimer = null
     }
+    // ★ 2026-10-19：分组头 click 抑制定时器同样随 dispose 清理
+    if (this._rbSuppressGroupHeaderTimer) {
+      clearTimeout(this._rbSuppressGroupHeaderTimer)
+      this._rbSuppressGroupHeaderTimer = null
+    }
+    this._rbSuppressGroupHeaderClick = false
+    // ★ 2026-10-20：右键框选抑制定时器同样随 dispose 清理
+    if (this._rbSkipContextMenuTimer) {
+      clearTimeout(this._rbSkipContextMenuTimer)
+      this._rbSkipContextMenuTimer = null
+    }
+    this._rbSkipNextContextMenu = false
   }
 
   cleanup(): void { this._rbCleanup() }
@@ -134,9 +183,10 @@ export class PanelRubberBand {
     // 只有点中空白区域（非 .entry 元素）才处理
     const target = event.target as HTMLElement | null
     if (target && target.closest('.entry')) return
-    if (pane === 'local' && this.host.selectedRemote.length > 0) {
-      this.host.selectedRemote = []
-    } else if (pane === 'remote' && this.host.selectedLocal.length > 0) {
+    if (pane === 'local') {
+      // ★ 2026-10-18：对侧 = 右栏端点槽（右栏为本地浏览器时是 _rlSelected，见接口注释）
+      if (this.host.getRightPaneSelection().length > 0) this.host.setRightPaneSelection([])
+    } else if (this.host.selectedLocal.length > 0) {
       this.host.selectedLocal = []
     }
   }
@@ -146,11 +196,15 @@ export class PanelRubberBand {
     if (event.button !== 0 && event.button !== 2) return
     const target = event.target as HTMLElement
 
-    // 表头区域不触发框选
-    if (target.closest('.entry.header')) return
+    // 列表头（排序列）不触发框选；分组头行（.group-row）允许起手框选
+    // ★ 2026-10-19：分组头此前与列表头一同被排除 → 长按/拖拽完全无响应（既不框选，
+    //   松手时鼠标已不在原元素上连 click 也不触发）。现允许从分组头起手框选；
+    //   纯点击/长按不动仍走分组头自身 click（整组选中⇄取消）。
+    if (target.closest('.entry.header:not(.group-row)')) return
 
-    // 记录是否点击在 entry 上（非 header）
-    this.rubberBand.startedOnEntry = !!target.closest('.entry:not(.header)')
+    // 记录是否点击在 entry 上（非 header）；分组头视同「自管点击区域」：
+    // startedOnEntry 置真，避免松手时被当作「空白点击」误清本面板选中
+    this.rubberBand.startedOnEntry = !!target.closest('.entry:not(.header), .entry.header.group-row')
 
     // 已选中条目上按下左键：优先交给原生拖拽（移动/复制），不进入框选
     // 这样不会与多选拖拽冲突
@@ -244,8 +298,13 @@ export class PanelRubberBand {
     const dx = rb.currentX - rb.startX
     const dy = rb.currentY - rb.startY
 
+    // ★ 2026-10-19 P2-12：Ctrl 追加态**每帧按当前修饰键刷新**。
+    //   原实现只在 mousedown（:228）与激活瞬间（原 :288）采样一次 ⇒ 拖拽中途按下 Ctrl
+    //   （想在已有选中上追加）或中途松开 Ctrl（想改成替换）都不生效，界面与实际语义相反。
+    //   基线快照已在 _rbActivate 清空选中之前拍好，故中途转追加也能拿回原选中集。
+    this._rbCtrlHeld = event.ctrlKey || event.metaKey
+
     if (!rb.active && (Math.abs(dx) > 3 || Math.abs(dy) > 3)) {
-      this._rbCtrlHeld = event.ctrlKey || event.metaKey
       this._rbClearOppositePane()
       this._rbActivate()
       this._rbMoved = true
@@ -279,6 +338,9 @@ export class PanelRubberBand {
     const wasClickOnBlank = !this._rbMoved && !this.rubberBand.startedOnEntry
     const pane = this.rubberBand.pane
     const button = event.button
+    // ★ 2026-10-19 P2-12：松手瞬间再采样一次 Ctrl —— 用户可能「按住鼠标不动、只按/松 Ctrl」，
+    //   期间没有 mousemove 事件，若不看这里，最终落地的选中集仍按旧状态算。
+    if (this._rbMoved) this._rbCtrlHeld = event.ctrlKey || event.metaKey
 
     // 清理长按计时器
     if (this._rbLongPressTimer) {
@@ -290,14 +352,28 @@ export class PanelRubberBand {
 
     const applied = this._rbMoved && this.rubberBand.active
     const wasRightBoxSelect = applied && this._rbRightClick
-    let rbMenuHitIndex: number | null = null
+    // ★ 2026-10-09：右键框选命中的**路径**（在 _rbCleanup 清空 _rbElPaths 之前抓取）。
+    //   这是右键框选菜单能拿到文件上下文的唯一可靠来源 —— DOM 序号在 cleanup 后已无映射可查
+    //   （原先只留 hitIndex、稍后再反查路径，因 cleanup 先执行而必然查空，菜单恒退化为空白区菜单）。
+    let rbMenuHitPath: string | null = null
     const rbMenuX = event.clientX
     const rbMenuY = event.clientY
 
     if (wasRightBoxSelect) {
       const hit = document.elementFromPoint(event.clientX, event.clientY) as HTMLElement | null
       const row = hit?.closest('.entry:not(.header):not(.up-entry):not(.dim)') as HTMLElement | null
-      if (row) rbMenuHitIndex = this._rbEntryEls.indexOf(row)
+      // ★ 2026-10-09 审计根治（右键框选菜单 100% 失效）：
+      //   原实现只把 DOM 序号（hitIndex）传给 _rbOpenContextMenuAfterBoxSelect，
+      //   由那个方法在**稍后**去读 this._rbElPaths[hitIndex] 反查路径。
+      //   但下方 _rbCleanup() 会 `this._rbElPaths = []`，
+      //   而调用发生在 zone.run 的**同步**回调里（zone.run 本身是同步的），
+      //   ⇒ 必然读到已清空的数组 ⇒ hitPath 为 undefined ⇒ entry 为 null
+      //   ⇒ 走 `contextMenuEntry = null` 分支 ⇒ 弹出**空白区菜单**，
+      //     右键框选出的文件全部没有复制/删除/上传等操作（100% 复现，非边界）。
+      //   根治：**在 cleanup 之前**就把 data-path 取出来（DOM 上此刻还在），
+      //   后续按路径查条目 —— 与本类其余交互统一走 data-path（铁律：
+      //   「分组视图显示序 ≠ 排序序，交互禁止用数组下标对位」）。
+      if (row) rbMenuHitPath = row.getAttribute('data-path')
       this.host.closeContextMenu()
     } else if (applied) {
       // 左键框选结束：抑制紧随其后的误触 contextmenu
@@ -314,11 +390,18 @@ export class PanelRubberBand {
       this._rbApplySelectionFromRect()
     }
     const menuPane = pane
+    // ★ 2026-10-19 反馈③：rl（右栏本地端点）复用 'remote' 框选侧；当右栏为本地浏览器时把
+    //   框选结果归到 rl 视觉/菜单，避免对真正的 remote-pane（如左栏远程）串色或误弹菜单。
+    const safePane: 'local' | 'remote' = menuPane === '' ? 'remote' : menuPane
+    const visualPane: 'local' | 'remote' | 'rl' =
+      safePane === 'remote' && this.host.rightPaneIsLocalBrowser() ? 'rl' : safePane
     let suppressClickPath: string | null = null
     if (applied && button === 0) {
       const hit = document.elementFromPoint(event.clientX, event.clientY) as HTMLElement | null
       const row = hit?.closest('.entry:not(.header):not(.up-entry):not(.dim)') as HTMLElement | null
       suppressClickPath = row?.getAttribute('data-path') ?? null
+      // ★ 2026-10-19：框选结束落点在分组头上 → 抑制紧随的分组头 click，保护框选结果
+      if (!row && hit?.closest('.entry.header.group-row')) this._armGroupHeaderClickSuppress()
     }
     this._rbCleanup()
     if (suppressClickPath) {
@@ -329,11 +412,18 @@ export class PanelRubberBand {
     if (applied) {
       this.host.zone.run(() => {
         try { this.host.cdr.detectChanges() } catch {}
-        this.host.syncPaneSelectionVisual(menuPane as 'local' | 'remote')
+        this.host.syncPaneSelectionVisual(visualPane)
         if (wasRightBoxSelect) {
           this._rbSkipNextContextMenu = true
-          setTimeout(() => { this._rbSkipNextContextMenu = false }, 400)
-          this._rbOpenContextMenuAfterBoxSelect(rbMenuX, rbMenuY, menuPane as 'local' | 'remote', rbMenuHitIndex)
+          // ★ 2026-10-20 全量审计：原为匿名 setTimeout（无句柄）。同一布尔量被多个无身份
+          //   定时器竞争写入：400ms 内发起第二次右键框选时，**第一次**的定时器到点会把
+          //   第二次刚置的抑制状态提前清掉 ⇒ 框选后右键菜单直接弹出、覆盖框选结果。
+          if (this._rbSkipContextMenuTimer) clearTimeout(this._rbSkipContextMenuTimer)
+          this._rbSkipContextMenuTimer = setTimeout(() => {
+            this._rbSkipNextContextMenu = false
+            this._rbSkipContextMenuTimer = null
+          }, 400)
+          this._rbOpenContextMenuAfterBoxSelect(rbMenuX, rbMenuY, visualPane, rbMenuHitPath)
         }
       })
     }
@@ -345,8 +435,9 @@ export class PanelRubberBand {
           this.host.selectedLocal = []
           this.host.localLastSelectedIndex = null
         } else {
-          this.host.selectedRemote = []
-          this.host.remoteLastSelectedIndex = null
+          // ★ 2026-10-18：右栏端点槽路由（rl 时清 _rlSelected/_rlLastSelectedIndex）
+          this.host.setRightPaneSelection([])
+          this.host.setRightPaneLastSelectedIndex(null)
         }
         try { this.host.cdr.detectChanges() } catch {}
       })
@@ -422,7 +513,8 @@ export class PanelRubberBand {
       this._rbCachedLocalEntries = this.host.getFilteredLocalEntries()
       this._rbCachedRemoteEntries = null
     } else {
-      this._rbCachedRemoteEntries = this.host.getFilteredRemoteEntries()
+      // ★ 2026-10-18：右栏端点槽路由（rl 时缓存 getFilteredRlEntries）
+      this._rbCachedRemoteEntries = this.host.getRightPaneFilteredEntries()
       this._rbCachedLocalEntries = null
     }
   }
@@ -433,8 +525,9 @@ export class PanelRubberBand {
       this.host.selectedLocal = []
       this.host.localLastSelectedIndex = null
     } else {
-      this.host.selectedRemote = []
-      this.host.remoteLastSelectedIndex = null
+      // ★ 2026-10-18：右栏端点槽路由（rl 时清 _rlSelected）
+      this.host.setRightPaneSelection([])
+      this.host.setRightPaneLastSelectedIndex(null)
     }
     const listEl = this._rbPaneListEl
     if (listEl) {
@@ -454,6 +547,17 @@ export class PanelRubberBand {
     s.pointerEvents = 'none'
     s.zIndex = '100'
     s.borderRadius = '2px'
+  }
+
+  /** 快照「框选开始前」的选中集（追加模式的基线；★ 2026-10-18：remote 侧经端点槽路由，rl 时取 _rlSelected） */
+  private _rbSnapshotInitialSelection(): void {
+    const pane = this.rubberBand.pane
+    const selected = pane === 'local' ? this.host.selectedLocal : this.host.getRightPaneSelection()
+    this._rbInitialSelectedIndices = new Set<number>()
+    for (const e of selected) {
+      const idx = this._rbPathToIndex.get(e.fullPath)
+      if (idx !== undefined) this._rbInitialSelectedIndices.add(idx)
+    }
   }
 
   /** 激活框选：创建框选矩形 DOM */
@@ -484,17 +588,14 @@ export class PanelRubberBand {
     }
 
     const rb = this.rubberBand
+    // ★ 2026-10-19 P2-12：快照必须在**清空选中之前**拍。
+    //   原实现先按 merge 清选中、再拍快照 ⇒ 没有 Ctrl 起手时快照恒为空；而 Ctrl 是可以在
+    //   拖拽**中途**才按下的，那时再想追加就得有「框选前的选中集」作基线。
+    this._rbSnapshotInitialSelection()
     const merge = this._rbCtrlHeld
     // 空白区域框选：仅 Ctrl 为追加，左键/右键均为替换
     if (!merge) {
       this._rbClearPaneSelectionVisual(rb.pane as 'local' | 'remote')
-    }
-    // 快照追加模式的初始选中
-    const selected = rb.pane === 'local' ? this.host.selectedLocal : this.host.selectedRemote
-    this._rbInitialSelectedIndices = new Set<number>()
-    for (const e of selected) {
-      const idx = this._rbPathToIndex.get(e.fullPath)
-      if (idx !== undefined) this._rbInitialSelectedIndices.add(idx)
     }
     this._rbLiveSelectedIndices = merge
       ? new Set(this._rbInitialSelectedIndices)
@@ -506,23 +607,36 @@ export class PanelRubberBand {
   }
 
   /** 右键框选结束后弹出菜单（保留框选结果，不清空选中） */
+  /**
+   * 右键框选结束后打开上下文菜单。
+   *
+   * ★ 2026-10-09 审计根治：hitIndex 改为 hitPath。
+   *   原实现收「DOM 行序号」，内部再 `this._rbElPaths[hitIndex]` 反查路径 —— 而调用方
+   *   在同一轮里已经执行过 _rbCleanup()（它会 `this._rbElPaths = []`），
+   *   且 zone.run 是**同步**的 ⇒ 读到的必然是空数组 ⇒ hitPath undefined ⇒ entry null
+   *   ⇒ 永远走「空白区菜单」分支 ⇒ 右键框选出的文件没有任何文件级操作（100% 复现）。
+   *   根治：调用方在 cleanup **之前**就把 data-path 取好传进来，本方法只做
+   *   「按路径到当前过滤列表里找条目」—— 与本类其余交互一致走 data-path 而非下标
+   *   （铁律：分组视图显示序 ≠ 排序序，交互禁止用数组下标对位）。
+   */
   private _rbOpenContextMenuAfterBoxSelect(
-    x: number, y: number, pane: 'local' | 'remote', hitIndex: number | null,
+    x: number, y: number, pane: 'local' | 'remote' | 'rl', hitPath: string | null,
   ): void {
+    // ★ 2026-10-19 反馈③：rl（右栏本地端点）已接入 entryContextMenu/listContextMenu，
+    //   框选后右键菜单与普通右键一致（动作按 contextMenuPane==='rl' 路由到本地 fs）。
+    const isLocalData = pane !== 'remote'
     this.host.closeBookmarks()
     this.host.headerMenuVisible = false
     this.host.contextMenuX = x
     this.host.contextMenuY = y
     this.host.contextMenuPane = pane
 
-    // ★ 2026-09-29：hitIndex 是 DOM 行序号，经 _rbElPaths 转路径后在过滤列表里按路径找条目
-    if (hitIndex != null && hitIndex >= 0) {
-      const hitPath = this._rbElPaths[hitIndex]
-      const entry = hitPath
+    if (hitPath) {
+      const entry = isLocalData
         ? (pane === 'local'
             ? this.host.getFilteredLocalEntries().find(e => e.fullPath === hitPath)
-            : this.host.getFilteredRemoteEntries().find(e => e.fullPath === hitPath))
-        : null
+            : this.host.getRightPaneFilteredEntries().find(e => (e as LocalEntry | SFTPFile).fullPath === hitPath))
+        : this.host.getFilteredRemoteEntries().find(e => e.fullPath === hitPath)
       if (entry) {
         this.host.contextMenuEntry = entry
         this.host.contextMenuVisible = true
@@ -598,11 +712,12 @@ export class PanelRubberBand {
         .map(p => (p ? byPath.get(p) : null))
         .filter(Boolean) as LocalEntry[]
     } else if (rb.pane === 'remote' && this._rbCachedRemoteEntries) {
-      const byPath = new Map(this.host.getFilteredRemoteEntries().map(e => [e.fullPath, e]))
-      this.host.selectedRemote = sorted
+      // ★ 2026-10-18：右栏端点槽路由（rl 时写 _rlSelected 并同步路径集）
+      const byPath = new Map(this.host.getRightPaneFilteredEntries().map((e): [string, SFTPFile | LocalEntry] => [e.fullPath, e]))
+      this.host.setRightPaneSelection(sorted
         .map(i => this._rbElPaths[i])
         .map(p => (p ? byPath.get(p) : null))
-        .filter(Boolean) as SFTPFile[]
+        .filter(Boolean) as Array<SFTPFile | LocalEntry>)
     }
   }
 
@@ -685,10 +800,13 @@ export class PanelRubberBand {
 
   /** 框选激活时清除对侧面板的选中（仅允许单侧选中，在框选开始即刻执行） */
   private _rbClearOppositePane(): void {
-    if (this.rubberBand.pane === 'local' && this.host.selectedRemote.length > 0) {
-      this.host.selectedRemote = []
-      this.host.remoteLastSelectedIndex = null
-    } else if (this.rubberBand.pane === 'remote' && this.host.selectedLocal.length > 0) {
+    if (this.rubberBand.pane === 'local') {
+      // ★ 2026-10-18：对侧 = 右栏端点槽（rl 时是 _rlSelected）
+      if (this.host.getRightPaneSelection().length > 0) {
+        this.host.setRightPaneSelection([])
+        this.host.setRightPaneLastSelectedIndex(null)
+      }
+    } else if (this.host.selectedLocal.length > 0) {
       this.host.selectedLocal = []
       this.host.localLastSelectedIndex = null
     }
