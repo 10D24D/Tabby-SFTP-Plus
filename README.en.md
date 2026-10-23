@@ -6,7 +6,7 @@
 [![Stars](https://img.shields.io/github/stars/10D24D/Tabby-SFTP-Plus?style=for-the-badge&label=Stars&color=orange)](https://github.com/10D24D/Tabby-SFTP-Plus/stargazers)
 [![License](https://img.shields.io/github/license/10D24D/Tabby-SFTP-Plus?style=for-the-badge&label=License&color=green)](https://github.com/10D24D/Tabby-SFTP-Plus)
 
-SFTP+ is a plugin for [Tabby Terminal](https://tabby.sh/) that adds a **dual-pane SFTP file manager** right inside your SSH terminal tabs. Features include **drag-and-drop transfers**, **bookmark system**, **path memory**, transfer logs, file conflict handling, permission editing, and more — all without leaving the terminal.
+SFTP+ is a plugin for [Tabby Terminal](https://tabby.sh/) that adds a **dual-pane SFTP file manager** right inside your SSH terminal tabs. Each pane can host the **local disk** or **any remote connection**, giving local↔remote, local↔local, remote↔remote and remote↔local setups. Features include **drag-and-drop transfers**, **bookmark system**, **path memory**, transfer logs, file conflict handling, permission editing, and more — all without leaving the terminal.
 
 ---
 
@@ -14,20 +14,21 @@ SFTP+ is a plugin for [Tabby Terminal](https://tabby.sh/) that adds a **dual-pan
 
 | Category | Description |
 |----------|-------------|
-| **📂 Dual-Pane Manager** | Local (left) + Remote (right); horizontal / vertical / adaptive / single-pane layouts; draggable splitter, double-click to reset |
+| **📂 Dual-Pane Manager** | Each pane can host the **local disk** or **any remote connection** (local↔remote / local↔local / remote↔remote / remote↔local); horizontal / vertical / adaptive / single-pane layouts; draggable splitter, double-click to reset |
+| **🔗 Connection Management** | The **connection picker** in the title bar switches either pane's endpoint in place: it lists open SSH tabs and unopened configured connections, each with a disconnect action (without affecting the panel's own tab) and a "current / other pane / not opened" marker; open it from the connection title or the pane's endpoint badge; the title-bar connection name toggles between "user@host" and the **alias** (falls back to user@host when no alias); reconnect happens in-place and in the background within the existing tab — no focus steal, the list shows "Waiting for <connection>" while disconnected, and returns to the last directory on recovery |
 | **👁️ View / Edit** | Built-in text/image viewer and text editor (local + remote); extra editable extensions or allow-all-types (binaries still protected); image navigation (prev/next in same directory); copy / copy selection; text context menus for copy, cut, paste, and select-all; view-as-text; open or edit in the system default app; **virtualized line rendering** for large text (big logs scroll smoothly), **toggleable line numbers**, three viewer caret shapes (block / beam / underline, matching Tabby's terminal values); saving over a remote file changed by another program asks for confirmation first |
 | **🎨 File Icons** | Built-in colored SVG file/folder icons; overlay badge for symlinks / shortcuts; customize extension mappings, icon directory, disabled built-in icons, and folder icon |
 | **🔄 Drag & Drop** | Drag across panes to upload/download; recursive folder transfer; drag from OS Explorer/Desktop into either pane |
-| **⬆️ Context Transfer** | Right-click upload on local pane, download on remote pane (multi-select batch) |
+| **⬆️ Context Transfer** | Upload or download decided by the actual endpoints; a direct "transfer" when both panes are the same kind (multi-select batch) |
 | **⚡ High-Speed Transfer** | Intra-directory file-level parallelism (1-10 concurrent, adjustable); tar channel for massive small-file directories (pack → single-file transfer → unpack), greatly reducing round trips; **five selectable channel modes** (Smart / SFTP only / TAR only / Prefer SFTP / Prefer TAR); **multi-selecting entries under one parent directory can pack them into a single archive**; batch delete via SSH `rm -rf` / `fs.rm(recursive)` |
-| **🔖 Bookmark System** | Global bookmarks (visible across all connections) + connection bookmarks (per SSH session); group by scope or flatten and mix, with draggable group order; one click to **locate the bookmark for the current path** |
+| **🔖 Bookmark System** | **Global** bookmarks (visible in any tab) + **scoped** bookmarks (visible only in tabs of the same connection — local tabs included); group by scope or flatten and mix, with draggable group order; sort by **drag order / usage / name**; one click to **locate the bookmark for the current path**; the popup is resizable (double-click a handle to reset) and can be **pinned open** (stays put — clicks elsewhere won't close it / close on select, both panes can keep their popup open at once, and it re-anchors to its own pane on resize at the size you dragged), and a bookmark can carry a **linked path** that moves the other pane along |
 | **📋 Transfer Log** | Full operation history including **Edit Load** / **Edit Save** types; filtering, stats, JSON export |
 | **⚡ Transfer Control** | Progress bars (with percentage), pause/resume/cancel, resume support, real-time speed, **estimated time remaining**; outside TAR-only mode the tar channel falls back to the regular file-by-file transfer on failure; the transfer log tags transfers (⇄ SFTP / 📦 tar packing / file count); **a missing target directory is pre-flighted** (create / use current directory / cancel); submitting the same transfer twice is intercepted with a notice |
-| **⚠️ File Conflict** | Visual diff on conflict (shows upload⬆/download⬇ direction), with overwrite/skip/rename options and batch processing; merge-overwrite has its own progress panel; content digests can be shown in the dialog, identical files can auto-skip, and differing digests are marked ≠ |
+| **⚠️ File Conflict** | Visual diff on conflict (shows upload⬆/download⬇ direction), with overwrite/skip/rename options (**rename numbers duplicates by default**, or use timestamps / random suffixes) and batch processing; merge-overwrite has its own progress panel; content digests can be shown in the dialog, identical files can auto-skip, and differing digests are marked ≠ |
 | **🔐 Permission Editor** | Remote chmod via 3×3 checkbox matrix with octal preview; unreadable permissions and failed changes are now reported instead of failing silently |
 | **📌 Context Menus** | Upload/download, view/edit, new/rename/delete, copy/cut/paste, refresh, select all/invert; text viewer/editor context menus; <br />Header: column visibility, fit widths, borders & zebra stripes; menu items can also be disabled, not just reordered |
-| **🔍 Filter & Sort** | Keyword filter, multi-column sorting (click headers), configurable visible columns; **Group by** (None / Name / Date modified / Type / Size) splits the list into collapsible groups with expand-all / collapse-all, ↑/↓ stops on group headers and clicking a header selects the whole group; with focus on a file list, type a name prefix to jump to the match (Explorer-style; IME such as Chinese is supported) |
-| **🧭 Path Mode** | Three modes: `off` / `remember` / `sync` (sync with terminal); configurable default |
+| **🔍 Filter & Sort** | Keyword filter, multi-column sorting (click headers), configurable visible columns; **Group** (None / Name / Date modified / Type / Size) splits the list into collapsible groups with expand-all / collapse-all, ↑/↓ stops on group headers and clicking a header selects the whole group; with focus on a file list, type a name prefix to jump to the match (Explorer-style; IME such as Chinese is supported); an absolute path typed into the address bar navigates there and highlights a trailing file |
+| **🧭 Path Mode** | Four modes: `off` / `remember` / `sync` (sync with terminal) / `mirror` (both panes locked to one directory, available when both are local or both remote); configurable default |
 | **🎨 Theme System** | 7 presets + custom colors, supports following the Tabby system theme |
 | **⌨️ Panel Hotkey** | Customizable panel toggle hotkey with record/clear/conflict detection; panel actions (delete/rename/refresh/go up/back/forward), open/view/edit and common context-menu actions support **multiple key bindings**, and can be bound to mouse side buttons (Mouse3/Mouse4), the **mouse middle button and wheel up/down** (optionally with Ctrl/Alt/Shift/Win), plus an occupied-hotkey reference list |
 | **🌐 Internationalization** | 24 locales (zh/en complete; other languages fall back to English for missing keys); auto-detects Tabby/browser language |
@@ -40,19 +41,6 @@ SFTP+ is a plugin for [Tabby Terminal](https://tabby.sh/) that adds a **dual-pan
 
 | ![SFTP+ Panel](assets/SFTP-Plus_UI_Panel.png) | ![SFTP+ Settings](assets/SFTP-Plus_UI_Config.png) |
 | :------------------------------------------: | :---------------------------------------------: |
-
-### Interface Zones
-
-| Zone | Description |
-|------|-------------|
-| **Title Bar** | Plugin name, current SSH connection info, layout toggle, transfer log entry, minimize/close |
-| **Left / Right Panes** | Independent browsing with path input, navigation buttons, bookmarks, and filtering |
-| **File List** | Displays files and directories; multi-column sort, draggable column widths, reorderable columns |
-| **Bottom Action Bar** | Shows selection count & total size |
-| **Transfer Queue** | Real-time upload/download progress, speed, ETA; supports pause/resume/cancel |
-| **Bookmark Popup** | Optionally grouped by connection vs global, or flattened and mixed; drag-to-reorder and quick jump |
-| **Context Menu** | Right-click on files or table headers for full file operations and column configuration |
-| **Transfer Log** | History popup with type filtering, success/failure filter, JSON export |
 
 ---
 
@@ -100,13 +88,15 @@ Navigate to Tabby Settings → "SFTP+" in the left sidebar:
 | **Upload/Download Concurrency** | Intra-directory file-level concurrency (1-10), takes effect immediately |
 | **Transfer Channel Mode** | How folder transfers pick a route — five options: **Smart** (route by file count and size, default) / **SFTP only** (always file by file, no packing probe) / **TAR only** (always pack; fails hard with a reason when unavailable) / **Prefer SFTP** / **Prefer TAR**. The old "Tar Packing Acceleration" and "Fast Mode" toggles migrate into this setting automatically |
 | **Default Upload/Download Paths** | Configure separate upload and download target directories; empty values use the current pane directory |
-| **Default Path Mode** | Path mode for new connections on first open (off / remember / sync) |
+| **Default Path Mode** | Path mode for new connections on first open (off / remember / sync / mirror) |
 | **Default Show Hidden** | Whether to show hidden files on new connections |
 | **Additional editable extensions** | Extra extensions the built-in editor may open besides the text whitelist (e.g. `service, tf, plist`); accepts `.conf` / `*.conf` / `conf` |
 | **Allow editing all file types** | Ignore the extension whitelist (off by default); binary content is still blocked to avoid corrupting files in a text editor |
 | **Viewer & Editor** | Line-number toggle (on by default); three viewer caret shapes (block / beam / underline, matching Tabby's terminal cursor) |
 | **File Icons** | Choose an icon resource directory, configure extension mappings, disable built-in icons, and replace the folder icon |
-| **Toolbar Customization** | Drag-to-reorder toolbar buttons, hide unused items |
+| **Toolbar Customization** | Drag-to-reorder toolbar buttons, hide unused items; pin buttons so they never collapse, or enable the ⋯ overflow menu — that menu lists every button with a per-row pin to move it in or out; the close button can be hidden once a panel toggle hotkey is bound |
+| **Panel Opacity** | Adjustable 0.5–1; overlays and dialogs follow the same opacity (minimum 50%) |
+| **Apply Settings Instantly** | On by default; when off, changes take effect only after closing and reopening the SFTP+ panel — handy when changing many options at once |
 | **Panel Hotkey** | Custom panel toggle hotkey; panel actions (delete/rename/refresh/go up/back/forward), open/view/edit and common context-menu actions can be bound to multiple keys, and also to mouse side buttons (Mouse3/Mouse4), the mouse middle button and wheel up/down, with an occupied-hotkey reference list |
 | **Data Backup** | Export/import data (JSON), selectable per category on export; clear all data (requires typing `DELETE` to confirm) |
 | **Feedback** | Report a bug / request a feature (Tabby version, OS, frontend type and installed plugins are pre-filled) |
@@ -124,7 +114,7 @@ Path: Settings → Data Backup → Export / Import
 
 ## 📜 Changelog
 
-Latest version: **v2.4.1** (2026-10-01) — [Full changelog](CHANGELOG.en.md)
+Latest version: **v3.0.0** (2026-10-22) — [Full changelog](CHANGELOG.en.md)
 
 ---
 
@@ -191,6 +181,7 @@ Contributions are always welcome! The plugin was conceived by the author (DD1024
 - Report bugs or request features: [GitHub Issues](https://github.com/10D24D/Tabby-SFTP-Plus/issues) 📝
 - Contribute code: Fork the project and submit a Pull Request 🚀
 - Like SFTP+? Give it a [⭐ Star](https://github.com/10D24D/Tabby-SFTP-Plus) to show your support!
+- Prefer something more direct? [☕ Treat me to a coffee](https://ko-fi.com/dd1024z) — every bit keeps it going.
 
 Your stars and support are what keep me developing — thank you! ❤️
 

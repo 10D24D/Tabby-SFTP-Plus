@@ -4,6 +4,39 @@ All notable changes to **tabby-sftp-plus** will be documented in this file.
 
 **[中文](https://github.com/10D24D/Tabby-SFTP-Plus/blob/main/CHANGELOG.md) | English**
 
+## [3.0.0] — 2026-10-22
+
+### ✨ Added
+
+- **Free endpoint combinations (the headline of this release)** — the panes are no longer fixed to "left local + right remote": each pane can host the local disk or any remote connection, giving local↔remote, local↔local, remote↔remote (even across connections) and remote↔local; upload/download follows the actual endpoints, same-kind panes offer a direct "transfer", and drag, context menu and paste share one channel, with selection, arrow keys, type-ahead and scroll-into-view all wired to the new slots, plus path memory and bookmarks tracked per connection.
+- **Connection picker** — switch either pane's endpoint from the top bar: open SSH tabs and not-yet-opened profiles are listed, each row has a minus button to close that connection (the panel's own tab stays open), and rows are tagged "current / other pane / not opened".
+- **Reworked connection recovery** — reconnect now happens in the existing tab (no duplicate tabs); it runs in the background without stealing focus (no white flash), the list stays empty with a "Waiting for connection <name>" hint while connecting, and the previous directory is restored afterwards.
+- **Top bar connection label** — show either account@host or the profile alias, falling back to account@host when no alias exists.
+- **"Pinned" and overflow menu for top bar buttons** — pinned buttons stay inline; with "⋯ menu" on the rest move into it. It lists **every** button, each row with a pin to move it in or out. Close can be hidden or moved there once a panel hotkey is bound (else it stays). "Reset top bar" included; enable/disable and drag-reorder as before.
+- **Connection picker trigger** — top bar label, pane endpoint badge, or both.
+- **Panel opacity** — adjustable from 0.5 to 1 (overlay and dialogs together), 50 percent minimum; the font-size slider now sits right below it as a peer row instead of under its own heading.
+- **Fourth path mode: "Mirror path"** — alongside "Off / Remember / Follow terminal", both panes can now be locked to the same directory so one follows the other; available only when both panes are local or both remote — otherwise the cycle skips this step and says why. A mode picked in the panel is saved for that connection; the "Default Path Mode" setting only applies to new connections that have no saved choice.
+- **Three bookmark sort modes** — the list switches between drag order / by usage / by name via the icon button in the popup footer (the same segmented control lives in "Customise bookmark panel"); name order is natural, so `ch2` lands before `ch10`; usage mode counts clicks and the settings page offers a one-click reset.
+- **"Keep panel open" pin in the bookmark popup** — a pin next to the sort button: pinned keeps the popup put — clicks elsewhere, scrolling, right-click, box-select or window resize won't close it; only "Close", ★ again or Esc does, while unpinned closes on select. Pinned also lets both panes keep their popup **open at once**; a resize re-anchors each popup to its own pane at your dragged size, and a pane the layout hides parks its popup until there is room. Same option as "Close the bookmark panel after selecting" in settings.
+- **Configurable rename style for conflicts** — choosing Rename on a conflict no longer always appends a random suffix: duplicates are numbered by default (`report (1).docx`, `report (2).docx`, skipping numbers already taken in the target folder), and the Transfer section in settings can switch to timestamps or random suffixes.
+- **Resizable bookmark popup** — drag the left or bottom edge to resize (220×140 minimum); double-click a handle to reset (left resets width only, bottom resets height only, corner resets both); the size is remembered for next time.
+- **Linked bookmarks** — a bookmark can carry a "linked path": clicking it navigates this pane and moves the other pane to that path; the target is checked first, and a missing directory is reported instead of jumping; such rows carry a "Linked" badge. Off by default, enabled in "Customise bookmark panel".
+- **Bookmarks are now "Scoped / Global"** — the old "+Local" button is now "+Scoped" and binds to the current tab's connection, including local tabs; both the new-bookmark bar and the right-click editor can switch between the two, and group titles plus the settings hint follow the same wording.
+- **Locate from the address bar** (issue #26) — paste an absolute path into the address bar and press Enter: a trailing directory opens, a trailing file jumps to its parent folder and gets highlighted (selected + scrolled to centre + amber outline flash for about 1.3 s), and a path that does not exist leaves you in the parent folder. Works with the left-local, left-remote and right-pane-local layouts.
+- **"Apply changes immediately" toggle** — can be switched to "only after closing and reopening the SFTP+ panel", handy when changing many options at once; immediate apply stays the default.
+- **"Edit in System" from the viewer** — a new button beside "Open in System" turns the current preview into the in-panel editor and opens the same local copy in your OS editor; when an external edit leaves changes un-uploaded, the editor border and Save button light up instead of a yellow banner; saving keeps the editor open.
+- **Support link** — a "Treat me to a coffee" entry now sits right before the Star link in the About section of settings and opens the Ko-fi page in your browser; the same entry is added to the hide-author confirmation dialog and the README.
+
+### 🐛 Fixed
+
+- **The bookmark popup occasionally flashed a 1px line** — list rows are now reused by identity instead of being rebuilt on every change detection pass.
+- **Deleting locally to the trash was slow** — batching now runs in a single process instead of spawning one per file.
+- **Reconnect lost the last visited folder** — a not-yet-ready channel was treated as "folder missing", pushing the path to root and overwriting the memory; now only a genuinely unusable folder falls back, and reconnect keeps the folder you left.
+
+### 🔧 Build
+
+- Version bumped to **3.0.0**.
+
 ## [2.4.1] — 2026-10-01
 
 ### 🐛 Fixed
