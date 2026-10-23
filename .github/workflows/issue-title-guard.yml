@@ -1,0 +1,55 @@
+# 创建人: DD1024z + Hy3; 创建时间: 2026-10-16
+# 修改人: DD1024z + Hy3; 修改时间: 2026-10-16
+#
+# 用途：拦截「只有分类前缀、没有实际内容」的 Issue 标题（如 "[Feature]: " / "[Bug]: "）。
+#   原因：GitHub Issue 表单模板的 `title:` 字段只是预填默认值，无法在模板层强制非空，
+#   用户可以直接提交仅含前缀的标题（issue #26 即此类实例）。本工作流在 issue 创建/编辑时
+#   检测并评论提醒，引导用户补全标题。
+name: Issue Title Guard
+
+on:
+  issues:
+    types: [opened, edited]
+
+permissions:
+  issues: write
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check and comment on empty-prefix titles
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = (context.payload.issue.title || '').trim()
+            // 仅含分类前缀 + 空白（"[Feature]: " / "[Bug]:" 等）视为无效标题
+            const empty = /^\[(Feature|Bug|feature|bug)\]\s*:?\s*$/.test(title)
+            if (!empty) return
+
+            const { owner, repo } = context.repo
+            const issue_number = context.payload.issue.number
+            const marker = '<!-- issue-title-guard -->'
+
+            // 避免重复评论：若本 bot 已留过提示则跳过
+            const comments = await github.rest.issues.listComments({
+              owner, repo, issue_number, per_page: 100,
+            })
+            const dup = comments.data.some(
+              c => c.user && c.user.type === 'Bot' && c.body && c.body.includes(marker),
+            )
+            if (dup) return
+
+            await github.rest.issues.createComment({
+              owner, repo, issue_number,
+              body: [
+                marker,
+                '⚠️ 你的 Issue 标题似乎只有分类前缀（如 `[Feature]: ` / `[Bug]: `），缺少实际内容。',
+                '',
+                '请编辑标题，用一句话概括问题或需求，例如：',
+                '- `[Bug]: 上传大文件时进度卡在 99%`',
+                '- `[Feature]: 地址栏支持输入含文件名的绝对路径定位`',
+                '',
+                '标题完善后本提示不会再次打扰。',
+              ].join('\n'),
+            })
