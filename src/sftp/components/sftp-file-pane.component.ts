@@ -4,7 +4,9 @@
  * @创建人：DD1024z + Hy3
  * @创建时间：2026-07-29
  * @修改人：DD1024z + Deepseek-V4.1-Flash
- * @修改时间：2026-10-20 — 新增 connLost 输入：连接断开且列表为空时显示「连接已断开」，
+ * @修改时间：2026-10-24 — .pane-list 加 tabindex="-1"：把列表滚动区移出 Tab 序列
+ *             （Chromium 132+ 自动给可滚动容器隐式 tabindex，按 Tab 会画出橙色 UA 焦点环）。
+ *             2026-10-20 — 新增 connLost 输入：连接断开且列表为空时显示「连接已断开」，
  *             不再落到 hasError 分支误报「无法访问（权限不足或路径不存在）」（用户截图为证）。
  *             2026-10-19 — 修书签按钮 tooltip 显示成 {pane} 书签（bookmark.title 的占位未传参）；
  *             可点的端点标识右侧加 ▾ 角标（labelActive 驱动翻转），提升「可点」可发现性；
@@ -135,7 +137,11 @@ export type PaneSortAction = { col: string }
         </button>
       </div>
       <div class="pane-list-wrap" [class.pane-drag-over]="dragOver">
-        <div class="pane-list" [class]="listClass" [class.pane-flash]="flash" [class.has-groups]="!!groupRows"
+        <!-- ★ 2026-10-24（Deepseek-V4.1-Flash）：tabindex="-1" 把列表滚动区从 Tab 序列里摘掉。
+             Chromium 132+ 会把「可滚动容器」自动变成可聚焦区（隐式 tabindex=0），按 Tab 时它抢到焦点
+             并画出 UA 的 :focus-visible 环（本机主题下是橙色，用户实测「左栏列表外圈一圈橙线」）。
+             列表的键盘操作走 .nav-focus 游标 + 面板热键，不需要靠 Tab 进容器 ⇒ 显式 -1 最干净。 -->
+        <div class="pane-list" tabindex="-1" [class]="listClass" [class.pane-flash]="flash" [class.has-groups]="!!groupRows"
           (dragover)="listDragOver.emit($event)"
           (dragenter)="listDragEnter.emit($event)"
           (dragleave)="listDragLeave.emit($event)"

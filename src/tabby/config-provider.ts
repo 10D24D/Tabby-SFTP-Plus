@@ -5,7 +5,14 @@
  * 创建人：DD1024z + Deepseek-V4-Flash
  * 创建时间：2026-06-29
  * @修改人：DD1024z + Deepseek-V4.1-Flash
- * @修改时间：2026-10-23 — 新增 conflictRenameStyle（冲突重命名风格 seq/time/random，默认 seq）：
+ * @修改时间：2026-10-27 — 新增 autoRefreshEnabled（默认 false）与 autoRefreshInterval（间隔秒数，默认 60）：定时刷新列表。
+ *              同日 — 新增 refreshOnQuickCmd（默认 false）与 refreshOnQuickCmdWindow（观察期秒数，默认 10）：
+ *              接收 QuickCmd+ 的刷新请求后按「观察期轮询」刷新列表，见 sftp/core/quickcmd-link.ts。
+ *              默认关：跨插件联动必须由用户显式打开，不能悄悄给远端加请求。
+ *              同日 — 新增 dropToCurrentDir（拖拽只投放到当前目录，默认 true）：跨栏 / 系统
+ *              资源管理器拖入时，落点恒为目标栏当前打开的目录，指针压在文件夹行上也不改变，
+ *              避免文件被静默吞进子目录。interface 与 defaults 同时登记（只写 interface 不建 accessor ⇒ 不落盘）。
+ *              2026-10-23 — 新增 conflictRenameStyle（冲突重命名风格 seq/time/random，默认 seq）：
  *              interface 与 defaults 同时登记 —— 只写 interface 不写 defaults 会让 ConfigProxy 不建
  *              accessor，写进 store 也不落盘（重启回默认）。
  *              续三十六：新增 applySettingsInstantly（设置页保存后立即推送 / 需重开面板生效）。
@@ -26,6 +33,7 @@
  *              与 Tabby 终端 cursor 取值逐字一致）；新增 CaretShape 类型与 normalizeCaretShape()
  *              2026-09-28 — transferTarAcceleration 替换为 transferChannelMode（smart/sftpOnly/tarOnly/preferSftp/preferTar）
  *              2026-09-20 — 面板热键新增打开/查看/编辑（默认未绑定）
+ *              2026-10-28 — 新增 listRefreshFlash（默认 true）：列表刷新闪烁开关，可在「功能性」分区关闭。
  */
 import { ConfigProvider } from 'tabby-core'
 import type { Locale } from '../services/sftp-i18n.service'
@@ -240,6 +248,42 @@ export interface SftpPlusPluginConfig {
   transferDownloadConcurrency: number
   /** ★ 2026-09-28：传输通道模式（smart 智能 / sftpOnly 仅SFTP / tarOnly 仅TAR / preferSftp 优先SFTP / preferTar 优先TAR） */
   transferChannelMode: string
+  /**
+   * ★ 2026-10-27（Deepseek-V4.1-Flash）：拖拽落点是否**只认当前目录**（默认开）。
+   *   开：拖到某栏时一律投放到该栏**当前打开的目录**，指针压在哪一行都不改变落点 ⇒ 杜绝
+   *       「从 A 栏拖到 B 栏、手滑停在某个文件夹行上，文件被静默吞进那个子目录」。
+   *   关：恢复旧行为 —— 压在文件夹行上就进那个文件夹（拖拽期间该行会高亮并标注「放入此文件夹」）。
+   *   ⛔ 只影响**跨栏 / 系统资源管理器**这类「传输」语义的落点；同栏内拖到子文件夹属于
+   *      文件管理器通用手势（复制到该目录），不受此开关约束。
+   */
+  dropToCurrentDir: boolean
+  /**
+   * ★ 2026-10-27（Deepseek-V4.1-Flash）：是否接收 QuickCmd+ 的刷新请求（默认 **关**）。
+   *   开：QuickCmd+ 执行命令后派发 sftp-plus-refresh-request 事件，本插件按「观察期轮询」
+   *      刷新匹配连接的文件列表（命令跑在远端就能看到新备份文件，不用手动 F5）。
+   *   关：事件一律忽略，跨插件零耦合。
+   *   ⛔ 2026-10-27 定稿：**两侧各有一个开关、都默认关**（发送侧见 QuickCmd+ 的
+   *      broadcastExecEvents）。开着却没反应时要能一眼看出是哪边没开 ⇒ 两边文案互相点名对方插件。
+   */
+  refreshOnQuickCmd: boolean
+  /** QuickCmd+ 触发后的持续刷新时长（秒，1–120，默认 10）：列表还在变化时会自动顺延（上限 4 倍/180s） */
+  refreshOnQuickCmdWindow: number
+  /**
+   * ★ 2026-10-27（Deepseek-V4.1-Flash）：定时刷新列表（默认 **关**）。
+   *   开：面板按 autoRefreshInterval 的间隔重新读取当前目录（本地 + 远程都刷），
+   *      用于「别人往这台机器上写文件」的场景（日志、监控截图、CI 产物），不必手动 F5。
+   *   ⛔ 缺键按「关」：定时 readdir 是有代价的（弱网/大目录尤其），新增能力不能默默开启。
+   */
+  autoRefreshEnabled: boolean
+  /** 定时刷新间隔（秒，5–3600，默认 60）：下界防「1 秒一次把远端 readdir 打满」 */
+  autoRefreshInterval: number
+  /**
+   * ★ 2026-10-28（Deepseek-V4.1-Flash）：列表刷新闪烁（默认 **开**）。
+   *   开：每次切换文件夹 / 手动刷新成功后，当前栏做一次 0.25s 淡蓝背景闪烁作为反馈。
+   *   关：完全不闪（仍保留地址栏定位高亮、连接断开红点告警等其它提示）。
+   *   ⛔ 默认开：这是老用户一直有的视觉反馈，新增开关不能默默把它关掉。
+   */
+  listRefreshFlash: boolean
   /** 默认上传路径（远程目标目录）；空串 = 使用当前远程目录 */
   defaultUploadPath: string
   /** 默认下载路径（本地目标目录）；空串 = 使用当前本地目录 */
@@ -355,6 +399,17 @@ export function defaultSftpPlusConfig(): SftpPlusPluginConfig {
     transferUploadConcurrency: 3,
     transferDownloadConcurrency: 3,
     transferChannelMode: 'smart',
+    // ★ 2026-10-27（Deepseek-V4.1-Flash）：拖拽只投放到当前目录 —— 默认开（用户反馈：手滑停在
+    //   文件夹行上，文件被静默吞进子目录，事后只能从传输记录的路径才看得出）
+    dropToCurrentDir: true,
+    // ★ 2026-10-27（Deepseek-V4.1-Flash）：QuickCmd+ 联动默认关 —— 用户主动打开才生效
+    refreshOnQuickCmd: false,
+    refreshOnQuickCmdWindow: 10,
+    // ★ 2026-10-27（Deepseek-V4.1-Flash）：定时刷新默认关、间隔 60s（定时 readdir 有代价，不默认开）
+    autoRefreshEnabled: false,
+    autoRefreshInterval: 60,
+    // ★ 2026-10-28（Deepseek-V4.1-Flash）：列表刷新闪烁默认开 —— 老用户一直有的反馈，新开关不能默默关掉
+    listRefreshFlash: true,
     defaultUploadPath: '',
     defaultDownloadPath: '',
     iconResourceDir: '',

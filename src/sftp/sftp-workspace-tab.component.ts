@@ -110,7 +110,13 @@ export class SftpWorkspaceTabComponent extends BaseTabComponent implements After
       // ★ 2026-08-10 修复 #10：改用已存在的 notify.closeWithTransfers（带 {count} 参数），
       //   workspace.closeWithTransfers 在所有 locale 中都不存在，永远回退到硬编码中文
       const count = (panel as any).transfers.length
-      return window.confirm((panel as any).i18n?.t('notify.closeWithTransfers', { count }) || '有正在进行的传输，确定要关闭吗？')
+      const msg = (panel as any).i18n?.t('notify.closeWithTransfers', { count }) || '有正在进行的传输，确定要关闭吗？'
+      // ★ 2026-10-26（Deepseek-V4.1-Flash）：改用面板内确认框 —— 原生 window.confirm
+      //   点「取消」后 Electron(Windows) 不把焦点链交还渲染进程，标签页留着却点不动任何控件
+      //   （electron/electron#31917）。canClose 本身是 async，直接 await 即可。
+      const ask = (panel as any).askConfirm
+      if (typeof ask === 'function') return (await ask.call(panel, msg)) === true
+      return window.confirm(msg)
     }
     return true
   }

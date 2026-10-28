@@ -106,8 +106,16 @@ const MAX_TOMBSTONES = 1000
  */
 let mainInstance: SftpTransferLogService | null = null
 
+/**
+ * 进程级自增序列号，确保同一毫秒内生成的 ID 不重复。
+ * ★ 2026-10-25 BUG-H3 修复：原实现仅用 Date.now() + 6 位随机数，
+ *   在批量操作（如一次拖拽多个文件）时毫秒级碰撞概率虽低但非零。
+ *   现增加进程级自增计数器，同一毫秒内 seq 单调递增，彻底消除碰撞风险。
+ */
+let _idSeq = 0
 function generateId(): string {
-  return Date.now().toString(36) + Math.random().toString(36).substring(2, 8)
+  const seq = ++_idSeq
+  return Date.now().toString(36) + seq.toString(36).padStart(4, '0') + Math.random().toString(36).substring(2, 6)
 }
 
 @Injectable()
@@ -425,6 +433,18 @@ export class SftpTransferLogService {
   }
 
   /**
+   * 获取所有不重复的连接名称列表（按出现顺序）。
+   * 用于「全部连接」筛选下拉框的选项数据源。
+   */
+  getProfileNames(): string[] {
+    const names = new Set<string>()
+    for (const l of this.logs) {
+      if (l.profileName) names.add(l.profileName)
+    }
+    return Array.from(names)
+  }
+
+  /**
    * 按条件筛选日志
    * 功能描述：按操作类型和成功状态筛选日志
    * 创建人：DD1024z + Claude
@@ -558,9 +578,64 @@ export class SftpTransferLogService {
    * 功能描述：将日志导出为 JSON 字符串
    * 创建人：DD1024z + Claude
    * 创建时间：2026-06-21
+   * ★ 2026-10-25：支持传入指定 entries，实现按筛选条件导出
    */
-  exportAsJson(): string {
-    return JSON.stringify(this.getAll(), null, 2)
+  exportAsJson(entries?: TransferLogEntry[]): string {
+    return JSON.stringify(entries ?? this.getAll(), null, 2)
+  }
+
+  /**
+   * ★ 2026-10-25：导出日志为 CSV
+   * 功能描述：将日志导出为 CSV 字符串（UTF-8 BOM + 表头），方便 Excel 打开分析
+   * ★ 2026-10-25：支持传入指定 entries，实现按筛选条件导出
+   */
+  exportAsCsv(entries?: TransferLogEntry[]): string {
+    const BOM = '\uFEFF'
+    // ★ 列名优化：更直观的中文表头
+    const headers = ['传输时间', '操作类型', '本地路径', '远程路径', '源路径', '目标路径', '状态', '文件大小', '耗时', '失败原因', '传输模式']
+    const escapeCsv = (val: unknown): string => {
+      if (val == null) return ''
+      const s = String(val)
+      // 包含逗号/换行/引号时用引号包裹，内部引号转义为两个
+      if (/[\r\n,"]/.test(s)) {
+        return `"${s.replace(/"/g, '""')}"`
+      }
+      return s
+    }
+    const rows = (entries ?? this.getAll()).map(e => {
+      const status = e.pending ? '进行中' : (e.success ? '成功' : '失败')
+      // ★ 时间格式：YYYY-MM-DD HH:mm:ss（比 ISO 8601 更直观）
+      const d = new Date(e.timestamp)
+      const timeStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`
+      // ★ 大小格式：使用人类可读的单位（KB/MB/GB）
+      const sizeStr = this._formatSizeForCsv(e.size)
+      // ★ 耗时格式：带单位
+      const durationStr = e.duration != null ? `${e.duration} ms` : ''
+      return [
+        timeStr,
+        e.operation,
+        e.localPath,
+        e.remotePath,
+        e.srcPath || '',
+        e.dstPath || '',
+        status,
+        sizeStr,
+        durationStr,
+        e.failReason || '',
+        e.transferMode || '',
+      ].map(escapeCsv).join(',')
+    })
+    return BOM + [headers.join(','), ...rows].join('\n')
+  }
+
+  /** 辅助：将字节数转为人类可读的 CSV 显示（与 file-utils.ts 的 formatSize 保持一致） */
+  private _formatSizeForCsv(bytes?: number): string {
+    if (bytes == null || bytes < 0) return ''
+    if (bytes === 0) return '0 B'
+    const u = ['B', 'KB', 'MB', 'GB', 'TB']
+    let v = bytes, i = 0
+    while (v >= 1024 && i < u.length - 1) { v /= 1024; i++ }
+    return `${v.toFixed(i === 0 ? 0 : 2)} ${u[i]}`
   }
 
   /**

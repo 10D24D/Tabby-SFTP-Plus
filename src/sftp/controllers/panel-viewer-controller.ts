@@ -4,7 +4,11 @@
  * @创建人：DD1024z + Hy3
  * @创建时间：2026-07-11
  * @修改人：DD1024z + Deepseek-V4.1-Flash
- * @修改时间：2026-10-23 — 编辑器手动保存成功后不再自动关闭（只更新基线并提示已保存，保持窗口可继续编辑）；
+ * @修改时间：2026-10-26 — 两处 `window.confirm()` 换成面板内确认框（askConfirm）：编辑器「未保存
+ *              关闭」与「远端已变更仍要覆盖」。原生 confirm 点「取消」后 Electron(Win) 不交还焦点链，
+ *              编辑器还开着但输入框/下拉框全部点不动（详见 sftp-confirm-dialog 头部注释）。
+ *              两处 await 之后都按**代际快照**复核（_editorGen 变了就放弃），不按「还可见」判。
+ *              2026-10-23 — 编辑器手动保存成功后不再自动关闭（只更新基线并提示已保存，保持窗口可继续编辑）；
  *              查看器「在系统中编辑」：新增 _viewerEntry（prepare 之后留底当前条目）+
  *              openViewerInSystemEdit（先切编辑器、再 shell 打开；本地/远程各走各自入口）+
  *              viewerShowEditInSystem 判据；外部改动高亮与 dirty 同步（内容改回原样即熄灭）。
@@ -1001,11 +1005,17 @@ export abstract class SftpPanelViewerController extends SftpPanelColumnControlle
                   this._safeDetect()
                   return
                 }
-                const ok = window.confirm(
+                // ★ 2026-10-26（Deepseek-V4.1-Flash）：面板内确认框替代 window.confirm ——
+                //   原生对话框取消后 Electron(Win) 焦点链不归还，编辑器还在却点不动任何控件。
+                //   await 后按代际快照复核：确认期间可能已换文件/已关编辑器，不能再往旧目标上传。
+                const gen = this._editorGen
+                const savePath = this._editorSavePath
+                const ok = await this.askConfirm(
                   this.i18n.t('editor.remoteChanged')
                     || '远程文件已被修改。确定要覆盖服务器上的版本吗？',
                 )
                 if (!ok) return
+                if (this._editorGen !== gen || this._editorSavePath !== savePath) return
               }
             }
           } catch { /* stat 失败则继续尝试上传 */ }
@@ -1068,12 +1078,18 @@ export abstract class SftpPanelViewerController extends SftpPanelColumnControlle
     }
   }
 
-  closeEditor(confirmIfDirty = true): void {
+  async closeEditor(confirmIfDirty = true): Promise<void> {
     if (this.editorSaving) return
     // ★ 2026-10-22（Deepseek-V4.1-Flash）：关闭编辑器时清理自动上传定时器，避免迟到回调对已关闭会话上传
     if (this._autoUploadTimer) { clearTimeout(this._autoUploadTimer); this._autoUploadTimer = null }
     if (confirmIfDirty && this.editorDirty) {
-      if (!window.confirm(this.i18n.t('editor.unsaved'))) return
+      // ★ 2026-10-26（Deepseek-V4.1-Flash）：「未保存」提示改用面板内确认框 —— 原生 confirm 点
+      //   「取消」后 Electron(Win) 焦点链不归还，编辑器还开着但内容区/按钮全点不动。
+      const gen = this._editorGen
+      if (!(await this.askConfirm(this.i18n.t('editor.unsaved')))) return
+      // ★ 异步后按快照复核（不按「还可见/dirty」判）：确认期间可能已换文件、已保存关闭、
+      //   或重新打开了另一个文件——那种情况下不能再拿旧意图把它关掉。
+      if (this._editorGen !== gen || !this.editorVisible) return
     }
     // ★ 2026-10-13 P1 修复：递增代际——关闭时在途的加载结果全部作废，
     //   避免迟到回调往已关闭的编辑器写状态、或在错误路径上启 watch

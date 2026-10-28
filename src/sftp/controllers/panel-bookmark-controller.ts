@@ -4,8 +4,13 @@
  * 创建人：DD1024z + Hy3
  * 创建时间：2026-07-11
  * 修改人：DD1024z + Deepseek-V4.1-Flash
- * 修改时间：2026-10-23
+ * 修改时间：2026-10-27
  * 修改情况：
+ *   - 2026-10-27 (Deepseek-V4.1-Flash) 修「联动书签跳转后路径没被记住」：`_navigateOtherPaneByBookmark`
+ *     三个分支原先只改路径 + refresh，漏调 `saveCurrentPath()` ⇒ 路径记忆模式下被联动那栏当场记不住
+ *     （用户实测：点备份书签，左栏跳到本地数据库目录，重启 Tabby 又回到旧目录；config 里导航级记忆
+ *     `leftLocalPath` 已是新目录，而恢复真正读取的 `perHost/<host>/savedLocalPath` 停在旧值）。
+ *     现在三个分支各自紧跟 `saveCurrentPath()`，与 `gotoBookmark` 本栏跳转同一条通道。
  *   - 2026-10-23 (Deepseek-V4.1-Flash) 书签弹层**按栏分槽**，支持两栏同时打开（`BookmarkPaneState` / `bmState(side)`）：
  *     此前 `showBookmarks` + `_bookmarkSide` 是单份状态，整个面板只能存在一个弹层。用户要求「图钉钉住（常驻）后
  *     两栏可以同时开」。互斥规则：**未钉住时仍只允许一个**（开右栏自动收左栏，保持「点外部就收」的原口径），
@@ -223,8 +228,10 @@ export abstract class SftpPanelBookmarkController extends SftpPanelViewerControl
    *   由面板从配置读取并写回，控制器只持有当前值 + 负责排序。
    */
   bookmarkSortMode: BookmarkSortMode = 'manual'
-  /** 尺寸拖拽期间挂在 document 上的监听清理函数（同一时刻只拖一个弹层，两栏共用） */
-  private _bmResizeCleanup: (() => void) | null = null
+  /** 尺寸拖拽期间挂在 document 上的监听清理函数（同一时刻只拖一个弹层，两栏共用）
+   * ★ 2026-10-25 BUG-H1 修复：改为 protected，允许子类 SftpFloatingPanel 在 ngOnDestroy 中兜底清理，
+   *   防止拖拽过程中面板被销毁时 document 级 mousemove/mouseup 监听器泄漏。 */
+  protected _bmResizeCleanup: (() => void) | null = null
   /** 兼容选项：选中书签后自动关闭书签面板（由设置驱动） */
   closeBookmarkPanelOnSelect = false
   /** 是否按「局部 / 全局」分组显示书签（默认开启） */
@@ -859,6 +866,14 @@ export abstract class SftpPanelBookmarkController extends SftpPanelViewerControl
    *
    *   ★ 跳转前先确认目标路径**存在且是目录**：不存在就跳过 + 轻提示，避免另一栏被切到不存在的目录
    *     （那会弹「刷新失败」并停在旧列表，比不跳更让人困惑）。判定由子类 `_otherPanePathExists` 实现。
+   *
+   *   ⛔ 2026-10-27（Deepseek-V4.1-Flash）：**每个分支改完路径必须紧跟 `saveCurrentPath()`**。
+   *     原实现只改 `localPath`/`remotePath`/`_rlPath` 就 refresh —— 于是「路径记忆」模式下点一个带
+   *     联动路径的书签，被联动那栏**当场记不住**：用户实测「点备份书签 → 左栏跳到本地数据库目录 →
+   *     重启 Tabby 又回到上一轮的 backendweb」。诊断实据：config 里 `leftLocalPath`（导航级记忆）
+   *     已是新目录，而恢复真正读取的 `perHost/<host>/savedLocalPath` 仍停在旧值 —— 说明只有
+   *     `saveCurrentPath()` 那条通道没走。⛔ 它是路径记忆的**唯一写入点**（恢复侧 `_loadSavedPaths`
+   *     只读它写的那两个键），别再被当成"顺手调一下"的函数漏掉。
    */
   private async _navigateOtherPaneByBookmark(side: 'left' | 'right' | null, target: string): Promise<void> {
     if (!target) return
@@ -872,15 +887,22 @@ export abstract class SftpPanelBookmarkController extends SftpPanelViewerControl
     if (side === 'left') {
       if (this._rightKind === 'remote') {
         this._pushRemoteNav(target)
-        this.remotePath = target; this.remotePathInput = target; void this.refreshRemote()
+        this.remotePath = target; this.remotePathInput = target
+        // ⛔ 2026-10-27：联动栏也要走路径记忆写入（见方法头注释）
+        this.saveCurrentPath()
+        void this.refreshRemote()
       } else {
         this._rlGo(target)
-        this._rlPath = target; this._rlPathInput = target; void this._rlRefresh()
+        this._rlPath = target; this._rlPathInput = target
+        this.saveCurrentPath()
+        void this._rlRefresh()
       }
       return
     }
     this._pushLocalNav(target)
-    this.localPath = target; this.localPathInput = target; void this.refreshLocal()
+    this.localPath = target; this.localPathInput = target
+    this.saveCurrentPath()
+    void this.refreshLocal()
   }
 
   /**

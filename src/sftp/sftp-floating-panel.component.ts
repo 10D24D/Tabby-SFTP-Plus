@@ -5,7 +5,39 @@
  * @创建人：DD1024z + Claude
  * @创建时间：2026-06-21
  * @修改人：DD1024z + Deepseek-V4.1-Flash
- * @修改时间：2026-10-23 — 续四十一：图钉「面板常驻」语义扩展 —— 常驻时**点面板其它位置 / 滚轮 /
+ * @修改时间：2026-10-27 — 续四十六：路径记忆写入通道补齐 —— `saveCurrentPath()` 末尾排一次落盘
+ *              （`_schedulePaneFlush()`，与 `_rememberLeftPath()` 同口径 1.2s 合并写）：
+ *              `_paneSet` 只写内存 + `_cache`，不落盘时只剩 localStorage 那份是新的，而
+ *              `_restoreSavedRemotePath()` 走 `_paneGet`（config 优先）⇒ 下次启动被旧值压回去。
+ *              并补上「联动书签跳转」这条漏掉写入的入口（见 panel-bookmark-controller.ts）。
+ *              续四十五：拖拽落点收口 —— 新增设置项「拖拽只投放到当前目录」（默认开，
+ *              配置键 dropToCurrentDir）：`_resolveDropDestDir` 在「跨栏 / 外部拖入 + 开关打开」时
+ *              直接返回 undefined（= 目标栏当前目录），指针压在文件夹行上也不再改落点 ——
+ *              原先从 A 栏拖到 B 栏手滑停在文件夹行上，文件会被静默存进那个子目录，列表毫无变化，
+ *              用户以为传输失败。同栏内拖到子文件夹不受影响（复制到该目录的通用手势）。
+ *              开关关闭时，拖拽期间给指针下的文件夹行加 `.drop-into` + `data-drop-hint`（「放入此
+ *              文件夹」小标）显式提示去向；dragover 每帧触发 ⇒ 只在目标元素变化时动 DOM，
+ *              并在 drop / dragend / 离开列表三处撤回。
+ *              续四十四：⋯ 折叠菜单参与顶栏排序 —— `TopBarItemId` 新增 `'overflow'`，
+ *              位置由它在 `topBarOrder` 里的下标决定（默认排在 ✕ 之前，用户可在设置页拖到任意位置）：
+ *              ① `topBarInlineItems` 对 `overflow` 单开分支（它是溢出容器不是功能按钮，不受
+ *              `topBarDisabled` / `topBarPinned` 影响，只看折叠总开关 + 菜单非空）；
+ *              ② `topBarMenuItems` 排除 `overflow`（否则菜单里会出现「点它打开自己」的递归入口）；
+ *              ③ 删除上一版的 `topBarOverflowAtEnd`（那是「⋯ 固定贴 ✕」方案的末位兜底，现已不需要）。
+ *              续四十三：记忆槽身份锁定（`_hostSlotKey`）—— 原先 `_tabSlotBase()` 每次现读
+ *              `this.profile`，而 `switchRemoteSession()`（右栏换连接）会改写它 ⇒ 切端点时把
+ *              `endpoints/left` 写进了**另一个 perTab 槽**，重启后读回原槽的旧值 'remote'，
+ *              于是又去恢复那个远程连接（用户实测「切成本地、重启后又变回等待连接」）。
+ *              现在 ngOnInit 早期快照宿主槽，之后不随端点切换漂移；并加两条可 grep 诊断日志
+ *              （`persist left endpoint: kind=… slot=… profileHost=…` / `restore left endpoint: slot=… kind=…`）。
+ *              续四十二：左栏自动恢复的「用户抢占」收口 —— 重启 Tabby 后恢复上次远程端点期间
+ *              （最多轮询 30s）用户把左栏切成「本地」，恢复流程必须立刻放弃：
+ *              ① `_revertLeftToLocal()` 置 `_leftRestoreAbort`，并就地清 `_leftRestoring` 与顶栏
+ *              「连接中 <目标>」（否则切完还要挂半秒「等待连接」）；
+ *              ② 轮询命中连接、真正 switch 之前**再复查一次** abort（await 期间用户可能已抢占）；
+ *              ③ 超时分支在 `_enterLeftDisconnectedState` **之前**判 abort —— 这一步是元凶：
+ *              原先超时无条件把左栏置回「远程（已断开）」，用户实测「切成本地后那个连接又出现了」。
+ *              续四十一：图钉「面板常驻」语义扩展 —— 常驻时**点面板其它位置 / 滚轮 /
  *              右键（文件条目与面板空白）/ 框选 / 窗口缩放都不再关闭**书签弹层，只有「关闭」按钮、
  *              再点一次 ★ 按钮、Esc 才关（用户要求：常驻就该待在原地）。点外部与滚轮两处**不 return**，
  *              好让右键/表头菜单照旧按「点外部关闭」收掉；缩放改为 `_clampBookmarkPopupToRoot()` 钳制。
@@ -291,6 +323,8 @@ import { PanelPasteAdapter } from './core/paste'
 import { ContentDigestService } from './core/digest'
 import { copyLocalDir, copyRemoteDir, deleteLocalRecursive, deleteRemoteRecursive, isPathInside, tryRemoteCpViaSsh, tryRemoteRmViaSsh } from './core/fs-ops'
 import { isChannelDeadError } from './core/session-errors'
+// ★ 2026-10-27（Deepseek-V4.1-Flash）：与 QuickCmd+ 的刷新联动（事件契约 + 观察期轮询）
+import { QC_REFRESH_REQUEST_EVENT, QcRefreshObserver, normalizeRefreshRequest, markQuickCmdSeen } from './core/quickcmd-link'
 import { ConcurrencyLimiter } from './core/concurrency'
 import type { SshSession, ProfileInfo, ConnectionOption } from './core/session-types'
 import { trashLocalPaths } from './core/trash-local'
@@ -747,6 +781,12 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
    *   切换时第一次刷新直接用记忆路径（不再先列一次 '/' 空目录）。
    */
   private _leftRestoring = false
+  /**
+   * ★ 2026-10-23（Deepseek-V4.1-Flash）：记忆槽身份（`paneState/perTab/<user@host:port>`）在面板
+   *   初始化时**快照**下来，之后不随端点切换（`switchRemoteSession` 会改写 `this.profile`）而漂移。
+   *   未初始化时由 `_tabSlotBase()` 首次调用时补算（workspace 模式 profile 可能晚一帧到位）。
+   */
+  private _hostSlotKey: string | null = null
   /** 用户手动接管（选了别的连接 / 切回本地）→ 放弃恢复轮询，否则稍后会把用户的选择覆盖回去 */
   private _leftRestoreAbort = false
   /** 恢复/切换期间抑制列表刷新的 0.25s 闪烁：连刷两次（'/' → 记忆路径）看起来就是「闪两下」 */
@@ -1683,7 +1723,19 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
 
 /** 保存当前路径（仅路径记忆模式）。
  *  ★ configService.save() 经 sftpConfig.set() 路径已被证实无法落盘（sftpConfig 内的 configService 为 null），
- *    改为 localStorage 直接读写，稳定可靠且不触碰 config.yaml。 */
+ *    改为 localStorage 直接读写，稳定可靠且不触碰 config.yaml。
+ *
+ *  ⛔ 2026-10-27（Deepseek-V4.1-Flash）：**这是路径记忆的持久化写入点**，任何「改变当前目录」的入口都必须经过它
+ *    （书签本栏跳转 / 书签联动另一栏 / 地址栏回车 / 前进后退 / 上级 / 主目录 / 双击进目录）。
+ *    读侧：左栏本地优先 `_ptGet('leftLocalPath')`（导航级记忆，本方法写的 `savedLocalPath` 作兜底），
+ *    右栏远程只认本方法写的 `savedRemotePath`（`_loadSavedPaths` 先读 localStorage 同名键，
+ *    连上后 `_restoreSavedRemotePath` 再从 config 补一次）。
+ *    用户实测反例：点带联动路径的书签后左栏跳到本地数据库目录，重启又回到旧目录；config 里
+ *    `leftLocalPath`（导航级记忆）已是新目录、`perHost/<host>/savedLocalPath` 却是旧值 ⇒ 该入口漏调本方法。
+ *  ★ 末尾 `_schedulePaneFlush()`：`_paneSet` 只写内存 + `_cache`，不排落盘就只剩 localStorage 那份是新的，
+ *    而 `_restoreSavedRemotePath()` 走 `_paneGet`（config 优先）⇒ 下次启动会被 config 里的旧值压回去。
+ *    与 `_rememberLeftPath()` 同口径（1.2s 合并写盘）。
+ */
   protected saveCurrentPath(): void {
     if (this.pathMode !== 'remember') return
     // ★ 2026-10-20 续十二：切换端点期间 localPath 是被复位的 '/'，不是用户选的路径
@@ -1710,7 +1762,9 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
         //   嵌套优先读取，只写 localStorage 会让迁移用户的嵌套旧值永远压过新值（路径记忆「卡住」）
         this._paneSet(this._profileKey(SftpFloatingPanel.SAVED_REMOTE_PATH_KEY), this.remotePath)
       }
-    } catch { /* ignore */ }
+    } catch (e) { log.warn('[SFTP+] save path failed', e) }
+    // ★ 2026-10-27：排一次落盘（见方法头注释）—— 只在 remember 模式且未被抑制时才走到这里
+    this._schedulePaneFlush()
   }
 
   pathModeTitle(): string {
@@ -2395,16 +2449,30 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       : this.i18n.t('pane.splitterHintHorizontal')
   }
 
-  /** 恢复路径（仅路径记忆模式），优先读 localStorage（saveCurrentPath 写入点）。 */
+  /**
+   * 恢复路径（仅路径记忆模式）。
+   * 写法：左栏本地路径优先 `paneState/leftLocalPath`（perTab 导航级记忆，每次列表刷新成功必写），
+   *      perHost `savedLocalPath`（localStorage，saveCurrentPath 写入点）兜底；右栏远程路径读
+   *      perHost `savedRemotePath`（localStorage），连上后 `_restoreSavedRemotePath()` 再从 config 补一次。
+   */
   private _loadSavedPaths(): void {
     this.loadPathMode()
     // ★ issue #27 P3：端点记忆（与路径记忆模式相互独立，pathMode 关闭也要恢复）
     this._restoreRightEndpoint()
     try {
       if (this.pathMode === 'remember') {
+        // ★ 2026-10-27（Deepseek-V4.1-Flash）：左栏本地路径**优先取 perTab `leftLocalPath`**。
+        //   它是导航级记忆（refreshLocal 成功后由 `_rememberLeftPath()` 必写、不看 pathMode），
+        //   比 perHost `savedLocalPath` 更新更全 —— 后者依赖每个导航入口自觉调用 saveCurrentPath()，
+        //   历史上漏过（书签联动那条路），旧值会让「明明跳过去了、重启又回到上一轮目录」。
+        //   perHost 值仍作兜底：老配置里可能只有它。⛔ 取的是绝对路径才用（'/' 等复位值不算）。
+        const tabLocal = this._ptGet('leftLocalPath')
         const savedLocal = localStorage.getItem(this._profileKey(SftpFloatingPanel.SAVED_LOCAL_PATH_KEY))
-        if (savedLocal && typeof savedLocal === 'string') {
-          this.localPath = savedLocal; this.localPathInput = savedLocal
+        const effLocal = (typeof tabLocal === 'string' && tabLocal && path.isAbsolute(tabLocal))
+          ? tabLocal
+          : savedLocal
+        if (effLocal && typeof effLocal === 'string') {
+          this.localPath = effLocal; this.localPathInput = effLocal
         }
         const savedRemote = localStorage.getItem(this._profileKey(SftpFloatingPanel.SAVED_REMOTE_PATH_KEY))
         // ★ 2026-10-23：'/' 视作被兜底值污染的旧记忆，忽略（见 saveCurrentPath 的同条注释）
@@ -2742,15 +2810,18 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     ev.preventDefault()
     if (ev.dataTransfer) ev.dataTransfer.dropEffect = 'copy'
     if (!this._rlDragOver) { this._rlDragOver = true; this._safeDetect() }
+    this._updateDropFolderHint(ev)
   }
 
   onDragEnterRl(ev: DragEvent): void { this.onDragOverRl(ev) }
 
-  onDragLeaveRl(_ev: DragEvent): void {
+  onDragLeaveRl(ev: DragEvent): void {
+    this._onDropHintLeave(ev)
     if (this._rlDragOver) { this._rlDragOver = false; this._safeDetect() }
   }
 
   async onDropRl(ev: DragEvent): Promise<void> {
+    this._clearDropFolderHint()
     // ★ v1 明确不收「远程 → 右本地」内部拖拽：drop.ts 的下载通道绑定右栏远程会话，
     //   来源若为左栏远程端点时会话归属错误——宁可明确拒收也不能错传（后续扩展会话感知端口后放开）。
     try {
@@ -2759,7 +2830,10 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     } catch { /* 非 JSON payload 按 OS 拖放处理 */ }
     this._rlDragOver = false
     // 落点：文件夹行 → 该目录；其余 → 当前目录（与左栏本地同规则）
-    const destDir = this._resolveDropDestDir(ev, 'local') || this._rlPath
+    // ★ 2026-10-27（Deepseek-V4.1-Flash）：跨栏 / 外部拖入且开启「只投放到当前目录」时，
+    //   _resolveDropDestDir 返回 undefined ⇒ 落到 _rlPath（右栏当前目录）。
+    const crossPane = this._dropPayloadSrcPane(ev) !== 'right'
+    const destDir = this._resolveDropDestDir(ev, 'local', crossPane) || this._rlPath
     // ★ issue #27 P3：右栏是物理右栏——跨栏同目录拖放需要绕过「同目录无操作」早退
     await this._fileDropRuntime.onDrop(ev, 'local', destDir, 'right')
     void this._rlRefresh()
@@ -2835,6 +2909,21 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
    * 读取时 perTab 槽优先、全局槽兜底（老版本升级过渡期仍能读到旧值）。
    */
   private _tabSlotBase(): string | null {
+    // ★ 2026-10-23（Deepseek-V4.1-Flash）：槽身份**只认宿主标签页**，初始化后锁定。
+    //   成因（用户实测「切成本地，重启后又变回远程等待」）：原先每次都现读 `this.profile`，
+    //   而 `switchRemoteSession()`（右栏换连接）会把它改写成新连接 ⇒ 此后 `_persistLeftEndpoint()`
+    //   把端点写进了**另一个槽**；重启后面板 profile 回到宿主标签，读的是原槽 ⇒ 读到旧的
+    //   `endpoints/left: remote`，于是又去恢复那个远程连接。配置里能看到两个 perTab 槽
+    //   各自记着不同的 left 值，就是槽位漂移的直接证据。
+    if (!this._hostSlotKey) {
+      const k = this._computeHostSlotKey()
+      if (k) this._hostSlotKey = k
+    }
+    return this._hostSlotKey
+  }
+
+  /** 由当前 profile 计算宿主槽 key（只在初始化时用一次，见 _hostSlotKey） */
+  private _computeHostSlotKey(): string | null {
     const o: any = this.profile?.options || {}
     const host = String(o.host || '').trim().toLowerCase()
     if (!host) return null
@@ -2883,6 +2972,10 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
    */
   private _persistLeftEndpoint(keepPath = false): void {
     try {
+      // 诊断（可 grep）：kind + 落到的槽 + 当前 profile host（槽位漂移时两者会对不上）
+      log.info('[SFTP+] persist left endpoint: kind=' + this._leftKind
+        + ' slot=' + String(this._tabSlotBase() || '(global)')
+        + ' profileHost=' + String(this.profile?.options?.host || '(none)'))
       this._ptSet('endpoints/left', this._leftKind)
       if (this._leftKind === 'remote') {
         const o = this._leftProfile?.options || {}
@@ -3043,6 +3136,10 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       kind = this._ptGet('endpoints/left')
       saved = this._ptGet('leftRemoteHost')
     } catch { /* ignore */ }
+    // 诊断（可 grep）：读到的槽与内容 —— 「切本地重启后仍恢复远程」看这一行即可定位槽位是否漂移
+    log.info('[SFTP+] restore left endpoint: slot=' + String(this._tabSlotBase() || '(global)')
+      + ' kind=' + String(kind) + ' saved=' + String(saved?.label || saved?.host || '(none)')
+      + ' profileHost=' + String(this.profile?.options?.host || '(none)'))
     if (kind !== 'remote' || !saved || (!saved.host && !saved.label)) return
     this._leftRestoreTried = true
     // ⛔ 2026-10-20 续十二（用户反馈「重开面板左栏变回 /」）：路径必须在 `switchLeftEndpoint`
@@ -3073,6 +3170,12 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
         if (!this._isAlive || this._leftRestoreAbort) return
         const opt = this.listRemoteConnectionOptions().find(o => this._connMatchesSaved(o, saved))
         if (opt) {
+          // ★ 2026-10-23：命中连接后还要复查一次 —— 上面的 await（profile 解析 / 500ms 间隔）
+          //   期间用户可能已经切成本地或点过重连，那时不能再抢回来。
+          if (this._leftRestoreAbort) {
+            log.info('[SFTP+] left endpoint restore superseded before switch, skip')
+            return
+          }
           log.info('[SFTP+] restoring left endpoint:', saved.label || saved.host)
           // ★ 续二十七：把记忆路径作为首目录传进去 —— 只刷新一次，直接落在目标目录
           //   （`_leftRestoring` 保持到 switch 结束，顶栏全程显示「连接中」，结束后直接落到远程态）
@@ -3093,6 +3196,13 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       this._suppressPaneFlash = false
       // ★ 续二十八：恢复结束（成功 / 失败 / 用户抢占）都要清掉「连接中 <目标>」
       this._clearConnPending('left')
+    }
+    // ★ 2026-10-23（Deepseek-V4.1-Flash）：用户已抢占恢复（切本地 / 点重连 / 打开选择器）⇒
+    //   什么都别做：既不改左栏状态，也不弹「未恢复」toast（用户已经自己处理了，再弹等于骂人）。
+    //   ⛔ 这行判断必须放在 _enterLeftDisconnectedState 之前 —— 它就是「超时后远程又回来」的元凶。
+    if (this._leftRestoreAbort) {
+      log.info('[SFTP+] left endpoint restore aborted by user action, skip disconnected fallback:', saved.label || saved.host)
+      return
     }
     log.info('[SFTP+] left endpoint not restored (connection not found):', saved.label || saved.host)
     // ★ 续三十一（用户诉求原话：「如果未在时间内连上，不用断开改为本地连接，而是像断开一样，
@@ -3156,6 +3266,8 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
   paneHiddenItems: string[] = []
   logFilterOp: '' | TransferLogEntry['operation'] = ''
   logFilterStatus: '' | 'success' | 'failed' = ''
+  // ★ 2026-10-25：「全部连接」筛选（空字符串 = 全部连接）
+  logFilterProfile = ''
   logFilterTimeRange: '' | 'today' | '7d' | '30d' | 'custom' = ''
   logFilterDateFrom = ''
   logFilterDateTo = ''
@@ -3988,6 +4100,8 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       },
     })
 
+    // ★ 2026-10-23：槽身份要在任何「切换端点」动作之前锁定（switchRemoteSession 会改写 this.profile）
+    this._hostSlotKey = this._computeHostSlotKey()
     // profile 已就绪，此时加载路径模式才能正确匹配 per-profile 的 key
     this._loadSavedPaths()
     this._cwdSetupPrompted = false
@@ -4100,6 +4214,18 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       this.cdr.markForCheck()
     }
     window.addEventListener('sftp-plus-settings-changed', this._settingsChangedHandler)
+
+    // ★ 2026-10-27（Deepseek-V4.1-Flash）：QuickCmd+ 执行命令后请求刷新（契约见 core/quickcmd-link.ts）。
+    //   监听挂在 window 上、事件带 session 引用 ⇒ 同一窗口里哪个 Tabby 标签的命令都能精确找回本面板。
+    this._qcRefreshHandler = (ev: Event) => {
+      const detail = (ev as CustomEvent)?.detail
+      // 事件来自别的插件，可能在任何时机派发 ⇒ 统一进 zone 再动状态，最后补一次检测
+      this.zone.run(() => {
+        try { this._onQuickCmdRefreshRequest(detail) } catch (e) { log.warn('quickcmd refresh request failed:', e) }
+        this._safeDetect()
+      })
+    }
+    window.addEventListener(QC_REFRESH_REQUEST_EVENT, this._qcRefreshHandler)
 
     // 捕获阶段 document click：关闭书签悬浮面板 & 右键菜单 & 表头菜单
     // overlay 的 stopPropagation 阻止了冒泡阶段到达 document，但捕获阶段不受影响
@@ -4230,6 +4356,10 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       this._panelHotkeyCaptureKeydown = (ev: KeyboardEvent) => this._capturePanelHotkeysBeforeTabby(ev)
       window.addEventListener('keydown', this._termKeyShieldKeydown, true)
       window.addEventListener('keydown', this._panelHotkeyCaptureKeydown, true)
+      // ⛔ 别的插件浮层会在自己宿主上 stopPropagation mousedown（QuickCmd+ 面板就是），
+      //    document 冒泡收不到 ⇒ owns 残留、把 Ctrl+A/C/V 从对方输入框抢走。改用 window 捕获。
+      this._ownsClearCapture = (ev: MouseEvent) => this._clearOwnsOnOutsideMouseDown(ev)
+      window.addEventListener('mousedown', this._ownsClearCapture, true)
       window.addEventListener('paste', this._termKeyShieldPaste, true)
 
       // ★ 2026-09-17：从其他窗口点回面板时，Electron 常在激活后把焦点还原到 xterm；
@@ -4263,6 +4393,9 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
 
   ngOnDestroy(): void {
     this._destroyed = true
+    // ★ 2026-10-26（Deepseek-V4.1-Flash）：未决的二次确认按「取消」结掉 ——
+    //   否则 await askConfirm() 的后续代码永不执行（其中的清理/复位全部卡住）。
+    this.disposeConfirmDialog()
     // ★ 2026-10-20：左栏会话的 closed$ 订阅 + 兜底轮询必须摘下，否则它强引用整个面板，
     //   面板销毁后仍会每 2s 触发一次变更检测并把状态写回已销毁视图。
     this._unwatchLeftSession()
@@ -4308,6 +4441,11 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     //   两个 document 监听器会残留并强引用整个面板实例，之后每次鼠标移动都在
     //   已销毁组件上跑 zone.run 改写列宽字段。
     this.disposeColResize()
+    // ★ 2026-10-25 BUG-H1 修复：书签弹窗尺寸拖拽的 document 监听器泄漏。
+    //   拖拽过程中面板被销毁时 onUp 永不触发，_bmResizeCleanup 只在用户松手时设置。
+    //   此处兜底调用，确保拖拽中销毁也能摘掉 document 级 mousemove/mouseup。
+    this._bmResizeCleanup?.()
+    this._bmResizeCleanup = null
     // 清理几何拖拽/缩放事件监听器（防止销毁时正在拖拽导致泄漏）
     document.removeEventListener('mousemove', this._onGeomMoveBound)
     document.removeEventListener('mouseup', this._onGeomUpBound)
@@ -4345,6 +4483,10 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       window.removeEventListener('keydown', this._panelHotkeyCaptureKeydown, true)
       this._panelHotkeyCaptureKeydown = null
     }
+    if (this._ownsClearCapture) {
+      window.removeEventListener('mousedown', this._ownsClearCapture, true)
+      this._ownsClearCapture = null
+    }
     if (this._termKeyShieldPaste) {
       window.removeEventListener('paste', this._termKeyShieldPaste, true)
       this._termKeyShieldPaste = null
@@ -4369,6 +4511,18 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     if (this._settingsChangedHandler) {
       window.removeEventListener('sftp-plus-settings-changed', this._settingsChangedHandler)
     }
+    // ★ 2026-10-27（Deepseek-V4.1-Flash）：QuickCmd+ 联动 —— 监听与观察期定时器都必须摘掉，
+    //   否则定时器强引用整个面板，销毁后还会继续对远端 readdir。
+    this._qcObserver?.stop('panel destroyed')
+    this._qcObserver = null
+    if (this._qcRefreshHandler) {
+      window.removeEventListener(QC_REFRESH_REQUEST_EVENT, this._qcRefreshHandler)
+      this._qcRefreshHandler = null
+    }
+    // ★ 2026-10-27（Deepseek-V4.1-Flash）：定时刷新同理 —— 不清会强引用面板并对远端持续 readdir
+    if (this._autoRefreshTimer) { clearInterval(this._autoRefreshTimer); this._autoRefreshTimer = null }
+    this._autoRefreshBusy = false
+    this._autoRefreshQuiet = false
     if (this.localClickTimer) clearTimeout(this.localClickTimer)
     if (this.remoteClickTimer) clearTimeout(this.remoteClickTimer)
     this._clearTypeAhead()
@@ -4384,9 +4538,11 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       this._winResizeHandler = null
     }
     // P2-1: 清理远程拖拽缓存临时目录
-    void fs.rm(path.join(os.tmpdir(), 'sftp-plus-dragout'), { recursive: true, force: true }).catch(() => {})
+    // ★ 2026-10-25 BUG-M7 修复：面板销毁时异步 rm 可能未执行完毕就被 GC，
+    //   导致临时目录残留。改用同步 rmSync，确保销毁前清理完成。
+    try { fsSync.rmSync(path.join(os.tmpdir(), 'sftp-plus-dragout'), { recursive: true, force: true }) } catch {}
     // ★ 2026-09-20 P2-2: 清理「拖入兜底」临时目录（仅本面板作用域内的副本，不误删其它面板的）
-    void fs.rm(dragDropTempDir(this._dropTmpScope), { recursive: true, force: true }).catch(() => {})
+    try { fsSync.rmSync(dragDropTempDir(this._dropTmpScope), { recursive: true, force: true }) } catch {}
     // P2-2: 清理 _openPathInSystem 可能残留的 keyup 监听和定时器
     if (this._openPathKeyupHandler) {
       window.removeEventListener('keyup', this._openPathKeyupHandler, true)
@@ -4415,6 +4571,8 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
   /** ★ 2026-09-17 issue #21：捕获阶段剪贴板热键/粘贴屏蔽（防穿透终端） */
   private _termKeyShieldKeydown: ((ev: KeyboardEvent) => void) | null = null
   private _panelHotkeyCaptureKeydown: ((ev: KeyboardEvent) => void) | null = null
+  /** 捕获阶段的「面板外 mousedown ⇒ 交出剪贴板热键归属」监听（见 _clearOwnsOnOutsideMouseDown） */
+  private _ownsClearCapture: ((ev: MouseEvent) => void) | null = null
   /**
    * ★ 2026-09-29：指针类面板热键（中键/滚轮）最近一次触发时间。
    * 滚轮一次物理滑动会连发数十个 wheel 事件，动作必须节流（否则「删除」绑滚轮会连删一堆）。
@@ -4510,9 +4668,10 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
         themeBg = cfg.colorBg || ''
         themeText = cfg.colorText || ''
         themeBorder = cfg.colorBorder || ''
-      } else {
+     } else {
         const raw = this._paneGet('sftp-plus-settings.theme')
-        themeValue = raw ? JSON.parse(raw) : ''
+        // ★ 2026-10-25 L1-L4 修复：JSON.parse 可能失败，单独 catch 避免影响整体主题加载
+        try { themeValue = raw ? JSON.parse(raw) : '' } catch { themeValue = "" }
         if (themeValue) {
           themePrimary = this._paneGet('sftp-plus-settings.primaryColor')
           themeBg = this._paneGet('sftp-plus-settings.bgColor')
@@ -4649,11 +4808,17 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     return Math.round(bps) + ' B/s'
   }
 
-  close(): void {
+  async close(): Promise<void> {
     // 有正在进行的传输时，提示用户确认
+    // ★ 2026-10-26（Deepseek-V4.1-Flash）：改用面板内确认框。原生 confirm 点「取消」后
+    //   Electron(Windows) 不交还焦点链 ⇒ 面板还在、但下拉框/输入框点不动（见 clearLog 注释）。
+    //   ⛔ close() 现在返回 Promise：terminal-decorator 的 closeFloatingPanel 是「调用后即返回」，
+    //     面板会在用户选择之后才真正销毁，与之前同步语义一致。
     if (this.transfers.length > 0) {
       const msg = this.i18n.t('notify.closeWithTransfers', { count: this.transfers.length })
-      if (!confirm(msg)) return
+      if (!(await this.askConfirm(msg))) return
+      // ★ 异步后校验：确认期间面板可能已被其它路径关掉（Tabby 关标签 / 热键），别再动已销毁的会话
+      if (this._destroyed) return
       // 用户确认关闭 → 取消所有传输
       this.clearTransfers()
     }
@@ -4720,6 +4885,23 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
         ? Math.min(4096, Math.max(1, Math.floor(digestMaxMB)))
         : 256
       this._conflictDigestAlgo = cfg?.conflictDigestAlgo === 'sha256' ? 'sha256' : 'sha1'
+      // ★ 2026-10-27（Deepseek-V4.1-Flash）：拖拽落点只认当前目录（缺键按「开」；旧配置无此键）
+      this._dropToCurrentDirOnly = cfg?.dropToCurrentDir !== false
+      // ★ 2026-10-27（Deepseek-V4.1-Flash）：QuickCmd+ 联动 —— 缺键按「关」处理（新增能力不默默开启）；
+      //   观察期时长夹到 1–120 秒，与设置页同口径（这里再夹一次：配置可能被手改）
+      this._refreshOnQuickCmd = cfg?.refreshOnQuickCmd === true
+      const winSec = Number(cfg?.refreshOnQuickCmdWindow)
+      this._refreshOnQuickCmdWindowMs = (isFinite(winSec) && winSec > 0 ? Math.max(1, Math.min(120, Math.round(winSec))) : 10) * 1000
+      // 开关被关掉时立刻停掉可能还在跑的观察期（否则「关了还在刷」）
+      if (!this._refreshOnQuickCmd) this._qcObserver?.stop('disabled by config')
+      // ★ 2026-10-27（Deepseek-V4.1-Flash）：定时刷新（缺键按「关」；间隔夹到 5–3600 秒，与设置页同口径）
+      this._autoRefreshEnabled = cfg?.autoRefreshEnabled === true
+      const ivSec = Number(cfg?.autoRefreshInterval)
+      this._autoRefreshIntervalMs = (isFinite(ivSec) && ivSec > 0 ? Math.max(5, Math.min(3600, Math.round(ivSec))) : 60) * 1000
+      // ★ 2026-10-28（Deepseek-V4.1-Flash）：列表刷新闪烁（缺键按「开」；老配置无此键 ⇒ 保留原有反馈）
+      this._flashEnabled = cfg?.listRefreshFlash !== false
+      // ⛔ 开关/间隔任一变化都要重排定时器（只改间隔不重启 ⇒ 仍按老间隔跑，用户以为没生效）
+      this._syncAutoRefreshTimer()
       this._pumpUploadQueue()
       this._pumpDownloadQueue()
     } catch { /* ignore */ }
@@ -6340,6 +6522,16 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
 
   /** 左栏切回本地磁盘：释放第二 SFTP 会话，恢复切走前的本地路径 */
   private _revertLeftToLocal(): void {
+    // ★ 2026-10-23（Deepseek-V4.1-Flash）：切本地 = 用户**抢占**了「左栏自动恢复」。
+    //   重启 Tabby 后左栏会自动恢复上次的远程端点，恢复流程最多轮询 30s；
+    //   用户在这段时间里把左栏换成「本地」时，恢复流程必须就此放弃 ——
+    //   否则超时分支会把刚切好的本地又改回「远程（已断开）」（用户实测的「又出现」）。
+    this._leftRestoreAbort = true
+    // 恢复流程的 finally 要等下一次轮询才发现 abort（最多 500ms 后 return）——
+    //   先把「恢复中」与顶栏「连接中 <目标>」就地清掉，用户切完本地立刻看到本地面板，
+    //   而不是顶栏还挂着「等待连接」等半秒。
+    this._leftRestoring = false
+    this._clearConnPending('left')
     // ★ 2026-10-20：端点切走后必须摘下 closed$ 订阅与兜底轮询，否则旧会话的迟到事件
     //   会把已经变成「本地」的左栏重新标成断开。
     this._unwatchLeftSession()
@@ -6970,9 +7162,24 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
    *   两次 0.25s 淡蓝背景叠起来就是用户看到的「闪两下」⇒ 这些流程里整体抑制。
    *   另外**首帧填充不闪**：面板刚打开时列表是从无到有，那一下「刷新」没有任何信息量。
    */
+  /**
+   * ★ 2026-10-28（Deepseek-V4.1-Flash）：统一判定「当前这次刷新是否应闪烁」。
+   *   本地 / 远程两侧共用，四道闸门：① 全局开关关 ⇒ 不闪；② 恢复/切换端点（连续刷两次）⇒ 不闪；
+   *   ③ 定时刷新（无信息量）⇒ 不闪；④ 面板首帧填充（从无到有）⇒ 不闪。
+   *   ⛔ 之前远程栏直接 `this._remoteFlash = true`、不认 ②③，导致定时刷新 / 恢复切换时远程栏仍闪、
+   *      与本地不对称 —— 这次一并修掉：两侧都走本判定。
+   *   首帧那一下同时把标志置 true，保证只被吞一次。
+   */
+  private _shouldFlashPane(): boolean {
+    if (!this._flashEnabled) return false
+    if (this._suppressPaneFlash) return false
+    if (this._autoRefreshQuiet) return false
+    if (!this._firstListPainted) { this._firstListPainted = true; return false }
+    return true
+  }
+
   private _flashPaneList(): void {
-    if (this._suppressPaneFlash) return
-    if (!this._firstListPainted) { this._firstListPainted = true; return }
+    if (!this._shouldFlashPane()) return
     this._localFlash = true
     this._safeDetect()
     if (this._localFlashTimer) clearTimeout(this._localFlashTimer)
@@ -7312,13 +7519,16 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     if (refreshGen !== this._remoteRefreshGen || snapshotPath !== this.remotePath) return true
     // ★ 2026-10-22：同步路径模式 —— 右栏远程换目录就把左栏带过去
     void this._mirrorFollowFrom('right')
-    this._remoteFlash = true
-    this._safeDetect()
-    if (this._remoteFlashTimer) clearTimeout(this._remoteFlashTimer)
-    this._remoteFlashTimer = setTimeout(() => {
-      this._remoteFlash = false
-      this._remoteFlashTimer = null
-    }, 260)
+    // ★ 2026-10-28（Deepseek-V4.1-Flash）：远程栏也走统一闪烁判定（修掉之前漏判定时/恢复导致的不对称）
+    if (this._shouldFlashPane()) {
+      this._remoteFlash = true
+      this._safeDetect()
+      if (this._remoteFlashTimer) clearTimeout(this._remoteFlashTimer)
+      this._remoteFlashTimer = setTimeout(() => {
+        this._remoteFlash = false
+        this._remoteFlashTimer = null
+      }, 260)
+    }
     return true
   }
 
@@ -9361,12 +9571,17 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
   }
 
   private _resetFileDragState(): void {
+    // ★ 2026-10-27（Deepseek-V4.1-Flash）：拖拽结束/落手时一并撤掉落点标注，避免残留高亮
+    this._clearDropFolderHint()
     this._fileDnd.reset()
   }
 
   onEntryDragEnd(): void {
     // 拖拽结束（含拖回原位取消）：立刻中止尚未开始/进行中的预缓存下载
     this._cancelRemoteDragCache()
+    // ★ 2026-10-27（Deepseek-V4.1-Flash）：拖拽取消/结束时撤掉落点标注（源侧 dragend 也要撤，
+    //   否则「拖起后又松开取消」会把某一行永久留在高亮态）
+    this._clearDropFolderHint()
     this._fileDnd.onEntryDragEnd(() => this._clearCustomDragPreview())
   }
 
@@ -9498,14 +9713,18 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
 
   onDragOver(ev: DragEvent, targetPane: 'local' | 'remote'): void {
     this._fileDnd.onDragOver(ev, targetPane)
+    // ★ 2026-10-27（Deepseek-V4.1-Flash）：关掉「只投放到当前目录」时，把指针下的文件夹行标出来
+    this._updateDropFolderHint(ev)
   }
 
   onDragEnter(ev: DragEvent, targetPane: 'local' | 'remote'): void {
     this._fileDnd.onDragEnter(ev, targetPane)
+    this._updateDropFolderHint(ev)
   }
 
   onDragLeave(ev: DragEvent, targetPane: 'local' | 'remote'): void {
     this._fileDnd.onDragLeave(ev, targetPane)
+    this._onDropHintLeave(ev)
   }
 
   onDragStartLocal(ev: DragEvent, entry: LocalEntry): void {
@@ -9683,14 +9902,37 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
   }
 
   async onDrop(ev: DragEvent, targetPane: 'local' | 'remote'): Promise<void> {
-    const destDir = this._resolveDropDestDir(ev, targetPane)
+    this._clearDropFolderHint()
+    // ★ 2026-10-27（Deepseek-V4.1-Flash）：跨栏 / 外部拖入才受「只投放到当前目录」约束 ——
+    //   同栏内拖到子文件夹是文件管理器的通用手势（复制进该目录），不归这个开关管。
+    const srcPane = this._dropPayloadSrcPane(ev)
+    const crossPane = !srcPane || srcPane !== (targetPane === 'local' ? 'left' : 'right')
+    const destDir = this._resolveDropDestDir(ev, targetPane, crossPane)
     // ★ issue #27 P3：targetPane 与物理栏一一对应（'local'=左栏、'remote'=右栏），
     //   供跨栏同目录拖放绕过「同目录无操作」早退（右栏本地面板走 onDropRl 单独传 'right'）
     await this._fileDropRuntime.onDrop(ev, targetPane, destDir, targetPane === 'local' ? 'left' : 'right')
   }
 
-  /** ★ 2026-09-20：拖放到文件夹行时解析落点目录；落到文件行则用其父目录 */
-  private _resolveDropDestDir(ev: DragEvent, targetPane: 'local' | 'remote'): string | undefined {
+  /** 读拖拽源栏（仅在 drop 事件里可靠：dragover 阶段浏览器对 dataTransfer 处于保护模式，读出来是空串） */
+  private _dropPayloadSrcPane(ev: DragEvent): 'left' | 'right' | null {
+    try {
+      const raw = ev.dataTransfer?.getData('application/x-sftp-plus')
+      if (!raw) return null
+      const src = JSON.parse(raw)?.srcPane
+      return src === 'left' || src === 'right' ? src : null
+    } catch { return null }
+  }
+
+  /**
+   * 拖放到文件夹行时解析落点目录；落到文件行则用其父目录。
+   * ★ 2026-10-27（Deepseek-V4.1-Flash）：`crossPane && _dropToCurrentDirOnly` 时**直接返回 undefined**
+   *   （= 用该栏当前打开的目录）。成因：从 A 栏拖一个文件到 B 栏，手滑停在某个文件夹行上时，
+   *   旧逻辑会把文件静默存进那个子目录 —— 列表本身毫无变化，用户以为传输失败，事后只能从
+   *   传输记录的路径才看出「被吞了」。开关在设置页「传输设置 → 拖拽只投放到当前目录」，默认开。
+   * @param crossPane 是否为跨栏 / 外部拖入（同栏内拖到子文件夹不受此开关约束）
+   */
+  private _resolveDropDestDir(ev: DragEvent, targetPane: 'local' | 'remote', crossPane = true): string | undefined {
+    if (crossPane && this._dropToCurrentDirOnly) return undefined
     const el = (ev.target as HTMLElement | null)?.closest?.('[data-path]') as HTMLElement | null
     if (!el) return undefined
     const p = el.getAttribute('data-path')
@@ -9706,6 +9948,45 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       return isDir ? p : path.posix.dirname(p)
     }
     return isDir ? p : path.dirname(p)
+  }
+
+  /**
+   * 拖拽落点提示：把指针下的文件夹行标注出来（`关闭「只投放到当前目录」` 时才有意义）。
+   * 功能描述：设置页关掉「拖拽只投放到当前目录」后，拖到文件夹行上会真的存进那个文件夹 ——
+   *          光靠落手后的结果看不出来，所以在拖拽期间给该行加 `.drop-into` 类 + `data-drop-hint`
+   *          文案（CSS 用 `::after { content: attr(data-drop-hint) }` 画出「放入此文件夹」小标）。
+   *          开关打开时落点与行无关 ⇒ 不加任何标注，否则又会让人以为「这一行是目标」。
+   * 性能：dragover 每帧都触发，所以**只在目标元素变化时**动 DOM（不 detectChanges、不改绑定）。
+   * @创建人：DD1024z + Deepseek-V4.1-Flash
+   * @创建时间：2026-10-27
+   */
+  private _updateDropFolderHint(ev: DragEvent): void {
+    if (this._dropToCurrentDirOnly) { this._clearDropFolderHint(); return }
+    const row = (ev.target as HTMLElement | null)?.closest?.('[data-isdir="1"]') as HTMLElement | null
+    if (row === this._dropHintEl) return
+    this._clearDropFolderHint()
+    if (!row) return
+    this._dropHintEl = row
+    row.classList.add('drop-into')
+    row.setAttribute('data-drop-hint', this.i18n.t('notify.dropIntoFolder'))
+  }
+
+  /** 撤掉拖拽落点标注（行已被刷新销毁时也安全：对游离节点改类名不抛错） */
+  private _clearDropFolderHint(): void {
+    const el = this._dropHintEl
+    if (!el) return
+    this._dropHintEl = null
+    el.classList.remove('drop-into')
+    el.removeAttribute('data-drop-hint')
+  }
+
+  /** 离开某栏列表时撤标注（鼠标在子元素间移动会反复 dragleave，必须先判 relatedTarget 是否还在同一列表内） */
+  private _onDropHintLeave(ev: DragEvent): void {
+    if (!this._dropHintEl) return
+    const related = ev.relatedTarget as Node | null
+    const list = (ev.target as HTMLElement | null)?.closest?.('.pane-list')
+    if (list && related && list.contains(related)) return
+    this._clearDropFolderHint()
   }
 
   // ========== 文件夹传输进度 ==========
@@ -10472,7 +10753,7 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     //   本函数是「捕获阶段抢先消费」，比后者更早，若不拦，输入法组字时按 Delete/F5 等
     //   面板热键会把按键从 IME 手里抢走，导致候选词无法上屏。
     if (event.isComposing || (event as unknown as { keyCode?: number }).keyCode === 229) return
-    if (!this._isPanelDomFocused() && !this._panelOwnsClipboardHotkeys) return
+    if (!this._isPanelDomFocused() && !this._ownsHotkeysApply()) return
     if (this._isPanelTyping(event)) return
     // ★ issue #24：焦点在终端时不抢 Tabby 全局键，避免吞掉终端按键（如空格）
     if (this._isTerminalFocusTarget(event)) return
@@ -10604,7 +10885,7 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     if (this._isPanelModalOpen()) return
     // ★ 2026-09-20：焦点不在面板 DOM 时不劫持 Delete/方向键/F2/F5（与 Backspace 历史一致）
     //   否则点选文件后点回终端，Delete 会误删、方向键会改选中
-    if (!this._isPanelDomFocused() && !this._panelOwnsClipboardHotkeys) return
+    if (!this._isPanelDomFocused() && !this._ownsHotkeysApply()) return
     // 仅面板自身输入框内才视为正在输入；终端 textarea 在面板之外不拦截
     if (this._isPanelTyping(event)) return
     // ★ issue #24：焦点位于终端(xterm)时绝不劫持按键——空格/字母等必须正常输入终端
@@ -10707,7 +10988,7 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     //   安全性：能走到这里说明已经过 #2（无模态）、#4（不在输入框打字）、#5（焦点不在终端）；
     //   而 `owns` 会在**面板外任何 mousedown** 时被 onDocumentMouseDownForMenu 清零
     //   ⇒ 不会出现「人在设置页等别处打字、字母被面板吃掉」的情形。
-    if (this._panelOwnsClipboardHotkeys && this._tryTypeAheadFind(event)) return
+    if (this._ownsHotkeysApply() && this._tryTypeAheadFind(event)) return
   }
 
   /** 清空键入定位缓冲区 */
@@ -11152,6 +11433,144 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     return this._refreshPanesOfFs(true)
   }
 
+  /* ------------------------------------------------------------------------- *
+   * QuickCmd+ 联动（接收侧）—— 事件契约见 core/quickcmd-link.ts
+   * ------------------------------------------------------------------------- */
+
+  /**
+   * ★ 2026-10-27（Deepseek-V4.1-Flash）：处理 QuickCmd+ 的刷新请求。
+   *
+   * 匹配规则（宁可不刷，也不去骚扰别的连接）：
+   *   ① 设置开关关闭 ⇒ 直接忽略（默认关，用户显式打开才生效）；
+   *   ② detail.session 是本面板持有/关联的 SSH 会话 ⇒ 刷「远程栏」；
+   *   ③ detail.isSsh === false（命令跑在本地 shell）⇒ 刷「本地栏」—— 本机磁盘全局只有一份，
+   *      不需要按连接匹配；
+   *   ④ 带了 session 但对不上 ⇒ 忽略（另一台服务器上跑的命令不该刷本面板）；
+   *   ⑤ 没带 session（旧版本 / 第三方派发）⇒ 退化为「已连接就刷远程，否则刷本地」，并记日志。
+   *
+   * ⛔ 只刷新、不跳转、不改路径：命令写进哪个目录只有 shell 自己知道，猜错会把用户
+   *    带离工作目录。同目录刷新由 refreshRemote 的 _pruneSelection 兜住，当前选择不会丢。
+   */
+  private _onQuickCmdRefreshRequest(raw: any): void {
+    const d = normalizeRefreshRequest(raw)
+    if (!d) return
+    // ★ 2026-10-27（Deepseek-V4.1-Flash）：先记「对面真的活着」，再判开关 ——
+    //   设置页靠这条记录判定 QuickCmd+ 是否装好（开关关着也算装上，避免误报未安装）。
+    markQuickCmdSeen()
+    if (!this._refreshOnQuickCmd) {
+      log.info('[SFTP+] quickcmd refresh ignored: refreshOnQuickCmd=false')
+      return
+    }
+    const label = (d.commandName || '?') + (d.hostLabel ? ' @ ' + d.hostLabel : '')
+    if (d.isSsh === false) {
+      log.info('[SFTP+] quickcmd refresh: local fs (' + label + ')')
+      this._startQuickCmdObserve(true)
+      return
+    }
+    if (d.session) {
+      // ⛔ 引用比对而不是 host 字符串：同一 host 可以开多个标签页，命令只该刷「它自己那一份」
+      const ours = d.session === this.sshSession || d.session === this._leftSshSession
+      if (!ours) return
+      log.info('[SFTP+] quickcmd refresh: remote session matched (' + label + ')')
+      this._startQuickCmdObserve(false)
+      return
+    }
+    log.info('[SFTP+] quickcmd refresh: no session in detail, fallback connected=' + this.connected)
+    this._startQuickCmdObserve(!this.connected)
+  }
+
+  /**
+   * 启动（或重置）观察期轮询。
+   * @param local true = 刷本地栏；false = 刷远程栏
+   * ⛔ 重复请求走同一个 observer 的 start —— 它内部先 stop 再排新定时器，
+   *   绝不会出现「连按两次快捷命令，两份定时器同时刷」。
+   */
+  private _startQuickCmdObserve(local: boolean): void {
+    if (!this._qcObserver) this._qcObserver = new QcRefreshObserver()
+    this._qcObserver.start({
+      windowMs: this._refreshOnQuickCmdWindowMs,
+      tick: async () => {
+        if (!this._isAlive) return ''
+        await this._refreshPanesOfFs(local)
+        return this._paneListFingerprint(local)
+      },
+      isAlive: () => this._isAlive,
+      log: msg => log.info('[SFTP+] ' + msg),
+    })
+  }
+
+  /**
+   * 列表指纹（判断「远端是否还在改动该目录」）：名字 + 大小 + 目录标志 + 修改时间。
+   * ⛔ 用 FNV-1a 折成短串再比：备份目录动辄上千项，每 1.5s 拼一次长串既费 CPU 又费内存。
+   * ⛔ 不要只比长度/条目数：备份文件是「先建后长大」，条目数一直不变，只有 size/mtime 在动。
+   */
+  private _paneListFingerprint(local: boolean): string {
+    let h = 2166136261
+    let n = 0
+    const feed = (arr: any[]) => {
+      for (const e of arr || []) {
+        if (!e) continue
+        n++
+        const s = (e.name || '') + '|' + (e.size ?? '') + '|' + (e.isDirectory ? 'd' : 'f') + '|'
+          + ((e as any).modified ?? (e as any).mtimeMs ?? '')
+        for (let i = 0; i < s.length; i++) {
+          h ^= s.charCodeAt(i)
+          h = Math.imul(h, 16777619)
+        }
+      }
+    }
+    if (local) { feed(this.localEntries); feed(this._rlEntries) }
+    else { feed(this.remoteEntries) }
+    return n + ':' + (h >>> 0).toString(36)
+  }
+
+
+  /* ------------------------------------------------------------------ *
+   * ★ 2026-10-27（Deepseek-V4.1-Flash）：定时刷新列表（设置项 autoRefreshEnabled，默认关）
+   *   与上面 QuickCmd+ 联动的区别：那条是「对面刚跑过命令」触发的一次性观察期，
+   *   这条是「外面有人在写这台机器」（日志/监控截图/CI 产物）的场景，按固定间隔一直刷。
+   * ------------------------------------------------------------------ */
+
+  /**
+   * 同步定时器：开关关闭、间隔改动、面板销毁都走这一个出口。
+   * ⛔ 只改间隔不重排 ⇒ 定时器还按老间隔跑，用户会以为设置没生效（所以先 clear 再 set）。
+   */
+  private _syncAutoRefreshTimer(): void {
+    if (this._autoRefreshTimer) {
+      clearInterval(this._autoRefreshTimer)
+      this._autoRefreshTimer = null
+    }
+    if (!this._autoRefreshEnabled || !this._isAlive) return
+    this._autoRefreshTimer = setInterval(() => { void this._autoRefreshTick() }, this._autoRefreshIntervalMs)
+  }
+
+  /**
+   * 定时刷新一轮：本地栏 + 远程栏都刷。
+   * ⛔ 只刷新、不跳转、不改路径、不动选择（同目录刷新由 _pruneSelection 兜住）。
+   * ⛔ 不闪蓝：定时刷新没有「用户刚做完动作」的信息量，每 N 秒闪一下纯骚扰 ⇒ _autoRefreshQuiet。
+   * ⛔ 窗口不可见时跳过 —— 用户在别处干活时这份列表没人看，不必给远端 readdir 施压。
+   * ⛔ 右键菜单开着时跳过：菜单是挂在选中行上的，刷新会把消失的条目从选择里剔掉，
+   *    菜单失去锚点还悬在那里（用户正要点「删除/重命名」，不该被打断）。
+   * ⛔ 上一轮没回来（弱网/大目录）就跳过本轮，绝不并发压 readdir。
+   */
+  private async _autoRefreshTick(): Promise<void> {
+    if (!this._isAlive || this._autoRefreshBusy) return
+    if (typeof document !== 'undefined' && document.hidden) return
+    if (this.contextMenuVisible) return
+    this._autoRefreshBusy = true
+    this._autoRefreshQuiet = true
+    try {
+      await this._refreshPanesOfFs(true)
+      await this._refreshPanesOfFs(false)
+    } catch (e) {
+      log.warn('[SFTP+] auto refresh failed:', e)
+    } finally {
+      this._autoRefreshQuiet = false
+      this._autoRefreshBusy = false
+    }
+  }
+
+
   /** 刷新所有「远程」栏（右栏远程 + 左栏远程端点）；理由见 _refreshPanesOfFs */
   private _refreshRemoteFsPanes(): Promise<void> {
     return this._refreshPanesOfFs(false)
@@ -11565,12 +11984,18 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       until?: number
     } = {
       operation: this.logFilterOp || undefined,
-      profileName: this.profile?.name || undefined,
+      // ★ 2026-10-25：「全部连接」筛选——空字符串表示全部连接，否则按指定连接筛选
+      profileName: this.logFilterProfile || this.profile?.name || undefined,
       ...this._getLogTimeBounds(),
     }
     if (this.logFilterStatus === 'success') filter.success = true
     else if (this.logFilterStatus === 'failed') filter.success = false
     return this.transferLog.filter(filter)
+  }
+
+  /** 获取所有不重复的连接名称列表（用于「全部连接」筛选下拉框） */
+  get logProfileNames(): string[] {
+    return this.transferLog.getProfileNames()
   }
 
   private _getLogTimeBounds(): { since?: number; until?: number } {
@@ -11616,28 +12041,53 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     this.showTransferLog = !this.showTransferLog
   }
 
+  /** 当前导出格式（json / csv） */
+  exportFormat: 'json' | 'csv' = 'json'
+
   exportLog(): void {
-    const json = this.transferLog.exportAsJson()
-    const blob = new Blob([json], { type: 'application/json' })
+    const isCsv = this.exportFormat === 'csv'
+    // ★ 2026-10-25：导出当前筛选条件下的日志，而非全部日志
+    const entries = this.filteredTransferLogs
+    const data = isCsv ? this.transferLog.exportAsCsv(entries) : this.transferLog.exportAsJson(entries)
+    const mimeType = isCsv ? 'text/csv;charset=utf-8' : 'application/json'
+    const ext = isCsv ? 'csv' : 'json'
+    const blob = new Blob([data], { type: mimeType })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a'); a.href = url
-    a.download = `sftp-plus-log-${new Date().toISOString().slice(0, 10)}.json`
+    a.download = `sftp-plus-log-${new Date().toISOString().slice(0, 10)}.${ext}`
     a.click()
     // ★ BUG-16 修复：延迟释放 Blob URL，确保浏览器有足够时间完成下载
     setTimeout(() => URL.revokeObjectURL(url), 5000)
   }
 
-  clearLog(): void {
-    const profileName = this.profile?.name
+  /**
+   * 清除传输记录。
+   * ★ 2026-10-26（Deepseek-V4.1-Flash）：二次确认从 `window.confirm()` 换成面板内确认框。
+   *   ⛔ 别改回原生 confirm —— Electron(Windows) 关闭原生对话框后**焦点链不归还渲染进程**，
+   *   此后工具栏那四个筛选下拉框点开毫无反应（用户实测报障「清除传输记录后筛选下拉框点不动」，
+   *   对应 electron/electron#31917 / #22923，官方至今未修）。详见 sftp-confirm-dialog 头部注释。
+   */
+  async clearLog(): Promise<void> {
     // ★ 2026-09-26：没有「可清除记录」时直接返回（无记录 / 只剩下正在传输中的条目）。
     //   按钮已 disabled，这里再兜一层：避免键盘触发或程序化调用弹出一个「什么都清不掉」的确认框。
     if (this.transferLogClearableCount <= 0) return
-    if (!confirm(this.i18n.t('transfer.clearConfirm'))) return
+    // await 前快照归属（确认框挡住期间用户可能在别的面板清了同一份存储）
+    const profileName = this.profile?.name
+    if (!(await this.askConfirm(this.i18n.t('transfer.clearConfirm')))) return
+    // ★ 异步后按快照复核，不按「此刻是否还有记录」猜：被确认框挡住这段时间里
+    //   另一面板可能已清空 / 当前连接的记录可能已被替换。
+    if (this.transferLogClearableCount <= 0) return
     if (profileName) {
       this.transferLog.clearProfile(profileName)
     } else {
       this.transferLog.clear()
     }
+    // ★ 清完后「全部连接」筛选项可能已不存在（该连接最后一条记录被清掉）——
+    //   筛选值停在已消失的选项上会让列表恒为空且看不出原因，复位成「全部连接」。
+    if (this.logFilterProfile && !this.logProfileNames.includes(this.logFilterProfile)) {
+      this.logFilterProfile = ''
+    }
+    this._safeDetect()
   }
 
   // ========== 右键菜单 ==========
@@ -13131,6 +13581,47 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
   private _conflictAutoSkipSameContent = true
   private _conflictDigestMaxSizeMB = 256
   private _conflictDigestAlgo: 'sha1' | 'sha256' = 'sha1'
+  /**
+   * ★ 2026-10-27（Deepseek-V4.1-Flash）：跨栏拖拽的落点是否**只认目标栏当前目录**（默认开）。
+   *   开：指针压在文件夹行上也不改变投递目标 ⇒ 不会出现「文件被静默吞进 B 栏某个子目录」。
+   *   关：旧行为（压在文件夹行上就进那个文件夹），此时拖拽期间该行会高亮并标注去向。
+   *   ⚠ 只作用于跨栏 / 系统资源管理器拖入；**同栏内**拖到子文件夹不受影响（那是复制到该目录的
+   *     通用手势，不是「传输」）。
+   *   缓存成字段而非每次现读配置：_updateDropFolderHint 在 dragover（每帧触发）里要用它。
+   */
+  private _dropToCurrentDirOnly = true
+  /** 当前被标注为「放入此文件夹」的文件夹行（dragover 里按元素变化才动 DOM） */
+  private _dropHintEl: HTMLElement | null = null
+  /* ------------------------------------------------------------------ *
+   * ★ 2026-10-27（Deepseek-V4.1-Flash）：QuickCmd+ 联动（接收侧）
+   *   两个插件是独立 bundle、互不 import ⇒ 靠 window 事件通信（契约见 core/quickcmd-link.ts）：
+   *   QuickCmd+ 执行完命令只广播「我发了命令」，本面板自己决定听不听（设置项 refreshOnQuickCmd）。
+   *   ⛔ 为什么不「收到就刷一次」：QuickCmd+ 只把文本写进 pty，拿不到远端命令结束信号
+   *      （备份数据库可能要跑几十秒）⇒ 改为观察期轮询，列表稳定/超时才停。
+   * ------------------------------------------------------------------ */
+  /** 是否接收 QuickCmd+ 的刷新请求（配置 refreshOnQuickCmd，缺省关） */
+  private _refreshOnQuickCmd = false
+  /** 观察期基础时长（毫秒），来自配置 refreshOnQuickCmdWindow（秒） */
+  private _refreshOnQuickCmdWindowMs = 10000
+  /** 观察期执行器：一栏一份，重复请求重置而不叠加定时器 */
+  private _qcObserver: QcRefreshObserver | null = null
+  /** window 事件监听引用（ngOnDestroy 必须摘，否则强引用整个面板） */
+  private _qcRefreshHandler: ((ev: Event) => void) | null = null
+  /* ------------------------------------------------------------------ *
+   * ★ 2026-10-27（Deepseek-V4.1-Flash）：定时刷新列表（配置 autoRefreshEnabled / autoRefreshInterval）
+   * ------------------------------------------------------------------ */
+  /** 是否开启定时刷新（缺键按「关」） */
+  private _autoRefreshEnabled = false
+  /** 定时刷新间隔（毫秒），来自配置 autoRefreshInterval（秒，5–3600） */
+  private _autoRefreshIntervalMs = 60000
+  /** 定时器句柄（销毁/关开关/改间隔都要清） */
+  private _autoRefreshTimer: ReturnType<typeof setInterval> | null = null
+  /** 上一轮还没返回 ⇒ 跳过本轮（慢连接下不并发压 readdir） */
+  private _autoRefreshBusy = false
+  /** 定时刷新期间抑制列表闪烁（与 _suppressPaneFlash 分开：后者由恢复/切换流程持有，不能互相覆盖） */
+  private _autoRefreshQuiet = false
+  /** 列表刷新闪烁开关（配置 listRefreshFlash，缺键按「开」）：用户可在「功能性」分区关闭 */
+  private _flashEnabled = true
   /** 面板侧摘要服务（粘贴冲突框补算）；配置变更时重建 */
   private _panelDigestSvc: ContentDigestService | null = null
   private _panelDigestSvcKey = ''
@@ -14152,6 +14643,43 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     return !!this.elRef?.nativeElement?.contains(el)
   }
 
+  /**
+   * 「点过面板 ⇒ 剪贴板热键归面板」（owns）当前是否仍成立。
+   * owns 的本意是「刚点过面板、但焦点被宿主的 focus 回抢卡在 xterm」，此时焦点仍留在**终端**。
+   * ⛔ 一旦焦点落到**别的插件/宿主的界面**（例如 QuickCmd+ 编辑命令弹窗的输入框），owns 必须失效：
+   *   别的插件浮层通常在自己的宿主元素上 stopPropagation 掉 mousedown（QuickCmd+ 正是如此），
+   *   本面板那套「面板外 mousedown 清 owns」收不到事件 ⇒ owns 残留为 true ⇒
+   *   Ctrl+A/C/X/V、Delete、单字母定位全被本面板抢走，对方输入框毫无反应（2026-10-28 用户实测）。
+   * 判定：焦点在面板内 → 交给 panelFocused 分支（此处返回 false）；焦点在终端或已丢失（body/html）→ 保留原行为。
+   */
+  private _ownsHotkeysApply(): boolean {
+    if (!this._panelOwnsClipboardHotkeys) return false
+    const a = document.activeElement as HTMLElement | null
+    const root = this.elRef?.nativeElement as HTMLElement | null
+    if (!a) return true
+    if (root && root.contains(a)) return false
+    const tag = a.tagName
+    if (tag === 'BODY' || tag === 'HTML') return true
+    if (a.closest?.('.xterm')) return true
+    return false
+  }
+
+  /**
+   * 捕获阶段：**任何**面板外 mousedown 都立即交出剪贴板热键归属。
+   * 挂在 window 捕获上而不是 document 冒泡，是因为别的插件浮层会在自己的宿主上
+   * stopPropagation（QuickCmd+ 面板就这么做），document 冒泡根本收不到这次点击。
+   */
+  private _clearOwnsOnOutsideMouseDown(ev: MouseEvent): void {
+    const root = this.elRef?.nativeElement as HTMLElement | null
+    if (!root) return
+    const t = ev.target as Node | null
+    if (t && root.contains(t)) return
+    if (!this._panelOwnsClipboardHotkeys && !this._panelFocusWantedUntil) return
+    this._panelOwnsClipboardHotkeys = false
+    this._panelFocusWantedUntil = 0
+    this._clearPanelFocusStealTimers()
+  }
+
   /** 焦点是否落在面板 DOM 内（含面板根 tabindex，不含仅「面板开着」） */
   private _isPanelDomFocused(): boolean {
     const a = document.activeElement as HTMLElement | null
@@ -14198,7 +14726,7 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     const inPanelEditable = this._isFocusInPanelEditable()
     const textUiOpen = !!(this.editorVisible || this.viewerVisible || this.inputDialogVisible)
     const panelFocused = this._isPanelDomFocused()
-    const panelOwns = this._panelOwnsClipboardHotkeys
+    const panelOwns = this._ownsHotkeysApply()
 
     // 焦点在终端、未开文本 UI、且用户未在面板内操作：放行（终端里 Ctrl+C 中断等）
     if (!panelFocused && !panelOwns && !textUiOpen && !inPanelEditable) return
@@ -14591,10 +15119,15 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
 
   /** 顶栏内联显示的按钮（按配置顺序；折叠菜单关闭时全部平铺） */
   get topBarInlineItems(): TopBarItemId[] {
-    const list = this._topBarOrder.filter(id =>
-      this.topBarItemAvailable(id)
-      && !this._topBarDisabled.includes(id)
-      && (!this._topBarOverflowEnabled || this._topBarPinned.includes(id)))
+    const list = this._topBarOrder.filter(id => {
+      // ★ 2026-10-27（Deepseek-V4.1-Flash）：⋯ 是**溢出容器**不是功能按钮 —— 不受「是否有停用 /
+      //   是否固定」影响（它没有这两态），只看折叠总开关与「菜单里确实列得出东西」。
+      //   渲染位置完全由它在 topBarOrder 里的下标决定（用户可在设置页拖到任意位置）。
+      if (id === 'overflow') return this.topBarOverflowButtonVisible
+      return this.topBarItemAvailable(id)
+        && !this._topBarDisabled.includes(id)
+        && (!this._topBarOverflowEnabled || this._topBarPinned.includes(id))
+    })
     // ★ 2026-10-23（Deepseek-V4.1-Flash）：关闭按钮兜底 —— 没给面板配「开关快捷键」时始终显示 ✕。
     //   否则用户把 ✕ 停用/收起后，面板就没有稳定出口了（Esc 只有焦点在面板内才生效）。
     if (!this.panelToggleHotkeyBound && !list.includes('close')) list.push('close')
@@ -14624,7 +15157,9 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
    */
   get topBarMenuItems(): TopBarItemId[] {
     return this._topBarOrder.filter(id =>
-      this.topBarItemAvailable(id)
+      // ★ 2026-10-27：⋯ 自己不进菜单（否则菜单里会出现「点它打开自己」的递归入口）
+      id !== 'overflow'
+      && this.topBarItemAvailable(id)
       && !this._topBarDisabled.includes(id)
       // ★ 2026-10-23：未配面板快捷键时 close 恒在顶栏（兜底），不进菜单 —— 免得同一动作两个入口
       && (id !== 'close' || this.panelToggleHotkeyBound))
@@ -14635,6 +15170,8 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
    * ★ 2026-10-23：原判断是 `topBarOverflowItems.length`（确有按钮被收起才出现）⇒
    *   「全部固定」的默认状态下根本没有入口去点开菜单调固定（用户反馈的现象）。
    *   现在只要能列出菜单项就显示；折叠菜单关闭时整个按钮不出现（老行为不变）。
+   * ★ 2026-10-27：⋯ 已作为 `overflow` 项进入 topBarOrder（用户可拖拽排序），本 getter 只负责
+   *   「要不要渲染」，位置由 topBarInlineItems 的过滤顺序决定。
    */
   get topBarOverflowButtonVisible(): boolean {
     return this._topBarOverflowEnabled && this.topBarMenuItems.length > 0
@@ -14781,6 +15318,13 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
 
     const isMod = os.platform() === 'darwin' ? event.metaKey : event.ctrlKey
     if (!isMod) {
+      // ★ 2026-10-26（Deepseek-V4.1-Flash）：通用确认框排在最前 —— 它可能叠在查看器/编辑器
+      //   （未保存关闭、远端已变更覆盖）之上，Esc 必须先取消它，而不是把下层对话框一起关掉。
+      //   Esc 的 preventDefault 同时让下面「event.defaultPrevented ⇒ return」生效，避免连关两层。
+      if (this.confirmDialogVisible) {
+        if (event.key === 'Escape') { event.preventDefault(); this.onConfirmDialogResult(false) }
+        return
+      }
       // ★ 2026-08-26 C4：删除确认仅由对话框自身处理 Enter；document 层只兜底 Esc
       //   （此前对话框 emit + document 双通道会并行 confirmDelete）
       if (this.deleteConfirmVisible) {
@@ -14884,7 +15428,7 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     //   （主路径已是 window 捕获 _shieldTerminalClipboardKeys；此处仅兜底）
     const isClipboardMod = os.platform() === 'darwin' ? event.metaKey : event.ctrlKey
     if (!isClipboardMod || !['c', 'C', 'x', 'X', 'v', 'V', 'a', 'A'].includes(event.key)) return
-    if (!panelFocused && !this._panelOwnsClipboardHotkeys) return
+    if (!panelFocused && !this._ownsHotkeysApply()) return
 
     event.preventDefault()
     event.stopImmediatePropagation()

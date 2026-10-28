@@ -2,8 +2,9 @@
      @创建人：DD1024z + Claude
      @创建时间：2026-06-21
      @修改人：DD1024z + Deepseek-V4.1-Flash
-     @修改时间：2026-10-23
+     @修改时间：2026-10-27
      修改情况：
+       - 2026-10-27 (Deepseek-V4.1-Flash)：⋯ 折叠菜单作为 overflow 项进入 topBarOrder **参与拖拽排序**（默认排在 ✕ 之前）；模板在 *ngFor 里单开一个 overflow 分支渲染 #tbOverflowBtn，删掉上一版「塞进 close 分支 + 末尾兜底」的两处特判
        - 2026-10-23 (Deepseek-V4.1-Flash)：关闭按钮 ✕ 纳入顶栏定制（可停用 / 收进 ⋯ 菜单），前提是已给面板绑开关快捷键；未绑时 topBarInlineItems 兜底强制显示
        - 2026-10-23 (Deepseek-V4.1-Flash)：⋯ 折叠菜单改列**全部**可用按钮（含已固定的），每行右侧图钉就地切「固定 / 收进 ⋯」；启用折叠后 ⋯ 按钮常驻（不再要求确有按钮被收起）
        - 2026-10-23 (Deepseek-V4.1-Flash)：书签弹层 [panelPinned] 改读控制器 getter bookmarkPinned（取反只在 getter 一处做）；常驻时点其它位置/滚轮/右键/框选/缩放都不关弹层
@@ -232,6 +233,21 @@
       <path d="M11.8 4.2l-7.6 7.6"/>
       </svg>
     </ng-template>
+    <!-- ⋯ 折叠菜单按钮本体（抽成模板，免得在 *ngFor 的 overflow 分支里塞十行 SVG）。
+         ★ 2026-10-27：位置由 `overflow` 在 topBarOrder 里的下标决定（默认排在 ✕ 之前），
+           用户可以在设置页「定制顶栏按钮」里把它拖到任意位置。 -->
+    <ng-template #tbOverflowBtn>
+      <button class="btn-link btn-icon btn-overflow"
+              [class.active]="_topBarOverflowVisible"
+              (click)="toggleTopBarOverflow($event)"
+              title="{{ i18n.t('settings.topBarOverflow') }}">
+        <svg viewBox="0 0 16 16" fill="currentColor">
+          <circle cx="3.4" cy="8" r="1.25"/>
+          <circle cx="8" cy="8" r="1.25"/>
+          <circle cx="12.6" cy="8" r="1.25"/>
+        </svg>
+      </button>
+    </ng-template>
         <div class="top-actions">
           <!-- ★ 2026-10-19（Deepseek-V4.1-Flash）：顶栏按钮改为**配置驱动**（顺序 + 固定/收起）。
                每个按钮的实现（图标、active 态、title、点击方法）保持原样，只把「显示哪个 / 顺序」
@@ -272,23 +288,19 @@
                  mousedown 一律把焦点给按钮，按钮随即在盒外画出聚焦环；顶栏 ✕ 在最右侧、上沿与
                  .sftp-main 的裁切边界重合，那圈环的上边会被削平（用户实测「按下浮出蓝环、拖开仍残留」）。
                  preventDefault 不影响 click，也不影响冒泡到 .top-bar 的拖拽处理。 -->
-            <button *ngIf="item === 'close'" class="btn-close"
-                    (mousedown)="$event.preventDefault()" (click)="close()"
-                    [title]="i18n.t('app.close')">✕</button>
+            <ng-container *ngIf="item === 'close'">
+              <button class="btn-close"
+                      (mousedown)="$event.preventDefault()" (click)="close()"
+                      [title]="i18n.t('app.close')">✕</button>
+            </ng-container>
+            <!-- ★ 2026-10-27（Deepseek-V4.1-Flash）：⋯ 折叠菜单也进这个 *ngFor 参与排序 ——
+                 它的位置就是 `overflow` 在 topBarOrder 里的下标（默认排在 ✕ 之前）。
+                 是否真的渲染由折叠总开关决定（topBarInlineItems 已过滤）。
+                 ⛔ 不要退回「把 ⋯ 绑在 ✕ 分支里」或末尾单开一个按钮：那样它又变成不可拖的特殊项。 -->
+            <ng-container *ngIf="item === 'overflow'">
+              <ng-container *ngTemplateOutlet="tbOverflowBtn"></ng-container>
+            </ng-container>
           </ng-container>
-          <!-- ⋯ 折叠菜单按钮：★ 2026-10-23 起**只要启用折叠菜单就常驻显示**。
-               原判断是「确有按钮被收起才出现」⇒ 默认全部固定的状态下压根没有入口去调固定
-               （用户反馈：启用折叠后，希望在面板里直接看到三个点）。 -->
-          <button *ngIf="topBarOverflowButtonVisible" class="btn-link btn-icon btn-overflow"
-                  [class.active]="_topBarOverflowVisible"
-                  (click)="toggleTopBarOverflow($event)"
-                  title="{{ i18n.t('settings.topBarOverflow') }}">
-            <svg viewBox="0 0 16 16" fill="currentColor">
-              <circle cx="3.4" cy="8" r="1.25"/>
-              <circle cx="8" cy="8" r="1.25"/>
-              <circle cx="12.6" cy="8" r="1.25"/>
-            </svg>
-          </button>
         </div>
         <!-- ★ 2026-10-19（Deepseek-V4.1-Flash）：⋯ 折叠菜单。锚定在顶栏右下（.top-bar 是 relative），
              点外部/执行任一项/窗口尺寸变化由面板逻辑关闭；菜单只做动作转发，不持有业务状态。
@@ -649,6 +661,17 @@
         (cancel)="cancelDelete()">
       </sftp-delete-dialog>
 
+      <!-- 通用二次确认（替代 window.confirm：原生对话框关闭后会弄坏 Electron 的焦点链） -->
+      <sftp-confirm-dialog
+        [i18n]="i18n"
+        [visible]="confirmDialogVisible"
+        [title]="confirmDialogTitle"
+        [message]="confirmDialogMessage"
+        [confirmLabel]="confirmDialogConfirmLabel"
+        (confirm)="onConfirmDialogResult(true)"
+        (cancel)="onConfirmDialogResult(false)">
+      </sftp-confirm-dialog>
+
       <sftp-input-dialog
         [i18n]="i18n"
         [visible]="inputDialogVisible"
@@ -741,6 +764,8 @@
         [entries]="filteredTransferLogs"
         [totalCount]="transferLogTotalCount"
         [clearableCount]="transferLogClearableCount"
+        [filterProfile]="logFilterProfile"
+        [profileNames]="logProfileNames"
         [filterOp]="logFilterOp"
         [filterStatus]="logFilterStatus"
         [filterTimeRange]="logFilterTimeRange"
@@ -749,7 +774,10 @@
         [activeTransferCount]="transfers.length"
         [transfersHidden]="transfersHidden"
         [transfersMinimized]="transfersMinimized"
+        [exportFormat]="exportFormat"
+        (exportFormatChange)="exportFormat = $event"
         (close)="showTransferLog = false"
+        (filterProfileChange)="logFilterProfile = $event"
         (filterOpChange)="logFilterOp = $event"
         (filterStatusChange)="logFilterStatus = $event"
         (filterTimeRangeChange)="logFilterTimeRange = $event"

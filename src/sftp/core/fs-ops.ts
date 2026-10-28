@@ -110,7 +110,18 @@ export async function deleteLocalRecursive(
     log.warn('readdir failed (counted as failure, skip rmdir):', localPath, e)
     return
   }
-  await Promise.all(children.map(child => deleteLocalRecursive(path.join(localPath, child), failed, depth + 1, lim)))
+  // ★ 2026-10-25 BUG-M3 修复：Promise.all 任一子目录删除失败都会直接抛异常，
+  //   导致后续 rmdir 不执行，且其它子目录的删除结果也拿不到。
+  //   改为对每个子任务单独 catch，与 deleteRemoteRecursive 保持一致。
+  await Promise.all(children.map(async child => {
+    const childPath = path.join(localPath, child)
+    try {
+      await deleteLocalRecursive(childPath, failed, depth + 1, lim)
+    } catch (e) {
+      failed?.push(childPath)
+      log.warn('delete child failed', childPath, e)
+    }
+  }))
   try { await lim.run(() => fs.rmdir(localPath)) } catch (e) { failed?.push(localPath); log.warn('rmdir failed', localPath, e) }
 }
 

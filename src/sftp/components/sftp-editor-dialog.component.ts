@@ -500,6 +500,8 @@ export class SftpEditorDialogComponent implements OnChanges, OnDestroy, AfterVie
     this.contentChange.emit(newVal)
     if (cursor != null) {
       Promise.resolve().then(() => {
+        // ★ 2026-10-25 BUG-H2 修复：组件销毁后异步回调中仍可能访问已销毁的 textarea
+        if (this._destroyed) return
         const el = this.editorTextarea?.nativeElement
         if (el) { el.setSelectionRange(cursor, cursor); el.focus() }
       })

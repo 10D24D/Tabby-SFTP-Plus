@@ -94,8 +94,13 @@ export class SftpConfigService {
    * 高频操作 set 后由调用方选择时机调用 flush()
    */
   set(path: string, value: any): void {
-    this._cache[path] = value
+    // ★ 2026-10-25 BUG-H4 修复：先写 root 再写 _cache，确保两者始终一致。
+    //   原顺序（先写 _cache 再写 root）在 _setByPath 失败（如 root 被替换/冻结）时
+    //   会导致 _cache 与 root 不一致：get() 优先读 _cache 返回脏值，而 flush()
+    //   保存的仍是 root 中的旧值。调换顺序后，_cache 只在 root 更新成功后写入，
+    //   保证「_cache 中的值一定已经反映在 root 里」。
     this._setByPath(this.root, path, value)
+    this._cache[path] = value
   }
 
   /** 写入并立即落盘（低频操作用） */

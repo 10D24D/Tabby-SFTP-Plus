@@ -45,6 +45,10 @@ import { onFileDialogOverlayWheel, onFileDialogScrollableWheel } from './file-di
           <button class="btn-link dialog-close" (click)="close.emit()">×</button>
         </div>
         <div class="log-toolbar">
+          <select [(ngModel)]="filterProfile" (ngModelChange)="filterProfileChange.emit($event)">
+            <option value="">{{ i18n.t('filter.allProfiles') }}</option>
+            <option *ngFor="let p of profileNames" [value]="p">{{ p }}</option>
+          </select>
           <select [(ngModel)]="filterOp" (ngModelChange)="filterOpChange.emit($event)">
             <option value="">{{ i18n.t('filter.allOps') }}</option>
             <option value="upload">{{ i18n.t('transfer.upload') }}</option>
@@ -76,7 +80,11 @@ import { onFileDialogOverlayWheel, onFileDialogScrollableWheel } from './file-di
               <input type="date" [ngModel]="filterDateTo" (ngModelChange)="filterDateToChange.emit($event)" />
             </label>
           </ng-container>
-          <button (click)="export.emit()">{{ i18n.t('app.export') }}</button>
+          <select [(ngModel)]="_exportSelectValue" (ngModelChange)="onExportSelect($event)" title="导出">
+            <option value="" disabled>{{ i18n.t('app.export') }}</option>
+            <option value="json">JSON</option>
+            <option value="csv">CSV</option>
+          </select>
           <!-- ★ 2026-09-26：没有「可清除记录」时禁用（无记录 / 只剩下正在传输中的） -->
           <button (click)="clear.emit()" class="danger" [disabled]="!clearableCount">{{ i18n.t('app.clear') }}</button>
           <button *ngIf="activeTransferCount" (click)="showTransfers.emit()" class="btn-transfers-toggle">
@@ -413,6 +421,8 @@ export class SftpTransferLogDialogComponent implements OnChanges, OnDestroy {
    *   「剩下的全是在传的」两种情况，此时点了也清不掉任何东西。
    */
   @Input() clearableCount = 0
+  @Input() filterProfile = ''
+  @Input() profileNames: string[] = []
   @Input() filterOp = ''
   @Input() filterStatus = ''
   @Input() filterTimeRange: '' | 'today' | '7d' | '30d' | 'custom' = ''
@@ -421,9 +431,12 @@ export class SftpTransferLogDialogComponent implements OnChanges, OnDestroy {
   @Input() activeTransferCount = 0
   @Input() transfersHidden = false
   @Input() transfersMinimized = false
+  // ★ 2026-10-25：导出格式（json / csv）
+  @Input() exportFormat: 'json' | 'csv' = 'json'
   // ★ 2026-09-20 A8 审计修复：删除死输入 isZh（从未被父模板传入，模板也未使用）
 
   @Output() close = new EventEmitter<void>()
+  @Output() filterProfileChange = new EventEmitter<string>()
   @Output() filterOpChange = new EventEmitter<string>()
   @Output() filterStatusChange = new EventEmitter<string>()
   @Output() filterTimeRangeChange = new EventEmitter<'' | 'today' | '7d' | '30d' | 'custom'>()
@@ -431,7 +444,20 @@ export class SftpTransferLogDialogComponent implements OnChanges, OnDestroy {
   @Output() filterDateToChange = new EventEmitter<string>()
   @Output() showTransfers = new EventEmitter<void>()
   @Output() export = new EventEmitter<void>()
+  @Output() exportFormatChange = new EventEmitter<'json' | 'csv'>()
   @Output() clear = new EventEmitter<void>()
+
+  /** 导出下拉框当前值（空字符串 = 显示占位文案） */
+  _exportSelectValue = ''
+
+  /** ★ 2026-10-25：选择导出格式后立即触发导出 */
+  onExportSelect(format: string): void {
+    if (format !== 'json' && format !== 'csv') return
+    this.exportFormatChange.emit(format as 'json' | 'csv')
+    this.export.emit()
+    // 重置为占位状态，方便下次选择
+    setTimeout(() => { this._exportSelectValue = '' }, 0)
+  }
 
   formatSize = formatSize
   formatLogTime = formatLogTime

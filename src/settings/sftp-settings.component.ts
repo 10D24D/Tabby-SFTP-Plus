@@ -5,7 +5,22 @@
  * @创建人：DD1024z + Hy3 preview
  * @创建时间：2026-06-21
  * @修改人：DD1024z + Deepseek-V4.1-Flash
- * @修改时间：2026-10-23 — ⑭「调整配置立即生效」开关改到「数据」分区导出/导入/清空按钮组**上方**
+ * @修改时间：2026-10-27 — ⑱「传输设置」分区新增「拖拽只投放到当前目录」开关（默认开，
+ *              配置键 dropToCurrentDir）：跨栏 / 系统资源管理器拖入时落点恒为目标栏当前目录，
+ *              避免停在文件夹行上时文件被静默吞进子目录；关闭后拖到文件夹行会真的存进去
+ *              （面板侧在拖拽期间高亮该行并标注「放入此文件夹」）。
+ *              ⑰「定制顶栏按钮」列表纳入 ⋯（overflow）行：可拖拽排序 —— 复选框禁用、
+ *              勾选态直接反映上方「启用折叠菜单」总开关，没有图钉（恒在顶栏）；同时移除上一版加的
+ *              「⋯ 不参与排序」说明小字与 `settings.topBarOverflowFixedPos`（24 份 .po 条目一并删除）。
+ *              ⑯「关于」区版本号也可点击：跳当前版本的 Release tag
+ *              （/releases/tag/v<version>，package.json 的 version 不带 v，拼 URL 时自动补、已带则不重复补）；
+ *              可点文字样式抽成通用 .ss-about-click（版本号与作者名共用一套 hover 反馈）；
+ *              同时把 5 处重复的 shell.openExternal try/catch 收口成 _openExternal(url)，
+ *              仓库地址抽成 repoUrl，issue 表单 URL 也改为基于它拼接。
+ *              ⑮「关于」区作者名（作者: DD1024z）改为可点击入口：点击跳转
+ *              https://github.com/10D24D；hover 提亮 + 实线下划线（用 text-decoration 不占布局，
+ *              避免把 .ss-about-row 撑高 1px）+ 手型光标，反馈与同排 .ss-about-link 一致。
+ *              2026-10-23 — ⑭「调整配置立即生效」开关改到「数据」分区导出/导入/清空按钮组**上方**
  *              （用户第三次调位：先说改动是否即时生效，再执行数据操作；仍保留
  *              .ss-apply-instant-wrap{margin-top:0} 紧贴分区标题，按钮组自带 4px 上边距）。
  *              ⑬取消「字体」分组标题：字号大小与上方面板透明度**平级**
@@ -211,7 +226,7 @@
  */
 import { Component, Injectable, Optional, OnDestroy, Inject } from '@angular/core'
 import { SettingsTabProvider } from 'tabby-settings'
-import { ConfigService, HotkeysService, PlatformService, HostAppService } from 'tabby-core'
+import { ConfigService, HotkeysService, PlatformService, HostAppService, AppService } from 'tabby-core'
 import { defaultSftpPlusConfig, normalizeCaretShape, type CaretShape } from '../tabby/config-provider'
 import { SftpI18nService } from '../services/sftp-i18n.service'
 import type { Locale } from '../services/sftp-i18n.service'
@@ -262,6 +277,9 @@ import {
 } from '../sftp/core/top-bar-items'
 // ★ 2026-10-23：冲突重命名风格（seq / time / random）——归一化函数与面板/冲突解决器共用同一份
 import { normalizeConflictRenameStyle } from '../sftp/core/conflict'
+// ★ 2026-10-27（Deepseek-V4.1-Flash）：QuickCmd+ 联动开关的「装没装」探测（契约与面板共用同一份）
+import { detectQuickCmdPresence, type QuickCmdPresence } from '../sftp/core/quickcmd-link'
+import { openTabbyPluginsSettings } from './sftp-open-settings'
 
 /** ★ 2026-09-28（同日修订）：右键菜单定制项 id（文件动作 + 分组依据）。
  *  「展开/收起所有分组」已并入「分组依据」子菜单，不再作为独立定制项（用户定稿）。 */
@@ -294,6 +312,30 @@ function load<T>(key: string, fallback: T): T {
     if (typeof fallback === 'number' && typeof parsed !== 'number') return fallback
     return parsed
   } catch { return fallback }
+}
+
+/**
+ * QuickCmd+ 联动的观察期时长归一化（秒）。
+ * ★ 2026-10-27（Deepseek-V4.1-Flash）：外部 JSON / 手工输入都不可信 —— 上下界必须夹死：
+ *   下界 1s（0 会让观察期立刻结束、等于没开）、上界 120s（再长就该去手动刷新，而不是让定时器
+ *   长时间对远端 readdir 施压）。非数字/NaN/Infinity 一律回落默认 10s。
+ */
+function normalizeRefreshWindowSec(v: unknown): number {
+  const n = Number(v)
+  if (!isFinite(n) || n <= 0) return 10
+  return Math.max(1, Math.min(120, Math.round(n)))
+}
+
+/**
+ * 定时刷新间隔归一化（秒）。
+ * ★ 2026-10-27（Deepseek-V4.1-Flash）：外部 JSON / 手工输入不可信，上下界夹死：
+ *   下界 5s（低于 5 秒等于持续压远端 readdir，弱网会把通道打挂）、上界 3600s（再长就不如手动刷）。
+ *   非数字/NaN/Infinity 一律回落默认 60s。
+ */
+function normalizeAutoRefreshIntervalSec(v: unknown): number {
+  const n = Number(v)
+  if (!isFinite(n) || n <= 0) return 60
+  return Math.max(5, Math.min(3600, Math.round(n)))
 }
 
 /** 合并旧开关：allowViewEditAllFiles / allowEditAllFiles / allowViewAllAsText / allowViewAllFiles */
@@ -373,10 +415,19 @@ const EXPORT_CATEGORY_FIELDS: Record<string, string[]> = {
     'openOnClick', 'dateFormat', 'openUnsupportedInSystem',
     'allowViewEditAllFiles', 'allowEditAllFiles', 'allowViewAllAsText', 'editableFileExtensions',
     'showTextLineNumbers', 'showTextWordWrap', 'editorAutoUploadExternal', 'textCaretShape',
+    // ★ 2026-10-27（Deepseek-V4.1-Flash）：跨插件联动（是否接收刷新请求 + 观察期时长）——
+    //   设置项在「功能性」分区，导出分类跟着走；导入侧按扁平 key 查找，换组不影响老备份。
+    'refreshOnQuickCmd', 'refreshOnQuickCmdWindow',
+    // ★ 2026-10-27（Deepseek-V4.1-Flash）：定时刷新列表（开关 + 间隔），同样在「功能性」分区
+    'autoRefreshEnabled', 'autoRefreshInterval',
+    // ★ 2026-10-28（Deepseek-V4.1-Flash）：列表刷新闪烁（默认开，在「功能性」分区）
+    'listRefreshFlash',
   ],
   // 传输设置（设置页「传输设置」分区：并发、通道模式、冲突摘要、默认路径）
   transfer: [
     'transferUploadConcurrency', 'transferDownloadConcurrency', 'transferChannelMode',
+    // ★ 2026-10-27（Deepseek-V4.1-Flash）：拖拽落点是否只认当前目录
+    'dropToCurrentDir',
     'conflictDigestEnabled', 'conflictAutoSkipSameContent',
     'conflictDigestMaxSizeMB', 'conflictDigestAlgo', 'conflictRenameStyle',
     'defaultUploadPath', 'defaultDownloadPath',
@@ -630,15 +681,20 @@ const MACOS_BY_DARWIN: Record<number, string> = {
                  勾掉 = 该按钮顶栏与 ⋯ 菜单都不出现；与右侧「固定/收起」是互相独立的两件事。 -->
             <!-- ★ 2026-10-23（Deepseek-V4.1-Flash）：「关闭」（✕）也进本列表 —— 但没给面板配开关快捷键时
                  不允许停用/收起（锁住并给出说明），否则面板会失去唯一稳定出口（Esc 需焦点在面板内）。 -->
+            <!-- ★ 2026-10-27（Deepseek-V4.1-Flash）：⋯（overflow）也进这个列表 —— 用户可把它拖到顶栏任意位置。
+                 它不是功能按钮：复选框禁用、勾选态直接反映上方「启用折叠菜单」总开关；没有图钉（恒在顶栏，
+                 不存在「收进自己」）。 -->
             <input class="ss-menu-check" type="checkbox"
-              [checked]="isTopBarEnabled(a)"
-              [disabled]="isTopBarCloseLocked(a)"
+              [checked]="a === 'overflow' ? topBarOverflowEnabled : isTopBarEnabled(a)"
+              [disabled]="isTopBarCloseLocked(a) || a === 'overflow'"
               (change)="toggleTopBarEnabled(a)"
               (mousedown)="$event.stopPropagation()"
-              [title]="isTopBarCloseLocked(a) ? i18n.t('settings.topBarCloseNeedsHotkey') : i18n.t('settings.enableItem')" />
-            <span class="ss-menu-label" [class.disabled]="!isTopBarEnabled(a)">{{ topBarItemLabel(a) }}</span>
+              [title]="a === 'overflow'
+                ? i18n.t('settings.topBarOverflow')
+                : (isTopBarCloseLocked(a) ? i18n.t('settings.topBarCloseNeedsHotkey') : i18n.t('settings.enableItem'))" />
+            <span class="ss-menu-label" [class.disabled]="a !== 'overflow' && !isTopBarEnabled(a)">{{ topBarItemLabel(a) }}</span>
             <span class="ss-menu-note" *ngIf="isTopBarCloseLocked(a)">{{ i18n.t('settings.topBarCloseNeedsHotkey') }}</span>
-            <button *ngIf="topBarOverflowEnabled" class="ss-pin-btn"
+            <button *ngIf="topBarOverflowEnabled && a !== 'overflow'" class="ss-pin-btn"
               [class.pinned]="isTopBarPinned(a)"
               [disabled]="!isTopBarEnabled(a) || isTopBarCloseLocked(a)"
               (mousedown)="$event.stopPropagation()"
@@ -931,6 +987,54 @@ const MACOS_BY_DARWIN: Record<number, string> = {
               <span class="ss-toggle-thumb"></span>
             </span>
           </label>
+          <!-- ★ 2026-10-27（Deepseek-V4.1-Flash）：跨插件联动（默认关）——收到命令执行通知后
+               进入「观察期轮询」刷新列表，命令产生的新文件一出现就能看到，不用手动刷新。
+               持续刷新时长可配：列表仍在变化时会自动顺延，最多 4 倍且不超过 180s。 -->
+          <label class="ss-toggle-row" title="{{ i18n.t('settings.refreshOnQuickCmdDesc') }}">
+          <span class="ss-toggle-label">{{ i18n.t('settings.refreshOnQuickCmd') }}</span>
+          <span class="ss-toggle-track" [class.active]="refreshOnQuickCmd" (click)="toggleRefreshOnQuickCmd()">
+          <span class="ss-toggle-thumb"></span>
+          </span>
+          </label>
+          <!-- ★ 2026-10-27（Deepseek-V4.1-Flash）：附属选项必须按子行缩进（与「只打开一个实例」同款 ss-toggle-sub），
+               否则和上面的开关平级，用户会以为它是独立功能 -->
+          <div class="ss-toggle-row ss-concurrency-row ss-toggle-sub" *ngIf="refreshOnQuickCmd"
+          title="{{ i18n.t('settings.refreshOnQuickCmdDesc') }}">
+          <span class="ss-toggle-label">{{ i18n.t('settings.refreshOnQuickCmdWindow') }}</span>
+          <input class="ss-concurrency-input" type="number" min="1" max="120" step="1"
+          [(ngModel)]="refreshOnQuickCmdWindow" (change)="saveRefreshOnQuickCmdWindow()" />
+          </div>
+          <!-- ★ 2026-10-27（Deepseek-V4.1-Flash）：开关开着但对面没装/被停用时就地提示（不弹原生框，铁律 31）。
+               清单读不到（unknown）时不提示，避免冤枉用户。 -->
+          <div class="ss-hint ss-quickcmd-hint" *ngIf="showQuickCmdPluginHint">
+            {{ i18n.t(quickCmdPluginHintKey) }}
+            <button type="button" class="ss-link-btn"
+              (click)="openPluginsSettings()">{{ i18n.t('settings.refreshOnQuickCmdOpenPlugins') }}</button>
+          </div>
+
+          <!-- ★ 2026-10-27（Deepseek-V4.1-Flash）：定时刷新列表（默认关）——
+               与上面的 QuickCmd+ 联动互补：那条是「对面刚跑过命令」，这条是「外面一直在写这台机器」
+               （日志、监控截图、CI 产物），按固定间隔刷，不需要任何插件配合。 -->
+          <label class="ss-toggle-row" title="{{ i18n.t('settings.autoRefreshDesc') }}">
+            <span class="ss-toggle-label">{{ i18n.t('settings.autoRefresh') }}</span>
+            <span class="ss-toggle-track" [class.active]="autoRefreshEnabled" (click)="toggleAutoRefresh()">
+              <span class="ss-toggle-thumb"></span>
+            </span>
+          </label>
+          <div class="ss-toggle-row ss-concurrency-row ss-toggle-sub" *ngIf="autoRefreshEnabled"
+            title="{{ i18n.t('settings.autoRefreshDesc') }}">
+            <span class="ss-toggle-label">{{ i18n.t('settings.autoRefreshInterval') }}</span>
+            <input class="ss-concurrency-input" type="number" min="5" max="3600" step="1"
+              [(ngModel)]="autoRefreshInterval" (change)="saveAutoRefreshInterval()" />
+          </div>
+          <!-- ★ 2026-10-28（Deepseek-V4.1-Flash）：列表刷新闪烁（默认开）——
+               切换文件夹 / 手动刷新后当前栏的淡蓝背景闪烁；关掉则不闪，其它提示（定位高亮 / 连接告警）保留。 -->
+          <label class="ss-toggle-row" title="{{ i18n.t('settings.listRefreshFlash') }}">
+            <span class="ss-toggle-label">{{ i18n.t('settings.listRefreshFlash') }}</span>
+            <span class="ss-toggle-track" [class.active]="listRefreshFlash" (click)="toggleListRefreshFlash()">
+              <span class="ss-toggle-thumb"></span>
+            </span>
+          </label>
 
           <div class="ss-sub-label" style="margin-top:16px;">{{ i18n.t('settings.interaction') }}</div>
           <label class="ss-toggle-row">
@@ -1176,6 +1280,15 @@ const MACOS_BY_DARWIN: Record<number, string> = {
           <input class="ss-path-input" type="text" [(ngModel)]="defaultDownloadPath"
           (change)="_saveToConfig()" [placeholder]="i18n.t('settings.defaultDownloadPathPh')" spellcheck="false" />
           </div>
+          <!-- ★ 2026-10-27（Deepseek-V4.1-Flash）：拖拽落点是否只认当前目录（默认开）。
+               用户反馈：从 A 栏拖到 B 栏时手滑停在某个文件夹行上，文件被静默吞进该子目录，
+               列表毫无变化，事后只能从传输记录的路径才看出来。 -->
+          <label class="ss-toggle-row" title="{{ i18n.t('settings.dropToCurrentDirDesc') }}">
+          <span class="ss-toggle-label">{{ i18n.t('settings.dropToCurrentDir') }}</span>
+          <span class="ss-toggle-track" [class.active]="dropToCurrentDir" (click)="toggleDropToCurrentDir()">
+          <span class="ss-toggle-thumb"></span>
+          </span>
+          </label>
         </div>
       </div>
 
@@ -1298,10 +1411,15 @@ const MACOS_BY_DARWIN: Record<number, string> = {
       <div class="ss-section">
         <label class="ss-label">{{ i18n.t('settings.about') }}</label>
         <div class="ss-about-row">
-          <span class="ss-about-item">{{ i18n.t('settings.version') }}: {{ pkgVersion }}</span>
+          <!-- ★ 2026-10-27：版本号做成可点击入口（hover 提亮 + 下划线），点击打开当前版本的 GitHub Release -->
+          <span class="ss-about-item ss-about-click" (click)="openVersionRelease()"
+            [title]="versionReleaseUrl">{{ i18n.t('settings.version') }}: {{ pkgVersion }}</span>
           <span class="ss-about-item">{{ i18n.t('settings.buildTime') }}: {{ formatBuildTime() }}</span>
           <!-- ★ 2026-08-11：作者信息可按需隐藏（开启需点 Star 确认） -->
-          <span class="ss-about-item" *ngIf="!hideAuthorInfo">{{ i18n.t('settings.author') }}: DD1024z</span>
+          <!-- ★ 2026-10-27：作者名做成可点击入口（hover 提亮 + 下划线），点击跳到作者 GitHub 主页 -->
+          <span class="ss-about-item ss-about-click" *ngIf="!hideAuthorInfo"
+            (click)="openAuthorProfile()"
+            [title]="authorProfileUrl">{{ i18n.t('settings.author') }}: DD1024z</span>
         </div>
         <div class="ss-about-row ss-about-links">
           <span class="ss-about-link" (click)="openGithub()">
@@ -1852,6 +1970,20 @@ const MACOS_BY_DARWIN: Record<number, string> = {
     }
     .ss-hotkey-conflict { color:#e24b4a; opacity:.9; }
     .ss-hotkey-ok { color:#22a06b; opacity:.9; }
+    /* 2026-10-27：QuickCmd+ 未安装/被停用时的就地提示（琥珀色，弱于错误红，不抢眼但要能看见） */
+    .ss-quickcmd-hint { color:#e2a03f; opacity:.9; }
+    .ss-quickcmd-hint .ss-link-btn {
+      background:none;
+      border:0;
+      padding:0;
+      margin-left:6px;
+      color:inherit;
+      font:inherit;
+      text-decoration:underline;
+      text-underline-offset:2px;
+      cursor:pointer;
+    }
+    .ss-quickcmd-hint .ss-link-btn:hover { opacity:.8; }
 
     /* 面板快捷键行（作为子分类，不使用分隔线条）—— 与 ss-toggle-row 左对齐 */
     .ss-phk-row {
@@ -1998,6 +2130,11 @@ const MACOS_BY_DARWIN: Record<number, string> = {
     .ss-about-row { display:flex; gap:16px; flex-wrap:wrap; align-items:center; font-size:13px; }
     .ss-about-links { margin-top:8px; }
     .ss-about-item { opacity:.75; }
+    /* ★ 2026-10-27：关于区的可点文字（版本号 / 作者名）—— hover 提亮 + 实线下划线给出可点反馈，光标换手型。
+       下划线用 text-decoration 而非 border-bottom：不占布局空间，不会把 .ss-about-row 顶高 1px
+       （该行是 flex align-items:center，多 1px 下边框会让同排的其它项整体偏移 1px）。 */
+    .ss-about-click { cursor:pointer; }
+    .ss-about-click:hover { opacity:1; text-decoration:underline; text-underline-offset:2px; }
     .ss-about-link {
       display:inline-flex; align-items:center; gap:4px;
       cursor:pointer; opacity:.7; transition:opacity .15s;
@@ -2497,6 +2634,33 @@ export class SftpSettingsTabComponent implements OnDestroy {
   conflictDigestMaxSizeMB = 256
   /** ★ 2026-10-23：冲突「重命名」命名风格（seq 序号堆叠 / time 时间戳 / random 随机后缀） */
   conflictRenameStyle = normalizeConflictRenameStyle(load('conflictRenameStyle', 'seq'))
+  /**
+   * ★ 2026-10-27（Deepseek-V4.1-Flash）：拖拽落点只认当前目录（默认开）。
+   *   初值取自 localStorage（`load` 自带类型守卫，非布尔值回落 true）；真正的配置值在
+   *   `_applyConfig` 里回读，判定统一用 `cfg.dropToCurrentDir !== false` —— 旧配置里根本没有
+   *   这个键，缺省必须按「开」处理（否则升级后反而把那类「文件被吞进子目录」的坑重新打开）。
+   */
+  dropToCurrentDir = load<boolean>('dropToCurrentDir', true)
+  /**
+   * ★ 2026-10-27（Deepseek-V4.1-Flash）：是否接收 QuickCmd+ 的刷新请求（默认 **关**）。
+   *   ⛔ 与 dropToCurrentDir 相反，这里缺键必须按「关」处理：跨插件联动是新增能力，
+   *      升级不能替用户悄悄打开（打开后每次快捷命令都会给远端多加几次 readdir）。
+   */
+  refreshOnQuickCmd = load<boolean>('refreshOnQuickCmd', false) === true
+  /** QuickCmd+ 触发后的持续刷新时长（秒，1–120，默认 10）：列表还在变化时会自动顺延（上限 4 倍/180s） */
+  refreshOnQuickCmdWindow = normalizeRefreshWindowSec(load<number>('refreshOnQuickCmdWindow', 10))
+  /**
+   * ★ 2026-10-27（Deepseek-V4.1-Flash）：定时刷新列表（默认 **关**）。
+   *   与 refreshOnQuickCmd 同一个理由：定时 readdir 有代价，升级不能替用户默默打开。
+   */
+  autoRefreshEnabled = load<boolean>('autoRefreshEnabled', false) === true
+  /** 定时刷新间隔（秒，5–3600，默认 60） */
+  autoRefreshInterval = normalizeAutoRefreshIntervalSec(load<number>('autoRefreshInterval', 60))
+  /**
+   * ★ 2026-10-28（Deepseek-V4.1-Flash）：列表刷新闪烁（默认 **开**）。
+   *   切换文件夹 / 手动刷新后当前栏的淡蓝背景闪烁；关掉则不闪，其它提示（定位高亮 / 连接告警）保留。
+   */
+  listRefreshFlash = load<boolean>('listRefreshFlash', true) === true
   /** 默认上传路径（远程目标目录）；空串 = 使用当前远程目录 */
   defaultUploadPath = ''
   /** 默认下载路径（本地目标目录）；空串 = 使用当前本地目录 */
@@ -2615,6 +2779,7 @@ export class SftpSettingsTabComponent implements OnDestroy {
     // ★ 2026-09-24：意见反馈预填环境信息（对齐 Tabby 原生「报告问题」）
     @Optional() private platformService?: PlatformService,
     @Optional() private hostApp?: HostAppService,
+    @Optional() private appService?: AppService,
   ) {
     // ConfigService 是可选的，如果注入失败（开发环境/Tabby 版本不支持），回退到 localStorage
     this.i18n = new SftpI18nService(configService)
@@ -3278,6 +3443,18 @@ export class SftpSettingsTabComponent implements OnDestroy {
       }
       // ★ 2026-10-23：冲突重命名风格（旧配置没有此键 ⇒ 归一化回落到 seq）
       this.conflictRenameStyle = normalizeConflictRenameStyle(cfg.conflictRenameStyle)
+      // ★ 2026-10-27（Deepseek-V4.1-Flash）：拖拽落点只认当前目录（缺键按「开」）
+      this.dropToCurrentDir = cfg.dropToCurrentDir !== false
+      // ★ 2026-10-27（Deepseek-V4.1-Flash）：QuickCmd+ 联动（缺键按「关」+ 观察期夹到 1–120s）
+      this.refreshOnQuickCmd = cfg.refreshOnQuickCmd === true
+      this.refreshOnQuickCmdWindow = normalizeRefreshWindowSec(
+        cfg.refreshOnQuickCmdWindow !== undefined ? cfg.refreshOnQuickCmdWindow : 10)
+      // ★ 2026-10-27（Deepseek-V4.1-Flash）：定时刷新（缺键按「关」+ 间隔夹到 5–3600s）
+      this.autoRefreshEnabled = cfg.autoRefreshEnabled === true
+      this.autoRefreshInterval = normalizeAutoRefreshIntervalSec(
+        cfg.autoRefreshInterval !== undefined ? cfg.autoRefreshInterval : 60)
+      // ★ 2026-10-28（Deepseek-V4.1-Flash）：列表刷新闪烁（缺键按「开」；老配置无此键 ⇒ 保留原有反馈）
+      this.listRefreshFlash = cfg.listRefreshFlash !== false
       if (typeof cfg.defaultUploadPath === 'string') this.defaultUploadPath = cfg.defaultUploadPath
       if (typeof cfg.defaultDownloadPath === 'string') this.defaultDownloadPath = cfg.defaultDownloadPath
       if (typeof cfg.iconResourceDir === 'string') this.iconResourceDir = cfg.iconResourceDir
@@ -3440,6 +3617,16 @@ export class SftpSettingsTabComponent implements OnDestroy {
       target.conflictDigestMaxSizeMB = this.conflictDigestMaxSizeMB
       // ★ 2026-10-23：冲突重命名风格（标量叶子，可直接赋值）
       target.conflictRenameStyle = this.conflictRenameStyle
+      // ★ 2026-10-27（Deepseek-V4.1-Flash）：拖拽落点只认当前目录（标量叶子）
+      target.dropToCurrentDir = this.dropToCurrentDir
+      // ★ 2026-10-27（Deepseek-V4.1-Flash）：QuickCmd+ 联动（均为标量叶子，可直接赋值）
+      target.refreshOnQuickCmd = this.refreshOnQuickCmd
+      target.refreshOnQuickCmdWindow = normalizeRefreshWindowSec(this.refreshOnQuickCmdWindow)
+      // ★ 2026-10-27（Deepseek-V4.1-Flash）：定时刷新（均为标量叶子）
+      target.autoRefreshEnabled = this.autoRefreshEnabled
+      target.autoRefreshInterval = normalizeAutoRefreshIntervalSec(this.autoRefreshInterval)
+      // ★ 2026-10-28（Deepseek-V4.1-Flash）：列表刷新闪烁（标量叶子）
+      target.listRefreshFlash = this.listRefreshFlash
       target.defaultUploadPath = this.defaultUploadPath
       target.defaultDownloadPath = this.defaultDownloadPath
       target.iconResourceDir = this.iconResourceDir
@@ -4407,6 +4594,110 @@ export class SftpSettingsTabComponent implements OnDestroy {
   }
 
   /**
+   * 切换「拖拽只投放到当前目录」（设置页「传输设置」分区）。
+   * 功能描述：开（默认）—— 跨栏拖拽 / 从系统资源管理器拖入时，落点恒为该栏**当前打开的目录**，
+   *          指针压在哪一行都不改变投递目标，避免手滑停在文件夹行上、文件被静默吞进子目录。
+   *          关 —— 恢复旧行为：压在文件夹行上就进那个文件夹（拖拽期间该行会高亮并标注去向）。
+   *          同栏内拖到子文件夹不受影响（那是文件管理器的通用手势，不是「传输」）。
+   * 说明：只改内存值 + 落盘 + 广播，面板侧 `_readBehaviorConfig` 收到广播后重读，
+   *      因此不需要重启面板即可生效（「配置保存后立即生效」关闭时除外，见面板的 _settingsApplyLive）。
+   * @创建人：DD1024z + Deepseek-V4.1-Flash
+   * @创建时间：2026-10-27
+   */
+  toggleDropToCurrentDir(): void {
+    this.dropToCurrentDir = !this.dropToCurrentDir
+    this._saveToConfig()
+    this.notifyPanels()
+  }
+
+  /**
+   * ★ 2026-10-27（Deepseek-V4.1-Flash）：开关「接收 QuickCmd+ 的刷新请求」。
+   * 说明：与 toggleDropToCurrentDir 同款 —— 只改内存值 + 落盘 + 广播，面板在
+   *      `_readBehaviorConfig` 里重读，所以不需要重开面板
+   *      （除非用户把「配置保存后立即生效」关了，那是全局约定，不在这里单开例外）。
+   * @创建人：DD1024z + Deepseek-V4.1-Flash
+   * @创建时间：2026-10-27
+   */
+  toggleRefreshOnQuickCmd(): void {
+    this.refreshOnQuickCmd = !this.refreshOnQuickCmd
+    this._saveToConfig()
+    this.notifyPanels()
+  }
+
+  /** 观察期时长（秒）改动后落盘：先夹到 1–120，避免手输 0 / 9999 直接进配置 */
+  saveRefreshOnQuickCmdWindow(): void {
+    this.refreshOnQuickCmdWindow = normalizeRefreshWindowSec(this.refreshOnQuickCmdWindow)
+    this._saveToConfig()
+    this.notifyPanels()
+  }
+
+  /**
+   * ★ 2026-10-27（Deepseek-V4.1-Flash）：开关「定时刷新列表」。
+   * 与 toggleRefreshOnQuickCmd 同款（改内存值 + 落盘 + 广播，面板在 `_readBehaviorConfig`
+   * 里重排定时器，不需要重开面板）。
+   * @创建人：DD1024z + Deepseek-V4.1-Flash
+   * @创建时间：2026-10-27
+   */
+  toggleAutoRefresh(): void {
+    this.autoRefreshEnabled = !this.autoRefreshEnabled
+    this._saveToConfig()
+    this.notifyPanels()
+  }
+
+  /** 定时刷新间隔改动后落盘：先夹到 5–3600 秒（下界防「1 秒一次」把远端 readdir 打满） */
+  saveAutoRefreshInterval(): void {
+    this.autoRefreshInterval = normalizeAutoRefreshIntervalSec(this.autoRefreshInterval)
+    this._saveToConfig()
+    this.notifyPanels()
+  }
+
+  /** 列表刷新闪烁开关（默认开；关闭后切换文件夹 / 手动刷新不再淡蓝背景闪烁） */
+  toggleListRefreshFlash(): void {
+    this.listRefreshFlash = !this.listRefreshFlash
+    this._saveToConfig()
+    this.notifyPanels()
+  }
+
+  /**
+   * QuickCmd+ 的安装状态：enabled / disabled / missing / unknown
+   * 数据来源：宿主 BootstrapData.installedPlugins（宿主启动时给的清单，插件页也是读它）
+   *   + config.store.pluginBlacklist（宿主自带的停用清单）；本窗口真收到过联动请求则直接算 enabled。
+   * ⛔ unknown 时一律不提示 —— 清单读不到可能是宿主版本差异，不能把「装了但读不到」说成「没装」。
+   * @创建人：DD1024z + Deepseek-V4.1-Flash
+   * @创建时间：2026-10-27
+   */
+  get quickCmdPresence(): QuickCmdPresence {
+    try {
+      return detectQuickCmdPresence(
+        (this.bootstrapData as any)?.installedPlugins,
+        (this.configService as any)?.store?.pluginBlacklist,
+      )
+    } catch {
+      return 'unknown'
+    }
+  }
+
+  /** 开关打开、且确实判定为「没装 / 被停用」时才显示就地提示（装了就不啰嗦） */
+  get showQuickCmdPluginHint(): boolean {
+    if (!this.refreshOnQuickCmd) return false
+    const s = this.quickCmdPresence
+    return s === 'missing' || s === 'disabled'
+  }
+
+  /** 提示文案 key：没装 vs 装了但被停用，两种情况给的话不一样 */
+  get quickCmdPluginHintKey(): string {
+    return this.quickCmdPresence === 'disabled'
+      ? 'settings.refreshOnQuickCmdDisabled'
+      : 'settings.refreshOnQuickCmdMissing'
+  }
+
+  /** 提示里的「打开插件页」：跳到宿主设置页的插件分组 */
+  openPluginsSettings(): void {
+    if (!this.appService) return
+    openTabbyPluginsSettings(this.appService)
+  }
+
+  /**
    * 摘要大小上限取值约束：[1, 4096] MB，非法值回落 256。
    * ★ 2026-09-21 P2 修复：原先只判 > 0，没有上界——输入框的 max="4096" 只是 UI 提示，
    * 手动输入/粘贴/导入配置都能写进极大值，随后每次冲突检测都会对巨型文件求 hash。
@@ -4736,6 +5027,9 @@ export class SftpSettingsTabComponent implements OnDestroy {
   }
 
   toggleTopBarEnabled(a: TopBarItemId): void {
+    // ★ 2026-10-27：⋯ 的"启用"就是顶层「启用折叠菜单」开关，本行复选框已 disabled，
+    //   这里再兜一层 —— 否则程序化触发会把一个不存在的 topBarDisabled 项写进配置。
+    if (a === 'overflow') return
     this.topBarDisabled = this.isTopBarEnabled(a)
       ? [...this.topBarDisabled, a]
       : this.topBarDisabled.filter(x => x !== a)
@@ -4743,6 +5037,8 @@ export class SftpSettingsTabComponent implements OnDestroy {
   }
 
   toggleTopBarPinned(a: TopBarItemId): void {
+    // ★ 2026-10-27：⋯ 恒在顶栏，没有「固定在顶栏 / 收进 ⋯」两态（本行图钉也不渲染），兜一层防御
+    if (a === 'overflow') return
     this.topBarPinned = this.isTopBarPinned(a)
       ? this.topBarPinned.filter(x => x !== a)
       : [...this.topBarPinned, a]
@@ -4905,6 +5201,11 @@ export class SftpSettingsTabComponent implements OnDestroy {
           // ★ 2026-10-19（Deepseek-V4.1-Flash）：联动书签开关
           data.bookmarkLinkEnabled = cfg.bookmarkLinkEnabled !== false
           data.bookmarkSortMode = normalizeBookmarkSortMode(cfg.bookmarkSortMode, cfg.bookmarkSortByUsage)
+          // ★ 2026-10-26（Deepseek-V4.1-Flash）：同时写出**只读兼容键** bookmarkSortByUsage ——
+          //   它在 EXPORT_CATEGORY_FIELDS.layout 里登记着「一并进备份」，但此前 collectAllData
+          //   从不产出 ⇒ 备份里根本没有这个键（注释承诺的行为没落地，探针的「无死项」断言抓出）。
+          //   老客户端只认布尔键，写成 `mode === 'usage'` 让它至少能把「按使用频率」带回去。
+          data.bookmarkSortByUsage = data.bookmarkSortMode === 'usage'
           data.bookmarkPanelGroupOrder = cfg.bookmarkPanelGroupOrder ?? ['connection', 'global']
           data.dateFormat = cfg.dateFormat ?? ''
           data.transferUploadConcurrency = cfg.transferUploadConcurrency ?? 3
@@ -4915,6 +5216,14 @@ export class SftpSettingsTabComponent implements OnDestroy {
           data.conflictDigestMaxSizeMB = cfg.conflictDigestMaxSizeMB ?? 256
           data.conflictDigestAlgo = cfg.conflictDigestAlgo === 'sha256' ? 'sha256' : 'sha1'
           data.conflictRenameStyle = normalizeConflictRenameStyle(cfg.conflictRenameStyle)
+          // ★ 2026-10-27（Deepseek-V4.1-Flash）：拖拽落点只认当前目录（缺键导出成 true，与读侧同口径）
+          data.dropToCurrentDir = cfg.dropToCurrentDir !== false
+          // ★ 2026-10-27（Deepseek-V4.1-Flash）：QuickCmd+ 联动（缺键导出成 false / 10s，与读侧同口径）
+          data.refreshOnQuickCmd = cfg.refreshOnQuickCmd === true
+          data.refreshOnQuickCmdWindow = normalizeRefreshWindowSec((cfg as any).refreshOnQuickCmdWindow)
+          data.autoRefreshEnabled = cfg.autoRefreshEnabled === true
+          data.autoRefreshInterval = normalizeAutoRefreshIntervalSec((cfg as any).autoRefreshInterval)
+          data.listRefreshFlash = cfg.listRefreshFlash !== false
           data.defaultUploadPath = cfg.defaultUploadPath ?? ''
           data.defaultDownloadPath = cfg.defaultDownloadPath ?? ''
           data.iconResourceDir = cfg.iconResourceDir ?? ''
@@ -4990,9 +5299,19 @@ export class SftpSettingsTabComponent implements OnDestroy {
     data.bookmarkPanelGroupByScope = load('bookmarkPanelGroupByScope', true)
     data.bookmarkLinkEnabled = load('bookmarkLinkEnabled', true)
     data.bookmarkSortMode = normalizeBookmarkSortMode(load('bookmarkSortMode', 'manual'), load('bookmarkSortByUsage', false))
+    // ★ 2026-10-26：兜底分支同样写出只读兼容键（与 config 分支保持同一份导出字段）
+    data.bookmarkSortByUsage = data.bookmarkSortMode === 'usage'
     data.bookmarkPanelGroupOrder = load('bookmarkPanelGroupOrder', ['connection', 'global'])
     data.dateFormat = load('dateFormat', '')
     data.conflictRenameStyle = normalizeConflictRenameStyle(load('conflictRenameStyle', 'seq'))
+    // ★ 2026-10-27（Deepseek-V4.1-Flash）：localStorage 兜底分支同样要采集（config 不可用时导出别丢字段）
+    data.dropToCurrentDir = load<boolean>('dropToCurrentDir', true) !== false
+    // ★ 2026-10-27（Deepseek-V4.1-Flash）：兜底分支同样采集 QuickCmd+ 联动两项
+    data.refreshOnQuickCmd = load<boolean>('refreshOnQuickCmd', false) === true
+    data.refreshOnQuickCmdWindow = normalizeRefreshWindowSec(load<number>('refreshOnQuickCmdWindow', 10))
+    data.autoRefreshEnabled = load<boolean>('autoRefreshEnabled', false) === true
+    data.autoRefreshInterval = normalizeAutoRefreshIntervalSec(load<number>('autoRefreshInterval', 60))
+    data.listRefreshFlash = load<boolean>('listRefreshFlash', true) === true
     data.transferUploadConcurrency = 3
     data.transferDownloadConcurrency = 3
     data.hideAuthorInfo = false
@@ -5221,6 +5540,34 @@ export class SftpSettingsTabComponent implements OnDestroy {
             target.conflictDigestMaxSizeMB = this._clampDigestMaxMB(data.conflictDigestMaxSizeMB)
           }
           if (data.conflictDigestAlgo !== undefined) target.conflictDigestAlgo = data.conflictDigestAlgo === 'sha256' ? 'sha256' : 'sha1'
+          // ★ 2026-10-27（Deepseek-V4.1-Flash）：拖拽落点只认当前目录（外部 JSON 不可信 ⇒ 只认真布尔，
+          //   其余值一律按「开」，即安全侧；同时同步内存值让设置页立即反映）
+          if (data.dropToCurrentDir !== undefined) {
+            this.dropToCurrentDir = data.dropToCurrentDir !== false
+            target.dropToCurrentDir = this.dropToCurrentDir
+          }
+          // ★ 2026-10-27（Deepseek-V4.1-Flash）：QuickCmd+ 联动（外部 JSON 不可信 ⇒ 严格判型 + 时长夹界）
+          if (data.refreshOnQuickCmd !== undefined) {
+            this.refreshOnQuickCmd = data.refreshOnQuickCmd === true
+            target.refreshOnQuickCmd = this.refreshOnQuickCmd
+          }
+          if (data.refreshOnQuickCmdWindow !== undefined) {
+            this.refreshOnQuickCmdWindow = normalizeRefreshWindowSec(data.refreshOnQuickCmdWindow)
+            target.refreshOnQuickCmdWindow = this.refreshOnQuickCmdWindow
+          }
+          // ★ 2026-10-27（Deepseek-V4.1-Flash）：定时刷新（同样不可信 ⇒ 严格判型 + 间隔夹界）
+          if (data.autoRefreshEnabled !== undefined) {
+            this.autoRefreshEnabled = data.autoRefreshEnabled === true
+            target.autoRefreshEnabled = this.autoRefreshEnabled
+          }
+          if (data.autoRefreshInterval !== undefined) {
+            this.autoRefreshInterval = normalizeAutoRefreshIntervalSec(data.autoRefreshInterval)
+            target.autoRefreshInterval = this.autoRefreshInterval
+          }
+          if (data.listRefreshFlash !== undefined) {
+            this.listRefreshFlash = data.listRefreshFlash !== false
+            target.listRefreshFlash = this.listRefreshFlash
+          }
           if (data.defaultUploadPath !== undefined) target.defaultUploadPath = data.defaultUploadPath
           if (data.defaultDownloadPath !== undefined) target.defaultDownloadPath = data.defaultDownloadPath
           if (data.iconResourceDir !== undefined) target.iconResourceDir = data.iconResourceDir
@@ -5595,39 +5942,83 @@ export class SftpSettingsTabComponent implements OnDestroy {
     alert(failed.length ? `${msg}\n\n⚠ ${failed.join(', ')}` : msg)
   }
 
-  openGithub(): void {
-    const url = 'https://github.com/10D24D/Tabby-SFTP-Plus'
+  /** 插件仓库地址（GitHub 源码 / Releases / issue 表单共用一份，避免多处硬编码各写各的） */
+  readonly repoUrl = 'https://github.com/10D24D/Tabby-SFTP-Plus'
+
+  /** 作者 GitHub 主页（关于区「作者: DD1024z」的点击目标，同时作为 hover title 提示） */
+  readonly authorProfileUrl = 'https://github.com/10D24D'
+
+  /**
+   * 当前版本的 GitHub Release 页面
+   * 功能描述：关于区「版本: x.y.z」的点击目标 =
+   *          https://github.com/10D24D/Tabby-SFTP-Plus/releases/tag/v3.1.0 这样带 tag 的页面，
+   *          同时作为 hover 的 title 提示（鼠标停留就能看到会跳到哪个地址）。
+   *          package.json 的 version 不带前缀而 GitHub tag 带 v ⇒ 统一补 v；已带 v 则不重复补，
+   *          否则会拼出 /tag/vv3.0.0 的死链。版本号取不到时退回 Releases 列表，不拼半截 URL。
+   * @创建人：DD1024z + Deepseek-V4.1-Flash
+   * @创建时间：2026-10-27
+   */
+  get versionReleaseUrl(): string {
+    const v = String(this.pkgVersion || '').trim()
+    if (!v) return `${this.repoUrl}/releases`
+    return `${this.repoUrl}/releases/tag/${/^v/i.test(v) ? v : 'v' + v}`
+  }
+
+  /**
+   * 打开「当前版本」的 GitHub Release 页面（关于区版本号点击入口）
+   * 功能描述：与作者名 / 源码 / 赞助等入口共用 _openExternal() 一条通道。
+   * @创建人：DD1024z + Deepseek-V4.1-Flash
+   * @创建时间：2026-10-27
+   */
+  openVersionRelease(): void {
+    this._openExternal(this.versionReleaseUrl)
+  }
+
+  /**
+   * 打开作者 GitHub 主页
+   * 功能描述：设置页「关于」区的作者名（作者: DD1024z）可点击，点击跳转 https://github.com/10D24D；
+   *          走 _openExternal() 统一通道（Electron shell 优先，回落 window.open，都失败则静默）。
+   *          注意：用 (click) 而非 <a href>，Electron 渲染进程里 href 会把整页导航走，Tabby 设置页会白屏。
+   * @创建人：DD1024z + Deepseek-V4.1-Flash
+   * @创建时间：2026-10-27
+   */
+  openAuthorProfile(): void {
+    this._openExternal(this.authorProfileUrl)
+  }
+
+  /**
+   * 统一的外链打开通道（关于区 / 意见反馈 / 赞助等所有出口都走这里）
+   * 功能描述：优先 Electron shell.openExternal（交给系统默认浏览器打开，不占渲染进程窗口）；
+   *          非 Electron 环境回落 window.open；两者都失败则静默 —— 外链打不开不该把设置页搞崩。
+   *          ⛔ 新增入口只需一行 _openExternal(url)，别再各自复制一份 try/catch（此前已有 5 份副本）。
+   * @创建人：DD1024z + Deepseek-V4.1-Flash
+   * @创建时间：2026-10-27
+   */
+  private _openExternal(url: string): void {
     try {
       ;(window as any).require('electron').shell.openExternal(url)
     } catch {
       try { window.open(url, '_blank') } catch { /* ignore */ }
     }
+  }
+
+  openGithub(): void {
+    this._openExternal(this.repoUrl)
   }
 
   /** ★ 2026-08-25：打开 NPM 包页面（关于信息-GitHub 源码右侧新增链接） */
   openNpm(): void {
-    const url = 'https://www.npmjs.com/package/tabby-sftp-plus'
-    try {
-      ;(window as any).require('electron').shell.openExternal(url)
-    } catch {
-      try { window.open(url, '_blank') } catch { /* ignore */ }
-    }
+    this._openExternal('https://www.npmjs.com/package/tabby-sftp-plus')
   }
 
   /**
    * 打开 ko-fi 赞助页（关于信息-「请喝咖啡」链接）
-   * 功能描述：与 openGithub / openNpm 同一条外部打开通道；优先走 Electron shell，
-   *          非 Electron 环境下回落 window.open，两者都失败则静默。
+   * 功能描述：与 openGithub / openNpm 相同的外部打开通道（现已收口到 _openExternal）。
    * @创建人：DD1024z + Deepseek-V4.1-Flash
    * @创建时间：2026-10-22
    */
   openKofi(): void {
-    const url = 'https://ko-fi.com/dd1024z'
-    try {
-      ;(window as any).require('electron').shell.openExternal(url)
-    } catch {
-      try { window.open(url, '_blank') } catch { /* ignore */ }
-    }
+    this._openExternal('https://ko-fi.com/dd1024z')
   }
 
   /**
@@ -5649,12 +6040,7 @@ export class SftpSettingsTabComponent implements OnDestroy {
 
   /** 统一打开 issue 表单：kind=bug 走缺陷报告模板，kind=feature 走功能需求模板；任一异常都回退为纯新建页 */
   private _openIssue(kind: 'bug' | 'feature'): void {
-    const url = this._buildIssueUrl(kind)
-    try {
-      ;(window as any).require('electron').shell.openExternal(url)
-    } catch {
-      try { window.open(url, '_blank') } catch { /* ignore */ }
-    }
+    this._openExternal(this._buildIssueUrl(kind))
   }
 
   /**
@@ -5669,7 +6055,7 @@ export class SftpSettingsTabComponent implements OnDestroy {
     const template = kind === 'bug'
       ? (zh ? 'bug_report.yml' : 'bug_report_en.yml')
       : (zh ? 'feature_request.yml' : 'feature_request_en.yml')
-    const base = `https://github.com/10D24D/Tabby-SFTP-Plus/issues/new?template=${template}`
+    const base = `${this.repoUrl}/issues/new?template=${template}`
     try {
       const params: string[] = []
       const add = (key: string, value: string): void => {

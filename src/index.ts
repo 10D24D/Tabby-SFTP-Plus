@@ -30,6 +30,7 @@ import { SftpFilePaneComponent } from './sftp/components/sftp-file-pane.componen
 import { SftpContextMenuComponent } from './sftp/components/sftp-context-menu.component'
 import { SftpBookmarkPopupComponent } from './sftp/components/sftp-bookmark-popup.component'
 import { SftpDeleteDialogComponent } from './sftp/components/sftp-delete-dialog.component'
+import { SftpConfirmDialogComponent } from './sftp/components/sftp-confirm-dialog.component'
 import { SftpDirMissingDialogComponent } from './sftp/components/sftp-dir-missing-dialog.component'
 import { SftpInputDialogComponent } from './sftp/components/sftp-input-dialog.component'
 import { SftpPermDialogComponent } from './sftp/components/sftp-perm-dialog.component'
@@ -57,6 +58,7 @@ import { SftpCwdSetupDialogComponent } from './sftp/components/sftp-cwd-setup-di
     SftpContextMenuComponent,
     SftpBookmarkPopupComponent,
     SftpDeleteDialogComponent,
+    SftpConfirmDialogComponent,
     SftpDirMissingDialogComponent,
     SftpInputDialogComponent,
     SftpPermDialogComponent,

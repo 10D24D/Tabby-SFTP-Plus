@@ -96,3 +96,26 @@ export function openSftpPlusSettings(app: AppService): void {
   if (!settingsTab) return
   app.selectTab(settingsTab)
 }
+
+/**
+ * 打开 Tabby 设置页并定位到「插件」分组
+ * 功能描述：SFTP+ 设置页里「执行 QuickCmd+ 命令后刷新列表」在未检测到 QuickCmd+ 时，
+ *   给一个「打开插件页」入口，用户不用自己找菜单。
+ * 关键约束：
+ *   ① 插件分组的 id 是宿主内置插件 tabby-plugin-manager 自己注册的 'plugins'
+ *      （见其 src/settings.ts 的 `id = 'plugins'`），不是 SFTP+ 的 tab id。
+ *   ② 只传 activeTab，不模拟点击 nav 链接 —— NgbNav 复用后 click 会失效，
+ *      这是 openSftpPlusSettings 当初踩过的同一个坑。
+ * @创建人：DD1024z + Deepseek-V4.1-Flash
+ * @创建时间：2026-10-27
+ */
+export function openTabbyPluginsSettings(app: AppService): void {
+  try {
+    const settingsTab = app.openNewTabRaw({
+      type: SettingsTabComponent,
+      inputs: { activeTab: 'plugins' },
+    }) as any
+    if (!settingsTab) return
+    app.selectTab(settingsTab)
+  } catch { /* 宿主版本差异：点不开也不该影响设置页本身 */ }
+}

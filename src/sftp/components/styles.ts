@@ -1,6 +1,13 @@
 /** SFTP+ 面板样式（合并自 panel-main-styles + file-dialog-shared-styles）
  * @修改人：DD1024z + Deepseek-V4.1-Flash
- * @修改时间：2026-10-20 — 分组模式斑马纹启用：改用 .entry.zebra（组内序号偶数位，每组首条带）替代被组头打乱的 nth-child；单条分组也可见斑马色。nth-child 规则限定 .pane-list:not(.has-groups)，避免与 .zebra 互补覆盖导致整组同色。
+ * @修改时间：2026-10-27 — 新增 .entry.drop-into（拖拽落点 = 文件夹行时的显式标注：主色内描边 + 右侧
+ *             「放入此文件夹」小标，文案走 data-drop-hint 属性以支持多语言）。仅在设置页关掉
+ *             「拖拽只投放到当前目录」后才可能出现；规则并列写了斑马纹偶数行 + 已选中那条的高特异性
+ *             选择器，否则会被它的 !important 背景盖掉。
+ *             2026-10-24 — 面板内滚动容器统一收口焦点环（.pane-list / .conn-opt-list / .file-dialog-body
+ *             的 :focus 与 :focus-visible 都 outline/box-shadow none）：Chromium 132+ 把可滚动容器
+ *             自动纳入 Tab 序列，按 Tab 会画 UA 的橙色 :focus-visible 环（用户截图「左栏列表外圈一圈橙线」）。
+ *             2026-10-20 — 分组模式斑马纹启用：改用 .entry.zebra（组内序号偶数位，每组首条带）替代被组头打乱的 nth-child；单条分组也可见斑马色。nth-child 规则限定 .pane-list:not(.has-groups)，避免与 .zebra 互补覆盖导致整组同色。
  *             2026-10-19 — .sftp-root 增加 opacity: var(--_panel-opacity, 1)（设置页「面板透明度」，0.5–1）。
  *             新增 .pane-label-caret（可点端点标识的 ▾ 角标，is-open 时翻转）。
  *             2026-10-19 全量审计 P2-36 / P2-37 / P2-38：
@@ -294,6 +301,23 @@ export const SFTP_PANEL_STYLES = `
     }
     .sftp-root:focus,
     .sftp-root:focus-visible {
+      outline: none !important;
+      box-shadow: none !important;
+    }
+    /* ★ 2026-10-24（Deepseek-V4.1-Flash）：面板内的**滚动容器**统一收口焦点环。
+       Chromium 132+ 起「可滚动容器」被自动纳入 Tab 序列（隐式 tabindex=0），按 Tab 时它抢到焦点
+       并画 UA 的 :focus-visible 环 —— 本机主题下呈橙色（用户实测：面板里按 Tab，左栏列表外圈
+       冒出一圈橙线，看着像「选中了这块」）。
+       这些容器没有键盘交互语义（文件列表的键盘操作走 .nav-focus 游标 + 面板热键），环只是噪音。
+       ⛔ 别扩成裸的「*:focus{outline:none}」全局规则：对话框按钮 / 输入框 / 菜单项的键盘焦点提示必须留着。
+       ⛔ .pane-list 另有模板级 tabindex="-1"（真正移出 Tab 序列）；这里保留视觉兜底，
+         防止以后新增滚动容器忘记加 tabindex 又冒出橙圈。 */
+    .sftp-root .pane-list:focus,
+    .sftp-root .pane-list:focus-visible,
+    .sftp-root .conn-opt-list:focus,
+    .sftp-root .conn-opt-list:focus-visible,
+    .sftp-root .file-dialog-body:focus,
+    .sftp-root .file-dialog-body:focus-visible {
       outline: none !important;
       box-shadow: none !important;
     }
@@ -1130,6 +1154,39 @@ export const SFTP_PANEL_STYLES = `
       background: color-mix(in srgb, var(--_primary) 77%, transparent) !important;
     }
     .sftp-root .entry:hover:not(.selected):not(.header) { background: color-mix(in srgb, var(--_primary) 57%, transparent); }
+    /* ★ 2026-10-27（Deepseek-V4.1-Flash）：拖拽落点 = 某个文件夹行时的显式标注。
+       只在设置页关掉「拖拽只投放到当前目录」后才可能出现（见面板 _updateDropFolderHint）——
+       打开的开关下落点与行无关，标了反而误导。
+       视觉：实心 2px 主色内描边 + 比 hover 更重的底色 + 右侧「放入此文件夹」小标；
+       必须盖过 .selected / :hover 的 background（那些带 !important），故此处也带 !important。
+       小标文案走 data-drop-hint 属性（JS 侧 i18n 取好再写），CSS 只负责排版 —— 硬编码文案无法翻译。
+       position:relative 只在标注期间加：.entry 本体不加，避免影响网格行的常规命中区测算。 */
+    .sftp-root .pane-list .entry.drop-into,
+    /* 斑马纹偶数行 + 已选中那条规则带 !important 且特异性更高，必须并列写一遍才盖得住 */
+    .sftp-root.has-zebra .pane-list:not(.has-groups) .entry:not(.header):nth-child(even).drop-into {
+      position: relative;
+      background: color-mix(in srgb, var(--_primary) 70%, transparent) !important;
+      /* !important 是为了盖过后面才出现的 .entry.nav-focus 内阴影（同特异性、后定义者胜） */
+      box-shadow: inset 0 0 0 2px var(--_primary) !important;
+    }
+    .sftp-root .pane-list .entry.drop-into::after {
+      content: attr(data-drop-hint);
+      position: absolute;
+      right: 6px;
+      top: 50%;
+      transform: translateY(-50%);
+      max-width: 60%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      padding: 1px 6px;
+      border-radius: 3px;
+      font-size: 10px;
+      line-height: 1.5;
+      color: #fff;
+      background: var(--_primary);
+      pointer-events: none;
+    }
     /* 隐藏文件/文件夹（名称以 . 开头）：内容淡化区分；选中/hover 背景不受影响 */
     .sftp-root .entry.hidden-entry > span { opacity: 0.5; }
     .sftp-root .entry.hidden-entry.selected > span,

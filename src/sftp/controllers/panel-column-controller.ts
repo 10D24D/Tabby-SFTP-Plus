@@ -3,8 +3,11 @@
  * 功能描述：承载列可见性/列宽/重排/自适应/表头右键菜单等逻辑与状态，供浮动面板组件继承
  * @创建人：DD1024z + Hy3
  * @创建时间：2026-07-11
- * @修改人：DD1024z + Hy4 preview
- * @修改时间：2026-10-20 — 2026-10-19 全量审计 P2-39：右键「自适应列宽」(adjustColumnWidth) 与
+ * @修改人：DD1024z + Deepseek-V4.1-Flash
+ * @修改时间：2026-10-26 — 基类改为 extends SftpPanelConfirmController：面板内二次确认（askConfirm）
+ *              作为继承链最底层能力，供面板主体与查看器控制器共用（替代会破坏 Electron 焦点链的
+ *              原生 confirm）。
+ *              2026-10-20 — 2026-10-19 全量审计 P2-39：右键「自适应列宽」(adjustColumnWidth) 与
  *              2026-10-20 全量审计：onHeaderContextMenu 的菜单位置修正定时器持句柄 + 用快照坐标，
  *                修连续右键时旧回调覆盖新菜单位置。
  *              「全部列自适应」(adjustAllColumnsWidth) 原先用一刀切的 30px 下限，可把名称列压到
@@ -13,6 +16,7 @@
  *              其余列按 size/perms/mode/owner/group 40、date/created/access 80、path 60、ext 30，缺省 40；
  *              onColResizeAutoFit 与 onColResizeStart 里两份重复的 MIN_WIDTHS 表也一并改为调用它。
  * @修改情况：
+ *   - 2026-10-26 (Deepseek-V4.1-Flash)：extends SftpPanelConfirmController（面板内二次确认能力下沉到基类）。
  *   - 2026-10-19 (Hy3)：续四：rl 右键菜单对齐左右栏（反馈③）：_setColWidth 扩 pane:'local'|'remote'|'rl'（rl→local 列宽组）。
  *     续八：rl 表头右键菜单/列宽拖拽/自适应/表头重排对齐左右栏——onHeaderContextMenu 按 .rl-pane 判 rl；
  *     adjustColumnWidth/adjustAllColumnsWidth/onColResizeAutoFit/onColResizeStart/_getColDefaultWidth rl 归 local 配置组；
@@ -34,8 +38,9 @@ import { ChangeDetectorRef, ElementRef, NgZone } from '@angular/core'
 import { SftpI18nService } from '../../services/sftp-i18n.service'
 import { PanelHeaderReorder } from '../components/panel-header-reorder'
 import type { LocalEntry, SFTPFile } from '../core/panel-types'
+import { SftpPanelConfirmController } from './panel-confirm-controller'
 
-export abstract class SftpPanelColumnController {
+export abstract class SftpPanelColumnController extends SftpPanelConfirmController {
   protected abstract _safeDetect(): void
   // ===== 静态常量 =====
   static readonly LOCAL_COLS_KEY = 'sftp-plus-local-cols'
