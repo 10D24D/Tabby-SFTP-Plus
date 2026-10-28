@@ -226,6 +226,9 @@ msgstr "SFTP"
 msgid "app.backToTerminal"
 msgstr "Powrót do Terminala"
 
+msgid "filter.allProfiles"
+msgstr "All Profiles"
+
 msgid "filter.allOps"
 msgstr "Wszystkie Operacje"
 
@@ -1054,6 +1057,9 @@ msgstr "Wklejanie nieudane"
 msgid "notify.copyFailed"
 msgstr "Kopiowanie nieudane: {name}"
 
+msgid "notify.dropIntoFolder"
+msgstr "Upuść w tym folderze"
+
 msgid "theme.auto"
 msgstr "Auto"
 
@@ -1382,6 +1388,41 @@ msgstr "Katalog zdalny, np. /home/user/uploads (puste = bieżący zdalny)"
 
 msgid "settings.defaultDownloadPath"
 msgstr "Domyślna ścieżka pobierania"
+
+msgid "settings.dropToCurrentDir"
+msgstr "Upuszczaj tylko w bieżącym folderze"
+
+msgid "settings.dropToCurrentDirDesc"
+msgstr "Przy upuszczaniu na panel zawsze używany jest folder aktualnie w nim wyświetlany. Wyłącz, aby upuszczać do folderu pod kursorem (wiersz jest podświetlany podczas przeciągania)."
+
+msgid "settings.refreshOnQuickCmd"
+msgstr "Odśwież listę po poleceniach QuickCmd+"
+
+msgid "settings.refreshOnQuickCmdDesc"
+msgstr "Wymaga wtyczki QuickCmd+ z włączoną opcją „Powiadom SFTP+ o odświeżeniu po uruchomieniu”: gdy zgłosi wykonanie polecenia, panele tego samego połączenia odświeżają listę, aż się ustabilizuje — pliki utworzone przez polecenie pojawiają się bez ręcznego odświeżania, a bieżący folder nigdy się nie zmienia."
+
+msgid "settings.refreshOnQuickCmdMissing"
+msgstr "Nie znaleziono wtyczki QuickCmd+ — zainstaluj i włącz ją, aby ta funkcja działała."
+
+msgid "settings.refreshOnQuickCmdDisabled"
+msgstr "Wtyczka QuickCmd+ jest zainstalowana, ale wyłączona — włącz ją, aby ta funkcja działała."
+
+msgid "settings.refreshOnQuickCmdOpenPlugins"
+msgstr "Otwórz wtyczki"
+
+msgid "settings.refreshOnQuickCmdWindow"
+msgstr "Odświeżaj przez (s)"
+
+msgid "settings.autoRefresh"
+msgstr "Automatycznie odświeżaj listę"
+msgid "settings.autoRefreshInterval"
+msgstr "Interwał odświeżania (s)"
+msgid "settings.autoRefreshDesc"
+msgstr "Co ustawiony interwał ponownie odczytuje bieżące foldery (lokalne i zdalne), dzięki czemu nowe pliki pojawiają się bez ręcznego odświeżania. Działa tylko przy otwartym panelu."
+
+
+msgid "settings.listRefreshFlash"
+msgstr "Podświetl listę przy odświeżaniu"
 
 msgid "settings.defaultDownloadPathPh"
 msgstr "Katalog lokalny, np. C:\\Downloads (puste = bieżący lokalny)"
@@ -1940,6 +1981,9 @@ msgstr "Dostosuj przyciski górnego paska"
 
 msgid "settings.topBarOverflow"
 msgstr "Włącz menu przepełnienia (⋯)"
+
+msgid "settings.topBarItemOverflow"
+msgstr "Menu przepełnienia (⋯)"
 
 msgid "settings.topBarPinned"
 msgstr "Przypięte"

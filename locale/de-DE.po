@@ -226,6 +226,9 @@ msgstr "SFTP"
 msgid "app.backToTerminal"
 msgstr "Zurück zum Terminal"
 
+msgid "filter.allProfiles"
+msgstr "All Profiles"
+
 msgid "filter.allOps"
 msgstr "Alle Operationen"
 
@@ -1054,6 +1057,9 @@ msgstr "Einfügen fehlgeschlagen"
 msgid "notify.copyFailed"
 msgstr "Kopieren fehlgeschlagen: {name}"
 
+msgid "notify.dropIntoFolder"
+msgstr "In diesen Ordner ablegen"
+
 msgid "theme.auto"
 msgstr "Auto"
 
@@ -1382,6 +1388,41 @@ msgstr "Entferntes Verzeichnis, z. B. /home/user/uploads (leer = aktuelles Remot
 
 msgid "settings.defaultDownloadPath"
 msgstr "Standard-Downloadpfad"
+
+msgid "settings.dropToCurrentDir"
+msgstr "Nur in den aktuellen Ordner ziehen"
+
+msgid "settings.dropToCurrentDirDesc"
+msgstr "Beim Ablegen auf einem Bereich wird immer der dort angezeigte Ordner verwendet. Ausschalten, um in den Ordner unter dem Zeiger abzulegen (die Zeile wird beim Ziehen markiert)."
+
+msgid "settings.refreshOnQuickCmd"
+msgstr "Liste nach QuickCmd+-Befehlen aktualisieren"
+
+msgid "settings.refreshOnQuickCmdDesc"
+msgstr "Erfordert das QuickCmd+-Plugin mit aktivierter Option „SFTP+ nach der Ausführung zum Aktualisieren benachrichtigen“: Meldet es einen ausgeführten Befehl, aktualisieren Bereiche derselben Verbindung die Liste weiter, bis sie sich beruhigt hat – erzeugte Dateien erscheinen ohne manuelles Aktualisieren, der aktuelle Ordner bleibt unverändert."
+
+msgid "settings.refreshOnQuickCmdMissing"
+msgstr "QuickCmd+-Plugin nicht gefunden – installieren und aktivieren Sie es, damit diese Funktion wirkt."
+
+msgid "settings.refreshOnQuickCmdDisabled"
+msgstr "QuickCmd+-Plugin ist installiert, aber deaktiviert – aktivieren Sie es, damit diese Funktion wirkt."
+
+msgid "settings.refreshOnQuickCmdOpenPlugins"
+msgstr "Plugins öffnen"
+
+msgid "settings.refreshOnQuickCmdWindow"
+msgstr "Weiter aktualisieren für (s)"
+
+msgid "settings.autoRefresh"
+msgstr "Liste automatisch aktualisieren"
+msgid "settings.autoRefreshInterval"
+msgstr "Aktualisierungsintervall (s)"
+msgid "settings.autoRefreshDesc"
+msgstr "Liest die aktuellen Ordner (lokal und remote) im eingestellten Intervall neu ein, damit neue Dateien ohne manuelles Aktualisieren erscheinen. Wirkt nur bei geöffnetem Panel."
+
+
+msgid "settings.listRefreshFlash"
+msgstr "Liste bei Aktualisierung hervorheben"
 
 msgid "settings.defaultDownloadPathPh"
 msgstr "Lokales Verzeichnis, z. B. C:\\Downloads (leer = aktuelles lokal)"
@@ -1940,6 +1981,9 @@ msgstr "Schaltflächen der oberen Leiste anpassen"
 
 msgid "settings.topBarOverflow"
 msgstr "Überlaufmenü aktivieren (⋯)"
+
+msgid "settings.topBarItemOverflow"
+msgstr "Überlaufmenü (⋯)"
 
 msgid "settings.topBarPinned"
 msgstr "Angeheftet"

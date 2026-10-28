@@ -227,6 +227,9 @@ msgstr "SFTP"
 msgid "app.backToTerminal"
 msgstr "Retour au Terminal"
 
+msgid "filter.allProfiles"
+msgstr "All Profiles"
+
 msgid "filter.allOps"
 msgstr "Toutes les Opérations"
 
@@ -1049,6 +1052,9 @@ msgstr "Échec du collage"
 msgid "notify.copyFailed"
 msgstr "Échec de la copie : {name}"
 
+msgid "notify.dropIntoFolder"
+msgstr "Déposer dans ce dossier"
+
 msgid "theme.auto"
 msgstr "Auto"
 
@@ -1377,6 +1383,41 @@ msgstr "Répertoire distant, ex. /home/user/uploads (vide = répertoire distant 
 
 msgid "settings.defaultDownloadPath"
 msgstr "Chemin de téléchargement par défaut"
+
+msgid "settings.dropToCurrentDir"
+msgstr "Déposer uniquement dans le dossier courant"
+
+msgid "settings.dropToCurrentDirDesc"
+msgstr "Lors d'un dépôt sur un panneau, le dossier affiché par ce panneau est toujours utilisé. Désactivez pour déposer dans le dossier sous le curseur (la ligne est mise en évidence pendant le glisser)."
+
+msgid "settings.refreshOnQuickCmd"
+msgstr "Actualiser la liste après les commandes QuickCmd+"
+
+msgid "settings.refreshOnQuickCmdDesc"
+msgstr "Nécessite l'extension QuickCmd+ avec « Notifier SFTP+ pour actualiser après exécution » activé : lorsqu'elle signale une commande exécutée, les panneaux de la même connexion continuent d'actualiser jusqu'à ce que la liste se stabilise — les fichiers créés apparaissent sans cliquer sur Actualiser, et le dossier courant n'est jamais modifié."
+
+msgid "settings.refreshOnQuickCmdMissing"
+msgstr "Extension QuickCmd+ introuvable — installez-la et activez-la pour que cette fonction marche."
+
+msgid "settings.refreshOnQuickCmdDisabled"
+msgstr "L'extension QuickCmd+ est installée mais désactivée — activez-la pour que cette fonction marche."
+
+msgid "settings.refreshOnQuickCmdOpenPlugins"
+msgstr "Ouvrir les extensions"
+
+msgid "settings.refreshOnQuickCmdWindow"
+msgstr "Continuer d’actualiser (s)"
+
+msgid "settings.autoRefresh"
+msgstr "Actualiser la liste automatiquement"
+msgid "settings.autoRefreshInterval"
+msgstr "Intervalle d’actualisation (s)"
+msgid "settings.autoRefreshDesc"
+msgstr "Relit les dossiers courants (local et distant) à l’intervalle défini, pour que les nouveaux fichiers apparaissent sans actualisation manuelle. Actif uniquement quand le panneau est ouvert."
+
+
+msgid "settings.listRefreshFlash"
+msgstr "Mettre en évidence la liste lors de l’actualisation"
 
 msgid "settings.defaultDownloadPathPh"
 msgstr "Répertoire local, ex. C:\\Downloads (vide = répertoire local actuel)"
@@ -1935,6 +1976,9 @@ msgstr "Personnaliser les boutons de la barre supérieure"
 
 msgid "settings.topBarOverflow"
 msgstr "Activer le menu de débordement (⋯)"
+
+msgid "settings.topBarItemOverflow"
+msgstr "Menu de débordement (⋯)"
 
 msgid "settings.topBarPinned"
 msgstr "Épinglé"

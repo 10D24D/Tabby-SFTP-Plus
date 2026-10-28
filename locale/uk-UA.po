@@ -185,6 +185,9 @@ msgid "app.modeSwitchSftp"
 msgstr "SFTP"
 msgid "app.backToTerminal"
 msgstr "Назад до терміналу"
+
+msgid "filter.allProfiles"
+msgstr "All Profiles"
 msgid "filter.allOps"
 msgstr "Всі Operations"
 
@@ -848,6 +851,9 @@ msgstr "Помилка вставлення"
 msgid "notify.copyFailed"
 msgstr "Помилка копіювання: {name}"
 
+msgid "notify.dropIntoFolder"
+msgstr "Помістити в цю папку"
+
 msgid "theme.auto"
 msgstr "Авто"
 
@@ -1176,6 +1182,41 @@ msgstr "Віддалений каталог, напр. /home/user/uploads (по�
 
 msgid "settings.defaultDownloadPath"
 msgstr "Шлях завантаження за замовчуванням"
+
+msgid "settings.dropToCurrentDir"
+msgstr "Перетягувати лише до поточної папки"
+
+msgid "settings.dropToCurrentDirDesc"
+msgstr "Під час перетягування в панель завжди використовується папка, відкрита в цій панелі. Вимкніть, щоб потрапляти в папку під курсором (рядок підсвічується під час перетягування)."
+
+msgid "settings.refreshOnQuickCmd"
+msgstr "Оновлювати список після команд QuickCmd+"
+
+msgid "settings.refreshOnQuickCmdDesc"
+msgstr "Потрібен плагін QuickCmd+ із увімкненою опцією «Повідомляти SFTP+ про оновлення після виконання»: коли він повідомляє про виконану команду, панелі того самого з'єднання продовжують оновлювати список, доки він не стабілізується — створені файли з'являються без ручного оновлення, а поточна тека не змінюється."
+
+msgid "settings.refreshOnQuickCmdMissing"
+msgstr "Плагін QuickCmd+ не знайдено — встановіть і ввімкніть його, щоб ця функція працювала."
+
+msgid "settings.refreshOnQuickCmdDisabled"
+msgstr "Плагін QuickCmd+ встановлено, але вимкнено — увімкніть його, щоб ця функція працювала."
+
+msgid "settings.refreshOnQuickCmdOpenPlugins"
+msgstr "Відкрити плагіни"
+
+msgid "settings.refreshOnQuickCmdWindow"
+msgstr "Оновлювати протягом (с)"
+
+msgid "settings.autoRefresh"
+msgstr "Автооновлення списку"
+msgid "settings.autoRefreshInterval"
+msgstr "Інтервал оновлення (с)"
+msgid "settings.autoRefreshDesc"
+msgstr "Із заданим інтервалом повторно читає поточні теки (локальні та віддалені), тож нові файли видно без ручного оновлення. Працює лише коли панель відкрита."
+
+
+msgid "settings.listRefreshFlash"
+msgstr "Підсвічування списку при оновленні"
 
 msgid "settings.defaultDownloadPathPh"
 msgstr "Локальний каталог, напр. C:\\Downloads (порожньо = поточний локальний)"
@@ -1734,6 +1775,9 @@ msgstr "Налаштувати кнопки верхньої панелі"
 
 msgid "settings.topBarOverflow"
 msgstr "Увімкнути меню переповнення (⋯)"
+
+msgid "settings.topBarItemOverflow"
+msgstr "Меню переповнення (⋯)"
 
 msgid "settings.topBarPinned"
 msgstr "Закріплено"

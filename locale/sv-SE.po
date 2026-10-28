@@ -185,6 +185,9 @@ msgid "app.modeSwitchSftp"
 msgstr "SFTP"
 msgid "app.backToTerminal"
 msgstr "Tillbaka till terminalen"
+
+msgid "filter.allProfiles"
+msgstr "All Profiles"
 msgid "filter.allOps"
 msgstr "Alla Operations"
 
@@ -847,6 +850,9 @@ msgstr "Klistra in misslyckades"
 msgid "notify.copyFailed"
 msgstr "Kopiera misslyckades: {name}"
 
+msgid "notify.dropIntoFolder"
+msgstr "Släpp i den här mappen"
+
 msgid "theme.auto"
 msgstr "Auto"
 
@@ -1175,6 +1181,41 @@ msgstr "Fjärrkatalog, t.ex. /home/user/uploads (tomt = aktuell fjärrkatalog)"
 
 msgid "settings.defaultDownloadPath"
 msgstr "Standardnedladdningssökväg"
+
+msgid "settings.dropToCurrentDir"
+msgstr "Släpp endast i aktuell mapp"
+
+msgid "settings.dropToCurrentDirDesc"
+msgstr "När du släpper på en panel används alltid mappen som panelen visar. Stäng av för att släppa i mappen under pekaren (raden markeras medan du drar)."
+
+msgid "settings.refreshOnQuickCmd"
+msgstr "Uppdatera listan efter QuickCmd+-kommandon"
+
+msgid "settings.refreshOnQuickCmdDesc"
+msgstr "Kräver QuickCmd+-insticksprogrammet med „Meddela SFTP+ att uppdatera efter körning“ påslaget: när det rapporterar ett kört kommando uppdaterar paneler på samma anslutning listan tills den stabiliseras — skapade filer dyker upp utan att du trycker Uppdatera, och den aktuella mappen ändras aldrig."
+
+msgid "settings.refreshOnQuickCmdMissing"
+msgstr "QuickCmd+-insticksprogrammet hittades inte — installera och aktivera det för att funktionen ska fungera."
+
+msgid "settings.refreshOnQuickCmdDisabled"
+msgstr "QuickCmd+-insticksprogrammet är installerat men inaktiverat — aktivera det för att funktionen ska fungera."
+
+msgid "settings.refreshOnQuickCmdOpenPlugins"
+msgstr "Öppna insticksprogram"
+
+msgid "settings.refreshOnQuickCmdWindow"
+msgstr "Fortsätt uppdatera i (s)"
+
+msgid "settings.autoRefresh"
+msgstr "Uppdatera listan automatiskt"
+msgid "settings.autoRefreshInterval"
+msgstr "Uppdateringsintervall (s)"
+msgid "settings.autoRefreshDesc"
+msgstr "Läser om aktuella mappar (lokala och fjärranslutna) med valt intervall, så nya filer syns utan manuell uppdatering. Fungerar bara när panelen är öppen."
+
+
+msgid "settings.listRefreshFlash"
+msgstr "Markera lista vid uppdatering"
 
 msgid "settings.defaultDownloadPathPh"
 msgstr "Lokal katalog, t.ex. C:\\Downloads (tomt = aktuell lokal katalog)"
@@ -1733,6 +1774,9 @@ msgstr "Anpassa knappar i översta fältet"
 
 msgid "settings.topBarOverflow"
 msgstr "Aktivera överflödesmeny (⋯)"
+
+msgid "settings.topBarItemOverflow"
+msgstr "Överflödesmeny (⋯)"
 
 msgid "settings.topBarPinned"
 msgstr "Fäst"

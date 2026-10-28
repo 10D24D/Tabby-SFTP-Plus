@@ -185,6 +185,9 @@ msgid "app.modeSwitchSftp"
 msgstr "SFTP"
 msgid "app.backToTerminal"
 msgstr "Обратно към терминала"
+
+msgid "filter.allProfiles"
+msgstr "All Profiles"
 msgid "filter.allOps"
 msgstr "Всички Operations"
 
@@ -848,6 +851,9 @@ msgstr "Поставянето неуспешно"
 msgid "notify.copyFailed"
 msgstr "Копирането неуспешно: {name}"
 
+msgid "notify.dropIntoFolder"
+msgstr "Пусни в тази папка"
+
 msgid "theme.auto"
 msgstr "Авто"
 
@@ -1176,6 +1182,41 @@ msgstr "Отдалечена директория, напр. /home/user/uploads 
 
 msgid "settings.defaultDownloadPath"
 msgstr "Път за изтегляне по подразбиране"
+
+msgid "settings.dropToCurrentDir"
+msgstr "Плъзгане само в текущата папка"
+
+msgid "settings.dropToCurrentDirDesc"
+msgstr "При пускане върху панел винаги се използва папката, която панелът показва в момента. Изключете, за да пускате в папката под курсора (редът се маркира по време на плъзгане)."
+
+msgid "settings.refreshOnQuickCmd"
+msgstr "Обновяване на списъка след команди от QuickCmd+"
+
+msgid "settings.refreshOnQuickCmdDesc"
+msgstr "Изисква плъгина QuickCmd+ с включена опция „Уведомяване на SFTP+ за опресняване след изпълнение“: когато той отчете изпълнена команда, панелите на същата връзка продължават да обновяват, докато списъкът се стабилизира — създадените файлове се появяват без ръчно обновяване, а текущата папка не се променя."
+
+msgid "settings.refreshOnQuickCmdMissing"
+msgstr "Плъгинът QuickCmd+ не е открит — инсталирайте и го активирайте, за да работи тази функция."
+
+msgid "settings.refreshOnQuickCmdDisabled"
+msgstr "Плъгинът QuickCmd+ е инсталиран, но е изключен — активирайте го, за да работи тази функция."
+
+msgid "settings.refreshOnQuickCmdOpenPlugins"
+msgstr "Отвори плъгините"
+
+msgid "settings.refreshOnQuickCmdWindow"
+msgstr "Продължително опресняване (сек.)"
+
+msgid "settings.autoRefresh"
+msgstr "Автоматично опресняване на списъка"
+msgid "settings.autoRefreshInterval"
+msgstr "Интервал на опресняване (сек.)"
+msgid "settings.autoRefreshDesc"
+msgstr "Автоматично препрочита текущите папки (локални и отдалечени) на зададения интервал, така че новите файлове се виждат без ръчно опресняване. Работи само при отворен панел."
+
+
+msgid "settings.listRefreshFlash"
+msgstr "Подчертаване на списъка при опресняване"
 
 msgid "settings.defaultDownloadPathPh"
 msgstr "Локална директория, напр. C:\\Downloads (празно = текущата локална)"
@@ -1734,6 +1775,9 @@ msgstr "Персонализиране на бутоните на горната
 
 msgid "settings.topBarOverflow"
 msgstr "Активиране на меню за препълване (⋯)"
+
+msgid "settings.topBarItemOverflow"
+msgstr "Меню за препълване (⋯)"
 
 msgid "settings.topBarPinned"
 msgstr "Фиксиран"

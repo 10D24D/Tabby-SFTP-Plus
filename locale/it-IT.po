@@ -224,6 +224,9 @@ msgstr "SFTP"
 msgid "app.backToTerminal"
 msgstr "Torna al Terminale"
 
+msgid "filter.allProfiles"
+msgstr "All Profiles"
+
 msgid "filter.allOps"
 msgstr "Tutte le Operazioni"
 
@@ -1055,6 +1058,9 @@ msgstr "Incolla fallito"
 msgid "notify.copyFailed"
 msgstr "Copia fallita: {name}"
 
+msgid "notify.dropIntoFolder"
+msgstr "Rilascia in questa cartella"
+
 msgid "theme.auto"
 msgstr "Automatico"
 
@@ -1383,6 +1389,41 @@ msgstr "Directory remota, es. /home/user/uploads (vuoto = remota corrente)"
 
 msgid "settings.defaultDownloadPath"
 msgstr "Percorso di download predefinito"
+
+msgid "settings.dropToCurrentDir"
+msgstr "Rilascia solo nella cartella corrente"
+
+msgid "settings.dropToCurrentDirDesc"
+msgstr "Quando si rilascia su un pannello viene sempre usata la cartella mostrata dal pannello. Disattiva per rilasciare nella cartella sotto il puntatore (la riga viene evidenziata durante il trascinamento)."
+
+msgid "settings.refreshOnQuickCmd"
+msgstr "Aggiorna l'elenco dopo i comandi QuickCmd+"
+
+msgid "settings.refreshOnQuickCmdDesc"
+msgstr "Richiede il plugin QuickCmd+ con «Notifica SFTP+ per aggiornare dopo l'esecuzione» attivo: quando segnala un comando eseguito, i pannelli della stessa connessione continuano ad aggiornare finché l'elenco non si stabilizza: i file creati compaiono senza premere Aggiorna e la cartella corrente non cambia mai."
+
+msgid "settings.refreshOnQuickCmdMissing"
+msgstr "Plugin QuickCmd+ non trovato: installalo e attivalo perché questa funzione funzioni."
+
+msgid "settings.refreshOnQuickCmdDisabled"
+msgstr "Il plugin QuickCmd+ è installato ma disattivato: attivalo perché questa funzione funzioni."
+
+msgid "settings.refreshOnQuickCmdOpenPlugins"
+msgstr "Apri plugin"
+
+msgid "settings.refreshOnQuickCmdWindow"
+msgstr "Continua ad aggiornare (s)"
+
+msgid "settings.autoRefresh"
+msgstr "Aggiorna elenco automaticamente"
+msgid "settings.autoRefreshInterval"
+msgstr "Intervallo di aggiornamento (s)"
+msgid "settings.autoRefreshDesc"
+msgstr "Rilegge le cartelle correnti (locale e remota) all’intervallo impostato, così i nuovi file compaiono senza aggiornamento manuale. Attivo solo con il pannello aperto."
+
+
+msgid "settings.listRefreshFlash"
+msgstr "Evidenzia elenco all’aggiornamento"
 
 msgid "settings.defaultDownloadPathPh"
 msgstr "Directory locale, es. C:\\Downloads (vuoto = locale corrente)"
@@ -1941,6 +1982,9 @@ msgstr "Personalizza i pulsanti della barra superiore"
 
 msgid "settings.topBarOverflow"
 msgstr "Abilita menu di overflow (⋯)"
+
+msgid "settings.topBarItemOverflow"
+msgstr "Menu di overflow (⋯)"
 
 msgid "settings.topBarPinned"
 msgstr "Fissato"

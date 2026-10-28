@@ -227,6 +227,9 @@ msgstr "SFTP"
 msgid "app.backToTerminal"
 msgstr "터미널로 돌아가기"
 
+msgid "filter.allProfiles"
+msgstr "All Profiles"
+
 msgid "filter.allOps"
 msgstr "모든 작업"
 
@@ -1062,6 +1065,9 @@ msgstr "붙여넣기 실패"
 msgid "notify.copyFailed"
 msgstr "복사 실패: {name}"
 
+msgid "notify.dropIntoFolder"
+msgstr "이 폴더에 넣기"
+
 msgid "theme.auto"
 msgstr "자동"
 
@@ -1390,6 +1396,41 @@ msgstr "원격 디렉터리, 예: /home/user/uploads (비우면 = 현재 원격)
 
 msgid "settings.defaultDownloadPath"
 msgstr "기본 다운로드 경로"
+
+msgid "settings.dropToCurrentDir"
+msgstr "현재 폴더에만 놓기"
+
+msgid "settings.dropToCurrentDirDesc"
+msgstr "패널에 놓을 때 항상 해당 패널이 현재 표시하는 폴더를 사용합니다. 끄면 포인터 아래의 폴더 행으로 놓습니다(드래그 중 해당 행이 강조됩니다)."
+
+msgid "settings.refreshOnQuickCmd"
+msgstr "QuickCmd+ 명령 실행 후 목록 새로 고침"
+
+msgid "settings.refreshOnQuickCmdDesc"
+msgstr "QuickCmd+ 플러그인이 필요하며, 해당 플러그인에서 '실행 후 SFTP+에 새로 고침 알림'을 켜야 합니다. 명령 실행을 알리면 같은 연결의 패널이 목록이 안정될 때까지 계속 새로 고치며, 명령이 만든 파일은 직접 새로 고치지 않아도 나타납니다. 현재 폴더는 바뀌지 않습니다."
+
+msgid "settings.refreshOnQuickCmdMissing"
+msgstr "QuickCmd+ 플러그인을 찾을 수 없습니다. 설치하고 활성화해야 이 기능이 동작합니다."
+
+msgid "settings.refreshOnQuickCmdDisabled"
+msgstr "QuickCmd+ 플러그인이 설치되어 있지만 사용 중지되어 있습니다. 활성화해야 이 기능이 동작합니다."
+
+msgid "settings.refreshOnQuickCmdOpenPlugins"
+msgstr "플러그인 열기"
+
+msgid "settings.refreshOnQuickCmdWindow"
+msgstr "계속 새로 고침할 시간(초)"
+
+msgid "settings.autoRefresh"
+msgstr "목록 정기 새로 고침"
+msgid "settings.autoRefreshInterval"
+msgstr "새로 고침 간격(초)"
+msgid "settings.autoRefreshDesc"
+msgstr "설정한 간격마다 현재 폴더(로컬·원격)를 다시 읽어 새 파일을 수동 새로 고침 없이 표시합니다. 패널이 열려 있을 때만 동작합니다."
+
+
+msgid "settings.listRefreshFlash"
+msgstr "새로 고침 시 목록 강조"
 
 msgid "settings.defaultDownloadPathPh"
 msgstr "로컬 디렉터리, 예: C:\\Downloads (비우면 = 현재 로컬)"
@@ -1948,6 +1989,9 @@ msgstr "상단 표시줄 버튼 사용자 지정"
 
 msgid "settings.topBarOverflow"
 msgstr "오버플로 메뉴 사용 (⋯)"
+
+msgid "settings.topBarItemOverflow"
+msgstr "오버플로 메뉴 (⋯)"
 
 msgid "settings.topBarPinned"
 msgstr "고정됨"

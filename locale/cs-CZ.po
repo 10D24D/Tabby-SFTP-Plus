@@ -224,6 +224,9 @@ msgstr "SFTP"
 msgid "app.backToTerminal"
 msgstr "Zpět do Terminálu"
 
+msgid "filter.allProfiles"
+msgstr "All Profiles"
+
 msgid "filter.allOps"
 msgstr "Všechny Operace"
 
@@ -1051,6 +1054,9 @@ msgstr "Vložení selhalo"
 msgid "notify.copyFailed"
 msgstr "Kopírování selhalo: {name}"
 
+msgid "notify.dropIntoFolder"
+msgstr "Vložit do této složky"
+
 msgid "theme.auto"
 msgstr "Auto"
 
@@ -1379,6 +1385,41 @@ msgstr "Vzdálený adresář, např. /home/user/uploads (prázdné = aktuální 
 
 msgid "settings.defaultDownloadPath"
 msgstr "Výchozí cesta stahování"
+
+msgid "settings.dropToCurrentDir"
+msgstr "Přetahovat pouze do aktuální složky"
+
+msgid "settings.dropToCurrentDirDesc"
+msgstr "Při přetažení do panelu se vždy použije složka, kterou panel právě zobrazuje. Vypněte, chcete-li přetahovat do složky pod kurzorem (řádek se během přetahování zvýrazní)."
+
+msgid "settings.refreshOnQuickCmd"
+msgstr "Obnovit seznam po příkazech QuickCmd+"
+
+msgid "settings.refreshOnQuickCmdDesc"
+msgstr "Vyžaduje plugin QuickCmd+ se zapnutou volbou „Upozornit SFTP+ na obnovení po spuštění“: když ohlásí spuštěný příkaz, panely stejného připojení obnovují seznam, dokud se neustálí — vytvořené soubory se objeví bez ručního obnovení a aktuální složka se nemění."
+
+msgid "settings.refreshOnQuickCmdMissing"
+msgstr "Plugin QuickCmd+ nebyl nalezen — nainstalujte a povolte jej, aby tato funkce fungovala."
+
+msgid "settings.refreshOnQuickCmdDisabled"
+msgstr "Plugin QuickCmd+ je nainstalován, ale zakázán — povolte jej, aby tato funkce fungovala."
+
+msgid "settings.refreshOnQuickCmdOpenPlugins"
+msgstr "Otevřít pluginy"
+
+msgid "settings.refreshOnQuickCmdWindow"
+msgstr "Obnovovat po dobu (s)"
+
+msgid "settings.autoRefresh"
+msgstr "Automaticky obnovovat seznam"
+msgid "settings.autoRefreshInterval"
+msgstr "Interval obnovování (s)"
+msgid "settings.autoRefreshDesc"
+msgstr "Podle nastaveného intervalu znovu načte aktuální složky (místní i vzdálené), takže nové soubory se zobrazí bez ručního obnovení. Funguje jen při otevřeném panelu."
+
+
+msgid "settings.listRefreshFlash"
+msgstr "Zvýraznit seznam při obnovení"
 
 msgid "settings.defaultDownloadPathPh"
 msgstr "Místní adresář, např. C:\\Downloads (prázdné = aktuální místní)"
@@ -1937,6 +1978,9 @@ msgstr "Přizpůsobit tlačítka horní lišty"
 
 msgid "settings.topBarOverflow"
 msgstr "Povolit nabídku přetečení (⋯)"
+
+msgid "settings.topBarItemOverflow"
+msgstr "Nabídka přetečení (⋯)"
 
 msgid "settings.topBarPinned"
 msgstr "Připnuto"

@@ -229,6 +229,9 @@ msgstr "SFTP"
 msgid "app.backToTerminal"
 msgstr "返回終端"
 
+msgid "filter.allProfiles"
+msgstr "All Profiles"
+
 msgid "filter.allOps"
 msgstr "所有操作"
 
@@ -938,6 +941,42 @@ msgid "settings.defaultUploadPathPh"
 msgstr "遠端目錄，如 /home/user/uploads（留空 = 目前遠端目錄）"
 msgid "settings.defaultDownloadPath"
 msgstr "預設下載路徑"
+
+msgid "settings.dropToCurrentDir"
+msgstr "拖曳只投放到目前目錄"
+
+msgid "settings.dropToCurrentDirDesc"
+msgstr "拖曳到某一欄時，一律投放到該欄目前開啟的目錄。關閉後，停在資料夾列上會存進該資料夾（拖曳時該列會高亮提示）。"
+
+msgid "settings.refreshOnQuickCmd"
+msgstr "執行 QuickCmd+ 命令後重新整理列表"
+
+msgid "settings.refreshOnQuickCmdDesc"
+msgstr "需要安裝並啟用 QuickCmd+ 外掛，並在其設定頁開啟「執行命令後通知 SFTP+ 重新整理列表」：該外掛在命令執行後發出通知，此外掛隨即將該連線的列表重新整理到內容穩定 —— 命令產生的新檔案無需手動重新整理即可出現，且不會跳轉或改動目前目錄。"
+
+msgid "settings.refreshOnQuickCmdMissing"
+msgstr "未偵測到 QuickCmd+ 外掛，安裝並啟用後此功能才會生效。"
+
+msgid "settings.refreshOnQuickCmdDisabled"
+msgstr "QuickCmd+ 外掛已安裝但處於停用狀態，啟用後此功能才會生效。"
+
+msgid "settings.refreshOnQuickCmdOpenPlugins"
+msgstr "開啟外掛頁"
+
+msgid "settings.refreshOnQuickCmdWindow"
+msgstr "持續更新時長（秒）"
+
+msgid "settings.autoRefresh"
+msgstr "定時更新列表"
+msgid "settings.autoRefreshInterval"
+msgstr "更新間隔（秒）"
+msgid "settings.autoRefreshDesc"
+msgstr "依設定的間隔自動重新讀取目前資料夾（本機與遠端都會更新），新檔案無需手動更新即可看到；面板開著時才會執行。"
+
+
+msgid "settings.listRefreshFlash"
+msgstr "列表刷新閃爍"
+
 msgid "settings.defaultDownloadPathPh"
 msgstr "本機目錄，如 C:\\Downloads（留空 = 目前本機目錄）"
 msgid "settings.iconSettings"
@@ -1251,6 +1290,9 @@ msgstr "貼上失敗"
 
 msgid "notify.copyFailed"
 msgstr "複製失敗：{name}"
+
+msgid "notify.dropIntoFolder"
+msgstr "放入此資料夾"
 
 msgid "theme.auto"
 msgstr "自動"
@@ -1916,6 +1958,9 @@ msgstr "自訂頂欄按鈕"
 
 msgid "settings.topBarOverflow"
 msgstr "啟用收合選單（⋯）"
+
+msgid "settings.topBarItemOverflow"
+msgstr "收合選單（⋯）"
 
 msgid "settings.topBarPinned"
 msgstr "已固定"

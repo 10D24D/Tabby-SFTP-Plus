@@ -227,6 +227,9 @@ msgstr "SFTP"
 msgid "app.backToTerminal"
 msgstr "Вернуться к Терминалу"
 
+msgid "filter.allProfiles"
+msgstr "All Profiles"
+
 msgid "filter.allOps"
 msgstr "Все Операции"
 
@@ -1062,6 +1065,9 @@ msgstr "Ошибка вставки"
 msgid "notify.copyFailed"
 msgstr "Ошибка копирования: {name}"
 
+msgid "notify.dropIntoFolder"
+msgstr "Поместить в эту папку"
+
 msgid "theme.auto"
 msgstr "Авто"
 
@@ -1390,6 +1396,41 @@ msgstr "Удалённый каталог, напр. /home/user/uploads (пус�
 
 msgid "settings.defaultDownloadPath"
 msgstr "Путь скачивания по умолчанию"
+
+msgid "settings.dropToCurrentDir"
+msgstr "Перетаскивать только в текущую папку"
+
+msgid "settings.dropToCurrentDirDesc"
+msgstr "При перетаскивании в панель всегда используется папка, открытая в этой панели. Отключите, чтобы попадать в папку под курсором (строка подсвечивается при перетаскивании)."
+
+msgid "settings.refreshOnQuickCmd"
+msgstr "Обновлять список после команд QuickCmd+"
+
+msgid "settings.refreshOnQuickCmdDesc"
+msgstr "Требуется плагин QuickCmd+ с включённой опцией «Уведомлять SFTP+ об обновлении после выполнения»: когда он сообщает о выполненной команде, панели того же подключения продолжают обновлять список, пока он не стабилизируется — созданные файлы появляются без ручного обновления, текущая папка не меняется."
+
+msgid "settings.refreshOnQuickCmdMissing"
+msgstr "Плагин QuickCmd+ не найден — установите и включите его, чтобы эта функция работала."
+
+msgid "settings.refreshOnQuickCmdDisabled"
+msgstr "Плагин QuickCmd+ установлен, но отключён — включите его, чтобы эта функция работала."
+
+msgid "settings.refreshOnQuickCmdOpenPlugins"
+msgstr "Открыть плагины"
+
+msgid "settings.refreshOnQuickCmdWindow"
+msgstr "Обновлять в течение (с)"
+
+msgid "settings.autoRefresh"
+msgstr "Автообновление списка"
+msgid "settings.autoRefreshInterval"
+msgstr "Интервал обновления (с)"
+msgid "settings.autoRefreshDesc"
+msgstr "С заданным интервалом заново читает текущие папки (локальные и удалённые), поэтому новые файлы видны без ручного обновления. Работает только при открытой панели."
+
+
+msgid "settings.listRefreshFlash"
+msgstr "Подсветка списка при обновлении"
 
 msgid "settings.defaultDownloadPathPh"
 msgstr "Локальный каталог, напр. C:\\Downloads (пусто = текущий локальный)"
@@ -1948,6 +1989,9 @@ msgstr "Настроить кнопки верхней панели"
 
 msgid "settings.topBarOverflow"
 msgstr "Включить меню переполнения (⋯)"
+
+msgid "settings.topBarItemOverflow"
+msgstr "Меню переполнения (⋯)"
 
 msgid "settings.topBarPinned"
 msgstr "Закреплено"

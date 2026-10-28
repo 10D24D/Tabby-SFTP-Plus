@@ -185,6 +185,9 @@ msgid "app.modeSwitchSftp"
 msgstr "SFTP"
 msgid "app.backToTerminal"
 msgstr "Natrag na terminal"
+
+msgid "filter.allProfiles"
+msgstr "All Profiles"
 msgid "filter.allOps"
 msgstr "Sve Operations"
 
@@ -848,6 +851,9 @@ msgstr "Zalijepi nije uspjelo"
 msgid "notify.copyFailed"
 msgstr "Kopiranje nije uspjelo: {name}"
 
+msgid "notify.dropIntoFolder"
+msgstr "Ispusti u ovu mapu"
+
 msgid "theme.auto"
 msgstr "Auto"
 
@@ -1176,6 +1182,41 @@ msgstr "Udaljeni direktorij, npr. /home/user/uploads (prazno = trenutni udaljeni
 
 msgid "settings.defaultDownloadPath"
 msgstr "Zadana putanja preuzimanja"
+
+msgid "settings.dropToCurrentDir"
+msgstr "Ispusti samo u trenutnu mapu"
+
+msgid "settings.dropToCurrentDirDesc"
+msgstr "Pri ispuštanju na ploču uvijek se koristi mapa koju ploča trenutačno prikazuje. Isključite za ispuštanje u mapu pod pokazivačem (redak se označava tijekom povlačenja)."
+
+msgid "settings.refreshOnQuickCmd"
+msgstr "Osvježi popis nakon QuickCmd+ naredbi"
+
+msgid "settings.refreshOnQuickCmdDesc"
+msgstr "Zahtijeva dodatak QuickCmd+ s uključenom opcijom „Obavijesti SFTP+ o osvježavanju nakon izvršavanja“: kad dojavi izvršenu naredbu, paneli iste veze nastavljaju osvježavati dok se popis ne stabilizira — stvorene datoteke pojavljuju se bez ručnog osvježavanja, a trenutna mapa se nikad ne mijenja."
+
+msgid "settings.refreshOnQuickCmdMissing"
+msgstr "Dodatak QuickCmd+ nije pronađen — instalirajte ga i omogućite da bi ova funkcija radila."
+
+msgid "settings.refreshOnQuickCmdDisabled"
+msgstr "Dodatak QuickCmd+ je instaliran, ali onemogućen — omogućite ga da bi ova funkcija radila."
+
+msgid "settings.refreshOnQuickCmdOpenPlugins"
+msgstr "Otvori dodatke"
+
+msgid "settings.refreshOnQuickCmdWindow"
+msgstr "Nastavi osvježavati (s)"
+
+msgid "settings.autoRefresh"
+msgstr "Automatski osvježi popis"
+msgid "settings.autoRefreshInterval"
+msgstr "Interval osvježavanja (s)"
+msgid "settings.autoRefreshDesc"
+msgstr "Ponovno učitava trenutne mape (lokalne i udaljene) u zadanom intervalu pa se novi fajlovi prikazuju bez ručnog osvježavanja. Djeluje samo dok je ploča otvorena."
+
+
+msgid "settings.listRefreshFlash"
+msgstr "Istakni popis pri osvježavanju"
 
 msgid "settings.defaultDownloadPathPh"
 msgstr "Lokalni direktorij, npr. C:\\Downloads (prazno = trenutni lokalni)"
@@ -1734,6 +1775,9 @@ msgstr "Prilagodi gumbe gornje trake"
 
 msgid "settings.topBarOverflow"
 msgstr "Omogući izbornik prelijevanja (⋯)"
+
+msgid "settings.topBarItemOverflow"
+msgstr "Izbornik prelijevanja (⋯)"
 
 msgid "settings.topBarPinned"
 msgstr "Prikvačeno"

@@ -227,6 +227,9 @@ msgstr "SFTP"
 msgid "app.backToTerminal"
 msgstr "Terminale Dön"
 
+msgid "filter.allProfiles"
+msgstr "All Profiles"
+
 msgid "filter.allOps"
 msgstr "Tüm İşlemler"
 
@@ -1058,6 +1061,9 @@ msgstr "Yapıştırma başarısız"
 msgid "notify.copyFailed"
 msgstr "Kopyalama başarısız: {name}"
 
+msgid "notify.dropIntoFolder"
+msgstr "Bu klasöre bırak"
+
 msgid "theme.auto"
 msgstr "Otomatik"
 
@@ -1386,6 +1392,41 @@ msgstr "Uzak dizin, örn. /home/user/uploads (boş = geçerli uzak dizin)"
 
 msgid "settings.defaultDownloadPath"
 msgstr "Varsayılan indirme yolu"
+
+msgid "settings.dropToCurrentDir"
+msgstr "Yalnızca geçerli klasöre bırak"
+
+msgid "settings.dropToCurrentDirDesc"
+msgstr "Bir panele bırakırken her zaman o panelin gösterdiği klasör kullanılır. İşaretçinin altındaki klasöre bırakmak için kapatın (sürüklerken o satır vurgulanır)."
+
+msgid "settings.refreshOnQuickCmd"
+msgstr "QuickCmd+ komutlarından sonra listeyi yenile"
+
+msgid "settings.refreshOnQuickCmdDesc"
+msgstr "QuickCmd+ eklentisi gerekir ve orada „Çalıştırdıktan sonra SFTP+ öğesini yenileme için bildir“ açık olmalıdır: bir komut çalıştığını bildirdiğinde, aynı bağlantıdaki paneller liste sabitlenene kadar yenilemeye devam eder — oluşturulan dosyalar elle yenilemeden görünür ve geçerli klasör değişmez."
+
+msgid "settings.refreshOnQuickCmdMissing"
+msgstr "QuickCmd+ eklentisi bulunamadı — bu özelliğin çalışması için yükleyip etkinleştirin."
+
+msgid "settings.refreshOnQuickCmdDisabled"
+msgstr "QuickCmd+ eklentisi yüklü ancak devre dışı — bu özelliğin çalışması için etkinleştirin."
+
+msgid "settings.refreshOnQuickCmdOpenPlugins"
+msgstr "Eklentileri aç"
+
+msgid "settings.refreshOnQuickCmdWindow"
+msgstr "Şu kadar süre yenilemeye devam et (sn)"
+
+msgid "settings.autoRefresh"
+msgstr "Listeyi düzenli yenile"
+msgid "settings.autoRefreshInterval"
+msgstr "Yenileme aralığı (sn)"
+msgid "settings.autoRefreshDesc"
+msgstr "Geçerli klasörleri (yerel ve uzak) belirlenen aralıkla yeniden okur; yeni dosyalar elle yenilemeden görünür. Yalnızca panel açıkken çalışır."
+
+
+msgid "settings.listRefreshFlash"
+msgstr "Yenilemede listeyi vurgula"
 
 msgid "settings.defaultDownloadPathPh"
 msgstr "Yerel dizin, örn. C:\\Downloads (boş = geçerli yerel dizin)"
@@ -1944,6 +1985,9 @@ msgstr "Üst çubuk düğmelerini özelleştir"
 
 msgid "settings.topBarOverflow"
 msgstr "Taşma menüsünü etkinleştir (⋯)"
+
+msgid "settings.topBarItemOverflow"
+msgstr "Taşma menüsü (⋯)"
 
 msgid "settings.topBarPinned"
 msgstr "Sabitlendi"

@@ -187,6 +187,9 @@ msgstr "SFTP"
 
 msgid "app.backToTerminal"
 msgstr "Voltar ao Terminal"
+
+msgid "filter.allProfiles"
+msgstr "All Profiles"
 msgid "filter.allOps"
 msgstr "Tudo Operations"
 
@@ -850,6 +853,9 @@ msgstr "Falha ao colar"
 msgid "notify.copyFailed"
 msgstr "Falha ao copiar: {name}"
 
+msgid "notify.dropIntoFolder"
+msgstr "Largar nesta pasta"
+
 msgid "theme.auto"
 msgstr "Automático"
 
@@ -1178,6 +1184,41 @@ msgstr "Diretório remoto, ex.: /home/user/uploads (vazio = remoto atual)"
 
 msgid "settings.defaultDownloadPath"
 msgstr "Caminho de transferência predefinido"
+
+msgid "settings.dropToCurrentDir"
+msgstr "Largar apenas na pasta atual"
+
+msgid "settings.dropToCurrentDirDesc"
+msgstr "Ao largar num painel, é sempre usada a pasta que esse painel mostra. Desative para largar na pasta sob o cursor (a linha é realçada durante o arrasto)."
+
+msgid "settings.refreshOnQuickCmd"
+msgstr "Atualizar a lista após comandos do QuickCmd+"
+
+msgid "settings.refreshOnQuickCmdDesc"
+msgstr "Requer a extensão QuickCmd+ com \"Notificar o SFTP+ para atualizar após executar\" ativada: quando comunica um comando executado, os painéis da mesma ligação continuam a atualizar até a lista estabilizar — os ficheiros criados aparecem sem premir Atualizar, e a pasta atual nunca é alterada."
+
+msgid "settings.refreshOnQuickCmdMissing"
+msgstr "Extensão QuickCmd+ não encontrada — instale e ative para esta funcionalidade funcionar."
+
+msgid "settings.refreshOnQuickCmdDisabled"
+msgstr "A extensão QuickCmd+ está instalada mas desativada — ative-a para esta funcionalidade funcionar."
+
+msgid "settings.refreshOnQuickCmdOpenPlugins"
+msgstr "Abrir extensões"
+
+msgid "settings.refreshOnQuickCmdWindow"
+msgstr "Continuar a atualizar durante (s)"
+
+msgid "settings.autoRefresh"
+msgstr "Atualizar lista automaticamente"
+msgid "settings.autoRefreshInterval"
+msgstr "Intervalo de atualização (s)"
+msgid "settings.autoRefreshDesc"
+msgstr "Volta a ler as pastas atuais (local e remota) no intervalo definido, para que os novos ficheiros apareçam sem atualização manual. Só funciona com o painel aberto."
+
+
+msgid "settings.listRefreshFlash"
+msgstr "Realçar lista ao atualizar"
 
 msgid "settings.defaultDownloadPathPh"
 msgstr "Diretório local, ex.: C:\\Downloads (vazio = local atual)"
@@ -1736,6 +1777,9 @@ msgstr "Personalizar botões da barra superior"
 
 msgid "settings.topBarOverflow"
 msgstr "Ativar menu de excedente (⋯)"
+
+msgid "settings.topBarItemOverflow"
+msgstr "Menu de excedente (⋯)"
 
 msgid "settings.topBarPinned"
 msgstr "Fixado"

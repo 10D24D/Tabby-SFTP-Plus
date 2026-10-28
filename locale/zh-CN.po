@@ -247,6 +247,9 @@ msgstr "SFTP"
 msgid "app.backToTerminal"
 msgstr "返回终端"
 
+msgid "filter.allProfiles"
+msgstr "全部连接"
+
 msgid "filter.allOps"
 msgstr "所有操作"
 
@@ -1002,6 +1005,42 @@ msgid "settings.defaultUploadPathPh"
 msgstr "远程目录，如 /home/user/uploads（留空 = 当前远程目录）"
 msgid "settings.defaultDownloadPath"
 msgstr "默认下载路径"
+
+msgid "settings.dropToCurrentDir"
+msgstr "拖拽只投放到当前目录"
+
+msgid "settings.dropToCurrentDirDesc"
+msgstr "拖拽到某一栏时，一律投放到该栏当前打开的目录。关闭后，停在文件夹行上会存进那个文件夹（拖拽时该行会高亮提示）。"
+
+msgid "settings.refreshOnQuickCmd"
+msgstr "执行 QuickCmd+ 命令后刷新列表"
+
+msgid "settings.refreshOnQuickCmdDesc"
+msgstr "需要安装并启用 QuickCmd+ 插件，并在其设置页打开「执行命令后通知 SFTP+ 刷新列表」：该插件在命令执行后发出通知，本插件随即将该连接的列表刷新到内容稳定 —— 命令产生的新文件无需手动刷新即可出现，且不会跳转或改动当前目录。"
+
+msgid "settings.refreshOnQuickCmdMissing"
+msgstr "未检测到 QuickCmd+ 插件，安装并启用后此功能才会生效。"
+
+msgid "settings.refreshOnQuickCmdDisabled"
+msgstr "QuickCmd+ 插件已安装但处于停用状态，启用后此功能才会生效。"
+
+msgid "settings.refreshOnQuickCmdOpenPlugins"
+msgstr "打开插件页"
+
+msgid "settings.refreshOnQuickCmdWindow"
+msgstr "持续刷新时长（秒）"
+
+msgid "settings.autoRefresh"
+msgstr "定时刷新列表"
+msgid "settings.autoRefreshInterval"
+msgstr "刷新间隔（秒）"
+msgid "settings.autoRefreshDesc"
+msgstr "按设定的间隔自动重新读取当前目录（本地与远程都会刷新），新文件无需手动刷新即可看到；面板开着时才会执行。"
+
+
+msgid "settings.listRefreshFlash"
+msgstr "列表刷新闪烁"
+
 msgid "settings.defaultDownloadPathPh"
 msgstr "本地目录，如 C:\\Downloads（留空 = 当前本地目录）"
 msgid "settings.iconSettings"
@@ -1312,6 +1351,9 @@ msgstr "粘贴失败"
 
 msgid "notify.copyFailed"
 msgstr "复制失败: {name}"
+
+msgid "notify.dropIntoFolder"
+msgstr "放入此文件夹"
 
 msgid "theme.auto"
 msgstr "自动"
@@ -1920,6 +1962,9 @@ msgstr "定制顶栏按钮"
 
 msgid "settings.topBarOverflow"
 msgstr "启用折叠菜单（⋯）"
+
+msgid "settings.topBarItemOverflow"
+msgstr "折叠菜单（⋯）"
 
 msgid "settings.topBarPinned"
 msgstr "已固定"

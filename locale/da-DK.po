@@ -221,6 +221,9 @@ msgstr "SFTP"
 msgid "app.backToTerminal"
 msgstr "Tilbage til Terminal"
 
+msgid "filter.allProfiles"
+msgstr "All Profiles"
+
 msgid "filter.allOps"
 msgstr "Alle Operationer"
 
@@ -1037,6 +1040,9 @@ msgstr "Indsætning mislykkedes"
 msgid "notify.copyFailed"
 msgstr "Kopiér mislykkedes: {name}"
 
+msgid "notify.dropIntoFolder"
+msgstr "Slip i denne mappe"
+
 msgid "theme.auto"
 msgstr "Auto"
 
@@ -1365,6 +1371,41 @@ msgstr "Fjernmappe, f.eks. /home/user/uploads (tom = aktuel fjernmappe)"
 
 msgid "settings.defaultDownloadPath"
 msgstr "Standard downloadsti"
+
+msgid "settings.dropToCurrentDir"
+msgstr "Slip kun i den aktuelle mappe"
+
+msgid "settings.dropToCurrentDirDesc"
+msgstr "Når du slipper på et panel, bruges altid den mappe, panelet viser. Slå fra for at slippe i mappen under markøren (rækken markeres under træk)."
+
+msgid "settings.refreshOnQuickCmd"
+msgstr "Opdater listen efter QuickCmd+-kommandoer"
+
+msgid "settings.refreshOnQuickCmdDesc"
+msgstr "Kræver QuickCmd+-plugin med „Underret SFTP+ om opdatering efter kørsel“ slået til: når det rapporterer en kørt kommando, bliver paneler på samme forbindelse ved med at opdatere, indtil listen falder til ro — oprettede filer vises uden at trykke Opdater, og den aktuelle mappe ændres aldrig."
+
+msgid "settings.refreshOnQuickCmdMissing"
+msgstr "QuickCmd+-plugin blev ikke fundet — installér og aktivér det for at bruge denne funktion."
+
+msgid "settings.refreshOnQuickCmdDisabled"
+msgstr "QuickCmd+-plugin er installeret, men deaktiveret — aktivér det for at bruge denne funktion."
+
+msgid "settings.refreshOnQuickCmdOpenPlugins"
+msgstr "Åbn plugins"
+
+msgid "settings.refreshOnQuickCmdWindow"
+msgstr "Bliv ved med at opdatere i (sek.)"
+
+msgid "settings.autoRefresh"
+msgstr "Opdater listen automatisk"
+msgid "settings.autoRefreshInterval"
+msgstr "Opdateringsinterval (sek.)"
+msgid "settings.autoRefreshDesc"
+msgstr "Genindlæser de aktuelle mapper (lokale og eksterne) med det valgte interval, så nye filer vises uden manuel opdatering. Virker kun, når panelet er åbent."
+
+
+msgid "settings.listRefreshFlash"
+msgstr "Fremhæv liste ved opdatering"
 
 msgid "settings.defaultDownloadPathPh"
 msgstr "Lokal mappe, f.eks. C:\\Downloads (tom = aktuel lokal mappe)"
@@ -1923,6 +1964,9 @@ msgstr "Tilpas knapper i øverste bjælke"
 
 msgid "settings.topBarOverflow"
 msgstr "Aktivér overflydningsmenu (⋯)"
+
+msgid "settings.topBarItemOverflow"
+msgstr "Overflydningsmenu (⋯)"
 
 msgid "settings.topBarPinned"
 msgstr "Fastgjort"

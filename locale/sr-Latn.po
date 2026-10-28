@@ -185,6 +185,9 @@ msgid "app.modeSwitchSftp"
 msgstr "SFTP"
 msgid "app.backToTerminal"
 msgstr "Nazad na terminal"
+
+msgid "filter.allProfiles"
+msgstr "All Profiles"
 msgid "filter.allOps"
 msgstr "Sve Operations"
 
@@ -846,6 +849,9 @@ msgstr "Nalepljivanje nije uspelo"
 msgid "notify.copyFailed"
 msgstr "Kopiranje nije uspelo: {name}"
 
+msgid "notify.dropIntoFolder"
+msgstr "Ispusti u ovu fasciklu"
+
 msgid "theme.auto"
 msgstr "Automatski"
 
@@ -1174,6 +1180,41 @@ msgstr "Udaljeni direktorijum, npr. /home/user/uploads (prazno = trenutni udalje
 
 msgid "settings.defaultDownloadPath"
 msgstr "Podrazumevana putanja preuzimanja"
+
+msgid "settings.dropToCurrentDir"
+msgstr "Ispusti samo u trenutnu fasciklu"
+
+msgid "settings.dropToCurrentDirDesc"
+msgstr "Pri ispuštanju na panel uvek se koristi fascikla koju panel trenutno prikazuje. Isključite da biste ispustili u fasciklu ispod pokazivača (red se označava tokom prevlačenja)."
+
+msgid "settings.refreshOnQuickCmd"
+msgstr "Osveži listu nakon QuickCmd+ komandi"
+
+msgid "settings.refreshOnQuickCmdDesc"
+msgstr "Zahteva dodatak QuickCmd+ sa uključenom opcijom „Obavesti SFTP+ o osvežavanju nakon izvršenja“: kada prijavi izvršenu komandu, paneli iste veze nastavljaju da osvežavaju dok se lista ne stabilizuje — napravljeni fajlovi pojavljuju se bez ručnog osvežavanja, a trenutni folder se ne menja."
+
+msgid "settings.refreshOnQuickCmdMissing"
+msgstr "Dodatak QuickCmd+ nije pronađen — instalirajte ga i omogućite da bi ova funkcija radila."
+
+msgid "settings.refreshOnQuickCmdDisabled"
+msgstr "Dodatak QuickCmd+ je instaliran, ali onemogućen — omogućite ga da bi ova funkcija radila."
+
+msgid "settings.refreshOnQuickCmdOpenPlugins"
+msgstr "Otvori dodatke"
+
+msgid "settings.refreshOnQuickCmdWindow"
+msgstr "Nastavi osvežavanje (s)"
+
+msgid "settings.autoRefresh"
+msgstr "Automatski osveži listu"
+msgid "settings.autoRefreshInterval"
+msgstr "Interval osvežavanja (s)"
+msgid "settings.autoRefreshDesc"
+msgstr "Ponovo učitava trenutne fascikle (lokalne i udaljene) u zadatom intervalu, pa se novi fajlovi prikazuju bez ručnog osvežavanja. Deluje samo dok je panel otvoren."
+
+
+msgid "settings.listRefreshFlash"
+msgstr "Istakni listu pri osvežavanju"
 
 msgid "settings.defaultDownloadPathPh"
 msgstr "Lokalni direktorijum, npr. C:\\Downloads (prazno = trenutni lokalni)"
@@ -1732,6 +1773,9 @@ msgstr "Prilagodi dugmad gornje trake"
 
 msgid "settings.topBarOverflow"
 msgstr "Omogući meni prelivanja (⋯)"
+
+msgid "settings.topBarItemOverflow"
+msgstr "Meni prelivanja (⋯)"
 
 msgid "settings.topBarPinned"
 msgstr "Prikačeno"

@@ -229,6 +229,9 @@ msgstr "SFTP"
 msgid "app.backToTerminal"
 msgstr "ターミナルに戻る"
 
+msgid "filter.allProfiles"
+msgstr "All Profiles"
+
 msgid "filter.allOps"
 msgstr "すべての操作"
 
@@ -1063,6 +1066,9 @@ msgstr "貼り付け失敗"
 msgid "notify.copyFailed"
 msgstr "コピー失敗: {name}"
 
+msgid "notify.dropIntoFolder"
+msgstr "このフォルダに入れる"
+
 msgid "theme.auto"
 msgstr "自動"
 
@@ -1391,6 +1397,41 @@ msgstr "リモートディレクトリ（例: /home/user/uploads、空欄 = 現�
 
 msgid "settings.defaultDownloadPath"
 msgstr "デフォルトのダウンロード先"
+
+msgid "settings.dropToCurrentDir"
+msgstr "ドラッグ先を現在のフォルダのみにする"
+
+msgid "settings.dropToCurrentDirDesc"
+msgstr "パネルへドロップすると、そのパネルが現在表示しているフォルダへ常に保存します。オフにすると、ポインター下のフォルダ行へドロップします（ドラッグ中はその行が強調表示されます）。"
+
+msgid "settings.refreshOnQuickCmd"
+msgstr "QuickCmd+ のコマンド実行後に一覧を更新"
+
+msgid "settings.refreshOnQuickCmdDesc"
+msgstr "QuickCmd+ プラグインが必要です（「実行後に SFTP+ へ更新を通知」を有効にしてください）。コマンド実行を通知すると、同じ接続のパネルが一覧を内容が落ち着くまで更新し続けます。コマンドが作成したファイルは手動更新なしで表示され、現在のフォルダーは変更されません。"
+
+msgid "settings.refreshOnQuickCmdMissing"
+msgstr "QuickCmd+ プラグインが見つかりません。インストールして有効化するとこの機能が動作します。"
+
+msgid "settings.refreshOnQuickCmdDisabled"
+msgstr "QuickCmd+ プラグインはインストール済みですが無効です。有効化するとこの機能が動作します。"
+
+msgid "settings.refreshOnQuickCmdOpenPlugins"
+msgstr "プラグインを開く"
+
+msgid "settings.refreshOnQuickCmdWindow"
+msgstr "更新を続ける時間（秒）"
+
+msgid "settings.autoRefresh"
+msgstr "定期的に一覧を更新"
+msgid "settings.autoRefreshInterval"
+msgstr "更新間隔（秒）"
+msgid "settings.autoRefreshDesc"
+msgstr "設定した間隔で現在のフォルダー（ローカルとリモート）を読み直し、新しいファイルを手動更新なしで表示します。パネルを開いている間だけ動作します。"
+
+
+msgid "settings.listRefreshFlash"
+msgstr "更新時にリストを強調"
 
 msgid "settings.defaultDownloadPathPh"
 msgstr "ローカルディレクトリ（例: C:\\Downloads、空欄 = 現在のローカル）"
@@ -1949,6 +1990,9 @@ msgstr "上部バーのボタンをカスタマイズ"
 
 msgid "settings.topBarOverflow"
 msgstr "オーバーフローメニューを有効にする（⋯）"
+
+msgid "settings.topBarItemOverflow"
+msgstr "オーバーフローメニュー（⋯）"
 
 msgid "settings.topBarPinned"
 msgstr "固定中"

@@ -227,6 +227,9 @@ msgstr "SFTP"
 msgid "app.backToTerminal"
 msgstr "Kembali ke Terminal"
 
+msgid "filter.allProfiles"
+msgstr "All Profiles"
+
 msgid "filter.allOps"
 msgstr "Semua Operasi"
 
@@ -1047,6 +1050,9 @@ msgstr "Tempel gagal"
 msgid "notify.copyFailed"
 msgstr "Salin gagal: {name}"
 
+msgid "notify.dropIntoFolder"
+msgstr "Jatuhkan ke folder ini"
+
 msgid "theme.auto"
 msgstr "Otomatis"
 
@@ -1375,6 +1381,41 @@ msgstr "Direktori remote, mis. /home/user/uploads (kosong = remote saat ini)"
 
 msgid "settings.defaultDownloadPath"
 msgstr "Jalur unduh default"
+
+msgid "settings.dropToCurrentDir"
+msgstr "Jatuhkan hanya ke folder saat ini"
+
+msgid "settings.dropToCurrentDirDesc"
+msgstr "Saat menjatuhkan ke panel, folder yang sedang ditampilkan panel itu selalu dipakai. Matikan untuk menjatuhkan ke folder di bawah kursor (barisnya ditandai saat menyeret)."
+
+msgid "settings.refreshOnQuickCmd"
+msgstr "Segarkan daftar setelah perintah QuickCmd+"
+
+msgid "settings.refreshOnQuickCmdDesc"
+msgstr "Memerlukan plugin QuickCmd+ dengan „Beri tahu SFTP+ untuk menyegarkan setelah dijalankan“ diaktifkan: saat melaporkan perintah dijalankan, panel pada koneksi yang sama terus menyegarkan hingga daftar stabil — berkas yang dibuat muncul tanpa menekan Segarkan, dan folder saat ini tidak berubah."
+
+msgid "settings.refreshOnQuickCmdMissing"
+msgstr "Plugin QuickCmd+ tidak ditemukan — pasang dan aktifkan agar fitur ini berfungsi."
+
+msgid "settings.refreshOnQuickCmdDisabled"
+msgstr "Plugin QuickCmd+ sudah terpasang tetapi dinonaktifkan — aktifkan agar fitur ini berfungsi."
+
+msgid "settings.refreshOnQuickCmdOpenPlugins"
+msgstr "Buka plugin"
+
+msgid "settings.refreshOnQuickCmdWindow"
+msgstr "Terus segarkan selama (dtk)"
+
+msgid "settings.autoRefresh"
+msgstr "Segarkan daftar otomatis"
+msgid "settings.autoRefreshInterval"
+msgstr "Interval penyegaran (dtk)"
+msgid "settings.autoRefreshDesc"
+msgstr "Membaca ulang folder saat ini (lokal dan remote) setiap interval, jadi berkas baru muncul tanpa penyegaran manual. Hanya berlaku saat panel terbuka."
+
+
+msgid "settings.listRefreshFlash"
+msgstr "Sorot daftar saat menyegarkan"
 
 msgid "settings.defaultDownloadPathPh"
 msgstr "Direktori lokal, mis. C:\\Downloads (kosong = lokal saat ini)"
@@ -1933,6 +1974,9 @@ msgstr "Sesuaikan tombol bilah atas"
 
 msgid "settings.topBarOverflow"
 msgstr "Aktifkan menu luapan (⋯)"
+
+msgid "settings.topBarItemOverflow"
+msgstr "Menu luapan (⋯)"
 
 msgid "settings.topBarPinned"
 msgstr "Disematkan"

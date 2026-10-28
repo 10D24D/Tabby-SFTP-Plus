@@ -247,6 +247,9 @@ msgstr "SFTP"
 msgid "app.backToTerminal"
 msgstr "Back to Terminal"
 
+msgid "filter.allProfiles"
+msgstr "All Profiles"
+
 msgid "filter.allOps"
 msgstr "All Operations"
 
@@ -1003,6 +1006,42 @@ msgid "settings.defaultUploadPathPh"
 msgstr "Remote dir, e.g. /home/user/uploads (empty = current remote dir)"
 msgid "settings.defaultDownloadPath"
 msgstr "Default download path"
+
+msgid "settings.dropToCurrentDir"
+msgstr "Drop into current folder only"
+
+msgid "settings.dropToCurrentDirDesc"
+msgstr "When dropping onto a pane, always use the folder that pane currently shows. Turn off to drop into the folder row under the pointer (that row is highlighted while dragging)."
+
+msgid "settings.refreshOnQuickCmd"
+msgstr "Refresh list after QuickCmd+ commands"
+
+msgid "settings.refreshOnQuickCmdDesc"
+msgstr "Requires the QuickCmd+ plugin with \"Notify SFTP+ to refresh after running\" enabled in its settings: after it reports a command, panels on the same connection keep refreshing until the list settles — files produced by the command appear without pressing Refresh, and the current folder is never changed."
+
+msgid "settings.refreshOnQuickCmdMissing"
+msgstr "QuickCmd+ plugin not found — install and enable it for this feature to work."
+
+msgid "settings.refreshOnQuickCmdDisabled"
+msgstr "QuickCmd+ plugin is installed but disabled — enable it for this feature to work."
+
+msgid "settings.refreshOnQuickCmdOpenPlugins"
+msgstr "Open plugins"
+
+msgid "settings.refreshOnQuickCmdWindow"
+msgstr "Keep refreshing for (s)"
+
+msgid "settings.autoRefresh"
+msgstr "Auto-refresh list"
+msgid "settings.autoRefreshInterval"
+msgstr "Refresh interval (s)"
+msgid "settings.autoRefreshDesc"
+msgstr "Re-reads the current folders (local and remote) at the set interval, so new files show up without pressing Refresh. Works only while the panel is open."
+
+
+msgid "settings.listRefreshFlash"
+msgstr "Highlight list on refresh"
+
 msgid "settings.defaultDownloadPathPh"
 msgstr "Local dir, e.g. C:\\Downloads (empty = current local dir)"
 msgid "settings.iconSettings"
@@ -1316,6 +1355,9 @@ msgstr "Paste failed"
 
 msgid "notify.copyFailed"
 msgstr "Copy failed: {name}"
+
+msgid "notify.dropIntoFolder"
+msgstr "Drop into this folder"
 
 msgid "theme.auto"
 msgstr "Auto"
@@ -1917,6 +1959,9 @@ msgstr "Customize top bar buttons"
 
 msgid "settings.topBarOverflow"
 msgstr "Enable overflow menu (⋯)"
+
+msgid "settings.topBarItemOverflow"
+msgstr "Overflow menu (⋯)"
 
 msgid "settings.topBarPinned"
 msgstr "Pinned"

@@ -185,6 +185,9 @@ msgid "app.modeSwitchSftp"
 msgstr "SFTP"
 msgid "app.backToTerminal"
 msgstr "Terug na Terminaal"
+
+msgid "filter.allProfiles"
+msgstr "All Profiles"
 msgid "filter.allOps"
 msgstr "Alles Operations"
 
@@ -848,6 +851,9 @@ msgstr "Plak misluk"
 msgid "notify.copyFailed"
 msgstr "Kopieer misluk: {name}"
 
+msgid "notify.dropIntoFolder"
+msgstr "Los in hierdie gids"
+
 msgid "theme.auto"
 msgstr "Outo"
 
@@ -1176,6 +1182,41 @@ msgstr "Afgeleë gids, bv. /home/user/uploads (leeg = huidige afgeleë gids)"
 
 msgid "settings.defaultDownloadPath"
 msgstr "Verstek-aflaaipad"
+
+msgid "settings.dropToCurrentDir"
+msgstr "Los net in die huidige gids"
+
+msgid "settings.dropToCurrentDirDesc"
+msgstr "Wanneer jy na 'n paneel sleep, word altyd die gids gebruik wat daardie paneel tans wys. Skakel af om in die gidsry onder die wyser te los (daardie ry word tydens sleep gemerk)."
+
+msgid "settings.refreshOnQuickCmd"
+msgstr "Verfris lys na QuickCmd+-opdragte"
+
+msgid "settings.refreshOnQuickCmdDesc"
+msgstr "Vereis die QuickCmd+-inprop met \"Stel SFTP+ ná uitvoering in kennis om te verfris\" geaktiveer: wanneer dit 'n uitgevoerde opdrag rapporteer, hou panele op dieselfde verbinding aan om te verfris totdat die lys stabiliseer — geskepte lêers verskyn sonder om Verfris te druk, en die huidige gids word nooit verander nie."
+
+msgid "settings.refreshOnQuickCmdMissing"
+msgstr "QuickCmd+-inprop nie gevind nie — installeer en aktiveer dit om hierdie funksie te laat werk."
+
+msgid "settings.refreshOnQuickCmdDisabled"
+msgstr "QuickCmd+-inprop is geïnstalleer maar gedeaktiveer — aktiveer dit om hierdie funksie te laat werk."
+
+msgid "settings.refreshOnQuickCmdOpenPlugins"
+msgstr "Maak inproppe oop"
+
+msgid "settings.refreshOnQuickCmdWindow"
+msgstr "Aanhoudend verfris vir (sek.)"
+
+msgid "settings.autoRefresh"
+msgstr "Outo-verfris lys"
+msgid "settings.autoRefreshInterval"
+msgstr "Verfrisinterval (sek.)"
+msgid "settings.autoRefreshDesc"
+msgstr "Lees die huidige gidsers (plaaslik en op afstand) outomaties oor met die ingestelde interval, sodat nuwe lêers sonder handmatige verfris verskyn. Werk net terwyl die paneel oop is."
+
+
+msgid "settings.listRefreshFlash"
+msgstr "Beklemtoon lys by hernuwe"
 
 msgid "settings.defaultDownloadPathPh"
 msgstr "Plaaslike gids, bv. C:\\Downloads (leeg = huidige plaaslike gids)"
@@ -1734,6 +1775,9 @@ msgstr "Pas boonste balk-knoppies aan"
 
 msgid "settings.topBarOverflow"
 msgstr "Aktiveer oorloopkieslys (⋯)"
+
+msgid "settings.topBarItemOverflow"
+msgstr "Oorloopkieslys (⋯)"
 
 msgid "settings.topBarPinned"
 msgstr "Vasgepen"

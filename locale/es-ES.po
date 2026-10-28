@@ -225,6 +225,9 @@ msgstr "SFTP"
 msgid "app.backToTerminal"
 msgstr "Volver al Terminal"
 
+msgid "filter.allProfiles"
+msgstr "All Profiles"
+
 msgid "filter.allOps"
 msgstr "Todas las Operaciones"
 
@@ -1054,6 +1057,9 @@ msgstr "Error al pegar"
 msgid "notify.copyFailed"
 msgstr "Error al copiar: {name}"
 
+msgid "notify.dropIntoFolder"
+msgstr "Soltar en esta carpeta"
+
 msgid "theme.auto"
 msgstr "Automático"
 
@@ -1382,6 +1388,41 @@ msgstr "Directorio remoto, p. ej. /home/user/uploads (vacío = remoto actual)"
 
 msgid "settings.defaultDownloadPath"
 msgstr "Ruta de descarga predeterminada"
+
+msgid "settings.dropToCurrentDir"
+msgstr "Soltar solo en la carpeta actual"
+
+msgid "settings.dropToCurrentDirDesc"
+msgstr "Al soltar en un panel se usa siempre la carpeta que ese panel muestra. Desactívalo para soltar en la carpeta bajo el cursor (esa fila se resalta al arrastrar)."
+
+msgid "settings.refreshOnQuickCmd"
+msgstr "Actualizar la lista tras comandos de QuickCmd+"
+
+msgid "settings.refreshOnQuickCmdDesc"
+msgstr "Requiere el complemento QuickCmd+ con «Notificar a SFTP+ para actualizar tras ejecutar» activado: cuando notifica un comando ejecutado, los paneles de la misma conexión siguen actualizando hasta que la lista se estabiliza; los archivos creados aparecen sin pulsar Actualizar y la carpeta actual nunca cambia."
+
+msgid "settings.refreshOnQuickCmdMissing"
+msgstr "No se ha encontrado el complemento QuickCmd+; instálalo y actívalo para que esta función funcione."
+
+msgid "settings.refreshOnQuickCmdDisabled"
+msgstr "El complemento QuickCmd+ está instalado pero desactivado; actívalo para que esta función funcione."
+
+msgid "settings.refreshOnQuickCmdOpenPlugins"
+msgstr "Abrir complementos"
+
+msgid "settings.refreshOnQuickCmdWindow"
+msgstr "Seguir actualizando (s)"
+
+msgid "settings.autoRefresh"
+msgstr "Actualizar lista automáticamente"
+msgid "settings.autoRefreshInterval"
+msgstr "Intervalo de actualización (s)"
+msgid "settings.autoRefreshDesc"
+msgstr "Vuelve a leer las carpetas actuales (local y remoto) cada cierto intervalo, para que los archivos nuevos aparezcan sin actualizar a mano. Solo actúa con el panel abierto."
+
+
+msgid "settings.listRefreshFlash"
+msgstr "Resaltar lista al actualizar"
 
 msgid "settings.defaultDownloadPathPh"
 msgstr "Directorio local, p. ej. C:\\Downloads (vacío = local actual)"
@@ -1940,6 +1981,9 @@ msgstr "Personalizar botones de la barra superior"
 
 msgid "settings.topBarOverflow"
 msgstr "Activar menú desbordado (⋯)"
+
+msgid "settings.topBarItemOverflow"
+msgstr "Menú desbordado (⋯)"
 
 msgid "settings.topBarPinned"
 msgstr "Fijado"
