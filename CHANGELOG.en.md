@@ -4,6 +4,33 @@ All notable changes to **tabby-sftp-plus** will be documented in this file.
 
 **[中文](https://github.com/10D24D/Tabby-SFTP-Plus/blob/main/CHANGELOG.md) | English**
 
+## [3.1.0] — 2026-10-28
+
+### ✨ Added
+
+- **Scheduled list refresh** — Settings ▸ "Functional" adds a toggle (off by default) and interval (5–3600s, default 60): when on, the panel re-reads the current directory on both panes at the interval, without stealing focus or flashing blue.
+- **List-refresh flash toggle** — Settings ▸ "Functional" adds a toggle (on by default): turning it off removes the fade-in flash when switching folders / refreshing.
+- **Refresh list after QuickCmd+ command** — New (off by default): after a QuickCmd+ command runs, the SFTP+ panel auto-refreshes the current directory so newly produced files appear immediately; sub-option "Refresh window (seconds)" (default 10). Both sides default off and name each other, so enable on both SFTP+ and QuickCmd+.
+- **Drop only into current directory** — New toggle (on by default): on cross-pane / OS-explorer drags the target is always the pane's currently open directory, preventing files from being silently dropped into a subfolder; when off, the old behavior returns with a "Drop into this folder" hint.
+- **Transfer log: filter by connection** — The transfer-log dialog gains a "Filter by connection" dropdown.
+- **Transfer log: CSV export** — Export is now JSON / CSV selectable; CSV includes a UTF-8 BOM and Chinese headers for Excel, and both formats export only the current filtered results.
+
+### 🎨 Improved
+
+- **Customizable top bar: the overflow (⋯) menu is draggable** — ⋯ joins the "Customize top bar buttons" list and can be dragged anywhere on the bar; on upgrade it lands left of ✕ by default.
+- **Tamed focus rings inside the panel (Chromium 132+)** — Fixed the orange UA focus ring appearing around scrollable areas on Tab in newer Chromium, without affecting keyboard focus cues.
+
+### 🐛 Fixed
+
+- **Asymmetric remote-pane flash gating** — The remote pane still flashed during auto-refresh etc.; both panes now share unified gating, consistent on both sides.
+- **Linked-bookmark jump didn't persist the path** — After clicking a linked bookmark the current directory is now remembered (fixes returning to the old directory after restarting Tabby).
+- **Dropdowns / inputs unclickable after a confirmation** — In-panel irreversible confirmations now use a custom modal instead of the system confirm/alert, which could drop focus in some environments (e.g. the filter box going dead after clearing the transfer log).
+- **Local recursive delete aborted on a child failure** — Deleting a local folder no longer stops remaining cleanup when one subfolder fails.
+
+### 🔧 Build
+
+- Version bumped to **3.1.0**.
+
 ## [3.0.0] — 2026-10-22
 
 ### ✨ Added
