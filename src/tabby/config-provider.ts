@@ -135,6 +135,14 @@ export interface SftpPlusPluginConfig {
   openInNewTabByDefault: boolean
   /** 打开文件/文件夹的触发方式：'double'（默认，双击打开）或 'single'（单击打开） */
   openOnClick: 'double' | 'single'
+  /**
+   * ★ 2026-10-30（meta）：单击/双击打开文件时的默认动作。
+   *   'view' —— 内置查看器（只读）；'edit' —— 内置编辑器（默认，可改）。
+   *   仅决定「不按 Ctrl/Cmd、且文件可被查看/编辑器处理时」的默认去向；
+   *   目录进入、Ctrl/Cmd+点击系统打开、「查看器不支持时系统打开」均不受影响。
+   *   ⛔ 必须在 defaults 里登记，否则 ConfigProxy 不建 accessor ⇒ 写了不落盘。
+   */
+  openFileDefaultAction: 'view' | 'edit'
   /** 查看器不支持的文件：开关开启时改用系统默认程序打开（而非提示不支持） */
   openUnsupportedInSystem: boolean
   /** 在内置文本白名单之外，额外允许内置查看/编辑器打开的扩展名（小写、无点）；空 = 使用内置预置列表。 */
@@ -346,6 +354,9 @@ export function defaultSftpPlusConfig(): SftpPlusPluginConfig {
     defaultShowHidden: false,
     openInNewTabByDefault: false,
     openOnClick: 'double',
+    // ★ 2026-10-30（meta）：文件默认动作默认「编辑」——⛔ 必须在 defaults 里出现，
+    //   ConfigProxy 才会为它建立 accessor，缺了就是「写了不落盘」（见 panelOpacity 的教训）。
+    openFileDefaultAction: 'edit',
     openUnsupportedInSystem: true,
     editableFileExtensions: [],
     allowViewEditAllFiles: false,

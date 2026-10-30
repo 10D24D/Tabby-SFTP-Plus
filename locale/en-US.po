@@ -978,6 +978,18 @@ msgstr "Single click"
 msgid "settings.openOnClickHint"
 msgstr "Single click opens files/folders directly; double click still works in single-click mode."
 
+msgid "settings.openFileDefaultAction"
+msgstr "Default file action"
+
+msgid "settings.defaultActionView"
+msgstr "View"
+
+msgid "settings.defaultActionEdit"
+msgstr "Edit"
+
+msgid "settings.openFileDefaultActionHint"
+msgstr "When opening a file via click/double-click, open it with the built-in viewer or the editor; folders are not affected."
+
 msgid "settings.openUnsupportedInSystem"
 msgstr "Open unsupported files with system app"
 
