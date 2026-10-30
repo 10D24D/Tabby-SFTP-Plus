@@ -378,7 +378,8 @@ export abstract class SftpPanelViewerController extends SftpPanelColumnControlle
     this.viewerTextContent = bufferToText(buf).text
   }
 
-  private async _editLocalFile(entry: LocalEntry | null): Promise<void> {
+  /** ★ 2026-10-30（meta）：private → protected，供子类面板 _activateEntry 的「默认编辑」分支调用 */
+  protected async _editLocalFile(entry: LocalEntry | null): Promise<void> {
     if (!this._validateEditEntry(entry, false)) return
     const gen = await this._openEditorShell({
       fileName: entry.name,
@@ -421,7 +422,8 @@ export abstract class SftpPanelViewerController extends SftpPanelColumnControlle
     }
   }
 
-  private async _editRemoteFile(entry: SFTPFile | null, session: SFTPSessionLike | null = null): Promise<void> {
+  /** ★ 2026-10-30（meta）：private → protected，供子类面板 _activateEntry 的「默认编辑」分支调用 */
+  protected async _editRemoteFile(entry: SFTPFile | null, session: SFTPSessionLike | null = null): Promise<void> {
     // ★ 2026-10-18 issue #27：会话归属参数化（同 _viewRemoteFile）
     this._editorSession = session ?? this.sftpSession
     if (!this._validateEditEntry(entry, true, this._editorSession)) return

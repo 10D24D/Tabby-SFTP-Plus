@@ -977,6 +977,18 @@ msgstr "单击打开"
 msgid "settings.openOnClickHint"
 msgstr "开启单击后直接打开文件/文件夹；单击模式下双击依然可用。"
 
+msgid "settings.openFileDefaultAction"
+msgstr "文件默认动作"
+
+msgid "settings.defaultActionView"
+msgstr "查看"
+
+msgid "settings.defaultActionEdit"
+msgstr "编辑"
+
+msgid "settings.openFileDefaultActionHint"
+msgstr "通过单击/双击打开文件时，默认用内置查看器打开还是用编辑器打开；目录不受影响。"
+
 msgid "settings.openUnsupportedInSystem"
 msgstr "查看器不支持时系统打开"
 

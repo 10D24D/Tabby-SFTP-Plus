@@ -8754,6 +8754,16 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     return (v === 'single' || v === 'double') ? v : 'double'
   }
 
+  /**
+   * ★ 2026-10-30（meta）：文件默认动作 —— 'view'（内置查看器）或 'edit'（内置编辑器，默认）。
+   *   仅 _activateEntry 的「文件」分支消费：目录进入、Ctrl/Cmd+点击系统打开、
+   *   「查看器不支持时系统打开」均不受它影响。非法值回落 'edit'（与 config 默认一致）。
+   */
+  private get _openFileDefaultAction(): 'view' | 'edit' {
+    const v = this.configService?.store?.['tabby-sftp-plus']?.openFileDefaultAction
+    return (v === 'view' || v === 'edit') ? v : 'edit'
+  }
+
   /** 查看器不支持时系统打开开关：开启则对不支持的文件改用系统默认程序打开 */
   private get _openUnsupportedInSystem(): boolean {
     return this.configService?.store?.['tabby-sftp-plus']?.openUnsupportedInSystem === true
@@ -9060,7 +9070,7 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     return false
   }
 
-  /** 统一的「打开」逻辑：目录进入；文件 Ctrl/Cmd+点击=系统打开，否则查看 */
+  /** 统一的「打开」逻辑：目录进入；文件 Ctrl/Cmd+点击=系统打开，否则按文件默认动作（查看/编辑） */
   private async _activateEntry(pane: 'local' | 'remote', entry: any, event?: MouseEvent): Promise<void> {
     let isDir = !!entry?.isDirectory || this.isDirByMode(entry?.mode)
     // ★ 2026-08-24 修复：远程 symlink 指向目录时，readdir 为 lstat 语义（isDirectory=false、
@@ -9094,7 +9104,9 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
         void this._openRemoteInSystem(entry, this._leftSftpSession)
         return
       }
-      void this._viewRemoteFile(entry, this._leftSftpSession)
+      // ★ 2026-10-30（meta）：文件默认动作 —— 编辑走同一会话的编辑流程（下载 temp / 保存回传 / 冲突检测全按该会话路由）
+      if (this._openFileDefaultAction === 'edit') void this._editRemoteFile(entry, this._leftSftpSession)
+      else void this._viewRemoteFile(entry, this._leftSftpSession)
       return
     }
     if (openInSystem) {
@@ -9118,9 +9130,15 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
         this._openPathInSystem(entry.linkTarget, { waitForModRelease: true })
         return
       }
-      void this._viewLocalFile(entry)
+      // ★ 2026-10-30（meta）：文件默认动作 —— 编辑分支的不可编辑类型 / 超大文件由 _validateEditEntry 兜底（toast 提示）
+      if (this._openFileDefaultAction === 'edit') void this._editLocalFile(entry)
+      else void this._viewLocalFile(entry)
     }
-    else void this._viewRemoteFile(entry)
+    else {
+      // ★ 2026-10-30（meta）：文件默认动作
+      if (this._openFileDefaultAction === 'edit') void this._editRemoteFile(entry)
+      else void this._viewRemoteFile(entry)
+    }
   }
 
   onLocalClick(entry: LocalEntry, event: MouseEvent, idx: number): void {

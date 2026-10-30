@@ -413,6 +413,8 @@ const EXPORT_CATEGORY_FIELDS: Record<string, string[]> = {
     'connLabelStyle',
     'typeAheadEnabled',
     'openOnClick', 'dateFormat', 'openUnsupportedInSystem',
+    // ★ 2026-10-30（meta）：文件默认动作（查看/编辑）
+    'openFileDefaultAction',
     'allowViewEditAllFiles', 'allowEditAllFiles', 'allowViewAllAsText', 'editableFileExtensions',
     'showTextLineNumbers', 'showTextWordWrap', 'editorAutoUploadExternal', 'textCaretShape',
     // ★ 2026-10-27（Deepseek-V4.1-Flash）：跨插件联动（是否接收刷新请求 + 观察期时长）——
@@ -1118,6 +1120,22 @@ const MACOS_BY_DARWIN: Record<number, string> = {
                 [class.active]="openOnClick === 'single'"
                 (click)="openOnClick = 'single'; saveInteraction()">
                 {{ i18n.t('settings.clickSingle') }}
+              </button>
+            </div>
+          </div>
+          <!-- ★ 2026-10-30（meta）：文件默认动作（查看/编辑） -->
+          <div class="ss-toggle-row ss-pathmode-row" title="{{ i18n.t('settings.openFileDefaultActionHint') }}">
+            <span class="ss-toggle-label">{{ i18n.t('settings.openFileDefaultAction') }}</span>
+            <div class="ss-segmented">
+              <button type="button" class="ss-segment"
+                [class.active]="openFileDefaultAction === 'view'"
+                (click)="openFileDefaultAction = 'view'; saveInteraction()">
+                {{ i18n.t('settings.defaultActionView') }}
+              </button>
+              <button type="button" class="ss-segment"
+                [class.active]="openFileDefaultAction === 'edit'"
+                (click)="openFileDefaultAction = 'edit'; saveInteraction()">
+                {{ i18n.t('settings.defaultActionEdit') }}
               </button>
             </div>
           </div>
@@ -2697,6 +2715,8 @@ export class SftpSettingsTabComponent implements OnDestroy {
 
   /** ★ 2026-08-22：文件/文件夹打开方式（单击/双击） */
   openOnClick: 'double' | 'single' = load('openOnClick', 'double')
+  /** ★ 2026-10-30（meta）：文件默认动作（查看/编辑，默认编辑） */
+  openFileDefaultAction: 'view' | 'edit' = load('openFileDefaultAction', 'edit')
   /** ★ 2026-08-22：查看器不支持的文件改用系统默认程序打开 */
   openUnsupportedInSystem = load('openUnsupportedInSystem', true)
   /** 可查看/编辑文本扩展名；界面展示预置列表，接受 .conf / *.conf / conf，空格分隔。 */
@@ -3503,6 +3523,8 @@ export class SftpSettingsTabComponent implements OnDestroy {
       }
       // ★ 2026-08-22：交互设置
       if (cfg.openOnClick === 'single' || cfg.openOnClick === 'double') this.openOnClick = cfg.openOnClick
+      // ★ 2026-10-30（meta）：文件默认动作（查看/编辑）
+      if (cfg.openFileDefaultAction === 'view' || cfg.openFileDefaultAction === 'edit') this.openFileDefaultAction = cfg.openFileDefaultAction
       if (cfg.openUnsupportedInSystem !== undefined) this.openUnsupportedInSystem = cfg.openUnsupportedInSystem === true
       if (cfg.editableFileExtensions !== undefined) {
         this.editableFileExtensionsText = formatTextExtensionsForInput(cfg.editableFileExtensions)
@@ -3637,6 +3659,8 @@ export class SftpSettingsTabComponent implements OnDestroy {
       target.paneCustomOrder = this.paneCustomOrder
       target.paneHiddenItems = this.paneHiddenItems
       target.openOnClick = this.openOnClick
+      // ★ 2026-10-30（meta）：文件默认动作
+      target.openFileDefaultAction = this.openFileDefaultAction
       target.openUnsupportedInSystem = this.openUnsupportedInSystem
       target.editableFileExtensions = normalizeEditableExtensions(this.editableFileExtensionsText)
       target.allowViewEditAllFiles = this.allowViewEditAllFiles
@@ -5231,6 +5255,8 @@ export class SftpSettingsTabComponent implements OnDestroy {
           data.disabledIconSvgs = cfg.disabledIconSvgs ?? []
           data.folderIconSvg = cfg.folderIconSvg ?? 'folder.svg'
           data.openOnClick = cfg.openOnClick ?? 'double'
+          // ★ 2026-10-30（meta）：文件默认动作
+          data.openFileDefaultAction = cfg.openFileDefaultAction ?? 'edit'
           data.openUnsupportedInSystem = cfg.openUnsupportedInSystem ?? true
           data.editableFileExtensions = cfg.editableFileExtensions ?? []
           data.allowViewEditAllFiles = resolveAllowViewEditAllFiles(cfg as Record<string, unknown>)
@@ -5316,6 +5342,8 @@ export class SftpSettingsTabComponent implements OnDestroy {
     data.transferDownloadConcurrency = 3
     data.hideAuthorInfo = false
     data.openOnClick = load('openOnClick', 'double')
+    // ★ 2026-10-30（meta）：文件默认动作
+    data.openFileDefaultAction = load('openFileDefaultAction', 'edit')
     data.openUnsupportedInSystem = load('openUnsupportedInSystem', true)
     data.editableFileExtensions = normalizeEditableExtensions(load<unknown>('editableFileExtensions', []))
     data.allowViewEditAllFiles = loadAllowViewEditAllFiles()
@@ -5576,6 +5604,8 @@ export class SftpSettingsTabComponent implements OnDestroy {
           if (data.folderIconSvg !== undefined) target.folderIconSvg = data.folderIconSvg || 'folder.svg'
           if (data.hideAuthorInfo !== undefined) target.hideAuthorInfo = data.hideAuthorInfo
           if (data.openOnClick !== undefined) target.openOnClick = data.openOnClick
+          // ★ 2026-10-30（meta）：文件默认动作
+          if (data.openFileDefaultAction !== undefined) target.openFileDefaultAction = data.openFileDefaultAction
           if (data.openUnsupportedInSystem !== undefined) target.openUnsupportedInSystem = data.openUnsupportedInSystem
           if (data.editableFileExtensions !== undefined) target.editableFileExtensions = normalizeEditableExtensions(data.editableFileExtensions)
           if (data.allowViewEditAllFiles !== undefined || data.allowEditAllFiles !== undefined || data.allowViewAllAsText !== undefined || (data as Record<string, unknown>)['allowViewAllFiles'] !== undefined) {
