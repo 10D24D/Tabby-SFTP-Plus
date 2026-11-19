@@ -195,7 +195,10 @@ export class PanelConnectionLifecycle {
     this.stopHeartbeat()
     // 彻底销毁：清空所有「只对活着的面板有意义」的状态
     this._silentReopen = null
-    this._openingSftp = new WeakMap<object, Promise<any>>()
+    // ★ 2026-10-30 P1-4 修复：不替换 _openingSftp WeakMap。
+    //   替换会导致旧 Promise 的 finally 回调中 `this._openingSftp.get(key)` 检查新 WeakMap
+    //   （恒为 undefined），从而无法 delete 旧条目；旧 WeakMap 无外部引用时会自然被 GC。
+    //   _destroyed 标记已阻止后续 _openSftpSingleFlight 调用，无需替换。
   }
 
   private detectChanges(): void {
@@ -764,7 +767,12 @@ export class PanelConnectionLifecycle {
             if (interrupted) {
               try {
                 const msg = c.getI18n().t('notify.sftpRecovered')
-                ;(c.notifications as any)?.success?.(msg, '')
+                // ★ 2026-10-30 P1 修复：宿主 NotificationsService **没有 success 方法**
+                //   （只有 notice / info / error，见 tabby-core dist）。原实现写的是
+                //   `(c.notifications as any)?.success?.(...)` —— 可选链让它恒为 no-op，
+                //   所以「SFTP 连接已恢复」这条提示从来没弹出来过；去掉 `as any` 后还会变成
+                //   TypeError（虽被外层 catch 吞掉，但同样弹不出来）。改用宿主真实存在的 info。
+                c.notifications?.info(msg)
               } catch { /* ignore */ }
             }
             void c.refreshRemote()

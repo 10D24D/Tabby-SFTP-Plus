@@ -1,6 +1,15 @@
 /** SFTP+ 面板样式（合并自 panel-main-styles + file-dialog-shared-styles）
- * @修改人：DD1024z + Deepseek-V4.1-Flash
- * @修改时间：2026-10-27 — 新增 .entry.drop-into（拖拽落点 = 文件夹行时的显式标注：主色内描边 + 右侧
+ * @修改人：DD1024z + Hy4
+ * @修改时间：2026-11-13 — 新增 .sftp-root.no-full-row-select .pane-list .entry 规则：
+ *              同日追加（用户复审）：收窄规则改用 :not(.header) 让真表头保持整行（右侧空白可呼出
+ *              表头右键菜单），分组头用第二条选择器拉回；另加 no-header-border 规则把表头底线
+ *              设为 transparent（保留 2px 占位，内容不跳）。
+ *              把 min-width:100% 归零，让行宽回落到列宽合计，选中底色止于最后一列，
+ *              右侧空白归列表容器（可直接右键呼出面板级菜单）。width:max-content 保持不变。
+ *              2026-11-05 — .file-dialog-editor-gutter 的 line-height 由硬编码 18px 改为 1.5：
+ *             软换行下行号要靠「每逻辑行视觉行数 × 行高」精确落到行首，两处只要一侧改了字号，
+ *             18px 就会整体错位；写 1.5 与 textarea 同源、随 font-size 同步。
+ *             2026-10-27 — 新增 .entry.drop-into（拖拽落点 = 文件夹行时的显式标注：主色内描边 + 右侧
  *             「放入此文件夹」小标，文案走 data-drop-hint 属性以支持多语言）。仅在设置页关掉
  *             「拖拽只投放到当前目录」后才可能出现；规则并列写了斑马纹偶数行 + 已选中那条的高特异性
  *             选择器，否则会被它的 !important 背景盖掉。
@@ -683,7 +692,7 @@ export const SFTP_PANEL_STYLES = `
     }
     .sftp-root .btn-close:hover { background: rgba(244,67,54,0.12); color: #f44336; }
 
-    /* ===== 标题栏右键菜单：还原默认面板大小 ===== */
+    /* ===== 标题栏右键菜单：面板大小（还原默认 / 设为默认 / 恢复初始） ===== */
     .sftp-root .sftp-title-menu {
       position: fixed;
       z-index: 901;
@@ -705,6 +714,18 @@ export const SFTP_PANEL_STYLES = `
     }
     .sftp-root .sftp-title-menu__item:hover {
       background: var(--border-color, rgba(255,255,255,0.1));
+    }
+    /* 无自定义默认时「恢复初始面板大小」无事可做 ⇒ 灰显且不响应悬停（仍保留点击无副作用） */
+    .sftp-root .sftp-title-menu__item--disabled,
+    .sftp-root .sftp-title-menu__item--disabled:hover {
+      opacity: 0.45;
+      cursor: default;
+      background: none;
+    }
+    .sftp-root .sftp-title-menu__sep {
+      height: 1px;
+      margin: 4px 6px;
+      background: var(--border-color, rgba(255,255,255,0.12));
     }
 
     /* ===== 浮动面板几何：拖拽移动 / 缩放 / 最大化（仅非 workspace 模式） ===== */
@@ -885,6 +906,120 @@ export const SFTP_PANEL_STYLES = `
       border-color: var(--_border) !important;
       box-shadow: none !important;
     }
+    /* ★ 2026-11-05（Deepseek-V4.1-Flash）：地址栏「面包屑」态 —— 与 .path-input 同尺寸/同边框，
+       区别只在内容：节点可点跳转、› 可点展开子文件夹、空白/✎ 切到输入。
+       ★ 2026-11-05 二次修正（用户实测截图：D: › Dow…，明明有一整条空白却把节点截断了）：
+         根因是 .path-crumb 的 max-width:45% —— 百分比相对 .path-crumb-strip（按内容收缩、
+         自身宽度未定）解析，形成循环收缩：条越窄 → 45% 越小 → 段更窄，Downloads 只剩 ~55px。
+         改成**固定像素上限**（max-width:220px），只有超长段名单才省略；
+         整条放不下时由组件把**前段收进「…」**（点击可跳到被收起的层级），不再靠 CSS 裁切。 */
+    .sftp-root .path-crumbs {
+      flex: 1; min-width: 0;
+      display: flex; align-items: center; gap: 0;
+      padding: 3px 4px 3px 6px;
+      border-radius: 4px;
+      border: 1px solid var(--_border);
+      background: var(--input-bg, var(--_input-bg));
+      color: var(--_text); font-size: 1em;
+      cursor: text;
+      user-select: none;
+      overflow: hidden;
+    }
+    .sftp-root .path-crumbs:hover { border-color: var(--_primary); }
+    .sftp-root .path-crumbs--disabled { opacity: 0.55; cursor: default; }
+    /* 节点条：正常按内容排布；放不下时由组件折叠成「…」，这里只做兜底裁切（不再当主机制用） */
+    .sftp-root .path-crumb-strip {
+      flex: 0 1 auto; min-width: 0;
+      display: flex; align-items: center; justify-content: flex-end;
+      overflow: hidden;
+    }
+    .sftp-root .path-crumb {
+      /* ⛔ 别写百分比：父级按内容收缩 ⇒ 百分比没有确定基准，会把自己越缩越小（Dow… 就是这么来的） */
+      flex: 0 0 auto; max-width: 220px;
+      padding: 0 4px; border-radius: 3px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      cursor: pointer; line-height: 1.5;
+    }
+    .sftp-root .path-crumb:hover { background: var(--_hover); color: var(--_primary); }
+    .sftp-root .path-crumb--ellipsis { opacity: 0.7; }
+    .sftp-root .path-sep {
+      flex: 0 0 auto; padding: 0 2px; opacity: 0.45; cursor: pointer;
+      font-size: 0.95em; line-height: 1;
+    }
+    .sftp-root .path-sep:hover { opacity: 1; color: var(--_primary); }
+    .sftp-root .path-tail { flex: 1 1 auto; min-width: 8px; align-self: stretch; cursor: text; }
+    .sftp-root .path-edit-btn {
+      flex: 0 0 auto; display: flex; align-items: center; justify-content: center;
+      width: 18px; height: 18px; padding: 0; margin-left: 2px;
+      border: none; border-radius: 3px; background: transparent;
+      color: var(--_text); opacity: 0.55; cursor: pointer;
+    }
+    .sftp-root .path-edit-btn:hover { opacity: 1; background: var(--_hover); }
+    .sftp-root .path-edit-btn:disabled { opacity: 0.3; cursor: default; background: transparent; }
+    /* 「›」层级下拉：fixed + z-index 70（「下拉」档，内容 5~20 < 下拉 60 < 书签 90） */
+    .sftp-root .path-sep-menu {
+      position: fixed;
+      z-index: 70;
+      min-width: 150px; max-width: 380px; max-height: 300px;
+      overflow-y: auto; overflow-x: hidden;
+      /* ★ 2026-11-05：滚到底不再把滚动链传给面板列表（否则列表一滚，菜单就被 scroll 守卫关掉） */
+      overscroll-behavior: contain;
+      /* ★ 2026-11-05（Deepseek-V4.1-Flash，用户反馈「滚动条有点丑，需要对齐」）：
+         原先只有 overflow-y:auto ⇒ 走 Chromium **默认滚动条**（≈15px 灰方块 + 常驻滚动槽），
+         在 150~380px 宽的层级下拉里吃掉近一成可用宽度，也和面板列表(8px)/书签列表(6px)两套细滚动条不同款。
+         现补齐与 .conn-opt-list 同款的细滚动条（颜色共用 --_scroll-* ⇒ 跟随主题与透明面板联动）。
+         scrollbar-gutter: stable both-edges —— 两个作用：
+           ① 滚动条出现/消失时条目宽度不跳（stable）；
+           ② 左右各留一条同宽槽（both-edges）⇒ 条目 hover 底色左右留白相等，
+              不会出现「左边 4px、右边贴着滚动条」的偏斜。
+         ⛔ 这里不能照抄 .conn-opt-list 的 margin-right:-6px 抵消法：那个列表是浮层的**子元素**，
+            负 margin 把滚动条推进父级 padding 区；本菜单**自己就是浮层**，负 margin 会让整个菜单位移。
+         ⚠ 槽宽 = 滚动条实际宽度：Chromium ≥121 一旦写了下面两个**标准属性**就会忽略 ::-webkit-scrollbar，
+             thin 实测 ≈10px（无头实测 gutter 20px，左右各 10）；Electron <29（Chromium<121）才走伪元素那套 6px。
+             两套都写，新旧宿主都不会退回默认大滚动条（与既有三处列表保持一致）。 */
+      scrollbar-width: thin;
+      scrollbar-color: var(--_scroll-thumb, rgba(128,128,128,0.32)) var(--_scroll-track, rgba(128,128,128,0.06));
+      scrollbar-gutter: stable both-edges;
+      padding: 4px;
+      background: var(--_content);
+      border: 1px solid var(--_border);
+      border-radius: 6px;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+      font-size: var(--_fs);
+      color: var(--_text);
+    }
+    /* WebKit 伪元素（Chromium<121 的 Electron 走这套）：尺寸/配色与 .conn-opt-list 逐字一致 */
+    .sftp-root .path-sep-menu::-webkit-scrollbar { width: 6px; height: 6px; }
+    .sftp-root .path-sep-menu::-webkit-scrollbar-track {
+      background: var(--_scroll-track, rgba(128,128,128,0.06));
+      border-radius: 3px;
+    }
+    .sftp-root .path-sep-menu::-webkit-scrollbar-thumb {
+      background: var(--_scroll-thumb, rgba(128,128,128,0.32));
+      border-radius: 3px;
+      min-height: 24px;
+    }
+    .sftp-root .path-sep-menu::-webkit-scrollbar-thumb:hover {
+      background: var(--_scroll-thumb-hover, rgba(128,128,128,0.5));
+    }
+    .sftp-root .path-sep-menu::-webkit-scrollbar-thumb:active {
+      background: var(--_primary, #4dabff);
+    }
+    .sftp-root .path-sep-menu::-webkit-scrollbar-corner {
+      background: var(--_scroll-track, rgba(128,128,128,0.06));
+    }
+    .sftp-root .path-sep-menu-dir {
+      padding: 2px 6px 4px; margin-bottom: 4px;
+      font-size: 0.9em; opacity: 0.6;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      border-bottom: 1px solid var(--_border);
+    }
+    .sftp-root .path-sep-menu-item {
+      padding: 3px 8px; border-radius: 4px; cursor: pointer;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .sftp-root .path-sep-menu-item:hover { background: var(--_hover); color: var(--_primary); }
+    .sftp-root .path-sep-menu-empty { padding: 4px 8px; opacity: 0.6; }
     .sftp-root .pane-toolbar-btn {
       padding: 2px 3px; border-radius: 4px;
       border: none;
@@ -1109,6 +1244,30 @@ export const SFTP_PANEL_STYLES = `
       width: max-content;
       min-width: 100%;
     }
+    /* ★ 2026-11-13（Hy4）：整行选中开关 —— 关掉后行宽只到「最后一列」。
+       上面 min-width:100% 是刻意的：列宽合计小于面板宽时把行撑满，让选中/hover 底色
+       盖住整行（也盖住横向滚动区）。但这样「大小」列右边的空白也算这一行，右键只能出
+       文件菜单，用户想要的是那块空白能直接呼出面板级菜单（新建/刷新/粘贴等）。
+       这里把 min-width 归零：行宽回落到 max-content（各列固定 px 之和 + gap + padding），
+       右侧空白归 .pane-list —— 它本来就有 listContextMenu → onPaneContextMenu。
+       ⚠ 只改 min-width，width:max-content 必须留着：列宽合计超过面板宽时仍要能横向滚动，
+         且整行底色仍要盖住滚动区。
+       ★ 同日追加（用户复审）：**真表头仍要整行显示** —— 表头右侧空白要能呼出表头右键菜单
+         （onHeaderContextMenu 有 stopPropagation，不会被面板级菜单抢走）。所以这里用
+         :not(.header) 排除表头；分组头 .entry.header.group-row 属于列表内容，用第二条规则
+         拉回来一起收窄，保持与条目行的列边界一致。
+       ⚠ 选择器特异性 (0,5,0) 压过上面的 (0,2,0)，勿改成更低。 */
+    .sftp-root.no-full-row-select .pane-list .entry:not(.header),
+    .sftp-root.no-full-row-select .pane-list .entry.group-row {
+      min-width: 0;
+    }
+    /* ★ 2026-11-13（Hy4）：表头底边线开关。真表头在 .entry.header 里有 2px 主色底线，
+       关掉时用 transparent 而不是 border-bottom:none —— 后者会让表头少 2px，整列内容
+       上下跳一下。:not(.group-row) 排除分组头（它本来就把底线覆写为 none）。
+       默认由 panel 的 headerBorderEffective 决定：跟着整行选中，用户可显式覆盖。 */
+    .sftp-root.no-header-border .pane-list .entry.header:not(.group-row) {
+      border-bottom-color: transparent;
+    }
     .sftp-root .entry > span {
       padding: 3px 0;
       /* 省略号生效关键：
@@ -1133,6 +1292,14 @@ export const SFTP_PANEL_STYLES = `
     /* 由于 .entry padding 已上移至 span，竖线贯通整行高度 */
     .sftp-root.has-col-borders .entry > span {
       border-right: 1px solid var(--_border, rgba(128,128,128,0.2));
+    }
+    /* ★ 2026-11-15（用户反馈，修改人：DD1024z）：分组模式下不画列边框。
+       分组头行是「一行跨全部列」的单 span（.group-inner），本身没有列分隔线，而内容行有 ⇒
+       竖线到组头处就断了，像表格缺格；且组头那个全宽 span 只会在行最右端多出一条孤立竖线。
+       分组视图按「分组列表」呈现、不按表格呈现，所以整组都不画竖线（普通列表不受影响）。
+       特异性 5 个 class > 上面 3 个 class，无需靠顺序压制。 */
+    .sftp-root.has-col-borders .pane-list.has-groups .entry > span {
+      border-right: none;
     }
     /* 面板圆角通过 sftp-body 的 border-radius + overflow:hidden 实现 */
 
@@ -1957,7 +2124,10 @@ export const FILE_DIALOG_SHARED_STYLES = `
     color: var(--_text-muted, rgba(128,128,128,0.85));
     font-family: ui-monospace, 'Cascadia Code', 'Consolas', monospace;
     font-size: 12px;
-    line-height: 18px;
+    /* ★ 2026-11-05：行号栏行高改成与 textarea 同源的 1.5（原本硬编码 18px）。
+       软换行下行号要靠「每个逻辑行的视觉行数 × 行高」精确落到行首，两处只要一侧改了字号，
+       硬编码的 18px 就会整体错位；写 1.5 则随 font-size 同步。 */
+    line-height: 1.5;
     white-space: pre;
     user-select: none;
     pointer-events: none;

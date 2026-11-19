@@ -351,6 +351,35 @@ export class DownloadDirUseCase {
       await this.ports.localFs.mkdirRecursive(localDir)
       const entries = await this.ports.sftp.readdir(remoteSrc)
 
+      /**
+       * ★ 2026-11-15 审计修复（B4 补口，修改人：DD1024z，修改时间：2026-11-15）：
+       *   目录下载里同一层两个远端名可能撞同一个本地名 —— `a:b.txt` 被转写成 `a：b.txt`，
+       *   而远端本来就叫 `a：b.txt` 的文件保持原名；Windows 又不区分大小写（`A.txt`/`a.txt`）。
+       *   并发写同一目标 = 后到的覆盖先到的，用户看到「传完少文件」且无任何提示。
+       *   这里在进入并发之前**同步**给本层分配唯一本地名（序号后缀保持扩展名），只影响撞名的那一个。
+       */
+      const usedLocalNames = new Set<string>()
+      const allocateLocalName = (rawName: string): string => {
+        const base = safeEntryName(rawName) ?? localEntryName(rawName)
+        if (!base) return ''
+        if (!usedLocalNames.has(base.toLowerCase())) {
+          usedLocalNames.add(base.toLowerCase())
+          return base
+        }
+        const dot = base.lastIndexOf('.')
+        const stem = dot > 0 ? base.slice(0, dot) : base
+        const ext = dot > 0 ? base.slice(dot) : ''
+        for (let i = 2; i <= 999; i++) {
+          const cand = `${stem} (${i})${ext}`
+          if (!usedLocalNames.has(cand.toLowerCase())) {
+            usedLocalNames.add(cand.toLowerCase())
+            log.warn(`[download] local name collision auto-renamed: ${JSON.stringify(base)} -> ${JSON.stringify(cand)} (remote: ${path.posix.join(remoteSrc, rawName)})`)
+            return cand
+          }
+        }
+        return base
+      }
+
       const tasks = entries.map(async (entry): Promise<boolean> => {
         // ★ 2026-07-25：剥离服务器返回文件名中的目录组件与 ..，防止路径穿越
         //
@@ -367,7 +396,7 @@ export class DownloadDirUseCase {
         //   路径穿越防护不受影响：localEntryName 内部走 path.posix.basename
         //   （只认 `/`），且这里用 path.join(localDir, safeName) 前已确保 safeName
         //   不含任何分隔符与 `..`（见 path-utils 的两道检查）。
-        const safeName = safeEntryName(entry.name) ?? localEntryName(entry.name)
+        const safeName = allocateLocalName(entry.name)
         if (safeName !== entry.name) {
           log.info(`[download] remote entry name rewritten for local FS: ${JSON.stringify(entry.name)} -> ${JSON.stringify(safeName)}`)
         }
@@ -391,7 +420,9 @@ export class DownloadDirUseCase {
           //   目录持槽等子项会在嵌套层数 ≥ 并发数时死锁（槽位被目录占满）。
           //   递归子目录失败时向上传播失败标记（共享同一限制器）
           if (!(await dirGate(this.ports.folder, ctx))) return false
-          return this.execute(remoteP, localDir, ctx, undefined, limiter, forceOverwrite)
+          // ★ 2026-11-15（B4 补口）：把本层分配好的（可能已去重/转写的）名字传下去，
+          //   否则递归里又按远端原名重算一次，目录撞名照样合并成一个。
+          return this.execute(remoteP, localDir, ctx, safeName, limiter, forceOverwrite)
         }
 
         // 文件：门控 + 占槽，实际字节传输受限制器约束
@@ -730,16 +761,29 @@ export class MergeLocalDirUseCase {
             break
           }
         }
-        if (c.isSymbolicLink) continue
+        // ★ 2026-10-30 P2 修复（SF-15）：跳过项必须记账。
+        //   原实现三条 `continue` 都是静默的：符号链接 / 名字不安全 / lstat 失败（文件已被移走、
+        //   权限不足）时既不置 success=false 也不写日志 ⇒ 目录上传进度条目与传输记录显示「成功」，
+        //   而实际有文件没传上去。用户以为备份完整，等到恢复时才发现缺文件。
+        if (c.isSymbolicLink) {
+          log.warn('skip symbolic link during merge upload:', c.name)
+          success = false
+          continue
+        }
         const safeName = safeEntryName(c.name)
         if (!safeName) {
           log.warn('skip unsafe local entry name during merge:', c.name)
+          success = false
           continue
         }
         const localP = path.join(localSrc, safeName)
         const remoteP = path.posix.join(remoteDest, safeName)
         const st = await this.ports.localFs.lstat(localP)
-        if (!st) continue
+        if (!st) {
+          log.warn('lstat failed during merge upload (entry vanished or unreadable):', localP)
+          success = false
+          continue
+        }
         if (st.isDirectory()) {
           const childOk = await this.execute(localP, remoteP, false, undefined, ctx)
           if (!childOk) success = false

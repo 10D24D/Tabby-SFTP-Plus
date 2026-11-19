@@ -4,7 +4,10 @@
  * @创建人：DD1024z + Hy3
  * @创建时间：2026-07-11
  * @修改人：DD1024z + Deepseek-V4.1-Flash
- * @修改时间：2026-10-26 — 两处 `window.confirm()` 换成面板内确认框（askConfirm）：编辑器「未保存
+ * @修改时间：2026-11-05 — 新增 ctxOpenFile（右键「打开」唯一分派点）与 openShouldEdit 判据：
+ *              按文件类型决定进编辑器（文本/svg）还是查看器（图片、以及「允许所有类型」放行的杂项二进制），
+ *              双击 _activateEntry 复用同一判据；_editLocalFile/_editRemoteFile 由 private 放宽为 protected。
+ *              2026-10-26 — 两处 `window.confirm()` 换成面板内确认框（askConfirm）：编辑器「未保存
  *              关闭」与「远端已变更仍要覆盖」。原生 confirm 点「取消」后 Electron(Win) 不交还焦点链，
  *              编辑器还开着但输入框/下拉框全部点不动（详见 sftp-confirm-dialog 头部注释）。
  *              两处 await 之后都按**代际快照**复核（_editorGen 变了就放弃），不按「还可见」判。
@@ -194,6 +197,39 @@ export abstract class SftpPanelViewerController extends SftpPanelColumnControlle
    *  每次打开泄漏一个临时文件；面板销毁时统一 best-effort 清理 */
   protected _systemOpenTempFiles: string[] = []
 
+  /**
+   * ★ 2026-11-05（用户诉求：「查看器和编辑器应该是同一个东西，改不改是用户的选择」）：
+   *   右键菜单的「查看」「编辑」已合并成一条「打开」，本方法是它唯一的分派点。
+   *
+   * 分派只看**文件类型能不能改**，不看用户意图：
+   *   - 文本 / svg 这类本就该改的 → 编辑器（能改能存，不改就是纯看，用户不必点开前先想「我要不要改」）；
+   *   - 图片（png/jpg/gif…）→ 查看器图片模式（编辑器没有图片模式，这是查看器不可替代的一处）；
+   *   - 勾了「允许查看与编辑所有文件类型」才放行的杂项（exe/zip/二进制）→ 查看器只读，
+   *     否则进编辑器只会得到「二进制不支持」错误页 —— 旧版点「查看」正是这个结果。
+   *     ⇒ 判据刻意传 allowAll=false，把「因开关放行」排除在「天生可编辑」之外。
+   *
+   * ⛔ 双击 `_activateEntry` 走同一个判据（openShouldEdit），保证「双击」与「右键打开」
+   *   永远落在同一个窗口里 —— 这正是本次合并要消除的不一致。
+   */
+  async ctxOpenFile(): Promise<void> {
+    const entry = this.contextMenuEntry as { name?: string } | null
+    if (!entry?.name) return
+    if (this.openShouldEdit(entry.name)) {
+      await this.ctxEditFile()
+      return
+    }
+    await this.ctxViewFile()
+  }
+
+  /**
+   * ★ 2026-11-05：合并入口的判据 —— 该文件名**按类型**是否可编辑。
+   *   刻意不用 `isFileNameEditable`（它受「允许查看与编辑所有文件类型」影响）：
+   *   那个开关只是放宽入口，不代表 exe/zip 真能当文本改。
+   */
+  protected openShouldEdit(fileName: string): boolean {
+    return isEditableRemoteFileType(fileName, this.getCustomEditableExtensions(), false)
+  }
+
   async ctxViewFile(): Promise<void> {
     // ★ 2026-10-18 issue #27：左栏远程端点 → 与右栏远程同一套查看流程（第二会话承载）；
     //   此前走 _viewLocalFile 对 POSIX 路径读本地 fs，必然「加载失败」且无「在系统中打开」。
@@ -378,7 +414,11 @@ export abstract class SftpPanelViewerController extends SftpPanelColumnControlle
     this.viewerTextContent = bufferToText(buf).text
   }
 
-  private async _editLocalFile(entry: LocalEntry | null): Promise<void> {
+  /**
+   * ★ 2026-11-05：由 private 放宽到 protected —— 面板双击 `_activateEntry` 现在也要走同一条
+   * 编辑链路（与右键「打开」同源），不能只让 ctxEditFile 独占。
+   */
+  protected async _editLocalFile(entry: LocalEntry | null): Promise<void> {
     if (!this._validateEditEntry(entry, false)) return
     const gen = await this._openEditorShell({
       fileName: entry.name,
@@ -421,7 +461,7 @@ export abstract class SftpPanelViewerController extends SftpPanelColumnControlle
     }
   }
 
-  private async _editRemoteFile(entry: SFTPFile | null, session: SFTPSessionLike | null = null): Promise<void> {
+  protected async _editRemoteFile(entry: SFTPFile | null, session: SFTPSessionLike | null = null): Promise<void> {
     // ★ 2026-10-18 issue #27：会话归属参数化（同 _viewRemoteFile）
     this._editorSession = session ?? this.sftpSession
     if (!this._validateEditEntry(entry, true, this._editorSession)) return
@@ -856,7 +896,8 @@ export abstract class SftpPanelViewerController extends SftpPanelColumnControlle
     this.viewerSystemPath = ''
     this.viewerImageList = []
     this.viewerImageIndex = 0
-    this._cleanupViewerTemp().catch(() => {})
+    // ★ 2026-11-05 P1 修复：关闭时立即清理临时文件（而非等面板销毁），并加日志便于诊断
+    this._cleanupViewerTemp().catch((e) => { log.warn('Viewer temp cleanup failed:', (e as Error)?.message) })
   }
 
   /** 由子类（SftpFloatingPanel）override：返回当前目录按排序/过滤后的条目列表 */
@@ -1095,7 +1136,8 @@ export abstract class SftpPanelViewerController extends SftpPanelColumnControlle
     //   避免迟到回调往已关闭的编辑器写状态、或在错误路径上启 watch
     this._editorGen++
     this._stopEditorFileWatch()
-    if (this.editorIsRemote) void this._cleanupEditorTemp()
+    // ★ 2026-11-05 P1 修复：关闭时立即清理临时文件（而非等面板销毁），并加日志便于诊断
+    void this._cleanupEditorTemp().catch((e) => { log.warn('Editor temp cleanup failed:', (e as Error)?.message) })
     this.editorVisible = false
     this.editorLoading = false
     this.editorDirty = false

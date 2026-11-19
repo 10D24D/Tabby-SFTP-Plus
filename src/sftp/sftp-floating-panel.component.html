@@ -1,9 +1,11 @@
 ﻿<!-- SFTP+ 浮动面板组件模板
      @创建人：DD1024z + Claude
      @创建时间：2026-06-21
-     @修改人：DD1024z + Deepseek-V4.1-Flash
-     @修改时间：2026-10-27
+     @修改人：DD1024z + Hy4
+     @修改时间：2026-11-13
      修改情况：
+       - 2026-11-13 (Hy4)：根元素按 fullRowSelection 挂 no-full-row-select 类（关闭整行选中时行宽只到最后一列）；表头右键菜单补 [showFullRowSelection] 绑定
+       - 2026-11-13 (Hy4，同日复审)：表头仍整行显示（右侧空白可呼出表头右键菜单）；根元素按 headerBorderEffective 挂 no-header-border 类控制表头底边线；表头菜单补 [showHeaderBottomBorder] 绑定
        - 2026-10-27 (Deepseek-V4.1-Flash)：⋯ 折叠菜单作为 overflow 项进入 topBarOrder **参与拖拽排序**（默认排在 ✕ 之前）；模板在 *ngFor 里单开一个 overflow 分支渲染 #tbOverflowBtn，删掉上一版「塞进 close 分支 + 末尾兜底」的两处特判
        - 2026-10-23 (Deepseek-V4.1-Flash)：关闭按钮 ✕ 纳入顶栏定制（可停用 / 收进 ⋯ 菜单），前提是已给面板绑开关快捷键；未绑时 topBarInlineItems 兜底强制显示
        - 2026-10-23 (Deepseek-V4.1-Flash)：⋯ 折叠菜单改列**全部**可用按钮（含已固定的），每行右侧图钉就地切「固定 / 收进 ⋯」；启用折叠后 ⋯ 按钮常驻（不再要求确有按钮被收起）
@@ -18,6 +20,8 @@
     <div class="sftp-root" tabindex="0"
       [class.has-zebra]="showZebra"
       [class.has-col-borders]="showColBorders"
+      [class.no-full-row-select]="!fullRowSelection"
+      [class.no-header-border]="!headerBorderEffective"
       [class.col-header-reordering]="_headerReorder?.active && _headerReorder?.moved"
       [class.workspace-mode]="displayMode === 'workspace'"
       [class.dragging]="panelDragging"
@@ -254,7 +258,7 @@
                交给 topBarInlineItems；未固定的项收进右侧 ⋯ 菜单（topBarMenuItems 列全部可用项，
                每行带图钉可就地切固定），点菜单项执行同一个方法（runTopBarItem），不复制任何业务逻辑。
                默认「全部固定 + 折叠关闭」⇒ 未配置时与历史行为一致。 -->
-          <ng-container *ngFor="let item of topBarInlineItems">
+          <ng-container *ngFor="let item of topBarInlineItems; trackBy: trackTopBarItemBy">
             <button *ngIf="item === 'pathMode'" class="btn-link btn-icon btn-path-mode" (click)="cyclePathMode()"
                     [class.active]="pathMode !== 'off'"
                     [title]="pathModeTitle()">
@@ -309,7 +313,7 @@
              ⛔ 点图钉不关菜单（用户常要连着改几项）；点行本体才执行动作并收起。 -->
         <div class="topbar-overflow-menu" *ngIf="_topBarOverflowVisible && topBarMenuItems.length"
           (mousedown)="$event.stopPropagation()" (click)="$event.stopPropagation()">
-          <div class="topbar-overflow-item" *ngFor="let item of topBarMenuItems"
+          <div class="topbar-overflow-item" *ngFor="let item of topBarMenuItems; trackBy: trackTopBarItemBy"
             [class.active]="topBarItemActive(item)">
             <button class="topbar-overflow-run" (click)="runTopBarItem(item)" [title]="topBarItemLabel(item)">
               <!-- 图标与顶栏按钮同一份（tbIcon* ng-template），保证收进菜单后仍能凭图标认出功能 -->
@@ -336,12 +340,21 @@
         </div>
       </div>
 
-      <!-- 标题栏右键菜单：还原默认面板大小 -->
+      <!-- 标题栏右键菜单：面板大小的「设默认 / 还原 / 恢复初始」三件套 -->
       <div class="sftp-title-menu" *ngIf="topBarMenuVisible"
         [style.left.px]="topBarMenuX" [style.top.px]="topBarMenuY"
         (mousedown)="$event.stopPropagation()" (click)="$event.stopPropagation()">
         <div class="sftp-title-menu__item" (click)="restoreDefaultSize()">
           {{ i18n.t('app.restoreDefaultSize') }}
+        </div>
+        <div class="sftp-title-menu__item" (click)="setPanelSizeAsDefault()">
+          {{ i18n.t('app.setSizeAsDefault') }}
+        </div>
+        <div class="sftp-title-menu__sep"></div>
+        <div class="sftp-title-menu__item" [class.sftp-title-menu__item--disabled]="!hasCustomDefaultSize"
+          [title]="hasCustomDefaultSize ? null : i18n.t('app.defaultSizeIsFactory')"
+          (click)="resetPanelSizeDefault()">
+          {{ i18n.t('app.resetSizeToFactory') }}
         </div>
       </div>
 
@@ -367,6 +380,11 @@
           [disabledIconSvgs]="_disabledIconSvgs"
           [folderIconSvg]="_folderIconSvg"
           [pathInput]="localPathInput"
+          [pathCrumbs]="localPathCrumbs"
+          (pathCrumbClick)="onPathCrumbClick('local', $event.path)"
+          (pathSepClick)="onPathSepClick('local', $event)"
+          (pathSepHover)="onPathSepHover('local', $event)"
+          (pathCollapsedClick)="onPathCollapsedMenu('local', $event)"
           [paneCustomOrder]="paneCustomOrder"
           [paneHiddenItems]="paneHiddenItems"
           [showHidden]="showHiddenLocal"
@@ -464,6 +482,11 @@
           [disabledIconSvgs]="_disabledIconSvgs"
           [folderIconSvg]="_folderIconSvg"
           [pathInput]="remotePathInput"
+          [pathCrumbs]="remotePathCrumbs"
+          (pathCrumbClick)="onPathCrumbClick('remote', $event.path)"
+          (pathSepClick)="onPathSepClick('remote', $event)"
+          (pathSepHover)="onPathSepHover('remote', $event)"
+          (pathCollapsedClick)="onPathCollapsedMenu('remote', $event)"
           [paneCustomOrder]="paneCustomOrder"
           [paneHiddenItems]="paneHiddenItems"
           [showHidden]="showHiddenRemote"
@@ -561,6 +584,11 @@
           [disabledIconSvgs]="_disabledIconSvgs"
           [folderIconSvg]="_folderIconSvg"
           [pathInput]="_rlPathInput"
+          [pathCrumbs]="rlPathCrumbs"
+          (pathCrumbClick)="onPathCrumbClick('rl', $event.path)"
+          (pathSepClick)="onPathSepClick('rl', $event)"
+          (pathSepHover)="onPathSepHover('rl', $event)"
+          (pathCollapsedClick)="onPathCollapsedMenu('rl', $event)"
           [paneCustomOrder]="paneCustomOrder"
           [paneHiddenItems]="paneHiddenItems"
           [showHidden]="_rlShowHidden"
@@ -842,7 +870,10 @@
         [pinFolders]="_ctxPinFolders"
         [showHidden]="_ctxShowHidden"
         [showColBorders]="showColBorders"
+        [colBordersDisabled]="headerColBordersDisabled"
         [showZebra]="showZebra"
+        [showFullRowSelection]="fullRowSelection"
+        [showHeaderBottomBorder]="headerBorderEffective"
         (menuAction)="onContextMenuAction($event)"
         (headerAction)="onHeaderMenuAction($event)">
       </sftp-context-menu>
@@ -925,6 +956,21 @@
         (cancel)="closeEditor()"
         (systemAction)="openEditorInSystem()">
       </sftp-editor-dialog>
+      </div>
+
+      <!-- ★ 2026-11-05（Deepseek-V4.1-Flash）：路径连接符 › 的层级下拉（fixed，z-index 70 属
+           「下拉」档，见 z-index 分档：内容 5~20 < 下拉 60 < 书签 90）。 -->
+      <div *ngIf="_sepMenu" class="path-sep-menu" [style.left.px]="_sepMenu.x" [style.top.px]="_sepMenu.y"
+        (mousedown)="$event.stopPropagation()">
+        <div class="path-sep-menu-dir" *ngIf="_sepMenu.dir" [title]="_sepMenu.dir">{{ _sepMenu.dir }}</div>
+        <!-- ★ 2026-11-05：本地目录读取不是「连接」，文案改为「加载中…」（原来借用 status.connecting，看着像卡在连服务器） -->
+        <div class="path-sep-menu-empty" *ngIf="_sepMenu.loading">{{ i18n.t('pane.sepMenuLoading') }}</div>
+        <div class="path-sep-menu-empty" *ngIf="!_sepMenu.loading && !_sepMenu.items.length">{{ i18n.t('pane.sepMenuEmpty') }}</div>
+        <div class="path-sep-menu-item" *ngFor="let it of _sepMenu.items; trackBy: trackBySepItem"
+          (click)="chooseSepMenuItem(it)" [title]="it.path">{{ it.name }}</div>
+        <div class="path-sep-menu-empty" *ngIf="_sepMenu.truncated">
+          {{ i18n.t('pane.sepMenuTruncated', { n: _sepMenu.truncated }) }}
+        </div>
       </div>
 
     </div>

@@ -46,6 +46,7 @@ import { randomUUID } from 'crypto'
 import { type DragPayload } from './panel-types'
 
 import * as fs from 'fs/promises'
+import { createWriteStream } from 'fs'
 
 import { type ChangeDetectorRef } from '@angular/core'
 
@@ -369,6 +370,45 @@ export class DropUseCase {
       if (ok) {
         this.ports.ui.markViewDirty()
         return true
+      }
+    }
+
+    // ★ 2026-10-30 P2 修复（SF-11）：**同栏远程拖到子文件夹**（文件管理器的通用手势）。
+    //
+    //   原实现唯一处理 remote-paths 的分支要求 `crossPane`，同栏（!crossPane）一路落到函数末尾
+    //   `return false`；而面板 onDrop 只转调本用例、没有第二入口 ⇒ 右栏远程里把 f.txt 拖到
+    //   列表中的子目录行后松手：**无传输、无 toast、无冲突框、视图不变**，用户反复拖都"没反应"。
+    //   对照左栏本地的同一手势是正常的（走 local-paths 分支），所以这个缺口只在远程侧可见。
+    //   只在「目标确实是子目录」（destDirOverride 有值）时接管；拖回当前目录自身不处理。
+    if (payload.kind === 'remote-paths' && !crossPane && destDirOverride
+      && !this._isReallyLocalPane(ctx, targetPane as 'local' | 'remote')
+      && this.ports.transfer.transferRemoteEntries) {
+      const destDir = destDirOverride
+      const movable = payload.paths.filter(p => {
+        // 与 paste 同口径：目录不能拖进自身/子目录（否则远程 cp 无限递归直至磁盘写满）
+        if (p.isDirectory && isPathInside(p.remotePath, destDir, true)) {
+          log.warn('[drop] refuse same-pane move into self:', p.remotePath, '->', destDir)
+          return false
+        }
+        return true
+      })
+      if (movable.length) {
+        const ok = await this.ports.transfer.transferRemoteEntries(
+          movable.map(p => ({
+            remotePath: p.remotePath,
+            name: p.name,
+            isDirectory: p.isDirectory,
+            size: p.size,
+            mode: p.mode,
+            modified: p.modified,
+          })),
+          destDir,
+          targetPane === 'remote' ? 'right' : 'left',
+        )
+        if (ok) {
+          this.ports.ui.markViewDirty()
+          return true
+        }
       }
     }
 
@@ -806,9 +846,35 @@ export async function getDroppedOsPaths(ev: DragEvent, tmpScope?: string): Promi
         }
         const tmpPath = path.join(sessionDir, safe)
         try {
-          const buf = Buffer.from(await file.arrayBuffer())
+          // ★ 2026-10-30 P1-3 修复：大文件拖入时一次性读入内存会导致 Electron 进程 OOM。
+          //   改用 ReadableStream 分块写入；若浏览器不支持则回退到一次性 buffer（小文件场景）。
+          if (typeof (file as any).stream === 'function') {
+            const stream = (file as any).stream() as ReadableStream<Uint8Array>
+            const reader = stream.getReader()
+            const writer = createWriteStream(tmpPath)
+            try {
+              while (true) {
+                const { done, value } = await reader.read()
+                if (done) break
+                await new Promise<void>((resolve, reject) => {
+                  writer.write(Buffer.from(value), (err) => {
+                    if (err) reject(err)
+                    else resolve()
+                  })
+                })
+              }
+              await new Promise<void>((resolve, reject) => {
+                writer.end(() => resolve())
+                writer.on('error', reject)
+              })
+            } finally {
+              try { reader.releaseLock() } catch { /* ignore */ }
+            }
+          } else {
+            const buf = Buffer.from(await file.arrayBuffer())
+            await fs.writeFile(tmpPath, buf)
+          }
           // ★ 2026-08-10 修复 #19：0 字节也是合法空文件，照常落盘传输，不得静默丢弃
-          await fs.writeFile(tmpPath, buf)
           const real = await fs.realpath(tmpPath).catch(() => tmpPath)
           const prefix = sessionReal.endsWith(path.sep) ? sessionReal : sessionReal + path.sep
           if (real !== sessionReal && !real.startsWith(prefix)) {
@@ -837,10 +903,26 @@ export async function getDroppedOsPaths(ev: DragEvent, tmpScope?: string): Promi
     }
     let raw: string
     try {
-      raw = decodeURIComponent(x.slice('file://'.length)) // 去掉 file://
+      // ★ 2026-10-30 P2-2 修复：改用 URL API 解析 pathname，避免手动 slice 与
+      //   decodeURIComponent 的编码不一致（如 %2F 被多解一次）。URL API 的 pathname
+      //   已经过解码，再对 pathname 做 decodeURIComponent 即可得到一致结果。
+      const url = new URL(x)
+      // ★ 2026-10-30 P2 修复（SF-19）：**必须保留 UNC authority**。
+      //   `file://server/share/a` 的 pathname 只有 `/share/a`，主机名在 url.host 里；
+      //   原实现只取 pathname ⇒ 网络共享路径退化成 POSIX 绝对路径 `/share/a` ⇒
+      //   fs 操作按相对当前进程 CWD 解析 → 复制失败，或更糟：把文件写进进程当前目录。
+      //   从资源管理器拖网络共享进来是常见操作，这条分支正是给它兜底的。
+      raw = url.host
+        ? `\\\\${url.host}${decodeURIComponent(url.pathname).replace(/\//g, '\\')}`
+        : decodeURIComponent(url.pathname)
     } catch {
-      // ★ 2026-08-10 修复 #19：非法百分号编码时回退未解码路径，避免 URIError 中断整个拖放
-      raw = x.slice('file://'.length)
+      // 回退到手动解析（URL API 不支持时）
+      try {
+        raw = decodeURIComponent(x.slice('file://'.length)) // 去掉 file://
+      } catch {
+        // ★ 2026-08-10 修复 #19：非法百分号编码时回退未解码路径，避免 URIError 中断整个拖放
+        raw = x.slice('file://'.length)
+      }
     }
     // Windows: file:///C:/path → /C:/path → 去掉开头的 /，保持 Drive letter
     if (/^\/[a-zA-Z]:/.test(raw)) {

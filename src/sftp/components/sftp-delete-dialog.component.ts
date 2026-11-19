@@ -2,8 +2,10 @@
  * SFTP+ 删除确认对话框（从主面板抽离）
  * @创建人：DD1024z + Auto(未确认底层模型)
  * @创建时间：2026-07-07
- * @修改人：DD1024z + Step-5-Preview
- * @修改时间：2026-10-19 — 2026-10-19 全量审计 P2-20：回收站/永久删除两条提示的硬编码英文兜底
+ * @修改人：DD1024z + Deepseek-V4.1-Flash
+ * @修改时间：2026-11-02 — 恢复「回车=确定」并把初始焦点落到「删除」按钮（2026-10-30 SF-24
+ *              移除 onEnter 后回车彻底失效，属回归；现改为「焦点环可见 + 回车可用」兼顾防误删）
+ *              2026-10-19 — 2026-10-19 全量审计 P2-20：回收站/永久删除两条提示的硬编码英文兜底
  *              （`i18n.t('app.trashHint') || '📥 Move to Recycle Bin'`、
  *               `i18n.t('app.permDeleteHint') || 'This action cannot be undone'`）去掉。
  *              i18n.t() 已有「当前语言 → en-US → 返回 key」三级回退，硬编码兜底只在 key 缺失时
@@ -101,7 +103,7 @@ import { handleOverlayKeydown } from './dialog-focus'
         <div *ngIf="toTrash" class="delete-action-hint">{{ i18n.t('app.trashHint') }}</div>
         <div *ngIf="!toTrash" class="delete-action-hint delete-action-perm">{{ '⚠️ ' + i18n.t('app.permDeleteHint') }}</div>
         <div class="dialog-buttons">
-          <button class="danger" (click)="confirm.emit()">{{ i18n.t('app.yes') }}</button>
+          <button class="danger" #confirmBtn (click)="confirm.emit()">{{ i18n.t('app.yes') }}</button>
           <button (click)="cancel.emit()">{{ i18n.t('app.no') }}</button>
         </div>
       </div>
@@ -183,11 +185,14 @@ export class SftpDeleteDialogComponent implements OnChanges, OnDestroy {
   @Input() i18n!: SftpI18nService
 
   @ViewChild('overlayEl', { static: false }) overlayEl?: ElementRef<HTMLDivElement>
+  /** 「删除」按钮：打开时把焦点落在这里，回车即明确激活它（焦点环可见） */
+  @ViewChild('confirmBtn', { static: false }) confirmBtn?: ElementRef<HTMLButtonElement>
 
   private _focusTimer: ReturnType<typeof setTimeout> | null = null
 
-  // ★ 修复：对话框显示时把焦点移入 overlay（tabindex=-1 可聚焦但不进入 Tab 序列），
-  //   确保回车/Esc 的 keydown 能落到 overlay 的 onKeyDown（此前 overlay 不可聚焦、焦点在面板外，回车无法确认）
+  // ★ 修复：对话框显示时把焦点移入「删除」按钮（焦点环可见、回车即原生激活），
+  //   遮罩只作兜底——它仍带 tabindex=-1，保证 Esc/Tab 的 keydown 有落点
+  //   （2026-11-02 起焦点不再常驻遮罩，此前「焦点在遮罩 ⇒ 回车无法确认」）
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['visible']) {
       if (this._focusTimer) {
@@ -197,7 +202,11 @@ export class SftpDeleteDialogComponent implements OnChanges, OnDestroy {
       if (this.visible) {
         this._focusTimer = setTimeout(() => {
           this._focusTimer = null
-          this.overlayEl?.nativeElement?.focus()
+          // ★ 2026-11-02：焦点落到「删除」按钮而非遮罩。
+          //   遮罩兜底只为 Esc / Tab 陷阱有落点（按钮尚未渲染时），不再作为常态焦点位。
+          const btn = this.confirmBtn?.nativeElement
+          if (btn) btn.focus()
+          else this.overlayEl?.nativeElement?.focus()
         })
       }
     }
@@ -215,6 +224,10 @@ export class SftpDeleteDialogComponent implements OnChanges, OnDestroy {
     //   ① Enter 按焦点目标分流：焦点已在按钮上时交还原生激活（此前无条件映射为
     //      confirm，焦点在「否」上按回车也会执行删除）；
     //   ② Tab/Shift+Tab 在对话框内循环（此前无焦点陷阱，可逃逸到背景产生幽灵交互）。
+    // ★ 2026-11-02：**恢复 onEnter 映射**（2026-10-30 SF-24 曾移除，导致「删除框回车无法确认」
+    //   回归）。折中设计：打开时焦点已落在「删除」按钮上 ⇒ 回车走原生激活、焦点环可见，
+    //   不是「焦点在遮罩上静默直通」；只有当用户点过对话框正文、焦点回到遮罩时，
+    //   onEnter 才作为兜底生效——此时回车是用户的显式意图，不该再"什么都不做"。
     handleOverlayKeydown(event, this.overlayEl?.nativeElement, {
       onEnter: () => this.confirm.emit(),
     })

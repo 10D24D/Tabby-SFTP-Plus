@@ -3,8 +3,12 @@
  * 功能描述：承载列可见性/列宽/重排/自适应/表头右键菜单等逻辑与状态，供浮动面板组件继承
  * @创建人：DD1024z + Hy3
  * @创建时间：2026-07-11
- * @修改人：DD1024z + Deepseek-V4.1-Flash
- * @修改时间：2026-10-26 — 基类改为 extends SftpPanelConfirmController：面板内二次确认（askConfirm）
+ * @修改人：DD1024z + Hy4
+ * @修改时间：2026-11-13 — 新增 fullRowSelection（默认 true）与 toggleFullRowSelection：
+ *              同日追加（用户复审）：新增 headerBottomBorder 三态与 headerBorderEffective getter，
+ *              以及 toggleHeaderBottomBorder（表头菜单就地切换后写 localStorage 并广播）。
+ *              表头右键菜单就地切换后写 localStorage 并广播 settings-changed，让设置页与其它面板同步。
+ *              2026-10-26 — 基类改为 extends SftpPanelConfirmController：面板内二次确认（askConfirm）
  *              作为继承链最底层能力，供面板主体与查看器控制器共用（替代会破坏 Electron 焦点链的
  *              原生 confirm）。
  *              2026-10-20 — 2026-10-19 全量审计 P2-39：右键「自适应列宽」(adjustColumnWidth) 与
@@ -144,6 +148,11 @@ export abstract class SftpPanelColumnController extends SftpPanelConfirmControll
   private _headerMenuClampTimer: ReturnType<typeof setTimeout> | null = null
   showColBorders = false  // 显示边框（默认关闭）
   showZebra = false       // 显示斑马纹（默认关闭）
+  /** ★ 2026-11-13（Hy4）：整行选中（默认开 = 保持现状）。关掉后 .entry 只占「列宽合计」，
+   *  右侧空白归 .pane-list —— 选中底色不再铺满，且那块空白可直接右键出面板级菜单。 */
+  fullRowSelection = true
+  /** ★ 2026-11-13（Hy4）：表头底边线三态。null = 跟随整行选中，true/false = 显式值。 */
+  headerBottomBorder: boolean | null = null
   colIconWidth = 24
   colNameMinWidth = 60
   resizeCol: string | null = null
@@ -502,6 +511,37 @@ export abstract class SftpPanelColumnController extends SftpPanelConfirmControll
     this.headerMenuVisible = false
   }
 
+  /** ★ 2026-11-13（Hy4）：表头右键菜单的「整行选中」快捷开关。
+   *  与设置页写同一份 `sftp-plus-table.fullRowSelection`（面板只读 localStorage，铁律 21）。
+   *  ⚠ 必须广播：设置页的 _settingsChangedHandler 会回读这一项，否则设置页内存里的旧值会在
+   *    用户下次动任一开关时随 _saveToConfig()/saveTableSettings() 反向写回来（P2-31 同源）。 */
+  /** 表头底边线的有效值：显式优先，否则跟随整行选中 */
+  get headerBorderEffective(): boolean {
+    return this.headerBottomBorder === null ? this.fullRowSelection : this.headerBottomBorder
+  }
+
+  /** ★ 2026-11-13（Hy4）：表头右键菜单的「显示表头底边线」。点一次即写显式值并广播。 */
+  toggleHeaderBottomBorder(): void {
+    this.headerBottomBorder = !this.headerBorderEffective
+    try { localStorage.setItem(`${SftpPanelColumnController.TABLE_SETTINGS_KEY}.headerBottomBorder`, JSON.stringify(this.headerBottomBorder)) } catch {}
+    this.headerMenuVisible = false
+    this.headerMenuCol = null
+    try { window.dispatchEvent(new CustomEvent('sftp-plus-settings-changed')) } catch { /* ignore */ }
+  }
+
+  toggleFullRowSelection(): void {
+    this.fullRowSelection = !this.fullRowSelection
+    try {
+      localStorage.setItem(
+        `${SftpPanelColumnController.TABLE_SETTINGS_KEY}.fullRowSelection`,
+        JSON.stringify(this.fullRowSelection),
+      )
+    } catch {}
+    this.headerMenuVisible = false
+    this.headerMenuCol = null
+    try { window.dispatchEvent(new CustomEvent('sftp-plus-settings-changed')) } catch { /* ignore */ }
+  }
+
   /** ★ 2026-10-19 P2-39：各列「自适应 / 拖拽」共用的最小宽度口径（单一事实来源）。
    *  此前右键「自适应列宽」与「全部列自适应」用一刀切的 30px，双击把手自适应
    *  (onColResizeAutoFit) 与拖拽 (onColResizeStart) 各存一份 MIN_WIDTHS 表 ——
@@ -803,6 +843,9 @@ export abstract class SftpPanelColumnController extends SftpPanelConfirmControll
       }
       if (this._colResizeUpHandler) {
         document.removeEventListener('mouseup', this._colResizeUpHandler)
+        // ★ 2026-10-30 P2 修复（SF-22）：兜底监听同步注销，否则「越拖越卡」
+        document.removeEventListener('pointercancel', this._colResizeUpHandler)
+        window.removeEventListener('blur', this._colResizeUpHandler)
         this._colResizeUpHandler = null
       }
       this._setResizeCursor(false)
@@ -815,6 +858,13 @@ export abstract class SftpPanelColumnController extends SftpPanelConfirmControll
 
     document.addEventListener('mousemove', this._colResizeMoveHandler)
     document.addEventListener('mouseup', this._colResizeUpHandler)
+    // ★ 2026-10-30 P2 修复（SF-22）：只监听 mouseup 时，鼠标在 Electron 窗口外松手
+    //   （拖到任务栏/其它屏）收不到 mouseup ⇒ this.resizing 永远为 true、
+    //   .sftp-root 的 col-resize 光标永不还原，且下次再拖会再挂一份 document mousemove
+    //   （每漏一次多一个监听，越拖越卡）。pointercancel 只在电容笔/触摸被系统打断时来，
+    //   window blur 覆盖「切走窗口/窗口失焦」，两者都是廉价兜底。
+    document.addEventListener('pointercancel', this._colResizeUpHandler)
+    window.addEventListener('blur', this._colResizeUpHandler)
     this._setResizeCursor(true)
     this._safeDetect()
   }
@@ -827,6 +877,8 @@ export abstract class SftpPanelColumnController extends SftpPanelConfirmControll
     }
     if (this._colResizeUpHandler) {
       document.removeEventListener('mouseup', this._colResizeUpHandler)
+      document.removeEventListener('pointercancel', this._colResizeUpHandler)
+      window.removeEventListener('blur', this._colResizeUpHandler)
       this._colResizeUpHandler = null
     }
     this._setResizeCursor(false)

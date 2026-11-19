@@ -157,10 +157,16 @@ export class PanelHeaderReorder {
 
     document.addEventListener('mousemove', onMove)
     document.addEventListener('mouseup', onUp)
+    // ★ 2026-10-30 P2 修复（SF-22）：窗口外松手收不到 mouseup ⇒ ghost 永远停在 body、
+    //   document mousemove 监听不释放（每漏一次多一个，越拖越卡）。补 pointercancel + blur 兜底。
+    document.addEventListener('pointercancel', onUp)
+    window.addEventListener('blur', onUp)
     document.addEventListener('keydown', onKeyDown)
     this._unbind = () => {
       document.removeEventListener('mousemove', onMove)
       document.removeEventListener('mouseup', onUp)
+      document.removeEventListener('pointercancel', onUp)
+      window.removeEventListener('blur', onUp)
       document.removeEventListener('keydown', onKeyDown)
       this._unbind = null
     }

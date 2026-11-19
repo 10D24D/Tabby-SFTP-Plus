@@ -37,7 +37,7 @@ import { type Stats } from 'fs'
 
 import { pasteEntryKey, parseRemoteMtime } from './conflict'
 
-import { safeEntryName, localEntryName } from './path-utils'
+import { safeEntryName, safeRemoteEntryName, localEntryName } from './path-utils'
 
 import { type ConflictQueueItem } from './panel-types'
 
@@ -148,6 +148,21 @@ export interface PastePorts {
 export class PasteUseCase {
   constructor(private readonly ports: PastePorts) {}
 
+  /**
+   * ★ 2026-10-30 P2 修复（SF-21）：本次 `scanConflicts` 实际入队数。
+   *
+   * 原实现用 `conflict.queueLength() > 0` 判定「本次粘贴产生了冲突」——那是**全局队列长度**：
+   * 第一次粘贴留着未处理的冲突项时，第二次粘贴即使一个冲突都没有也返回 true，
+   * 于是第二次粘贴被"扣住"等冲突框；而冲突框（单槽 pendingPaste）已被第二次粘贴覆盖，
+   * 第一次里那些没有冲突、本该直接执行的条目永远不执行。
+   */
+  private _scanEnqueued = 0
+
+  private _enqueueConflict(item: ConflictQueueItem): void {
+    this.ports.conflict.enqueue(item)
+    this._scanEnqueued++
+  }
+
   /** 预检冲突并入队，返回是否存在需用户确认的冲突 */
   async scanConflicts(
     entries: PasteEntry[],
@@ -156,12 +171,18 @@ export class PasteUseCase {
     source: 'local' | 'remote',
     mode: 'copy' | 'cut',
   ): Promise<boolean> {
+    this._scanEnqueued = 0
     for (const entry of entries) {
       // ★ 2026-08-10 修复 #4：冲突预检同样净化文件名，防止 ../ 路径穿越参与落点计算
       // ★ 2026-10-13 P1 修复：落本地时补 localEntryName 回退——safeEntryName 对 Windows 保留名/
       //   尾随点/含 \ 的远端合法名返回 null，原先直接 continue ⇒ 文件静默丢失；落远端仍严格拒绝。
-      const safeName = safeEntryName(entry.name)
-        ?? (destPane === 'local' ? localEntryName(entry.name) : null)
+      // ★ 2026-10-30 P1 修复（SF-02 配套）：净化规则按**落点语义**选。
+      //   safeEntryName 自本日起在 win32 上额外拒绝 `<>:"|?*`（防 NTFS 数据流写坏）。
+      //   落远端（POSIX，这些字符合法）必须改用 safeRemoteEntryName，否则 Windows 客户端
+      //   在远程↔远程 / 本机→远程粘贴时会静默跳过 `a:b.txt` 这类合法远端名。
+      const safeName = destPane === 'local'
+        ? (safeEntryName(entry.name) ?? localEntryName(entry.name))
+        : safeRemoteEntryName(entry.name)
       if (!safeName) {
         log.warn('skip unsafe paste entry in scanConflicts:', entry.name)
         continue
@@ -188,7 +209,7 @@ export class PasteUseCase {
                 log.warn('[paste] scanLocalDir for conflict failed:', localPath, e)
               }
             }
-            this.ports.conflict.enqueue({
+            this._enqueueConflict({
               localPath,
               remoteDir: destPath,
               fileName: safeName,
@@ -250,7 +271,7 @@ export class PasteUseCase {
                 } catch { /* 目标元数据取不到：保留零值兜底，不影响冲突流程本身 */ }
               }
             }
-            this.ports.conflict.enqueue({
+            this._enqueueConflict({
               localPath: destFilePath,
               remoteDir,
               fileName: safeName,
@@ -273,7 +294,7 @@ export class PasteUseCase {
               path.posix.dirname(entry.fullPath ?? ''),
               safeName,
             )
-            this.ports.conflict.enqueue({
+            this._enqueueConflict({
               localPath: destFilePath,
               remoteDir: path.posix.dirname(entry.fullPath ?? ''),
               fileName: safeName,
@@ -332,12 +353,13 @@ export class PasteUseCase {
         if (st) destStat = st
       }
 
-      this.ports.conflict.enqueue(this._buildFileConflictItem(
+      this._enqueueConflict(this._buildFileConflictItem(
         entry, destPane, destPath, source, destFilePath, isSamePane, direction, destStat, mode,
       ))
     }
 
-    return this.ports.conflict.queueLength() > 0
+    // ★ 2026-10-30 P2 修复（SF-21）：只认「本次预检实际入队了多少」，不看全局队列长度
+    return this._scanEnqueued > 0
   }
 
   async execute(
@@ -356,8 +378,11 @@ export class PasteUseCase {
         if (!srcPath) continue
         // ★ 2026-07-25：剥离服务器返回文件名中的目录组件与 ..，防止路径穿越
         // ★ 2026-10-13 P1 修复：同 scanConflicts——落本地补 localEntryName 回退，避免静默丢失
-        const safeName = safeEntryName(entry.name)
-          ?? (destPane === 'local' ? localEntryName(entry.name) : null)
+        // ★ 2026-10-30 P1 修复（SF-02 配套）：同 scanConflicts——落本地严格 + 全角转写回退；
+        //   落远端用 POSIX 口径，避免 Windows 客户端误拦远端合法名。
+        const safeName = destPane === 'local'
+          ? (safeEntryName(entry.name) ?? localEntryName(entry.name))
+          : safeRemoteEntryName(entry.name)
         if (!safeName) {
           log.warn('skip unsafe paste entry name:', entry.name)
           continue
@@ -472,10 +497,12 @@ export class PasteUseCase {
       // ★ 2026-07-25：直接使用已净化的 destFilePath（剥离了目录组件与 ..）
       const destDir = destFilePath
       if (await this.ports.fs.localDirExists(destDir)) {
-        this.ports.conflict.enqueue({
+        this._enqueueConflict({
           localPath: destDir,
           remoteDir: path.posix.dirname(srcPath),
-          fileName: entry.name,
+          // ★ 2026-10-30 P2 修复（SF-20）：落本地的目录冲突项，fileName 取实际落地名
+          //   （destDir 已过 safeEntryName/localEntryName 净化），不要用远端原名。
+          fileName: path.basename(destDir),
             remotePath: srcPath,
             localStat: { size: 0, mtimeMs: Date.now() } as Stats,
             direction: 'download',
@@ -531,6 +558,13 @@ export class PasteUseCase {
       : (source === 'local'
         ? { size: entry.size ?? 0, mtimeMs: entry.mtimeMs ?? Date.now() } as Stats
         : destStat)
+    // ★ 2026-10-30 P2 修复（SF-20）：fileName 必须与路径字段同源（净化后的名字）。
+    //   原实现 `fileName: entry.name`，而 localPath/remotePath 都用 safeName 拼——
+    //   落本地时 `a:b.txt` 被转写为 `a：b.txt`，冲突框「重命名」却按原名 `a:b.txt` 拼新路径，
+    //   父目录里不存在这个名字 ⇒ 重命名必失败；标题展示的名字也与实际落点不一致。
+    const conflictName = destPane === 'local'
+      ? (safeEntryName(entry.name) ?? localEntryName(entry.name))
+      : (safeEntryName(entry.name) ?? entry.name)
     return {
       localPath: isSamePane ? destFilePath : (source === 'local' ? (entry.fullPath ?? '') : destFilePath),
       // ★ 2026-10-13 P2 修复：与上方**目录**分支（约 208-220 行）保持同口径 —— 目录分支早在
@@ -540,7 +574,7 @@ export class PasteUseCase {
       //   消费方 panel-conflict-resolver 以 `remotePath || join(remoteDir, fileName)` 兜底，
       //   一旦 remotePath 为空就会拼出 `D:\photos\a.txt` 这种混合分隔符路径。
       remoteDir: destPane === 'remote' ? destPath : '',
-      fileName: entry.name,
+      fileName: conflictName,
       remotePath: isSamePane ? (entry.fullPath ?? '') : (destPane === 'remote' ? destFilePath : (entry.fullPath ?? '')),
       localStat,
       direction,
@@ -709,7 +743,35 @@ export class PanelPasteAdapter {
           log.info('copyLocalFile:', src, '->', dest)
           return fs.copyFile(src, dest)
         },
-        renameLocal: (src, dest) => fs.rename(src, dest),
+        // ★ 2026-10-30 P1 修复（SF-03）：跨卷剪切退化为「复制 → 成功后再删源」。
+        //
+        //   原实现是裸 `fs.rename`：Windows 上 MoveFile 不允许跨卷（D: → C:），
+        //   Linux/macOS 跨挂载点同理，Node 一律返回 EXDEV。用户在同一栏里「剪切→粘贴到另一个盘」
+        //   是最常见的本地操作之一，原实现整批抛错、文件一个都没动，而用户以为已经移动走了。
+        //   退化语义与 `_deleteSourceIfCut` 一致：**复制成功才删源**，任何一步失败都保留源。
+        renameLocal: async (src, dest) => {
+          // 自我覆盖守卫：同路径不做事（fs.rename 同路径是 no-op，这里避免无谓分支）
+          try {
+            if (path.resolve(src) === path.resolve(dest)) return
+          } catch { /* 路径异常交给下面的 rename 抛错 */ }
+          try {
+            await fs.rename(src, dest)
+            return
+          } catch (e: any) {
+            const code = String(e?.code ?? '')
+            if (code !== 'EXDEV' && code !== 'EPERM' && code !== 'EACCES') throw e
+            const st = await fs.lstat(src).catch(() => null)
+            if (!st) throw e
+            log.info('[paste] renameLocal fallback to copy+delete:', code, src, '->', dest)
+            if (st.isDirectory()) {
+              await copyLocalDir(src, dest)
+              await fs.rm(src, { recursive: true, force: true })
+            } else {
+              await fs.copyFile(src, dest)
+              await fs.unlink(src)
+            }
+          }
+        },
         copyRemoteDir: (src, dest, isDir) => copyRemoteDir(src, dest, isDir, remoteCopyDeps),
         renameRemote: (src, dest) => host.renameRemote(src, dest),
         deleteLocalRecursive: (p) => deleteLocalRecursive(p),

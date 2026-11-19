@@ -137,6 +137,16 @@ export async function deleteRemoteRecursive(
     if (!session) failed?.push(remotePath)
     return
   }
+  // ★ 2026-11-15 审计修复（A4）：顶层入口与 SSH rm 通道共用同一危险路径闸门。
+  //   子项已由下方「子树越界断言」保证落在当前目录之内，无需逐层重复判定。
+  if (depth === 0) {
+    const check = checkRemoteDeleteTarget(remotePath)
+    if (check.dangerous) {
+      log.warn(`deleteRemoteRecursive refused ${check.reason}:`, remotePath, '→', check.resolved)
+      failed?.push(remotePath)
+      return
+    }
+  }
   const lim = limiter ?? new ConcurrencyLimiter(DELETE_CONCURRENCY)
 
   // 每一层都必须在 readdir 前识别 symlink。仅依赖父目录 listing 的 isSymlink
@@ -308,16 +318,29 @@ export interface RemoteCopyDeps {
  *
  * 默认「不可用」是刻意的**保守默认**：误判「可用」会让 base64 -d 失败、替换结果为空串
  * （命令变成 cp -a -- "" ""，静默什么都没做）；误判「不可用」只是退回同样安全的
- * 单引号转义方案。探测一次即锁定，避免每条远程命令都多一次 exec 往返。
+ * 单引号转义方案。
+ *
+ * ★ 2026-10-30 P2 修复（SF-16）：缓存**按连接（source 对象）分槽**，不再是一个全局锁。
+ *
+ *   原实现是 `let _remoteHasBase64` + `_remoteBase64Probed` 两个模块级变量，
+ *   首次探测后就永久锁定、且与主机无关：先连「有 base64」的服务器 A（锁成 true），
+ *   再连 BusyBox 的服务器 B 时 `shellQuotePosix` 仍产出 `base64 -d` 形式 ——
+ *   B 上没有 base64 ⇒ 替换结果为空串 ⇒ `cp -a -- "" ""` 静默成功但什么也没复制、
+ *   `rm -rf -- ""` 什么也没删。表现就是：B 上的 r2r 复制退化成「下载再上传」、
+ *   删除退化成逐文件，而且完全没有报错，极难定位。
  */
-let _remoteHasBase64 = false
-let _remoteBase64Probed = false
+const _remoteBase64BySource = new WeakMap<object, boolean>()
 
-export function shellQuotePosix(value: string): string {
+export function shellQuotePosix(value: string, source?: unknown): string {
   // ① 空值早退：避免产出 `''` 之外的歧义
   if (value === '') return "''"
-  // ② base64 方案：能力可用时最彻底（单行、无任何 shell 展开）
-  if (_remoteHasBase64) return `"$(echo '${Buffer.from(value).toString('base64')}' | base64 -d)"`
+  // ② 有 source（连接/执行器）时按该 source 的探测结果决定；
+  //    没传 source 的调用点（tar 通道、digest 的远端命令）一律走单引号 ——
+  //    它们拿不到「这条命令发往哪个连接」，用别的连接结论反而会误判，单引号方案与之等价安全。
+  const usable = source && (typeof source === 'object' || typeof source === 'function')
+    ? _remoteBase64BySource.get(source as object) === true
+    : false
+  if (usable) return `"$(echo '${Buffer.from(value).toString('base64')}' | base64 -d)"`
   // ③ 纯 POSIX 单引号转义（零外部依赖）：内部 ' → '\''
   return `'${value.replace(/'/g, "'\\''")}'`
 }
@@ -325,9 +348,8 @@ export function shellQuotePosix(value: string): string {
 /**
  * 探测远端是否具备 base64 命令（在首个真正需要转义的远程命令执行前调一次）。
  *
- * ★ 2026-10-12：探测结果一旦确定即**永久锁定**（_remoteBase64Probed），
- *   避免每条远程命令都多一次 exec 往返 —— 与本项目 digest 服务的 remoteBin 探测同范式。
- *   判定的保守方向见 _remoteHasBase64 的声明处注释。
+ * ★ 2026-10-30 P2 修复（SF-16）：结果按 source 缓存（WeakMap），不再全局锁定一次。
+ *   同一连接只探测一次（省掉每条远程命令的额外 exec 往返），换连接会重新探测。
  *
  * @param exec 远程命令执行器。**两种形态都支持**（供不同调用方使用）：
  *   ① (cmd, timeoutMs?, opts?) => Promise<string> —— tar 通道只有 deps.exec、拿不到 ssh 对象；
@@ -336,25 +358,27 @@ export function shellQuotePosix(value: string): string {
 export async function probeRemoteBase64(
   source: unknown,
 ): Promise<void> {
-  if (_remoteBase64Probed) return
+  const key = (source && (typeof source === 'object' || typeof source === 'function'))
+    ? source as object
+    : null
+  if (!key) return // 拿不到执行器：保持「不可用」的保守默认，不写缓存
+  if (_remoteBase64BySource.has(key)) return
   const PROBE = 'command -v base64 2>/dev/null'
   try {
     let out: string | null = null
     if (typeof source === 'function') {
       out = await (source as (c: string, t?: number) => Promise<string>)(PROBE, 8000)
-    } else if (source && typeof source === 'object') {
-      out = await execSshCommand(source as any, PROBE, 8000, { retryOnEmpty: true })
     } else {
-      return // 拿不到执行器：保持「不可用」的保守默认，不锁定
+      out = await execSshCommand(source as any, PROBE, 8000, { retryOnEmpty: true })
     }
-    _remoteHasBase64 = !!(out && String(out).trim())
-    if (!_remoteHasBase64) {
+    const ok = !!(out && String(out).trim())
+    _remoteBase64BySource.set(key, ok)
+    if (!ok) {
       log.info('[shell-quote] remote has no base64, falling back to POSIX single-quote escaping')
     }
-    _remoteBase64Probed = true
   } catch {
-    _remoteHasBase64 = false
-    _remoteBase64Probed = true
+    // ★ 探测失败不写缓存：下次该连接仍会重试（此前是永久锁成 false，一次网络抖动就再也不用 base64）
+    log.warn('[shell-quote] base64 probe failed, using POSIX single-quote escaping for this session')
   }
 }
 
@@ -382,7 +406,7 @@ export async function tryRemoteCpViaSsh(
   // ★ 2026-10-12：首次使用前探测 base64（缺失则 shellQuotePosix 自动回退单引号转义）
   await probeRemoteBase64(sshSession)
   const cmd =
-    `cp ${flag} -- ${shellQuotePosix(src)} ${shellQuotePosix(dest)} ` +
+    `cp ${flag} -- ${shellQuotePosix(src, sshSession)} ${shellQuotePosix(dest, sshSession)} ` +
     `&& printf 'SFTP_PLUS_CP_OK\\n' || printf 'SFTP_PLUS_CP_FAIL\\n'`
   try {
     // ★ 2026-09-14 F2：cp 非幂等——首次成功而标记丢失时空输出重放会把 src 复制进已存在的 dest（嵌套副本），禁用重试
@@ -400,6 +424,46 @@ export async function tryRemoteCpViaSsh(
 }
 
 /**
+ * ★ 2026-11-15 审计修复（A4，修改人：DD1024z，修改时间：2026-11-15）：
+ *   递归删除的**唯一**危险路径判定点 —— 原先只有 SSH `rm -rf` 通道有黑名单/深度闸门，
+ *   而它失败后回退的 `deleteRemoteRecursive` 只有 depth>100 与 symlink 判定；两者不一致
+ *   会让「被黑名单拒绝的路径」在回退通道里被照删（如 /home、/tmp）。
+ *   另：面板删除直接使用列表项的 fullPath，而列表未过滤 `..`/含分隔符/bidi 控制符的名字
+ *   （恶意/被控服务端可返回一行“看起来正常”的 `..` 项），复用一个闸门即可兜住。
+ */
+const REMOTE_PROTECTED_ROOTS = new Set(['/bin', '/boot', '/dev', '/etc', '/lib', '/lib64', '/proc', '/root', '/sbin', '/sys', '/usr', '/var', '/home', '/Users'])
+
+function checkRemoteDeleteTarget(remotePath: string): { dangerous: false; resolved: string } | { dangerous: true; resolved: string; reason: string } {
+  const resolved = path.posix.resolve(String(remotePath ?? '').replace(/\/+$/, '') || '/')
+  if (resolved === '/' || resolved === '.' || resolved === '..' || resolved.length < 2) {
+    return { dangerous: true, resolved, reason: 'dangerous path' }
+  }
+  if (REMOTE_PROTECTED_ROOTS.has(resolved)) return { dangerous: true, resolved, reason: 'system path' }
+  // 深度过浅（仅一层，如 /tmp）同样拒绝：避免一次误操作清空整层目录
+  const depth = resolved.split('/').filter(Boolean).length
+  if (depth < 2) return { dangerous: true, resolved, reason: 'shallow path' }
+  if (/[\x00-\x1f\x7f\u202a-\u202e\u2066-\u2069]/.test(resolved)) {
+    return { dangerous: true, resolved, reason: 'control/bidi chars in path' }
+  }
+  return { dangerous: false, resolved }
+}
+
+/**
+ * ★ 2026-11-15 审计修复（A4）：被控服务端返回的条目名可能含 `..`/分隔符/不可见 bidi 字符。
+ *   列表侧统一丢弃（不显示、不可选），从源头断掉「选中一个视觉正常、实际指向面板之外的条目」。
+ *   ⚠ 反斜杠在 POSIX 上是合法文件名字符，不能一律拒绝（会把正常文件从列表里藏掉）；
+ *     只在「反斜杠 + 路径穿越/盘符/UNC」这种明确指向另一个路径时才判定为不安全。
+ */
+export function isUnsafeRemoteEntryName(name: string): boolean {
+  const raw = String(name ?? '')
+  if (!raw || raw === '.' || raw === '..') return true
+  if (/[\/\x00-\x1f\x7f]/.test(raw)) return true
+  if (/[\u202a-\u202e\u2066-\u2069]/.test(raw)) return true
+  if (/\\/.test(raw) && (/(^|\\)\.\.($|\\)/.test(raw) || /^[A-Za-z]:/.test(raw) || raw.startsWith('\\\\'))) return true
+  return false
+}
+
+/**
  * ★ 2026-08-11：经 SSH exec 在远端执行 `rm -rf` 整目录删除（服务端一次处理，
  *   无逐文件 SFTP 往返）。成功返回 true；通道不可用、非 POSIX 环境或命令失败返回
  *   false，由调用方回退 SFTP 并发递归删除。
@@ -409,31 +473,16 @@ export async function tryRemoteCpViaSsh(
 export async function tryRemoteRmViaSsh(sshSession: unknown, remotePath: string): Promise<boolean> {
   if (!sshSession || !remotePath) return false
   if (remotePath.includes('\0')) return false
-  const resolved = path.posix.resolve(remotePath.replace(/\/+$/, '') || '/')
-  if (
-    resolved === '/' ||
-    resolved === '.' ||
-    resolved === '..' ||
-    resolved.length < 2
-  ) {
-    log.warn('Remote server-side rm refused dangerous path:', remotePath, '→', resolved)
+  const check = checkRemoteDeleteTarget(remotePath)
+  if (check.dangerous) {
+    log.warn(`Remote server-side rm refused ${check.reason}:`, remotePath, '→', check.resolved)
     return false
   }
-  const banned = new Set(['/bin', '/boot', '/dev', '/etc', '/lib', '/lib64', '/proc', '/root', '/sbin', '/sys', '/usr', '/var', '/home', '/Users'])
-  if (banned.has(resolved)) {
-    log.warn('Remote server-side rm refused system path:', remotePath, '→', resolved)
-    return false
-  }
-  // 深度过浅（仅一层，如 /tmp）也拒绝 SSH 快删，回退受限 SFTP
-  const depth = resolved.split('/').filter(Boolean).length
-  if (depth < 2) {
-    log.warn('Remote server-side rm refused shallow path:', remotePath, '→', resolved)
-    return false
-  }
+  const resolved = check.resolved
   // ★ 2026-10-12：探测 base64（缺失则 shellQuotePosix 自动回退单引号转义）
   await probeRemoteBase64(sshSession)
   const cmd =
-    `rm -rf -- ${shellQuotePosix(resolved)} ` +
+    `rm -rf -- ${shellQuotePosix(resolved, sshSession)} ` +
     `&& printf 'SFTP_PLUS_RM_OK\\n' || printf 'SFTP_PLUS_RM_FAIL\\n'`
   try {
     // 巨型目录服务端删除可能超过默认 12s，放宽到 60s

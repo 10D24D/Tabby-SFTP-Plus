@@ -4,8 +4,16 @@
  *   存储到 localStorage，避免污染 Tabby 配置文件
  * @创建人：DD1024z + Claude
  * @创建时间：2026-06-21
- * @修改人：DD1024z + Step-5-Preview
- * @修改时间：2026-10-19 — P2-25 修复：僵尸收口（>10min 的 pending 改判 interrupted）原先只由
+ * @修改人：DD1024z + Hy4
+ * @修改时间：2026-11-09 — TransferLogEntry 新增可选 displayName：多选「拖出到系统」按源文件拆成
+ *             N 条记录时，对话框的文件名列取它，否则 getLogFileName 会一律取 localPath 的
+ *             basename（打包场景下 N 行全是同一个 ZIP 名）。导入白名单同步放开。
+ *              2026-11-02 — 「清除/删除记录」清不掉（清完立刻复活）：save() 开头的
+ *              `_loadTombstones()` 是**整体覆盖**内存墓碑，而 `_tombstone()` 只 push 不落盘 ⇒
+ *              只要 localStorage 里已有墓碑历史，刚加入的新 id 就会被旧列表冲掉，合并时
+ *              判定「没删过」→ 又把它从存储里并回来。改为**并集**（存储 ∪ 内存），
+ *              既保留 SF-07 的跨实例能力，又不吞掉本实例新建的墓碑。
+ *              2026-10-19 — P2-25 修复：僵尸收口（>10min 的 pending 改判 interrupted）原先只由
  *              实例级 `_bootReaped` 把关，而本服务每个面板/设置页各 new 一个实例 ⇒
  *              「第二个面板一构造」就把第一个面板正在跑的长传输标成「已中断」（传输毫发无损，
  *              只有日志/对话框显示错位）。改为进程级认主（mainInstance）：只有本进程第一个
@@ -72,6 +80,12 @@ export type TransferLogEntry = {
    *  UI 通过这个字段区分「真的下载/上传了」与「内容相同未传」，
    *  解决「重复拖同一个文件看不到任何反馈」的问题。 */
   skippedAsDuplicate?: { reason: 'content-identical'; algo?: 'sha1' | 'sha256'; at: number }
+  /**
+   * ★ 2026-11-09：对话框「文件名」列的覆盖值（不改变 localPath/remotePath 的路径语义）。
+   *   多选拖出打包时 N 条记录的 localPath 都是同一个落盘文件名，靠它区分每个源文件。
+   *   仅影响展示，导出/筛选/清除均不读它；旧记录无此字段时回退 getLogFileName 的原有逻辑。
+   */
+  displayName?: string
 }
 
 const STORAGE_KEY = 'sftp-plus-transfer-logs'
@@ -151,19 +165,35 @@ export class SftpTransferLogService {
       }
     } catch { /* fall through */ }
     // 迁移：从旧版 Tabby 配置加载（仅首次。检查长度>0 避免重复空删）
+    let migrated = false
     if (this.configService?.store) {
       try {
         const cfg = this.configService.store['tabby-sftp-plus']
         if (cfg && Array.isArray(cfg.transferLogs) && cfg.transferLogs.length > 0) {
           this.logs = this._sanitizeIds([...cfg.transferLogs])
           this._reapStaleEntriesOnce()
-          // 迁移后彻底删除 config 中的 transferLogs（传输日志只存 localStorage）
-          delete cfg.transferLogs
-          try { this.configService.save() } catch {}
-          this.save()
-          return
+          // 迁移后清空 config 中的 transferLogs（传输日志只存 localStorage）
+          // ★ 2026-10-30 P1 修复（SF-05）：`delete cfg.transferLogs` 在严格模式下**抛 TypeError**。
+          //   宿主 ConfigProxy 对每个 defaults 键都用 Object.defineProperty({configurable:false})
+          //   定义访问器（tabby-core dist 里的 `for (const key in defaults)`），而产物首行是
+          //   `(function(){'use strict';…`——delete 不可配置属性 ⇒ TypeError。
+          //   后果是整段迁移被外层 catch 吞掉、跳到最后 `this.logs = []`：
+          //     ① 旧 config 里的 transferLogs 永远删不掉，每次启动重跑一次迁移；
+          //     ② 迁移结果从未写入 localStorage（save() 在 delete 之后），而「导出传输记录」
+          //        只读 localStorage ⇒ **用户导出的记录是空数组**；③ 内存里的旧日志当场被清空。
+          //   改为赋值空数组：走 setter，宿主 deepEqual 命中默认值时会自行 delete real[key]。
+          cfg.transferLogs = []
+          migrated = true
         }
-      } catch {}
+      } catch (e) {
+        log.warn('[transfer-log] migrate from config failed:', e)
+      }
+    }
+    if (migrated) {
+      // ★ 必须放在 try 之外：迁移写回 localStorage 是本次迁移的交付物，不能被配置侧异常连坐
+      try { this.configService?.save() } catch (e) { log.warn('[transfer-log] config save after migrate failed:', e) }
+      this.save()
+      return
     }
     this.logs = []
   }
@@ -232,7 +262,13 @@ export class SftpTransferLogService {
       if (raw) {
         const parsed = JSON.parse(raw)
         if (Array.isArray(parsed)) {
-          this._tombstones = parsed.filter((x: unknown) => typeof x === 'string').slice(-MAX_TOMBSTONES)
+          const stored = parsed.filter((x: unknown) => typeof x === 'string') as string[]
+          // ★ 2026-11-02：**并集，不是覆盖**。
+          //   _tombstone() 只往内存 push、不落盘；save() 开头若用存储里的旧列表整体覆盖内存，
+          //   刚清掉的 id 会被冲掉 ⇒ 下面的合并判定「没删过」⇒ 记录从存储里复活
+          //   （表现为「清除确认后没成功」，且只在 localStorage 已有墓碑历史时才出现）。
+          //   顺序：stored 在前、内存新增在后 —— 超长时 slice(-MAX) 优先保留刚加的。
+          this._tombstones = [...new Set([...stored, ...this._tombstones])].slice(-MAX_TOMBSTONES)
         }
       }
     } catch { /* ignore */ }
@@ -240,6 +276,35 @@ export class SftpTransferLogService {
 
   private _saveTombstones(): void {
     try { localStorage.setItem(TOMBSTONE_KEY, JSON.stringify(this._tombstones)) } catch { /* ignore */ }
+  }
+
+  /**
+   * ★ 2026-10-30 P2 修复（SF-27）：传输日志落盘防抖。
+   *
+   * `add` / `update` 原先每调用一次就 `save()`，而 `save()` 是「读 localStorage → JSON.parse →
+   * Map 合并 → 排序 → JSON.stringify → new Blob 估算字节 → setItem」的**全量重写**。
+   * 目录传输 500 个文件 ≈ 1000 次全量重写（每次都在主线程同步序列化几 MB JSON），
+   * 传输期间 UI 卡顿、进度条掉帧，还会把 500 行 `[transfer-log] add` 灌进与其他插件共用的 log.txt。
+   * 改为 400ms 合并落盘：完成态/中断态在合并时本就以最后一次 update 为准，不会丢信息。
+   * 删除/清空仍走即时 `save()`（用户期望立刻消失），导出/读取读的是内存，不受影响。
+   */
+  private _saveTimer: any = null
+
+  private _scheduleSave(): void {
+    if (this._saveTimer) return
+    this._saveTimer = setTimeout(() => {
+      this._saveTimer = null
+      try { this.save() } catch (e) { log.warn('[transfer-log] debounced save failed:', e) }
+    }, 400)
+  }
+
+  /** 立即落盘（面板销毁 / 导出 / 删除后等需要强一致的场景） */
+  flushSave(): void {
+    if (this._saveTimer) {
+      clearTimeout(this._saveTimer)
+      this._saveTimer = null
+    }
+    try { this.save() } catch (e) { log.warn('[transfer-log] flush save failed:', e) }
   }
 
   private _tombstone(id: string | null | undefined): void {
@@ -255,6 +320,12 @@ export class SftpTransferLogService {
     //   整体覆盖丢失其它实例新增的条目；合并后按时间戳排序保持时序。
     // ★ 2026-08-10 修复 #9：合并时跳过 tombstone 中的 id——否则 remove/clear/clearProfile
     //   刚删掉的条目会被存储中的旧数据复活（"记录无法清除"的根因）
+    // ★ 2026-10-30 P2 修复（SF-07）：合并前**重读** tombstone。
+    //   原实现用构造时加载的快照，此后不再更新：面板 A 与面板 B 各持一份服务实例，
+    //   A 点「清除记录」写的是 A 的内存 + localStorage 里的 tombstone，B 之后任何一次 save()
+    //   都认为那些条目还在 ⇒ 原样合并写回 ⇒ 用户看到「清除了但记录又冒出来」。
+    //   MAX_TOMBSTONES 拦不住，因为 A 的 tombstone 根本不在 B 的集合里。
+    this._loadTombstones()
     const deleted = new Set(this._tombstones)
     try {
       const raw = localStorage.getItem(STORAGE_KEY)
@@ -362,6 +433,7 @@ export class SftpTransferLogService {
         pending: false,
         transferMode: modes.has(mode) ? mode : undefined,
         fileCount: finiteNumber(source.fileCount),
+        displayName: source.displayName == null ? undefined : String(source.displayName).slice(0, 512),
       })
     }
     this.logs = this._sanitizeIds(imported)
@@ -389,7 +461,8 @@ export class SftpTransferLogService {
     this.logs.push(fullEntry)
     const _name = (entry.remotePath || entry.localPath || '').split('/').pop() || (entry.localPath || '').split(/[\\/]/).pop() || '?'
     log.info('[transfer-log] add #' + this.logs.length + ' op=' + entry.operation + ' profile=' + (entry.profileName ?? '∅') + ' file=' + _name + ' pending=' + !!entry.pending)
-    this.save()
+    // ★ 2026-10-30 P2 修复（SF-27）：防抖落盘（原实现每次都全量重写 localStorage）
+    this._scheduleSave()
     return fullEntry
   }
 
@@ -403,7 +476,8 @@ export class SftpTransferLogService {
     const idx = this.logs.findIndex(l => l.id === id)
     if (idx < 0) return false
     Object.assign(this.logs[idx], updates)
-    this.save()
+    // ★ 2026-10-30 P2 修复（SF-27）：防抖落盘
+    this._scheduleSave()
     return true
   }
 

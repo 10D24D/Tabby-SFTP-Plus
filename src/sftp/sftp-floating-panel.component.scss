@@ -969,6 +969,14 @@
     .sftp-root.has-col-borders .entry > span {
       border-right: 1px solid var(--_border, rgba(128,128,128,0.2));
     }
+    /* ★ 2026-11-15（用户反馈，修改人：DD1024z）：分组模式下不画列边框。
+       分组头行是「一行跨全部列」的单 span（.group-inner），本身没有列分隔线，而内容行有 ⇒
+       竖线到组头处就断了，像表格缺格；且组头那个全宽 span 只会在行最右端多出一条孤立竖线。
+       分组视图按「分组列表」呈现、不按表格呈现，所以整组都不画竖线（普通列表不受影响）。
+       特异性 5 个 class > 上面 3 个 class，无需靠顺序压制。 */
+    .sftp-root.has-col-borders .pane-list.has-groups .entry > span {
+      border-right: none;
+    }
     /* 面板圆角通过 sftp-body 的 border-radius + overflow:hidden 实现 */
 
     /* ★ 2026-10-20（Deepseek-V4.1-Flash）：nth-child 斑马纹**仅用于非分组列表**（.pane-list:not(.has-groups)）。

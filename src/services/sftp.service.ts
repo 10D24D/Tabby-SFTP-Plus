@@ -421,8 +421,8 @@ export class SftpConnectionService {
         if (endResult && typeof (endResult as Promise<unknown>).catch === 'function') {
           (endResult as Promise<unknown>).catch(() => {})
         }
-      } catch { /* ignore */ }
-    }).catch(() => { /* open 失败无需处理 */ })
+      } catch (e) { log.warn('late SFTP channel end failed:', (e as Error)?.message) }
+    }).catch((e) => { log.warn('SFTP open promise rejected in timeout handler:', (e as Error)?.message) })
     let timeoutId: ReturnType<typeof setTimeout> | undefined
     const timeoutPromise = new Promise<never>((_, reject) => {
       timeoutId = setTimeout(() => {
@@ -547,19 +547,19 @@ export class SftpConnectionService {
         next: () => {
           log.info('SSH session destroyed, dropping cached SFTP channel')
           this.forceInvalidate(sshSession)
-          try { sub.unsubscribe() } catch { /* ignore */ }
+          try { sub.unsubscribe() } catch (e) { log.warn('SSH destroy subscription unsubscribe failed:', (e as Error)?.message) }
           this._destroyWatched.delete(sshSession)
         },
       })
       this._destroySubs.set(sshSession, sub)
-    } catch { /* 订阅失败不影响主流程 */ }
+    } catch (e) { log.warn('SSH willDestroy$ subscribe failed:', (e as Error)?.message) }
   }
 
   /** 主动摘掉某个 SSH 会话的销毁监听（测试/诊断用；正常由 willDestroy$ 自行收口） */
   unwatchSessionDestroy(sshSession: SSHSessionLike): void {
     const sub = this._destroySubs.get(sshSession)
     if (sub) {
-      try { sub.unsubscribe() } catch { /* ignore */ }
+      try { sub.unsubscribe() } catch (e) { log.warn('unwatchSessionDestroy unsubscribe failed:', (e as Error)?.message) }
       this._destroySubs.delete(sshSession)
     }
     this._destroyWatched.delete(sshSession)

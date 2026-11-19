@@ -24,6 +24,7 @@ declare module 'tabby-core' {
   export class NotificationsService {
     error(title: string, message: string): void
     notice(title: string, message?: string): void
+    info(title: string, message?: string): void
   }
   export class Logger {
     debug(...args: any[]): void

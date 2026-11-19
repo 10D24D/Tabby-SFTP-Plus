@@ -1406,12 +1406,25 @@ export async function downloadRemoteFile(
     // 已知空文件：直接落盘并（可选）登记进度
     // ★ 2026-08-26 M3：仅当调用方显式传入 size===0 时才走空文件短路；
     //   stat 失败收成 0 时 size 为 undefined，不得跳过完整性校验
-    if (sz === 0 && size !== undefined && size === 0) {
+    // ★ 2026-10-30 P1 修复（SF-09）：两处口径统一。
+    //   (1) 判定改成 `sz === 0`：此前要求「调用方显式传 size===0」，于是**stat 确认远端就是 0 字节**
+    //       但调用方传 undefined/-1 时反而落到整文件通道 —— 适配器构造即 complete、write() 一次不调、
+    //       `.tmp` 从未创建 ⇒ 收尾必然抛 "missing local temp file" ⇒ **0 字节文件下载必失败**。
+    //       sz===0 只可能来自「调用方显式 0」或「stat 明确返回 0」（stat 失败是 -1，不会误入），
+    //       且上方已对「调用方声称 0 但远端其实有大内容」做过复核。
+    //   (2) catch 不再吞错：EACCES / ENOSPC / EPERM 时返回 false 走失败分类，
+    //       而不是「返回 true + 记成功 + 目标位置没有文件」。
+    if (sz === 0) {
       try {
         const fd = await fsPromises.open(tmpPath, 'w')
         await fd.close()
         await fsPromises.rename(tmpPath, localPath)
-      } catch { /* ignore */ }
+      } catch (e) {
+        log.error(`${opts.track ? 'Empty file download failed' : 'Empty file download failed (raw)'}: ${remotePath} :: ${errText(e)}`)
+        await unlinkQuiet(tmpPath)
+        if (opts.track) ctx.onDownloadError?.(remotePath, e)
+        return false
+      }
       if (opts.track && ctx.trackTransfer) {
         const dl = new LocalPathFileDownload(localPath, mode ?? 0o644, 0)
         ctx.trackTransfer(dl, 'download', remotePath, localPath, opts.logOperation)
@@ -1445,6 +1458,11 @@ export async function downloadRemoteFile(
     }
     if (chunked.kind === 'aborted') {
       // 暂停：保留 .tmp 供续传；取消 / 外部中止：清掉临时文件
+      // ★ 2026-10-30 P2 修复（SF-13）：两条分支都先关 fd 再走。
+      //   分块通道不经 Tabby 的 transfer.close()，fd 一直开着；原实现暂停时直接 return，
+      //   每暂停一次泄漏一个打开的写句柄，Windows 上还会让 .tmp「仍被打开」——
+      //   后续 rename/unlink 更易失败（上传侧的对称分支一直是先 up.close() 的）。
+      try { await dl.close() } catch { /* 已关闭或已失效：忽略 */ }
       if (chunked.reason === 'paused') {
         if (opts.track) log.info('Download paused:', remotePath)
         return false
@@ -1513,6 +1531,15 @@ export async function downloadRemoteFile(
       if (!localStat) throw new Error('Download integrity check failed: missing local temp file')
       if (sz > 0 && localStat.size !== sz) {
         throw new Error(`Size mismatch: remote=${sz} local=${localStat.size}`)
+      }
+      // ★ 2026-10-30 P1 修复（SF-08）：大小未知时补一次落盘前复核。
+      //   原实现 `sz > 0 &&` 让 sz === -1 整段跳过 ⇒ 远端中途 EOF（文件被别人截断 / 服务端异常 /
+      //   网关提前收流）但 download() 正常 resolve 时，**残缺文件被 rename 成正式文件并记成功**，
+      //   用户后续基于它覆盖/编辑就是二次数据丢失。
+      //   同文件的另两条路径（downloadRemoteToTempFile / _rawReadLoop）本来就有这道兜底，
+      //   只有主通道漏了。拿不到远端大小时 verifyUnknownSizeDownload 只 warn，不误杀。
+      if (sz <= 0) {
+        await verifyUnknownSizeDownload(ctx.session, remotePath, localStat.size)
       }
       await fsPromises.rename(tmpPath, localPath)
       // ★ 2026-09-21：未知大小（sz=-1）的适配器不会自行置 complete，在此显式收尾，
@@ -1593,6 +1620,17 @@ export interface RemoteToRemoteState {
 export function createRemoteToRemoteState(): RemoteToRemoteState {
   return { paused: false, cancelled: false, completedBytes: 0 }
 }
+
+/**
+ * ★ 2026-10-30 P2 修复（SF-14）：远程↔远程「同一目标会话 + 同一目标路径」的并发守卫。
+ *
+ * 原实现没有任何同名守卫，且两端都会落到固定的 `dstPath + '.tabby-upload'` 临时文件：
+ * 两条 r2r 同时写同一目标（例如同一批里既「复制到此」又「移动到此处」，或多拖了一次）时，
+ * 两个 raw 写流会**交叉写入同一个临时文件** → 内容错位 → 先后 rename 成正式文件互相覆盖，
+ * 最终得到一个大小对、内容坏的成品，且两条传输都报成功。
+ * 上传（B3/2026-09-21）与下载侧早就加了同名守卫，只有 r2r 这条通道漏了。
+ */
+const activeR2rTargets = new WeakMap<object, Set<string>>()
 
 /**
  * 把「源会话句柄读」封装成一个 upload 源对象（鸭子类型），喂给目标会话的
@@ -1749,6 +1787,39 @@ async function writeUploadSourceToRemote(
  * 返回 true 表示传输完成（取消 / 暂停 / 失败均为 false），与 uploadLocalFile / downloadRemoteFile 对齐。
  */
 export async function transferRemoteToRemoteFile(
+  srcSession: SFTPSessionLike,
+  srcPath: string,
+  dstSession: SFTPSessionLike,
+  dstPath: string,
+  opts: {
+    size?: number
+    mode?: number
+    state?: RemoteToRemoteState
+    onProgress?: (bytes: number) => void
+  } = {},
+): Promise<boolean> {
+  // ★ 2026-10-30 P2 修复（SF-14）：同一目标会话 + 同一目标路径只允许一条在途
+  let guard: Set<string> | null = null
+  if (dstSession && typeof dstSession === 'object') {
+    guard = activeR2rTargets.get(dstSession) ?? null
+    if (!guard) {
+      guard = new Set<string>()
+      activeR2rTargets.set(dstSession, guard)
+    }
+    if (guard.has(dstPath)) {
+      log.warn('[r2r] skip duplicate concurrent transfer to same target:', dstPath)
+      return false
+    }
+    guard.add(dstPath)
+  }
+  try {
+    return await transferRemoteToRemoteFileInner(srcSession, srcPath, dstSession, dstPath, opts)
+  } finally {
+    try { guard?.delete(dstPath) } catch { /* ignore */ }
+  }
+}
+
+async function transferRemoteToRemoteFileInner(
   srcSession: SFTPSessionLike,
   srcPath: string,
   dstSession: SFTPSessionLike,

@@ -381,6 +381,13 @@ export class ConflictResolveUseCase {
 
   /** ★ 2026-08-15 修复 #3：重入锁——防止 resolve/processNext 并发消费同一条目 */
   private _processing = false
+  /**
+   * ★ 2026-10-30 P2 修复（SF-12）：「全部覆盖 / 全部跳过 / 全部重命名」只作用于**做出选择那一刻**
+   * 已经在队列里的项。队列是面板级唯一（同一面板上并发的另一条拖拽/粘贴会往尾部追加），
+   * 原实现 `_drainQueue` 一直消费到队列为空 ⇒ 用户从未对这些新项做过选择，却被静默覆盖/跳过。
+   * 记号用对象引用（队列项是同一对象实例），shift 不影响判定。
+   */
+  private _allModeBatch: Set<ConflictQueueItem> | null = null
   /** ★ 2026-09-20：共享 transferCtx 上至少有一次覆盖/重命名成功（决定末项 skip 是 discard 还是 flip） */
   private _ctxHadSuccess = new Set<string>()
 
@@ -397,7 +404,11 @@ export class ConflictResolveUseCase {
     try {
       this.ports.ui.hideDialog()
       const { action: normalized, allMode } = normalizeConflictAction(action)
-      if (allMode) this.ports.queue.setAllMode(allMode)
+      if (allMode) {
+        this.ports.queue.setAllMode(allMode)
+        // ★ 2026-10-30 P2 修复（SF-12）：锁定「此刻已在队列里」的项为本次批量作用域
+        this._allModeBatch = new Set<ConflictQueueItem>(this.ports.queue.snapshot())
+      }
 
       const current = this.ports.queue.shift()
       if (!current) {
@@ -426,6 +437,7 @@ export class ConflictResolveUseCase {
    *  仅由 resolve / processNext 在已持有 _processing 期间调用，避免批量模式被锁拦截。 */
   private async _drainQueue(): Promise<void> {
     if (this.ports.queue.length() === 0) {
+      this._allModeBatch = null
       this.ports.queue.resetAllMode()
       this.ports.queue.resetOriginalTotal()
       this._ctxHadSuccess.clear()
@@ -446,6 +458,16 @@ export class ConflictResolveUseCase {
     }
 
     if (this.ports.queue.getAllMode() !== 'ask') {
+      // ★ 2026-10-30 P2 修复（SF-12）：队首若是「做出批量选择之后」才入队的项（不在本批次快照里），
+      //   立即结束批量模式转回逐个询问 —— 用户没对这些文件做过任何选择，不能按旧 allMode 处理。
+      const head = this.ports.queue.snapshot()[0]
+      if (head && this._allModeBatch && !this._allModeBatch.has(head)) {
+        log.warn('Conflict batch scope ended: new item enqueued during drain, back to ask:', head.fileName)
+        this._allModeBatch = null
+        this.ports.queue.resetAllMode()
+        this.ports.ui.showNextDialog()
+        return
+      }
       const item = this.ports.queue.shift()
       const mode = this.ports.queue.getAllMode()
       // ★ 2026-08-10 修复 #11：批量模式下单项失败同样不得中断队列
@@ -684,7 +706,28 @@ export class ConflictResolveUseCase {
       : buildConflictRenameName(item.fileName))
     let style: ConflictRenameStyle = 'seq'
     try { style = normalizeConflictRenameStyle(this.ports.renameStyle?.()) } catch { style = 'seq' }
-    if (style === 'time') return buildConflictRenameTimeName(item.fileName, isDir)
+    if (style === 'time') {
+      // ★ 2026-11-15 审计修复（C4，修改人：DD1024z，修改时间：2026-11-15）：
+      //   时间戳只到秒级，同一秒内多个同名冲突项会算出**同一个**目标名；下一项写进去就是
+      //   静默覆盖同批刚传完的那份（本地/远端都一样）。这里探一次存在性，撞了就退化为序号堆叠。
+      const stampName = buildConflictRenameTimeName(item.fileName, isDir)
+      let has: boolean | null = null
+      try { has = await exists(joinPath(stampName)) } catch { has = null }
+      if (has !== true) return stampName
+      for (let n = 2; n <= 999; n++) {
+        const cand = conflictRenameSeqCandidate(stampName, isDir, n)
+        let taken: boolean | null = null
+        try { taken = await exists(joinPath(cand)) } catch { taken = null }
+        if (taken === null) break
+        if (!taken) {
+          log.info('[SFTP+] conflict rename: timestamp name taken, fallback to sequence:', stampName, '->', cand)
+          return cand
+        }
+      }
+      const fallbackTime = randomName()
+      log.info('[SFTP+] conflict rename: timestamp name taken, fallback to random:', item.fileName, '->', fallbackTime)
+      return fallbackTime
+    }
     if (style === 'random') return randomName()
     for (let n = 1; n <= 999; n++) {
       const cand = conflictRenameSeqCandidate(item.fileName, isDir, n)
@@ -1042,16 +1085,28 @@ export class SftpConflictDetector implements ConflictDetectionPort {
   // ★ 2026-08-22 修复（fork #8）：同目录多文件上传不再逐文件 stat。
   //   按 parentDir 缓存一次 readdir 结果（并发单飞），目录内所有文件复用同一份 listing，
   //   仅在 listing 缺 size/mtime 时才对该单文件回退 stat。
-  private _dirListingCache = new Map<string, Promise<Map<string, { size?: number; mtime?: number }>>>()
+  private _dirListingCache = new Map<string, Promise<Map<string, { size?: number; mtime?: number }> | null>>()
 
-  private async _getDirListing(parentDir: string): Promise<Map<string, { size?: number; mtime?: number }>> {
+  /**
+   * ★ 2026-10-30 P1 修复（SF-01）：区分「目录为空」与「读取失败」。
+   *
+   * 原实现 catch 后返回**空 Map**，而 `checkUploadConflict` 把「listing 里没有这个名字」
+   * 等价于「远端文件不存在」⇒ 直接 no-conflict ⇒ 上传覆盖。
+   * readdir 一次失败（弱网 / 通道刚被回收 / 目录刚被 chmod / 服务端 busy）就会让
+   * 整批并发预检共享同一个空 Map（Promise 单飞）⇒ **整批静默覆盖远端同名文件**，
+   * 不弹冲突框、传输记录全绿。这是本插件唯一「不问就覆盖用户数据」的路径。
+   *
+   * 现约定：读不到 = `null`（不可知），调用方保守判冲突交给用户决定；空目录仍返回空 Map。
+   * 缓存侧只在 Promise resolve 前有效（用完即删），失败不会被长期缓存，下次会重试。
+   */
+  private async _getDirListing(parentDir: string): Promise<Map<string, { size?: number; mtime?: number }> | null> {
     const existing = this._dirListingCache.get(parentDir)
     if (existing) return existing
     const p = (async () => {
       const map = new Map<string, { size?: number; mtime?: number }>()
       try {
         const session = this.getSession()
-        if (!session) return map
+        if (!session) return null
         const entries = await session.readdir(parentDir)
         for (const e of entries as any[]) {
           const rawSize = e?.size ?? e?.attrs?.size
@@ -1061,8 +1116,10 @@ export class SftpConflictDetector implements ConflictDetectionPort {
             mtime: parseRemoteMtime(e),
           })
         }
-      } catch {
-        // readdir 失败：返回空 map，调用方按「无法确认存在」处理（与旧版一致：不报错、不阻断上传）
+      } catch (e) {
+        // readdir 失败：返回 null（不可知），由调用方保守判冲突；绝不返回空 Map 冒充「目录为空」
+        log.warn('[get-dir-listing] readdir failed, treating listing as unknown:', parentDir, e)
+        return null
       }
       return map
     })()
@@ -1103,6 +1160,15 @@ export class SftpConflictDetector implements ConflictDetectionPort {
 
     // ★ 2026-08-22：优先用目录 listing 缓存（同目录只查一次），替代逐文件 stat
     const listing = await this._getDirListing(parentDir)
+    // ★ 2026-10-30 P1 修复（SF-01）：listing 不可用（readdir 失败 / 无会话）≠ 目标不存在。
+    //   此处必须保守判冲突（size/mtime 传 NaN，UI 渲染为空串），否则就是静默覆盖远端同名文件。
+    if (!listing) {
+      log.warn('[check-upload-conflict] parent listing unavailable, forcing conflict:', remotePath)
+      return {
+        kind: 'conflict',
+        info: buildUploadConflictInfo(remotePath, localPath, fileName, localSize, localMtime, Number.NaN, Number.NaN),
+      }
+    }
     const found = listing.get(fileName)
 
     if (found) {

@@ -1,7 +1,20 @@
 ﻿/**
  * SFTP+ 右键菜单（文件列表 + 表头列配置）
- * 修改人：DD1024z + Hy4 preview
- * 修改时间：2026-10-21 — 新增 peerSameConnection 输入：远程↔远程**不同连接**时显示「上传」
+ * 修改人：DD1024z + Hy4
+ * 修改时间：2026-11-13 — 表头右键菜单新增「整行选中」勾选项（与设置页表格样式区同一个开关）：
+ *              同日追加（用户复审）：表头右键菜单再加「显示表头底边线」勾选项，
+ *              HeaderMenuAction 与 Input 一并补齐。
+ *              HeaderMenuAction 联合补 toggleFullRowSelection、模板补勾选项与说明 title、
+ *              Input 补 showFullRowSelection（默认 true）。
+ *              2026-11-09 — 新增文件动作 downloadTo（下载到指定目录…）：四处齐（联合类型、
+ *              注册表、默认顺序、config-provider 默认数组），可见性复用 hasDownload
+ *              （只在本栏远程、对端本机时出现，天然避开 r2r 布局）。
+ *              2026-11-05 — 菜单「查看」「编辑」合并为一条「打开」（openFile）：用户诉求
+ *              「查看器和编辑器应该是同一个东西，改不改是用户后续选择」。文本/svg 等天生可编辑的
+ *              进编辑器、图片进查看器只读，分派在 controller.ctxOpenFile；openLocal 文案改走
+ *              file.openInSystem（「在系统中打开」），file.open 让给面板内打开。
+ *              sanitizeMenuOrder 增加 viewFile/editFile → openFile 迁移（老配置顺序数组）。
+ *              2026-10-21 — 新增 peerSameConnection 输入：远程↔远程**不同连接**时显示「上传」
  *              （本栏推到另一台服务器，本质是上传）；同一连接（服务端 cp 直传、不过网）
  *              仍显示「传输」，本机↔本机同理。
  *              2026-10-20 — 文件动作改按「端点类型」判定：新增 dataPane 输入，上传/下载/打开/
@@ -40,7 +53,8 @@ export const GROUP_BY_MODES: GroupByMode[] = ['none', 'name', 'modified', 'type'
 
 export type ContextMenuAction =
   | 'newFolder' | 'newFile' | 'rename' | 'delete'
-  | 'openLocal' | 'viewFile' | 'editFile' | 'upload' | 'download' | 'transfer'
+  // ★ 2026-11-05：原 viewFile / editFile 合并为 openFile（面板内「打开」，按内容进编辑器或查看器）
+  | 'openFile' | 'openLocal' | 'upload' | 'download' | 'downloadTo' | 'transfer'
   | 'revealInExplorer' | 'chmod' | 'details'
   | 'copy' | 'cut' | 'paste' | 'refresh' | 'selectAll' | 'selectInvert' | 'copyPath'
 
@@ -49,6 +63,7 @@ export type HeaderMenuAction =
   | 'toggleCol:size' | 'toggleCol:date' | 'toggleCol:created' | 'toggleCol:access' | 'toggleCol:owner'
   | 'toggleCol:group' | 'toggleCol:perms' | 'toggleCol:mode' | 'toggleCol:path' | 'toggleCol:ext'
   | 'togglePinFolders' | 'toggleHidden' | 'toggleColBorders' | 'toggleZebra'
+  | 'toggleFullRowSelection' | 'toggleHeaderBottomBorder'
 
 export type ColVisibilityState = {
   size: boolean
@@ -76,11 +91,19 @@ interface FileMenuItemDef {
 export const FILE_MENU_REGISTRY: Record<ContextMenuAction, FileMenuItemDef> = {
   upload:           { labelKey: 'app.upload', category: 'transfer' },
   download:         { labelKey: 'app.download', category: 'transfer' },
+  // ★ 2026-11-09：由用户显式选目录 ⇒ 真实完整路径、N 个独立文件、N 条记录（拖拽通道给不了）
+  downloadTo:       { labelKey: 'file.downloadTo', category: 'transfer' },
   // ★ 2026-10-20：两栏端点类型相同（本机↔本机 / 远程↔远程）时没有「上/下」方向之分
   transfer:         { labelKey: 'app.transfer', category: 'transfer' },
-  openLocal:        { labelKey: 'file.open', category: 'open' },
-  viewFile:         { labelKey: 'file.view', category: 'open' },
-  editFile:         { labelKey: 'file.edit', category: 'open' },
+  /**
+   * ★ 2026-11-05（用户诉求「查看器和编辑器应该是同一个东西」）：
+   *   原来是「查看」「编辑」两条，用户每次都得先预判「我待会改不改」——纯属多余的心智负担。
+   *   现合并成一条「打开」：文本类直接进编辑器（改不改是用户后续选择），
+   *   图片/只看不改的类型进查看器。文案复用既有的 file.open（打开），不新增 i18n。
+   *   「在系统中打开」用 file.openInSystem（原先它借用的 file.open 现在让给面板内打开）。
+   */
+  openFile:         { labelKey: 'file.open', category: 'open' },
+  openLocal:        { labelKey: 'file.openInSystem', category: 'open' },
   revealInExplorer: { labelKey: 'file.showInFolder', category: 'open' },
   copy:             { labelKey: 'file.copy', shortcut: '${mod}C', category: 'clipboard' },
   cut:              { labelKey: 'file.cut', shortcut: '${mod}X', category: 'clipboard' },
@@ -104,7 +127,7 @@ export const FILE_MENU_REGISTRY: Record<ContextMenuAction, FileMenuItemDef> = {
  *   （服务端 cp 直传）；远程↔远程**不同连接**改用 `upload`（推到另一台服务器＝上传）。
  */
 export const DEFAULT_FILE_MENU_ORDER: ContextMenuAction[] = [
-  'transfer', 'upload', 'download', 'openLocal', 'viewFile', 'editFile', 'revealInExplorer',
+  'transfer', 'upload', 'download', 'downloadTo', 'openFile', 'openLocal', 'revealInExplorer',
   'copy', 'cut', 'paste', 'rename', 'delete', 'chmod', 'details',
   'newFolder', 'newFile', 'refresh', 'selectAll', 'selectInvert', 'copyPath',
 ]
@@ -145,8 +168,18 @@ export function fillMenuOrder(order: ContextMenuAction[]): ContextMenuAction[] {
  */
 export function sanitizeMenuOrder(value: unknown): ContextMenuAction[] {
   if (!Array.isArray(value) || !value.length) return DEFAULT_FILE_MENU_ORDER
-  const valid = value.filter(
-    (a): a is ContextMenuAction => typeof a === 'string' && Object.prototype.hasOwnProperty.call(FILE_MENU_REGISTRY, a),
+  // ★ 2026-11-05 迁移：「查看」「编辑」已合并为「打开」。
+  //   老配置的顺序数组里是 viewFile/editFile —— 它们已不在注册表里，若不迁移就会被下方
+  //   filter 直接丢掉；同时 fillMenuOrder 会把 openFile 补进默认相对位置（可能跑到别处）。
+  //   这里就地映射成 openFile 并保留**第一次出现的位置**（用户手动排序的结果不动），顺便去重。
+  const migrated: string[] = []
+  for (const raw of value) {
+    if (typeof raw !== 'string') continue
+    const a = raw === 'viewFile' || raw === 'editFile' ? 'openFile' : raw
+    if (!migrated.includes(a)) migrated.push(a)
+  }
+  const valid = migrated.filter(
+    (a): a is ContextMenuAction => Object.prototype.hasOwnProperty.call(FILE_MENU_REGISTRY, a),
   )
   // ★ 2026-10-20：补齐新增动作。菜单顺序数组是**白名单**，老配置（存盘时还没有 transfer）
   //   里缺项的话新菜单项永远不会出现；设置页加载时本来就会补齐，这里同步同一策略，
@@ -232,11 +265,25 @@ export function sanitizeMenuOrder(value: unknown): ContextMenuAction[] {
       <div class="ctx-item" (click)="headerAction.emit('toggleHidden')">
         <span class="ctx-check" *ngIf="showHidden">✓</span><span class="ctx-check" *ngIf="!showHidden"></span> {{ i18n.t('pane.showHidden') }}
       </div>
-      <div class="ctx-item" (click)="headerAction.emit('toggleColBorders')">
+      <!-- ★ 2026-11-15（用户反馈，修改人：DD1024z）：分组视图不画列边框 ⇒ 该面板处于分组状态时
+           此项置灰（点击无效），避免“开关能点但界面没变化”的错觉 -->
+      <div class="ctx-item" [class.ctx-disabled]="colBordersDisabled"
+        [title]="colBordersDisabled ? i18n.t('view.colBorderGroupedHint') : null"
+        (click)="!colBordersDisabled && headerAction.emit('toggleColBorders')">
         <span class="ctx-check" *ngIf="showColBorders">✓</span><span class="ctx-check" *ngIf="!showColBorders"></span> {{ i18n.t('view.colBorder') }}
       </div>
       <div class="ctx-item" (click)="headerAction.emit('toggleZebra')">
         <span class="ctx-check" *ngIf="showZebra">✓</span><span class="ctx-check" *ngIf="!showZebra"></span> {{ i18n.t('view.zebra') }}
+      </div>
+      <!-- ★ 2026-11-13（Hy4）：与设置页「表格样式 → 整行选中」同一个开关（表头右键快捷入口） -->
+      <div class="ctx-item" (click)="headerAction.emit('toggleFullRowSelection')"
+        [title]="i18n.t('view.fullRowSelectionHint')">
+        <span class="ctx-check" *ngIf="showFullRowSelection">✓</span><span class="ctx-check" *ngIf="!showFullRowSelection"></span> {{ i18n.t('view.fullRowSelection') }}
+      </div>
+      <!-- ★ 2026-11-13（Hy4）：表头底边线（三态，缺省跟随整行选中；恢复跟随时在设置页操作） -->
+      <div class="ctx-item" (click)="headerAction.emit('toggleHeaderBottomBorder')"
+        [title]="i18n.t('view.headerBottomBorderHint')">
+        <span class="ctx-check" *ngIf="showHeaderBottomBorder">✓</span><span class="ctx-check" *ngIf="!showHeaderBottomBorder"></span> {{ i18n.t('view.headerBottomBorder') }}
       </div>
     </div>
   `,
@@ -328,12 +375,13 @@ export class SftpContextMenuComponent implements OnChanges, OnDestroy {
     return this.dataPane === 'local' && this.singleSelected && !!this.entry
   }
 
-  get hasView(): boolean {
-    return this.singleSelected && !!this.entry && !this.entry.isDirectory && this.canView
-  }
-
-  get hasEdit(): boolean {
-    return this.singleSelected && !!this.entry && !this.entry.isDirectory && this.canEdit
+  /**
+   * ★ 2026-11-05：原 hasView / hasEdit 合并为 hasOpen。
+   *   「能看」或「能编」任一成立就显示「打开」——面板侧再按类型决定进编辑器还是查看器
+   *   （判据见 controller 的 ctxOpenFile），菜单不必重复做这个判断。
+   */
+  get hasOpen(): boolean {
+    return this.singleSelected && !!this.entry && !this.entry.isDirectory && (this.canView || this.canEdit)
   }
 
   get hasLocalReveal(): boolean {
@@ -366,7 +414,7 @@ export class SftpContextMenuComponent implements OnChanges, OnDestroy {
   }
 
   get hasOpenActions(): boolean {
-    return this.hasLocalOpen || this.hasView || this.hasEdit || this.hasLocalReveal
+    return this.hasLocalOpen || this.hasOpen || this.hasLocalReveal
   }
 
   get hasTransferActions(): boolean {
@@ -434,7 +482,11 @@ export class SftpContextMenuComponent implements OnChanges, OnDestroy {
   @Input() pinFolders = true
   @Input() showHidden = false
   @Input() showColBorders = false
+  /** ★ 2026-11-15（用户反馈）：当前右键的这栏处于分组状态 ⇒ 「列边框」项置灰不可点 */
+  @Input() colBordersDisabled = false
   @Input() showZebra = false
+  @Input() showFullRowSelection = true
+  @Input() showHeaderBottomBorder = true
 
   @Output() menuAction = new EventEmitter<ContextMenuAction>()
   @Output() headerAction = new EventEmitter<HeaderMenuAction>()
@@ -494,10 +546,10 @@ export class SftpContextMenuComponent implements OnChanges, OnDestroy {
     switch (a) {
       case 'upload': return this.hasUpload
       case 'download': return this.hasDownload
+      case 'downloadTo': return this.hasDownload
       case 'transfer': return this.hasTransfer
       case 'openLocal': return this.hasLocalOpen
-      case 'viewFile': return this.hasView
-      case 'editFile': return this.hasEdit
+      case 'openFile': return this.hasOpen
       case 'revealInExplorer': return this.hasLocalReveal
       case 'copy': return this.hasSelection
       case 'cut': return this.hasSelection

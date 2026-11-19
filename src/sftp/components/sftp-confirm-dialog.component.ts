@@ -15,6 +15,9 @@
  *
  * @创建人：DD1024z + Deepseek-V4.1-Flash
  * @创建时间：2026-10-26
+ * @修改人：DD1024z + Deepseek-V4.1-Flash
+ * @修改时间：2026-11-02 — 恢复「回车=确定」并把初始焦点落到「确定」按钮（此前刻意不传
+ *              onEnter，遮罩上的回车没有任何反应，与删除框同族问题）
  */
 import { Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, Output, SimpleChanges, ViewChild } from '@angular/core'
 
@@ -29,7 +32,7 @@ import { handleOverlayKeydown } from './dialog-focus'
         <div class="confirm-title" *ngIf="title">{{ title }}</div>
         <div class="confirm-message">{{ message }}</div>
         <div class="dialog-buttons">
-          <button (click)="confirm.emit()">{{ confirmLabel || i18n.t('app.confirm') }}</button>
+          <button #confirmBtn (click)="confirm.emit()">{{ confirmLabel || i18n.t('app.confirm') }}</button>
           <button (click)="cancel.emit()">{{ i18n.t('app.cancel') }}</button>
         </div>
       </div>
@@ -79,6 +82,8 @@ export class SftpConfirmDialogComponent implements OnChanges, OnDestroy {
   @Input() i18n!: SftpI18nService
 
   @ViewChild('overlayEl', { static: false }) overlayEl?: ElementRef<HTMLDivElement>
+  /** 「确定」按钮：打开时把焦点落在这里，回车即明确激活它（焦点环可见） */
+  @ViewChild('confirmBtn', { static: false }) confirmBtn?: ElementRef<HTMLButtonElement>
   private _focusTimer: ReturnType<typeof setTimeout> | null = null
   /** 打开前的焦点元素：关闭后还回去（模态结束后焦点停在 BODY 会让面板快捷键失灵） */
   private _prevFocus: HTMLElement | null = null
@@ -90,17 +95,25 @@ export class SftpConfirmDialogComponent implements OnChanges, OnDestroy {
         // 快照调用方原来的焦点（通常是触发确认的那个按钮），关闭时还原
         const active = document.activeElement as HTMLElement | null
         this._prevFocus = active && active !== document.body ? active : null
-        // 焦点移入遮罩（tabindex=-1 可聚焦、但不进入 Tab 序列），Esc / Tab 陷阱才有落点
+        // 焦点移入「确定」按钮（不是遮罩）：回车即明确激活它、焦点环可见；
+        // 遮罩仅作兜底（按钮尚未渲染时），保证 Esc / Tab 陷阱有落点
         this._focusTimer = setTimeout(() => {
           this._focusTimer = null
-          this.overlayEl?.nativeElement?.focus()
+          const btn = this.confirmBtn?.nativeElement
+          if (btn) btn.focus()
+          else this.overlayEl?.nativeElement?.focus()
         })
+      } else {
+        // ★ 2026-10-30 P2 修复（SF-23）：焦点归还必须挂在「visible 变 false」上。
+        //   本组件由父模板用 `[visible]` 驱动常驻（模板内才是 *ngIf），ngOnDestroy 基本不执行 ⇒
+        //   原实现每次二次确认后焦点都掉到 <body>，之后按 Tab 从头开始遍历，
+        //   面板快捷键也随之失灵（焦点不在 .sftp-root 内）。
+        this._restoreFocus()
       }
     }
   }
 
-  ngOnDestroy(): void {
-    if (this._focusTimer) { clearTimeout(this._focusTimer); this._focusTimer = null }
+  private _restoreFocus(): void {
     // 关闭后把焦点还回原处（元素可能已被移除/禁用，故先判 isConnected；失败即忽略）
     try {
       if (this._prevFocus?.isConnected) this._prevFocus.focus({ preventScroll: true })
@@ -108,14 +121,21 @@ export class SftpConfirmDialogComponent implements OnChanges, OnDestroy {
     this._prevFocus = null
   }
 
+  ngOnDestroy(): void {
+    if (this._focusTimer) { clearTimeout(this._focusTimer); this._focusTimer = null }
+    this._restoreFocus()
+  }
+
   /**
-   * Esc 取消；Tab/Shift+Tab 由 dialog-focus helper 收口在对话框内。
-   * ⛔ 刻意**不**传 `opts.onEnter`：焦点停在遮罩上时回车不做任何事。
-   *   确认框背后多是「清空记录 / 取消在途传输 / 丢弃未保存内容」这类不可逆动作，
-   *   回车必须落在具体按钮上才算数（与删除框 P0「假取消」同一条原则）。
+   * Esc 取消；Enter 确定；Tab/Shift+Tab 由 dialog-focus helper 收口在对话框内。
+   * ★ 2026-11-02：恢复 `opts.onEnter`。此前刻意不传，导致焦点停在遮罩上时回车没有任何反应
+   *   （与删除框「回车无法确认」同族）。现由「打开即聚焦确定按钮」保证常态下走原生激活、
+   *   焦点环可见，onEnter 只作遮罩焦点时的兜底。
    */
   onKeyDown(event: KeyboardEvent): void {
     if (event.key === 'Escape') { event.preventDefault(); this.cancel.emit() }
-    handleOverlayKeydown(event, this.overlayEl?.nativeElement)
+    handleOverlayKeydown(event, this.overlayEl?.nativeElement, {
+      onEnter: () => this.confirm.emit(),
+    })
   }
 }

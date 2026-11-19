@@ -4,8 +4,20 @@
  *   包含界面设置、书签、路径记忆数据
  * 创建人：DD1024z + Deepseek-V4-Flash
  * 创建时间：2026-06-29
- * @修改人：DD1024z + Deepseek-V4.1-Flash
- * @修改时间：2026-10-27 — 新增 autoRefreshEnabled（默认 false）与 autoRefreshInterval（间隔秒数，默认 60）：定时刷新列表。
+ * @修改人：DD1024z + Hy4
+ * @修改时间：2026-11-13 — 新增 tableFullRowSelection（默认 true）：整行选中开关的 config 镜像键。
+ *              同日追加（用户复审）：新增 tableHeaderBorder（boolean | null，默认 null = 跟随整行选中），
+ *              供「表头底边线」三态开关的设置页镜像与导出导入使用。
+ *              面板真正读的是 localStorage 的 sftp-plus-table.fullRowSelection，本键供设置页与
+ *              导出导入使用；interface 与 defaults 必须成对出现，否则 ConfigProxy 不建 accessor。
+ *              2026-11-09 — contextMenuOrder 默认数组补 'downloadTo'（右键「下载到指定目录…」）：
+ *              该数组是白名单，漏登记则新菜单项永远不显示；与注册表/联合类型/默认顺序四处齐。
+ *              2026-11-09 — 新增 dragOutToSystem（默认 true）：允许 `Alt + 拖拽`把条目拖出到系统
+ *              （issue #30）。Electron 32+ 渲染进程已无 File.path，必须走主进程 startDrag，
+ *              故只能用可选手势承载，普通拖拽行为不变。interface / defaults 同时登记。
+ *              2026-11-05 — 面板快捷键动作 viewFile/editFile 合并为 openFile（右键菜单「打开」）；
+ *              contextMenuOrder 默认顺序同步（openFile 在前，openLocal 改为「在系统中打开」）。
+ *              2026-10-27 — 新增 autoRefreshEnabled（默认 false）与 autoRefreshInterval（间隔秒数，默认 60）：定时刷新列表。
  *              同日 — 新增 refreshOnQuickCmd（默认 false）与 refreshOnQuickCmdWindow（观察期秒数，默认 10）：
  *              接收 QuickCmd+ 的刷新请求后按「观察期轮询」刷新列表，见 sftp/core/quickcmd-link.ts。
  *              默认关：跨插件联动必须由用户显式打开，不能悄悄给远端加请求。
@@ -71,7 +83,8 @@ export function normalizeBookmarkSortMode(value: unknown, legacyByUsage?: unknow
 export const PANEL_HOTKEY_ACTIONS = [
   'delete', 'rename', 'refresh', 'up', 'back', 'forward',
   // ★ 2026-08-31 / 2026-09-20：右键菜单常用动作，默认留空（未绑定即不响应）
-  'upload', 'download', 'openLocal', 'viewFile', 'editFile',
+  // ★ 2026-11-05：「查看」「编辑」合并为一个 openFile（面板内打开，按内容进编辑器/查看器）
+  'upload', 'download', 'openLocal', 'openFile',
   'newFolder', 'newFile', 'details', 'copyPath',
 ] as const
 
@@ -80,7 +93,7 @@ export type PanelHotkeyAction = typeof PANEL_HOTKEY_ACTIONS[number]
 
 /** 需经右键菜单分发（onContextMenuAction）执行的动作；其余由面板专用方法直接处理 */
 export const CONTEXT_ACTION_HOTKEYS: PanelHotkeyAction[] = [
-  'upload', 'download', 'openLocal', 'viewFile', 'editFile',
+  'upload', 'download', 'openLocal', 'openFile',
   'newFolder', 'newFile', 'details', 'copyPath',
 ]
 
@@ -97,8 +110,7 @@ export function defaultPanelHotkeys(): Record<PanelHotkeyAction, { keys: string[
     upload: { keys: [], enabled: false },
     download: { keys: [], enabled: false },
     openLocal: { keys: [], enabled: false },
-    viewFile: { keys: [], enabled: false },
-    editFile: { keys: [], enabled: false },
+    openFile: { keys: [], enabled: false },
     newFolder: { keys: [], enabled: false },
     newFile: { keys: [], enabled: false },
     details: { keys: [], enabled: false },
@@ -120,6 +132,14 @@ export interface SftpPlusPluginConfig {
   colorMuted: string
   tableColBorders: boolean
   tableZebra: boolean
+  /** ★ 2026-11-13（Hy4）：文件列表选中态是否铺满整行（默认 true = 现状）。
+   *  关闭后行宽回落到「列宽合计」，选中/hover 只到最后一列，右侧空白归列表容器
+   *  ⇒ 可直接右键呼出面板级菜单。真实值以 localStorage 的 sftp-plus-table.fullRowSelection 为准
+   *  （见 MEMORY 铁律 21：面板只读 localStorage），本键是设置页/导出导入用的镜像。 */
+  tableFullRowSelection: boolean
+  /** ★ 2026-11-13（Hy4）：表头底边线。null = 跟随「整行选中」，true/false = 用户显式覆盖。
+   *  面板真正读的是 localStorage 的 sftp-plus-table.headerBottomBorder，本键供设置页/导出导入镜像。 */
+  tableHeaderBorder: boolean | null
   hideNativeSFTPButton: boolean
   /** 默认路径模式（off/remember/sync）：对未在面板上单独切换过的连接生效 */
   defaultPathMode: 'off' | 'remember' | 'sync' | 'mirror'
@@ -190,6 +210,14 @@ export interface SftpPlusPluginConfig {
   topBarPinned: string[]
   topBarOverflow: boolean
   /**
+   * ★ 2026-10-30 P1 修复（SF-06）：被停用的顶栏项。
+   *   设置页一直在写 `TOP_BAR_CFG_FIELDS.disabled`（'topBarDisabled'），但这里没登记 ⇒
+   *   ConfigProxy 不建 accessor、`save()` 序列化时丢弃 ⇒ 设置页取消勾选只在本会话生效，
+   *   重启 Tabby 全部复活；导出的备份带着该键、导入后同样无效。
+   *   ConfigProxy 只为 defaults 里声明过的键建访问器，新增配置项必须在此登记。
+   */
+  topBarDisabled: string[]
+  /**
    * ★ 2026-10-19（Deepseek-V4.1-Flash）：连接切换器的唤起方式。
    *   'topbar'        —— 只认顶栏连接标题（默认，历史行为）
    *   'terminalBadge' —— 只认终端工具栏上的 SFTP+ 标识（点它 → 面板顶上弹出切换器）
@@ -258,6 +286,15 @@ export interface SftpPlusPluginConfig {
    */
   dropToCurrentDir: boolean
   /**
+   * ★ 2026-11-09（DeepSeek-V4.1-Flash）：是否允许 `Alt + 拖拽`把条目**拖出到系统**（默认开）。
+   *   开：Alt+拖拽 → 主进程 `webContents.startDrag`，在桌面/资源管理器落下的是**真实文件副本**
+   *      （本地条目直接给路径；远程条目先下到临时目录再拖出）。普通拖拽仍保持面板内互拖。
+   *   关：Alt 与普通拖拽完全等价。
+   *   ⛔ 必须是可选手势：`startDrag` 走同步 IPC 并在主进程 `DoDragDrop` 里阻塞，
+   *      拖拽期间渲染线程冻结、`dragend` 收不到 —— 接管普通拖拽会让面板内两栏互拖彻底失效。
+   */
+  dragOutToSystem: boolean
+  /**
    * ★ 2026-10-27（Deepseek-V4.1-Flash）：是否接收 QuickCmd+ 的刷新请求（默认 **关**）。
    *   开：QuickCmd+ 执行命令后派发 sftp-plus-refresh-request 事件，本插件按「观察期轮询」
    *      刷新匹配连接的文件列表（命令跑在远端就能看到新备份文件，不用手动 F5）。
@@ -324,6 +361,14 @@ export interface SftpPlusPluginConfig {
   paneState: Record<string, any>
   /** 浮动面板几何（位置/尺寸/最大化），全局跨会话生效 */
   panelGeometry?: { left?: string; top?: string; width?: string; height?: string; maximized?: boolean; followWindow?: boolean }
+  /**
+   * 用户自定义的「默认面板大小」（右键「设为默认面板大小」记下的目标几何）。
+   * 空 = 未自定义，此时「还原默认面板大小」回出厂 96%×94% 居中。
+   * ★ 2026-11-05（Deepseek-V4.1-Flash）：与 panelGeometry（当前几何）分开存 ——
+   *   若复用同一个键，「设为默认」就变成了「重启后还停在这个大小」，
+   *   而「还原默认」永远指向自己刚拖出来的位置，两个动作互相抵消。
+   */
+  panelGeometryDefault?: { left?: string; top?: string; width?: string; height?: string }
 }
 
 export function defaultSftpPlusConfig(): SftpPlusPluginConfig {
@@ -340,6 +385,8 @@ export function defaultSftpPlusConfig(): SftpPlusPluginConfig {
     colorMuted: '',
     tableColBorders: false,
     tableZebra: false,
+    tableFullRowSelection: true,
+    tableHeaderBorder: null,
     hideNativeSFTPButton: false,
     defaultPathMode: 'off',
     applySettingsInstantly: true,
@@ -372,7 +419,7 @@ export function defaultSftpPlusConfig(): SftpPlusPluginConfig {
     // ★ 2026-10-22（Deepseek-V4.1-Flash）：外部编辑自动上传开关，默认关（走方案 B 提示）
     editorAutoUploadExternal: false,
     panelHotkeys: defaultPanelHotkeys(),
-    contextMenuOrder: ['transfer', 'upload', 'download', 'openLocal', 'viewFile', 'editFile', 'revealInExplorer', 'copy', 'cut', 'paste', 'rename', 'delete', 'chmod', 'details', 'newFolder', 'newFile', 'refresh', 'selectAll', 'selectInvert', 'copyPath'],
+    contextMenuOrder: ['transfer', 'upload', 'download', 'downloadTo', 'openFile', 'openLocal', 'revealInExplorer', 'copy', 'cut', 'paste', 'rename', 'delete', 'chmod', 'details', 'newFolder', 'newFile', 'refresh', 'selectAll', 'selectInvert', 'copyPath'],
     contextMenuDisabled: [],
     // ★ 2026-10-19（Deepseek-V4.1-Flash）：顶栏按钮默认「全部固定 + 折叠关闭」= 与历史行为一致。
     //   文案 id 必须与 sftp/core/top-bar-items.ts 的 DEFAULT_TOP_BAR_* 一致（此处写死字面量是为了
@@ -380,6 +427,8 @@ export function defaultSftpPlusConfig(): SftpPlusPluginConfig {
     topBarOrder: ['pathMode', 'layout', 'transferLog', 'settings', 'minimize', 'maximize'],
     topBarPinned: ['pathMode', 'layout', 'transferLog', 'settings', 'minimize', 'maximize'],
     topBarOverflow: false,
+    // ★ 2026-10-30 P1 修复（SF-06）：默认无停用项；缺这一行 = 设置页「停用某按钮」永不落盘
+    topBarDisabled: [],
     // ★ 2026-10-19（Deepseek-V4.1-Flash）：默认只认顶栏连接标题 = 与历史行为一致
     connPickerTrigger: 'topbar',
     // ★ 2026-10-20 续三十一：顶栏连接默认显示「账号@地址」= 与历史行为一致
@@ -402,6 +451,9 @@ export function defaultSftpPlusConfig(): SftpPlusPluginConfig {
     // ★ 2026-10-27（Deepseek-V4.1-Flash）：拖拽只投放到当前目录 —— 默认开（用户反馈：手滑停在
     //   文件夹行上，文件被静默吞进子目录，事后只能从传输记录的路径才看得出）
     dropToCurrentDir: true,
+    // ★ 2026-11-09（DeepSeek-V4.1-Flash）：Alt+拖拽 拖出到系统 —— 默认开。只由 Alt 这个显式手势触发，
+    //   不改变任何既有拖拽行为；缺键按「开」处理（旧配置没有此键，升级后立即可用）
+    dragOutToSystem: true,
     // ★ 2026-10-27（Deepseek-V4.1-Flash）：QuickCmd+ 联动默认关 —— 用户主动打开才生效
     refreshOnQuickCmd: false,
     refreshOnQuickCmdWindow: 10,
@@ -436,6 +488,9 @@ export function defaultSftpPlusConfig(): SftpPlusPluginConfig {
     //   无此标记时空对象默认被当叶子成员，getter 返回脱离 _store 的临时克隆，深写永不持久化。
     paneState: { __nonStructural: true } as Record<string, any>,
     panelGeometry: {},
+    // ★ 2026-11-05（Deepseek-V4.1-Flash）：空对象 = 未自定义默认大小；写入走整体赋值（同 panelGeometry），
+    //   不需要 __nonStructural（那是深路径写入才需要的标记）。
+    panelGeometryDefault: {},
   }
 }
 

@@ -2,8 +2,10 @@
  * 功能描述：SFTP+ file-utils 逻辑聚合模块（由旧 core 多文件合并）
  * 创建人：DD1024z + Hy3
  * 创建时间：2026-07-16
- * 修改人：DD1024z + Kimi-K3
- * 修改时间：2026-09-21 — 第六轮审计修复：formatSize 对负值「大小未知」哨兵返回空串（不显示 "-1 B"）
+ * 修改人：DD1024z + Hy4
+ * 修改时间：2026-11-09 — getLogFileName 优先读 displayName：多选拖出打包时一条记录对应一个
+ *             源文件，不能再一律取 localPath 的 basename（会让 N 行都显示同一个 ZIP 名）。
+ *              2026-09-21 — 第六轮审计修复：formatSize 对负值「大小未知」哨兵返回空串（不显示 "-1 B"）
  *              2026-09-20 — issue #23：查看器改虚拟滚动，移除 VIEW_TEXT_RENDER_MAX_CHARS 截断常量
  *              2026-09-17 — 可查看/编辑扩展名统一白名单；allowViewAllAsText；空格分隔与 .ext/ext 兼容
  * 合并来源：file-type-utils, panel-list-utils, panel-format
@@ -340,6 +342,14 @@ export function filterByName<T extends { name: string }>(entries: T[], filter: s
   return entries.filter(e => e.name.toLowerCase().includes(t))
 }
 
+/**
+ * ★ 2026-10-30 P3 修复（SF-37）：名称排序启用**自然序**。
+ *
+ *   原实现是裸 `localeCompare`：`file10` 排在 `file2` 前面（用户最容易报的「排序不对」），
+ *   且顺序随客户端 locale 变化 —— 同一台服务器，两台不同语言环境的机器看到不同顺序。
+ *   加 `numeric: true` 让数字段按数值比较、`sensitivity: 'base'` 让大小写差异不参与比较；
+ *   完全相等的项交给 V8 的稳定排序，不会来回抖动。
+ */
 export function sortLocalEntries(
   entries: LocalEntry[],
   sortBy: PaneSortField,
@@ -354,7 +364,7 @@ export function sortLocalEntries(
     if (sortBy === 'size') return ((a.size ?? 0) - (b.size ?? 0)) * (asc ? 1 : -1)
     if (sortBy === 'modified') return ((a.mtimeMs ?? 0) - (b.mtimeMs ?? 0)) * (asc ? 1 : -1)
     if (sortBy === 'birthtime') return ((a.birthtimeMs ?? 0) - (b.birthtimeMs ?? 0)) * (asc ? 1 : -1)
-    return a.name.localeCompare(b.name) * (asc ? 1 : -1)
+    return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }) * (asc ? 1 : -1)
   })
 }
 
@@ -372,7 +382,7 @@ export function sortRemoteEntries(
     if (sortBy === 'size') return ((a.size ?? 0) - (b.size ?? 0)) * (asc ? 1 : -1)
     if (sortBy === 'modified') return ((a.modified?.getTime() ?? 0) - (b.modified?.getTime() ?? 0)) * (asc ? 1 : -1)
     if (sortBy === 'birthtime') return ((a.modified?.getTime() ?? 0) - (b.modified?.getTime() ?? 0)) * (asc ? 1 : -1)
-    return a.name.localeCompare(b.name) * (asc ? 1 : -1)
+    return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }) * (asc ? 1 : -1)
   })
 }
 
@@ -513,6 +523,8 @@ export function formatFailReason(entry: TransferLogEntry, t: (key: string, param
 }
 
 export function getLogFileName(entry: TransferLogEntry): string {
+  // 源文件名覆盖值（多选拖出打包 / 原生多文件）：优先于落盘路径的 basename
+  if (entry.displayName) return entry.displayName
   if (entry.localPath) {
     const name = entry.localPath.replace(/\\/g, '/').split('/').filter(Boolean).pop()
     if (name) return name

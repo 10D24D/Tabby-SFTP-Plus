@@ -4,8 +4,32 @@
  *   双栏文件管理器（本地↔远程）、书签、传输日志、拖拽传输
  * @创建人：DD1024z + Claude
  * @创建时间：2026-06-21
- * @修改人：DD1024z + Deepseek-V4.1-Flash
- * @修改时间：2026-10-27 — 续四十六：路径记忆写入通道补齐 —— `saveCurrentPath()` 末尾排一次落盘
+ * @修改人：DD1024z + Hy4
+ * @修改时间：2026-11-13 — 整行选中开关：根元素按 fullRowSelection 挂 no-full-row-select 类，
+ *              同日追加（用户复审）：根元素再按 headerBorderEffective 挂 no-header-border 类，
+ *              表头菜单补输入与动作分派，loadTableSettings 按三态回读表头底边线。
+ *              表头右键菜单传入当前值、动作分派给 controller.toggleFullRowSelection，
+ *              loadTableSettings 从 localStorage 回读并按 !== false 兜底。
+ *              2026-11-09 — 拖出到系统的传输记录目标路径按用户口径改回「<拖放目录>/文件名」：
+ *             log.dragOutNote 的 24 语言译文统一改为尖括号占位目录，README 中英补充「拿不到
+ *             真实落盘目录」的限制与替代入口说明。此前同日：多选记录按「一个源文件一条」拆开
+ *             （新增 displayName 覆盖文件名列）；Alt 原生多文件通道同步补 N 条记录（终态语义
+ *             是「已交给系统」）；新增右键「下载到指定目录…」(downloadTo)：目录由系统对话框
+ *             给出 ⇒ 真实完整路径 + N 个独立文件 + N 条记录，复用 _streamDownloadOne（新增
+ *             forceLocal 尾参避开 r2r）。
+ *              2026-11-09 — 拖出到系统（DownloadURL 通道）补传输记录：以「系统来 GET」为开始、
+ *             「流结束/断开」为终态，避免 dragstart 就写一条永远 pending 的幽灵记录；
+ *             多选打包时提示可按 Alt 直接落多个独立文件；Alt 原生通道放行 0 字节文件预缓存。
+ *              2026-11-05 — 布局模式改为**按标签页独立**：顶栏 `cycleLayoutMode()` 只写
+ *              `paneState/perTab/<user@host:port>/layoutMode`（`_persistLayoutPreference`），
+ *              不再写共享的 `paneState/layout/mode` 与 `store.layoutMode`（那两个是设置页的
+ *              默认布局）；初始化与设置变更 handler 统一走 `_readLayoutPreference()`
+ *              （perTab 优先 → 默认值兜底 → auto），已单独设过的标签页（`_layoutModePinned`）
+ *              不跟随默认值变化；同连接多标签页靠 `sftp-plus-layout-mode-changed` 事件同步。
+ *              同时：右键菜单「查看/编辑」合并为「打开」（openFile）：分发改走 ctxOpenFile；
+ *              双击 `_activateEntry` 与菜单同源分派（openShouldEdit 按类型判定，不受 allowAll 影响）；
+ *              `_panelHotkeys` 读侧把旧的 viewFile/editFile 绑定继承给 openFile。
+ *              2026-10-27 — 续四十六：路径记忆写入通道补齐 —— `saveCurrentPath()` 末尾排一次落盘
  *              （`_schedulePaneFlush()`，与 `_rememberLeftPath()` 同口径 1.2s 合并写）：
  *              `_paneSet` 只写内存 + `_cache`，不落盘时只剩 localStorage 那份是新的，而
  *              `_restoreSavedRemotePath()` 走 `_paneGet`（config 优先）⇒ 下次启动被旧值压回去。
@@ -298,7 +322,8 @@ import * as path from 'path'
 import * as fs from 'fs/promises'
 import * as fsSync from 'fs'
 import * as os from 'os'
-import { randomUUID } from 'crypto'
+import { randomUUID, createHash } from 'crypto'
+import type { Readable } from 'stream'
 
 import { Component, OnInit, OnDestroy, AfterViewInit, HostListener, ChangeDetectorRef, ElementRef, NgZone, Injector, ViewChild, ViewEncapsulation, Inject, Optional } from '@angular/core'
 import { ThemesService, NotificationsService, ConfigService, AppService, ProfilesService } from 'tabby-core'
@@ -321,13 +346,18 @@ import { PanelDropAdapter, dragDropTempDir } from './core/drop'
 import { PanelTransferCoordinator, SPEED_STALL_ZERO_MS, SPEED_STALL_ZERO_TEXT } from './core/transfer-coordinator'
 import { PanelPasteAdapter } from './core/paste'
 import { ContentDigestService } from './core/digest'
-import { copyLocalDir, copyRemoteDir, deleteLocalRecursive, deleteRemoteRecursive, isPathInside, tryRemoteCpViaSsh, tryRemoteRmViaSsh } from './core/fs-ops'
+import { copyLocalDir, copyRemoteDir, deleteLocalRecursive, deleteRemoteRecursive, isPathInside, isUnsafeRemoteEntryName, tryRemoteCpViaSsh, tryRemoteRmViaSsh } from './core/fs-ops'
 import { isChannelDeadError } from './core/session-errors'
 // ★ 2026-10-27（Deepseek-V4.1-Flash）：与 QuickCmd+ 的刷新联动（事件契约 + 观察期轮询）
 import { QC_REFRESH_REQUEST_EVENT, QcRefreshObserver, normalizeRefreshRequest, markQuickCmdSeen } from './core/quickcmd-link'
 import { ConcurrencyLimiter } from './core/concurrency'
 import type { SshSession, ProfileInfo, ConnectionOption } from './core/session-types'
 import { trashLocalPaths } from './core/trash-local'
+// ★ 2026-11-09（DeepSeek-V4.1-Flash）：Alt+拖拽 拖出到系统（issue #30）——
+//   Electron 32+ 渲染进程已无 File.path，唯一可行通道是主进程 webContents.startDrag。
+import { registerDragDownload, predictLandingFileName, revokeDragDownload } from './core/drag-download-url'
+import { createZipStoreStream, ZipStoreMember } from './core/zip-store'
+import { buildDragOutIcon, startNativeDragOut, resetOsDragOutState, isOsDragOutAvailable, OS_DRAG_OUT_TMP_DIR } from './core/os-drag-out'
 import {
   TOP_BAR_ITEMS, TOP_BAR_ITEM_IDS, DEFAULT_TOP_BAR_ORDER, DEFAULT_TOP_BAR_PINNED, DEFAULT_TOP_BAR_DISABLED, TOP_BAR_CFG_FIELDS,
   normalizeTopBarOrder, normalizeTopBarPinned, normalizeTopBarDisabled,
@@ -696,6 +726,15 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
   private _followWindow = false
   /** 上次保存的面板几何（全局配置，跨会话生效）：位置/尺寸/最大化状态/是否跟随窗口 */
   private _panelGeom: { left?: string; top?: string; width?: string; height?: string; maximized?: boolean; followWindow?: boolean } = {}
+  /**
+   * ★ 2026-11-05（Deepseek-V4.1-Flash）：用户自定义的「默认面板大小」。
+   *   右键「设为默认面板大小」把当时的大小+位置记到这里；「还原默认面板大小」回到它；
+   *   「恢复初始面板大小」把它清空、回到出厂 96%×94% 居中。
+   *   null = 从未自定义（等价于出厂初始值）。
+   */
+  private _panelGeomDefault: { left?: string; top?: string; width?: string; height?: string } | null = null
+  /** 出厂初始几何（居中 96%×94%，百分比 ⇒ 跟随 Tabby 窗口缩放） */
+  private readonly _FACTORY_GEOM = { left: '2%', top: '3%', width: '96%', height: '94%' }
 
   connecting = false
   connected = false
@@ -1260,6 +1299,13 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     const allSelected = items.every((it: any) => sel.some((s: any) => s.fullPath === it.fullPath))
     if (allSelected) {
       this.selectedLocal = sel.filter((s: any) => !paths.has(s.fullPath)) as any
+    } else if (event.ctrlKey || event.metaKey) {
+      // ★ 2026-11-15 修复（修改人：DD1024z）：Ctrl/⌘+点击分组头原先走与普通点击同一分支
+      //   ⇒ 用 `[...items]` 把整栏选中**替换**成本组，其他组已选的文件被静默丢弃
+      //   （Ctrl 在资源管理器里恒为「追加/切换」，不得清空既有选中）。
+      //   现保留其他组选中，只把本组并入。
+      const others = sel.filter((s: any) => !paths.has(s.fullPath))
+      this.selectedLocal = [...others, ...items] as any
     } else {
       this.selectedLocal = [...items] as any
     }
@@ -1289,6 +1335,10 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     const allSelected = items.every((it: any) => sel.some((s: any) => s.fullPath === it.fullPath))
     if (allSelected) {
       this.selectedRemote = sel.filter((s: any) => !paths.has(s.fullPath)) as any
+    } else if (event.ctrlKey || event.metaKey) {
+      // ★ 2026-11-15 修复（修改人：DD1024z）：同 onLocalGroupSelect —— Ctrl/⌘ 追加而非替换
+      const others = sel.filter((s: any) => !paths.has(s.fullPath))
+      this.selectedRemote = [...others, ...items] as any
     } else {
       this.selectedRemote = [...items] as any
     }
@@ -1330,6 +1380,10 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     const allSelected = items.every((it: any) => sel.some((s: any) => s.fullPath === it.fullPath))
     if (allSelected) {
       this._rlSelected = sel.filter((s: any) => !paths.has(s.fullPath)) as any
+    } else if (event.ctrlKey || event.metaKey) {
+      // ★ 2026-11-15 修复（修改人：DD1024z）：同 onLocalGroupSelect —— Ctrl/⌘ 追加而非替换
+      const others = sel.filter((s: any) => !paths.has(s.fullPath))
+      this._rlSelected = [...others, ...items] as any
     } else {
       this._rlSelected = [...items] as any
     }
@@ -1378,10 +1432,21 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       const keyPrefix = SftpFloatingPanel.TABLE_SETTINGS_KEY
       const borders = localStorage.getItem(`${keyPrefix}.colBorders`)
       const zebra = localStorage.getItem(`${keyPrefix}.zebra`)
+      const fullRow = localStorage.getItem(`${keyPrefix}.fullRowSelection`)
+      const headerBorder = localStorage.getItem(`${keyPrefix}.headerBottomBorder`)
       const pinLocal = localStorage.getItem(`${keyPrefix}.pinFoldersLocal`)
       const pinRemote = localStorage.getItem(`${keyPrefix}.pinFoldersRemote`)
       if (borders !== null) this.showColBorders = JSON.parse(borders)
       if (zebra !== null) this.showZebra = JSON.parse(zebra)
+      // 缺省/脏值一律按「开启」处理（= 升级前的整行选中行为，老用户零迁移成本）
+      if (fullRow !== null) this.fullRowSelection = JSON.parse(fullRow) !== false
+      // 三态：键不存在 ⇒ 跟随整行选中；脏值也按跟随处理
+      if (headerBorder !== null) {
+        try {
+          const v = JSON.parse(headerBorder)
+          this.headerBottomBorder = typeof v === 'boolean' ? v : null
+        } catch { this.headerBottomBorder = null }
+      } else this.headerBottomBorder = null
       if (pinLocal !== null) this.pinFoldersLocal = JSON.parse(pinLocal)
       if (pinRemote !== null) this.pinFoldersRemote = JSON.parse(pinRemote)
     } catch { /* 使用默认值 */ }
@@ -1627,6 +1692,14 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
   private get _hostKey(): string {
     const h = this.profile?.options?.host || ''
     const u = this.profile?.options?.username || this.profile?.options?.user || ''
+    // ★ 2026-11-04（Deepseek-V4.1-Flash）：本地终端（profile.type='local'）没有 host ——
+    //   旧实现落到 `|| '__default'`，所有本地终端共用同一份 localStorage 键
+    //   （`savedLocalPath.__default` / `pathMode.__default` …）⇒ 多个本地标签互相覆盖路径记忆。
+    //   改按 profile 身份分槽（与 SSH 的 `user@host` 同一层级语义）。
+    if (!h && this.profile?.type === 'local') {
+      const id = String(this.profile?.id || this.profile?.name || 'local')
+      return `local:${id}`
+    }
     return (u ? `${u}@` : '') + h || '__default'
   }
 
@@ -1966,8 +2039,16 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
   }
 
   private _normalizeRemoteCwd(cwd: string): string {
-    const normalized = cwd.replace(/\\/g, '/').replace(/\/+$/, '') || '/'
-    return normalized.startsWith('/') ? normalized : `/${normalized}`
+    // ★ 2026-11-15 审计修复（C2，修改人：DD1024z，修改时间：2026-11-15）：
+    //   这个值最终来自终端输出里的 OSC 1337（`supportsWorkingDirectory/getWorkingDirectory`
+    //   或 `reportedCWD` 都是宿主解析终端流得到的）——远端进程可以随意打印它，把面板带到
+    //   任意远端目录。彻底修复需要给 CWD 上报加非对称签名（需改宿主），这里做输入侧收敛：
+    //   去掉控制/双向控制字符、折叠 `..`、限长，至少保证它始终是一个「规范化后的绝对 POSIX 路径」。
+    const clean = String(cwd ?? '').replace(/[\x00-\x1f\x7f\u202a-\u202e\u2066-\u2069]/g, '').slice(0, 4096)
+    let normalized = clean.replace(/\\/g, '/').replace(/\/+$/, '') || '/'
+    if (!normalized.startsWith('/')) normalized = `/${normalized}`
+    try { normalized = path.posix.resolve(normalized) } catch { /* keep normalized */ }
+    return normalized
   }
 
   private _startCwdSync(): void {
@@ -2103,6 +2184,12 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       this.sshSession,
       'echo "${SHELL:-}"; [ -n "${BASH_VERSION:-}" ] && echo BASH; [ -n "${ZSH_VERSION:-}" ] && echo ZSH; true',
     )).toLowerCase()
+    // ★ 2026-11-15 审计修复（B1）：fish/csh 根本不读 .bashrc，且下面的 if/fi 语法在它们那里直接报错。
+    //   旧实现只会「写了个没人读的 .bashrc 然后汇报成功」，现在明确拒绝，交给上层提示失败。
+    if (/\b(fish|csh|tcsh)\b/.test(shellOut)) {
+      log.warn('Permanent CWD reporting unsupported for this login shell:', shellOut.trim())
+      return false
+    }
     const useZsh = /zsh/.test(shellOut)
     const rcFile = useZsh ? '$HOME/.zshrc' : '$HOME/.bashrc'
     const snippet = useZsh ? CWD_ZSH_SNIPPET + '\n' : CWD_BASH_SNIPPET + '\n'
@@ -2115,23 +2202,30 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
      *  2. One-time backup — copy rcFile → rcFile.sftp-plus-backup only when
      *     we are about to modify it for the first time.
      *  3. Append the base64-decoded snippet.
+     * ★ 2026-11-15 审计修复（B1，修改人：DD1024z，修改时间：2026-11-15）：
+     *   旧实现用 `;` 顺序串接、末尾**无条件** echo WRITTEN —— cp/base64/追加任一步失败
+     *   （只读 $HOME、无 base64、磁盘满）都被吞掉，插件仍汇报「已备份并写入」，重启后静默失效。
+     *   现在改 `&&` 链并用 grep 复核 marker 是否真的落地，失败回 FAILED（上层会提示并要求关闭同步）。
      */
     const writeCmd =
       `RC=${rcFile}; ` +
       `if grep -qF '${marker}' "$RC" 2>/dev/null; then ` +
         `echo ALREADY; ` +
       `else ` +
-        `cp -p "$RC" "$RC.sftp-plus-backup" 2>/dev/null; ` +
-        `echo '${b64}' | base64 -d >> "$RC"; ` +
-        `echo WRITTEN; ` +
+        `cp -p "$RC" "$RC.sftp-plus-backup" 2>/dev/null && echo BACKED || echo NOBACKUP; ` +
+        `echo '${b64}' | base64 -d >> "$RC" 2>/dev/null && grep -qF '${marker}' "$RC" && echo WRITTEN || echo FAILED; ` +
       `fi`
     const result = await execSshCommand(this.sshSession, writeCmd)
     if (/\bALREADY\b/.test(result)) {
       log.info('CWD reporting already present in rc file — skipped write')
     } else if (/\bWRITTEN\b/.test(result)) {
-      log.warn(`Backed up original to ${useZsh ? '~/.zshrc.sftp-plus-backup' : '~/.bashrc.sftp-plus-backup'} and appended CWD reporting snippet`)
+      if (/\bNOBACKUP\b/.test(result)) {
+        log.warn(`CWD reporter appended, but backup failed (${useZsh ? '~/.zshrc' : '~/.bashrc'} missing or read-only)`)
+      } else {
+        log.warn(`Backed up original to ${useZsh ? '~/.zshrc.sftp-plus-backup' : '~/.bashrc.sftp-plus-backup'} and appended CWD reporting snippet`)
+      }
     } else {
-      log.warn('Unexpected response when writing CWD reporter:', result)
+      log.warn('Writing CWD reporter FAILED (read-only rc file or missing base64):', result)
       return false
     }
 
@@ -2238,21 +2332,75 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     if (msg) this.showToast(msg, force ? 4200 : 3200)
   }
 
-  /** 循环切换布局模式：auto → horizontal → vertical → single → auto
-   *  写入 configService.store（Tabby config.yaml），通知设置页同步 */
+  // ── 布局模式的两端：本标签页独立偏好 ⇄ 设置页默认布局 ──
+
+  /** 本标签页的布局记忆槽（无标签页身份时返回 null ⇒ 直接读写默认布局） */
+  private _layoutSlotKey(): string | null {
+    const base = this._tabSlotBase()
+    return base ? `${base}/layoutMode` : null
+  }
+
+  private static _isLayoutMode(v: any): v is 'auto' | 'horizontal' | 'vertical' | 'single' {
+    return v === 'auto' || v === 'horizontal' || v === 'vertical' || v === 'single'
+  }
+
+  /** 本标签页是否已单独设过布局（设过之后就不再跟随设置页的默认布局） */
+  private get _layoutModePinned(): boolean {
+    const k = this._layoutSlotKey()
+    if (!k) return false
+    return SftpFloatingPanel._isLayoutMode(this._paneGet(k))
+  }
+
+  /**
+   * 当前面板该用的布局：**本标签页独立值优先**，没有才用设置页的默认布局。
+   * 默认布局读 `paneState/layout/mode` —— 老版本里这是唯一的全局值，升级后自然成为默认值，
+   * 不需要额外迁移（老用户的最后一次选择即「默认布局」，各标签页此后才各自记）。
+   */
+  private _readLayoutPreference(): 'auto' | 'horizontal' | 'vertical' | 'single' {
+    const k = this._layoutSlotKey()
+    if (k) {
+      const own = this._paneGet(k)
+      if (SftpFloatingPanel._isLayoutMode(own)) return own
+    }
+    const def = this.sftpConfig?.get('paneState/layout/mode')
+    return SftpFloatingPanel._isLayoutMode(def) ? def : 'auto'
+  }
+
+  /**
+   * 落盘本标签页的布局模式。
+   * ⛔ 绝不写 `paneState/layout/mode` / `store.layoutMode`：那两个是设置页的**默认布局**，
+   *   写了就回到「切一个标签页，默认值和其它标签页一起被改掉」的老问题。
+   */
+  private _persistLayoutPreference(mode: 'auto' | 'horizontal' | 'vertical' | 'single'): void {
+    const k = this._layoutSlotKey()
+    if (k) this._paneSet(k, mode)
+    else this.sftpConfig?.set('paneState/layout/mode', mode) // 无标签页身份的异常态：退回默认槽
+    this._paneFlush()
+  }
+
+  /**
+   * 循环切换布局模式：auto → horizontal → vertical → single → auto
+   *
+   * ★ 2026-11-05（Deepseek-V4.1-Flash，用户诉求「布局模式应该对应每个 tab 连接，
+   *   而不是改了布局模式所有都改掉；设置页里的布局是默认布局」）：
+   *   只写**本标签页的槽**。原实现写全局 `paneState/layout/mode` + `store.layoutMode`，
+   *   而设置页读的正是这两个键 ⇒ 在面板顶栏切一次，默认布局和所有标签页一起被改掉，
+   *   还会 dispatch `sftp-plus-settings-changed` 让别的面板反过来覆盖自己。
+   *   现在：面板切换 = 本标签页独立偏好（`paneState/perTab/<user@host:port>/layoutMode`）；
+   *   设置页选择 = 默认布局（新建 / 未单独设过的标签页跟随）。
+   */
   cycleLayoutMode(): void {
     const order: Array<'auto' | 'horizontal' | 'vertical' | 'single'> = ['auto', 'horizontal', 'vertical', 'single']
     const idx = order.indexOf(this._layoutMode)
     this._layoutMode = order[(idx + 1) % order.length]
+    try { this._persistLayoutPreference(this._layoutMode) } catch { /* 写配置失败不应挡住 UI 切换 */ }
+    // 同一连接可能开着多个标签页（共用同一个 perTab 槽）⇒ 广播让它们同步成同一套，
+    // 否则 A 页切完、B 页（同连接）还显示旧布局，重开面板才对得上。
+    // ⛔ 这里**不**再 dispatch `sftp-plus-settings-changed`：默认布局没变，没有下游要同步。
     try {
-      // 修复：写入与面板读取一致的路径（paneState/layout/mode）。
-      // 原仅写顶层 store.layoutMode，而面板 ngOnInit 与设置变更 handler 均读
-      // sftpConfig.get('paneState/layout/mode')（嵌套路径），导致切换后立即可被
-      // settings-changed 事件覆盖回 auto（顶部按钮"无法切换自适应布局"）。
-      // 双写：嵌套路径（面板实际读取）+ 顶层（兼容 config schema / 设置页读取）。
-      this.sftpConfig?.set('paneState/layout/mode', this._layoutMode)
-      const target = this.configService?.store?.['tabby-sftp-plus']
-      if (target) { target.layoutMode = this._layoutMode; this.configService?.save() }
+      window.dispatchEvent(new CustomEvent('sftp-plus-layout-mode-changed', {
+        detail: { slot: this._layoutSlotKey() },
+      }))
     } catch {}
     if (this._layoutMode === 'single') this.activePane = 'remote'
     this._syncNarrowLayout()
@@ -2261,7 +2409,27 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       this._applyPaneSplit()
       this._maybeAnnounceLayoutOverride(true)
     }, 50)
-    try { window.dispatchEvent(new CustomEvent('sftp-plus-settings-changed')) } catch {}
+  }
+
+  /**
+   * 同连接其它标签页切换了布局 → 跟随重读（本面板若正是那个槽）。
+   * ★ 2026-11-05：与 `cycleLayoutMode` 的广播配对；只同步「同一个槽」，
+   *   不同连接的面板各用各的，互不影响。
+   */
+  private _onLayoutModeChanged = (ev: Event): void => {
+    if (this._destroyed) return
+    const slot = (ev as CustomEvent)?.detail?.slot as string | null | undefined
+    if (!slot || slot !== this._layoutSlotKey()) return
+    const next = this._readLayoutPreference()
+    if (next === this._layoutMode) return
+    this._layoutMode = next
+    if (next === 'single') this.activePane = 'remote'
+    this._syncNarrowLayout()
+    setTimeout(() => {
+      if (!this._isAlive) return
+      this._safeDetect()
+      this._applyPaneSplit()
+    }, 50)
   }
 
   /** 根据容器宽度更新自动布局状态 */
@@ -2433,7 +2601,9 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       single: this.i18n.t('layout.mode.single'),
     }
     const preferred = map[this._layoutMode] || this.i18n.t('layout.mode.auto')
-    if (!this._layoutOverrideReason) return preferred
+    // ★ 2026-11-05（Deepseek-V4.1-Flash）：布局已改为**按标签页独立**（设置页那份是默认布局），
+    //   title 里点明作用域，否则用户仍会以为点一下改的是全局。
+    if (!this._layoutOverrideReason) return this.i18n.t('layout.scopeThisTab', { mode: preferred })
     const actual = map[this._effectiveLayout] || this._effectiveLayout
     const reason =
       this._layoutOverrideReason === 'too-narrow' ? this.i18n.t('layout.override.reasonNarrow')
@@ -2485,6 +2655,87 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     //   恢复是异步的（等 Tabby 建好连接标签），这段窗口里列表至少是用户熟悉的内容，
     //   不会出现「一个陌生目录闪一下又变成远程」。
     this._primeLeftLocalPathForRestore()
+    // ★ 2026-11-04（Deepseek-V4.1-Flash）：本地终端（无 SSH 会话）没有远程端点可恢复。
+    //   右栏直接落到本地，打开面板就是一个可用的双栏文件管理器（原默认 'remote' 会渲染
+    //   「无会话」占位，右栏等于废掉一半）；用户仍可从右栏连接标识切到其它标签页的 SSH 会话。
+    this._enterLocalOnlyPanes()
+    this._initLocalOnlyLeftPath()
+  }
+
+  /**
+   * 本地终端左栏初始目录：优先上次浏览记忆，其次**终端当前工作目录**，最后 home。
+   *
+   * Tabby 内置 local session 实现了 `getWorkingDirectory()`（session.ts:231，走
+   * `pty.getWorkingDirectory()` 或 OSC7 上报），所以「在终端里 cd 到某处再开 SFTP+」
+   * 能直接落在那个目录 —— 这正是本地终端用户最想要的入口。
+   */
+  private _initLocalOnlyLeftPath(): void {
+    if (!this.isLocalOnlyMode) return
+    try {
+      const saved = this._ptGet('leftLocalPath')
+      const remembered = (typeof saved === 'string' && path.isAbsolute(saved)) ? saved : ''
+      if (remembered) {
+        this.localPath = remembered
+        this.localPathInput = remembered
+        return
+      }
+    } catch { /* ignore */ }
+    const homeAtCall = this.localPath
+    void this._tryGetLocalTerminalCwd().then(cwd => {
+      if (!cwd || !this._isAlive || !this.isLocalOnlyMode) return
+      // ★ await 后必须按快照值复查（铁律 24）：这期间用户可能已经在面板里导航过，
+      //   不能拿一个过期的 cwd 把人家刚打开的目录顶掉。
+      if (this.localPath !== homeAtCall) return
+      this.localPath = cwd
+      this.localPathInput = cwd
+      this._pushLocalNav(cwd)
+      void this.refreshLocal()
+    })
+  }
+
+  /** 取本地终端当前工作目录（与 `tryGetTerminalCwd` 的区别：返回**平台原生**路径，不做 POSIX 归一化） */
+  private async _tryGetLocalTerminalCwd(): Promise<string | null> {
+    try {
+      const session = (this.terminalRef as any)?.session
+      if (!session) return null
+      if (typeof session.reportedCWD === 'string' && session.reportedCWD) {
+        return path.isAbsolute(session.reportedCWD) ? session.reportedCWD : null
+      }
+      if (typeof session.getWorkingDirectory !== 'function') return null
+      if (session.supportsWorkingDirectory && !session.supportsWorkingDirectory()) return null
+      const cwd = await session.getWorkingDirectory()
+      if (!cwd || typeof cwd !== 'string') return null
+      return path.isAbsolute(cwd) ? cwd : null
+    } catch {
+      return null
+    }
+  }
+
+  /**
+   * 本地终端模式：无 SSH 会话时由 Tabby 内置 local profile 打开，面板退化为本地文件浏览器。
+   * 双栏都读本地磁盘（Node fs 直读，与 SSH 无关），右栏保留切远程连接的能力。
+   */
+  get isLocalOnlyMode(): boolean {
+    if (this.sshSession) return false
+    return this.profile?.type === 'local' || !this.profile?.options?.host
+  }
+
+  /** 本地终端模式初始化：确保右栏为本地端点并加载上次的本地目录 */
+  private _enterLocalOnlyPanes(): void {
+    if (!this.isLocalOnlyMode) return
+    try {
+      if (this._rightKind === 'local' && this._rlPath) return
+      this._rightKind = 'local'
+      this._remoteNav.clear()
+      this._rlSelected = []
+      this._syncRlSelPaths()
+      let saved: unknown = null
+      try { saved = this._ptGet('rightLocalPath') } catch { /* ignore */ }
+      const p = (typeof saved === 'string' && saved) ? saved : os.homedir()
+      this._rlPath = p
+      this._rlPathInput = p
+      void this._rlRefresh()
+    } catch { /* ignore */ }
   }
 
   /** 左栏记忆中「切走前的本地目录」预置为当前路径（仅在左栏本次要恢复为远程时生效） */
@@ -2752,7 +3003,10 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     if (this.selectedRemote.length > 0) this._dropSelection('remote')
     if (this._rlClickTimer) { clearTimeout(this._rlClickTimer); this._rlClickTimer = null }
     this._rlClickTimer = setTimeout(() => { this._rlClickTimer = null }, 250)
-    const r = computeSelection(this._rlSelected, entry, event, idx, this._rlLastSelectedIndex, this.getFilteredRlEntries(), this._rlSelectedPaths, null)
+    // ★ 2026-11-15 修复（修改人：DD1024z）：displayOrder 原本硬传 null ⇒ 右栏本地端点
+    //   开启分组后，Shift+点击仍按**扁平排序序**切片：选中的是「排序序上相邻」而不是
+    //   「屏幕上相邻」的一批（与左右栏已修的分组错位问题同源）。改为传 rl 显示序。
+    const r = computeSelection(this._rlSelected, entry, event, idx, this._rlLastSelectedIndex, this.getFilteredRlEntries(), this._rlSelectedPaths, this._displayEntryOrder('rl'))
     this._rlSelected = r.selection
     this._rlLastSelectedIndex = r.lastIndex
     this._syncRlSelPaths()
@@ -2780,34 +3034,31 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     return s
   }
 
-  /** 拖拽起点：与 onDragStartLocal 同构（OS 拖出 + 面板间 local-paths payload），源换成 _rl 槽位 */
+  /** 拖拽起点：与 onDragStartLocal 同构（面板间 local-paths payload + 系统拖出），源换成 _rl 槽位 */
   onDragStartRl(ev: DragEvent, entry: LocalEntry): void {
     const src = this._resolveDragSource(ev, entry, this._rlSelected)
     if (!src) return
+    // ★ 2026-11-09：拖出到系统走 Chromium DownloadURL（无需 Alt，落到松手所在目录）；
+    //   多选默认打成一个 ZIP；Alt + 多选则优先走原生 CF_HDROP，一次落 N 个真实文件。
+    if (src.length > 1 && ev.altKey && this._nativeDragOutLocal(ev, src)) return
+    const dlReady = this._setDragDownloadUrl(ev, src, 'local')
+    if (!dlReady && this._nativeDragOutLocal(ev, src)) return
     this._setCustomDragPreview(ev, src.map(e => ({ name: e.name, isDirectory: e.isDirectory })))
     const cur = path.resolve(this._rlPath)
     this._fileDnd.setDragSource('remote', src.every(e => path.resolve(path.dirname(e.fullPath)) === cur))
     const p: DragPayload = { kind: 'local-paths', paths: src.map(e => ({ fullPath: e.linkTarget || e.fullPath, name: e.name, isDirectory: e.isDirectory })), srcPane: 'right' }
     ev.dataTransfer?.setData('application/x-sftp-plus', JSON.stringify(p))
-
-    const uriList: string[] = []
-    for (const e of src) {
-      try {
-        const file = new File([''], e.name)
-        ;(file as any).path = e.fullPath
-        ev.dataTransfer?.items.add(file)
-        uriList.push(encodeURI(`file:///${e.fullPath.replace(/\\/g, '/')}`))
-      } catch { /* 跳过无法添加的文件 */ }
-    }
-    if (uriList.length) {
-      ev.dataTransfer?.setData('text/uri-list', uriList.join('\r\n'))
-      ev.dataTransfer!.dropEffect = 'copy'
-      ev.dataTransfer!.effectAllowed = 'copy'
-    }
+    // ★ 2026-11-19（修改人：DD1024z）：同 onDragStartLocal —— 布防「右键取消」
+    this._armDragCancel(ev.dataTransfer ?? null)
   }
 
   onDragOverRl(ev: DragEvent): void {
     ev.preventDefault()
+    // ★ 2026-11-19（修改人：DD1024z）：同 onDragOver —— 已取消的拖拽不给「可投放」反馈
+    if (this._dragCancelRequested) {
+      if (ev.dataTransfer) ev.dataTransfer.dropEffect = 'none'
+      return
+    }
     if (ev.dataTransfer) ev.dataTransfer.dropEffect = 'copy'
     if (!this._rlDragOver) { this._rlDragOver = true; this._safeDetect() }
     this._updateDropFolderHint(ev)
@@ -2821,6 +3072,8 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
   }
 
   async onDropRl(ev: DragEvent): Promise<void> {
+    // ★ 2026-11-19（修改人：DD1024z）：右键取消过的拖拽，落到右栏本地端点同样不得产生复制/移动
+    if (this._dragCancelRequested) { this._resetDragCancel(); this._clearDropFolderHint(); this._rlDragOver = false; return }
     this._clearDropFolderHint()
     // ★ v1 明确不收「远程 → 右本地」内部拖拽：drop.ts 的下载通道绑定右栏远程会话，
     //   来源若为左栏远程端点时会话归属错误——宁可明确拒收也不能错传（后续扩展会话感知端口后放开）。
@@ -2838,6 +3091,8 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     await this._fileDropRuntime.onDrop(ev, 'local', destDir, 'right')
     void this._rlRefresh()
     this._safeDetect()
+    // ★ 2026-11-19（修改人：DD1024z）：同 onDrop —— 落手即结束，收掉右键取消的布防
+    this._resetDragCancel()
   }
 
   /** 切换右栏到本地端点（保留远程会话对象，切回远程时免重连） */
@@ -2926,7 +3181,16 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
   private _computeHostSlotKey(): string | null {
     const o: any = this.profile?.options || {}
     const host = String(o.host || '').trim().toLowerCase()
-    if (!host) return null
+    if (!host) {
+      // ★ 2026-11-04（Deepseek-V4.1-Flash）：本地终端没有 host，但同样需要**独立的 perTab 槽**。
+      //   返回 null 会退到全局槽 `paneState/*`，多开几个本地终端时端点/路径/列配置互相覆盖
+      //   （正是 2026-10-21「多标签页串台」那个坑的本地版）。按 profile 身份分槽即可。
+      if (this.profile?.type === 'local') {
+        const id = String(this.profile?.id || this.profile?.name || 'local')
+        return `paneState/perTab/local:${encodeURIComponent(id)}`
+      }
+      return null
+    }
     const user = String(o.username || o.user || '')
     const port = Number(o.port) || 22
     return `paneState/perTab/${encodeURIComponent(user)}@${encodeURIComponent(host)}:${port}`
@@ -4105,7 +4369,9 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     // profile 已就绪，此时加载路径模式才能正确匹配 per-profile 的 key
     this._loadSavedPaths()
     this._cwdSetupPrompted = false
-    if (this.pathMode === 'sync') this._startCwdSync()
+    // ★ 2026-11-04（Deepseek-V4.1-Flash）：本地终端没有远程目录可跟随 —— 沿用 'sync' 会让
+    //   `_startCwdSync` 每 800ms 空转一轮（`connected` 恒 false，白跑）。
+    if (this.pathMode === 'sync' && !this.isLocalOnlyMode) this._startCwdSync()
     // 本地导航历史：记录初始路径
     this._pushLocalNav(this.localPath)
     // 路径记忆可能更新了 localPath，刷新本地列表显示正确的目录内容
@@ -4115,7 +4381,15 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     //   不依赖「ngOnInit 后面的同步代码会先跑完」这种 microtask 时序（改一次顺序就会静默走默认值）。
     this._readConnLabelStyle()
     // ★ 2026-10-20：恢复左栏远程端点（异步轮询标签树，等 Tabby 把另一个连接建好）
-    void this._restoreLeftEndpoint()
+    // ★ 2026-11-04（Deepseek-V4.1-Flash）：本地终端没有会话可等。若照旧调用，只要 perTab/全局槽
+    //   里残留过 `endpoints/left: remote`，面板就会空轮询 30s、顶栏一直挂「连接中 <目标>」，
+    //   最后落到「远程（已断开）」。本地终端必须直接跳过，并把记忆的本地目录留在左栏。
+    if (this.isLocalOnlyMode) {
+      this._leftRestoreTried = true
+      log.info('[SFTP+] local-only terminal: skip left remote endpoint restore')
+    } else {
+      void this._restoreLeftEndpoint()
+    }
 
     // 确定 host info
     if (this.profile?.options?.host) {
@@ -4133,10 +4407,10 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       if (vsaved) this._verticalSplitRatio = Math.max(0.15, Math.min(0.85, parseFloat(vsaved) || 0.5))
       const hsaved = this._paneGet('sftp-plus-horizontal-split-ratio')
       if (hsaved) this._horizontalSplitRatio = Math.max(0.15, Math.min(0.85, parseFloat(hsaved) || 0.5))
-      // ★ 2026-08-15 修复 #5：布局模式应通过 sftpConfig.get() 读取（有 fallback 链），
-      //   而非直接访问 store 顶层属性（迁移后数据在 paneState/layout/mode 嵌套路径）
-      const lmode = this.sftpConfig?.get('paneState/layout/mode')
-      if (lmode === 'horizontal' || lmode === 'vertical' || lmode === 'single') this._layoutMode = lmode
+      // ★ 2026-11-05（Deepseek-V4.1-Flash）：布局模式按标签页分槽读取 ——
+      //   本标签页独立值优先，没有才用设置页的默认布局（`paneState/layout/mode`）。
+      //   原实现只读那一个全局键 ⇒ 多标签页共用一套布局。
+      this._layoutMode = this._readLayoutPreference()
 
       this._bindLayoutObservers()
     } catch { /* ResizeObserver 不可用时忽略 */ }
@@ -4188,9 +4462,10 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       // 默认路径模式变更 → 未单独切换过的连接即时跟随
       this._applyDefaultPathMode()
       // 重新读取布局模式并立即应用（同步窄屏判断 + 面板分割）
-      const lmode = this.sftpConfig?.get('paneState/layout/mode')
-      if (lmode === 'horizontal' || lmode === 'vertical' || lmode === 'single') this._layoutMode = lmode
-      else this._layoutMode = 'auto'
+      // ★ 2026-11-05（Deepseek-V4.1-Flash）：设置页改的是**默认布局**（`paneState/layout/mode`）。
+      //   本标签页若已在顶栏单独设过（perTab 槽有值）就不跟随 —— 否则「设置页切一次，
+      //   所有标签页的独立布局一起被抹掉」，正是本次要修的对称问题。
+      if (!this._layoutModePinned) this._layoutMode = this._readLayoutPreference()
       if (this._layoutMode === 'single') {
         this._effectiveLayout = 'single'
         this._layoutOverrideReason = null
@@ -4214,6 +4489,9 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       this.cdr.markForCheck()
     }
     window.addEventListener('sftp-plus-settings-changed', this._settingsChangedHandler)
+    // ★ 2026-11-05（Deepseek-V4.1-Flash）：同一连接（同一 perTab 槽）的多个标签页共享布局偏好，
+    //   谁改了就让另一个跟着重读 —— 事件只带槽 key，不同连接的面板直接早退。
+    window.addEventListener('sftp-plus-layout-mode-changed', this._onLayoutModeChanged)
 
     // ★ 2026-10-27（Deepseek-V4.1-Flash）：QuickCmd+ 执行命令后请求刷新（契约见 core/quickcmd-link.ts）。
     //   监听挂在 window 上、事件带 session 引用 ⇒ 同一窗口里哪个 Tabby 标签的命令都能精确找回本面板。
@@ -4393,6 +4671,14 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
 
   ngOnDestroy(): void {
     this._destroyed = true
+    // ★ 2026-11-05：路径「›」下拉是 document/window 级监听，销毁时必须摘掉，
+    //   否则关闭面板后它还在监听全局 mousedown/scroll。
+    this.closePathSepMenu()
+    // 悬停预读的防抖定时器同样要清（晚到的 readdir 会往已销毁组件的缓存里写）
+    if (this._sepPrefetchTimer) {
+      clearTimeout(this._sepPrefetchTimer)
+      this._sepPrefetchTimer = null
+    }
     // ★ 2026-10-26（Deepseek-V4.1-Flash）：未决的二次确认按「取消」结掉 ——
     //   否则 await askConfirm() 的后续代码永不执行（其中的清理/复位全部卡住）。
     this.disposeConfirmDialog()
@@ -4404,7 +4690,14 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     // 必须先中止拖拽预缓存下载，再 disconnect；否则后台 SFTP read 会继续占满 SSH 通道，
     // 关面板重开后进入文件夹仍会卡，直到重启 Tabby。
     this._cancelRemoteDragCache()
+    // ★ 2026-11-09（DeepSeek-V4.1-Flash）：拖出到系统专用下载同样要掐掉，并清掉
+    //   os-drag-out 模块缓存的 webContents/拖拽图标（否则面板关了还握着已销毁的窗口对象）
+    this._cancelDragOutTransfers()
+    try { resetOsDragOutState() } catch { /* ignore */ }
     this._clearCustomDragPreview()
+    // ★ 2026-11-19（修改人：DD1024z）：右键取消拖拽的 document 级监听同样要摘掉，
+    //   否则面板销毁后它们还会在全局捕获期吞掉 contextmenu
+    this._resetDragCancel()
     this._fileDnd?.reset()
     this._headerReorder?.dispose()
     this._rubberBand.dispose()
@@ -4420,6 +4713,10 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     //   _disposed 守卫恒为 false（dispose 后仍会启动新传输），
     //   且 _activeTransferSlots 一直持有含完整远端/本地路径的槽位键。
     this._transferCoordinator.dispose()
+    // ★ 2026-10-30 P2 修复（SF-27 配套）：add/update 改为 400ms 防抖落盘后，
+    //   销毁时必须把未落盘的那一批立即写掉 —— 否则「刚传完就关面板」的最后几条记录
+    //   （往往是 pending→success 的终态更新）会停留在内存里随组件一起丢掉。
+    try { this.transferLog?.flushSave() } catch { /* 面板销毁阶段失败不抛 */ }
     if (this._geomInitTimer) {
       clearTimeout(this._geomInitTimer)
       this._geomInitTimer = null
@@ -4511,6 +4808,8 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     if (this._settingsChangedHandler) {
       window.removeEventListener('sftp-plus-settings-changed', this._settingsChangedHandler)
     }
+    // ★ 2026-11-05：布局同步监听（同连接多标签页）同属 window 级，销毁必摘
+    window.removeEventListener('sftp-plus-layout-mode-changed', this._onLayoutModeChanged)
     // ★ 2026-10-27（Deepseek-V4.1-Flash）：QuickCmd+ 联动 —— 监听与观察期定时器都必须摘掉，
     //   否则定时器强引用整个面板，销毁后还会继续对远端 readdir。
     this._qcObserver?.stop('panel destroyed')
@@ -4540,7 +4839,17 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     // P2-1: 清理远程拖拽缓存临时目录
     // ★ 2026-10-25 BUG-M7 修复：面板销毁时异步 rm 可能未执行完毕就被 GC，
     //   导致临时目录残留。改用同步 rmSync，确保销毁前清理完成。
-    try { fsSync.rmSync(path.join(os.tmpdir(), 'sftp-plus-dragout'), { recursive: true, force: true }) } catch {}
+    // ★ 2026-11-15 审计修复（B2，修改人：DD1024z，修改时间：2026-11-15）：
+    //   原来这里 `rm -rf` 整个 `os.tmpdir()/sftp-plus-dragout` —— 那是**进程级共享**目录，
+    //   DownloadURL 的缓存在其 `http/` 子目录里；关掉本面板会把其它面板正在被 Chromium
+    //   读取的拖出源文件删掉（落 0 字节/失败），Alt 通道的缓存也会被互相清空。
+    //   改为只删本面板登记过的文件，目录仅在确实为空时清掉（与下面 drop 作用域同一原则）。
+    for (const f of this._dragOutOwnedFiles) {
+      try { fsSync.rmSync(f, { force: true }) } catch { /* best effort */ }
+    }
+    this._dragOutOwnedFiles.clear()
+    try { fsSync.rmdirSync(path.join(os.tmpdir(), OS_DRAG_OUT_TMP_DIR, 'http')) } catch { /* 非空/被占用：留给其它面板 */ }
+    try { fsSync.rmdirSync(path.join(os.tmpdir(), OS_DRAG_OUT_TMP_DIR)) } catch { /* 同上 */ }
     // ★ 2026-09-20 P2-2: 清理「拖入兜底」临时目录（仅本面板作用域内的副本，不误删其它面板的）
     try { fsSync.rmSync(dragDropTempDir(this._dropTmpScope), { recursive: true, force: true }) } catch {}
     // P2-2: 清理 _openPathInSystem 可能残留的 keyup 监听和定时器
@@ -4686,6 +4995,21 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
         }
       }
     } catch { /* use empty */ }
+
+    /* ★ 2026-11-15 审计修复（A3，修改人：DD1024z，修改时间：2026-11-15）：
+     *   config.yaml / localStorage 都属于「可被外部写入」的数据（备份导入、手改配置）。
+     *   下面这些值会直接进内联 CSS 自定义属性，而样式表用的是简写 `background: var(--_bg)`，
+     *   `url(https://…)` 也是合法值 ⇒ 一次外连（泄露 IP/UA）。只放行 #hex，非法值按未设置处理
+     *   （回退到 CSS 变量链，不影响任何预设主题——仓库内预设全部是 hex）。
+     */
+    const hexOnly = (v: unknown): string => {
+      const s = typeof v === 'string' ? v.trim() : ''
+      return /^(#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8}))$/.test(s) ? s : ''
+    }
+    themePrimary = hexOnly(themePrimary)
+    themeBg = hexOnly(themeBg)
+    themeText = hexOnly(themeText)
+    themeBorder = hexOnly(themeBorder)
 
     const vars = ['--_bg','--_text','--_primary','--_border','--_content','--_surface','--_hover','--_active','--_input-bg','--_scroll-track','--_scroll-thumb','--_scroll-thumb-hover']
     const hasPreset = !!themeValue
@@ -4887,6 +5211,8 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       this._conflictDigestAlgo = cfg?.conflictDigestAlgo === 'sha256' ? 'sha256' : 'sha1'
       // ★ 2026-10-27（Deepseek-V4.1-Flash）：拖拽落点只认当前目录（缺键按「开」；旧配置无此键）
       this._dropToCurrentDirOnly = cfg?.dropToCurrentDir !== false
+      // ★ 2026-11-09（DeepSeek-V4.1-Flash）：Alt+拖拽 拖出到系统（缺键按「开」——只由 Alt 手势触发）
+      this._dragOutToSystem = cfg?.dragOutToSystem !== false
       // ★ 2026-10-27（Deepseek-V4.1-Flash）：QuickCmd+ 联动 —— 缺键按「关」处理（新增能力不默默开启）；
       //   观察期时长夹到 1–120 秒，与设置页同口径（这里再夹一次：配置可能被手改）
       this._refreshOnQuickCmd = cfg?.refreshOnQuickCmd === true
@@ -4935,6 +5261,22 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
           followWindow: !!g.followWindow,
         }
       }
+      // ★ 2026-11-05（Deepseek-V4.1-Flash）：自定义默认大小（用户右键「设为默认」记下的目标几何）
+      let d = cfg?.panelGeometryDefault
+      if ((!d || typeof d !== 'object' || !(d.width || d.height)) && typeof localStorage !== 'undefined') {
+        try {
+          const rawD = localStorage.getItem('sftp-plus-panel-geometry-default')
+          if (rawD) d = JSON.parse(rawD)
+        } catch { /* ignore */ }
+      }
+      this._panelGeomDefault = (d && typeof d === 'object' && (d.width || d.height))
+        ? {
+            left: typeof d.left === 'string' ? d.left : undefined,
+            top: typeof d.top === 'string' ? d.top : undefined,
+            width: typeof d.width === 'string' ? d.width : undefined,
+            height: typeof d.height === 'string' ? d.height : undefined,
+          }
+        : null
     } catch { /* ignore */ }
   }
 
@@ -4985,6 +5327,37 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     } catch (e) {
       log.warn('[panel-geom] persist failed:', e)
     }
+  }
+
+  /**
+   * ★ 2026-11-05（Deepseek-V4.1-Flash）：持久化「自定义默认面板大小」。
+   *   写入整体赋值（同 _persistPanelGeometry），null 表示清除 ⇒ 配置写空对象、localStorage 删键。
+   *   与当前几何分两个键存：混在一起会让「设为默认」和「还原默认」互相抵消。
+   */
+  private _persistPanelGeomDefault(): void {
+    const payload = this._panelGeomDefault ? { ...this._panelGeomDefault } : {}
+    try {
+      if (this.configService?.store) {
+        if (!this.configService.store['tabby-sftp-plus']) {
+          this.configService.store['tabby-sftp-plus'] = {}
+        }
+        this.configService.store['tabby-sftp-plus'].panelGeometryDefault = payload
+        try { this.configService.save() } catch (e) {
+          log.warn('[panel-geom] configService.save (default) failed:', e)
+        }
+      }
+    } catch (e) {
+      log.warn('[panel-geom] persist default failed:', e)
+    }
+    try {
+      if (typeof localStorage !== 'undefined') {
+        if (this._panelGeomDefault) {
+          localStorage.setItem('sftp-plus-panel-geometry-default', JSON.stringify(payload))
+        } else {
+          localStorage.removeItem('sftp-plus-panel-geometry-default')
+        }
+      }
+    } catch { /* ignore */ }
   }
 
   /** 把几何值归一化为「相对父窗口的百分比」。
@@ -5085,14 +5458,17 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     this._safeDetect()
   }
 
-  /** 应用「跟随窗口」默认几何：96%×94% 居中，使用百分比定位 → Tabby 窗口缩放时面板自动跟随 */
+  /** 应用「跟随窗口」默认几何：优先用户自定义的默认大小，否则出厂 96%×94% 居中。
+   *  两者都是百分比定位 ⇒ Tabby 窗口缩放时面板自动跟随。 */
   private _applyDefaultGeometry(): void {
     const host = this._hostEl
     if (!host) return
-    host.style.left = '2%'
-    host.style.top = '3%'
-    host.style.width = '96%'
-    host.style.height = '94%'
+    const g = this._panelGeomDefault
+    // ⛔ 自定义默认只接受百分比（px 与 followWindow 语义冲突），非百分比项一律回退出厂值
+    host.style.left = this._pctOr(g?.left, this._FACTORY_GEOM.left)
+    host.style.top = this._pctOr(g?.top, this._FACTORY_GEOM.top)
+    host.style.width = this._pctOr(g?.width, this._FACTORY_GEOM.width)
+    host.style.height = this._pctOr(g?.height, this._FACTORY_GEOM.height)
     this._followWindow = true
     this.panelMaximized = false
     this._prevGeom = null
@@ -5391,10 +5767,16 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
         if (!tab) return
         if (tab.root?.getAllTabs) { for (const c of tab.root.getAllTabs()) visit(c); return }
         if (typeof tab.getAllTabs === 'function') { for (const c of tab.getAllTabs()) visit(c); return }
-        const ss = tab.sshSession ?? tab._sshSession ?? tab._session ?? null
+        const prof0 = tab.profile ?? tab._profile ?? null
+        // ★ 2026-11-04（Deepseek-V4.1-Flash）：本地终端标签（profile.type='local'）的
+        //   `tab._session` 是 pty 会话、不是 SSH 会话 —— 原 `?? tab._session` 兜底会把它当成
+        //   一条「远程连接」混进候选（用户在本地终端标签上看到自家机器变成一台 SSH 主机，
+        //   选中后必然开通道失败）。先按 profile 剔掉，再走会话兜底。
+        const isLocalTab = prof0?.type === 'local' && !prof0?.options?.host
+        const ss = isLocalTab ? null : (tab.sshSession ?? tab._sshSession ?? tab._session ?? null)
         if (!ss || seen.has(ss)) return
         seen.add(ss)
-        const prof = tab.profile ?? tab._profile ?? null
+        const prof = prof0
         const host = prof?.options?.host || (ss as any)?.connection?.host || 'unknown-host'
         const user = prof?.options?.username || prof?.options?.user || ''
         const label = user ? `${user}@${host}` : String(host)
@@ -6252,10 +6634,14 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
           }
         }
       } catch { /* ignore */ }
-      const ss = t.sshSession ?? t._sshSession ?? t._session ?? null
+      const prof0 = t.profile ?? t._profile ?? null
+      // ★ 2026-11-04（Deepseek-V4.1-Flash）：同 listRemoteConnectionOptions —— 本地终端的
+      //   `t._session` 是 pty 会话，不能当 SSH 连接收进来（否则候选里多一条 `unknown-host`）。
+      const isLocalTab = prof0?.type === 'local' && !prof0?.options?.host
+      const ss = isLocalTab ? null : (t.sshSession ?? t._sshSession ?? t._session ?? null)
       if (!ss || seen.has(ss)) return
       seen.add(ss)
-      const prof = t.profile ?? t._profile ?? null
+      const prof = prof0
       const o: any = prof?.options || {}
       const host = o.host || ss?.connection?.host || 'unknown-host'
       const user = o.username || o.user || ''
@@ -6941,7 +7327,13 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     if (this._remoteLoadingTimer) { clearTimeout(this._remoteLoadingTimer); this._remoteLoadingTimer = null }
     if (this._remoteFlashTimer) { clearTimeout(this._remoteFlashTimer); this._remoteFlashTimer = null }
     if (this._localFlashTimer) { clearTimeout(this._localFlashTimer); this._localFlashTimer = null }
-    if (this._paneFlushTimer) { clearTimeout(this._paneFlushTimer); this._paneFlushTimer = null }
+    // ★ 2026-10-30 P2-3 修复：清除 _paneFlushTimer 前先 flush，避免快速导航后
+    //   立刻关闭面板导致最后一次路径变更丢失（timer 被清但尚未触发）。
+    if (this._paneFlushTimer) {
+      clearTimeout(this._paneFlushTimer)
+      this._paneFlushTimer = null
+      try { this._paneFlush() } catch { /* ignore */ }
+    }
     // ★ 2026-10-20 全量审计：右栏本地（rl）端点新增的三个定时器此前没接入统一清理表，
     //   销毁后最长还会持有整个面板约 1.3s（回调里直接改状态 + 触发变更检测）。
     if (this._rlFlashTimer) { clearTimeout(this._rlFlashTimer); this._rlFlashTimer = null }
@@ -7270,7 +7662,8 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     }
     this._localFlash = false
     try {
-      const items: any[] = await session.readdir(requestedPath)
+      // ★ 2026-11-15 审计修复（A4）：左栏远程列表同样过滤（与右栏同一入口规则）
+      const items: any[] = this._filterUnsafeRemoteEntries(await session.readdir(requestedPath), 'left')
       if (gen !== this._localRefreshGen) return
       const entries: LocalEntry[] = (items || []).map((it: any) => ({
         name: it.name,
@@ -7409,6 +7802,332 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     void this._goToPathInput('local', this.localPathInput || this.localPath)
   }
 
+  // ========== 路径面包屑与「›」层级下拉（2026-11-05） ==========
+  //
+  // 用户诉求：地址栏支持点节点跳转；节点之间的 › 可展开该节点下的文件夹；
+  // 点空白处可切回输入；路径过长时仍要有地方能切到输入态。
+  // 设计约束：
+  //   - 面包屑由**父组件**解析（`isLocal` 在 pane 里是槽位语义，左栏切远程时仍为 true，
+  //     铁律「槽位 ≠ 端点」⇒ 展示组件不猜路径风格）；
+  //   - 段数过多时折叠为「首段 … 末三段」，末端永远留出空白 + 固定 ✎ 按钮。
+
+  private _crumbsCache = new Map<string, Array<{ label: string; path: string; ellipsis?: boolean }>>()
+
+  /** 左栏端点的路径风格：只有「本地槽位 + 本地端点 + Windows」才是盘符语义 */
+  private _localPathStyle(): 'win' | 'posix' {
+    return (this._leftKind === 'local' && os.platform() === 'win32') ? 'win' : 'posix'
+  }
+
+  /**
+   * 把绝对路径拆成面包屑。按 `style` 区分盘符 / POSIX 根；
+   * 段数 > 5 时折叠为「首段 + … + 末三段」，保证任何宽度下节点都点得到。
+   */
+  private _buildPathCrumbs(raw: string, style: 'win' | 'posix'): Array<{ label: string; path: string; ellipsis?: boolean }> {
+    const src = (raw || '').trim()
+    if (!src) return []
+    const key = style + '|' + src
+    const cached = this._crumbsCache.get(key)
+    if (cached) return cached
+
+    const out: Array<{ label: string; path: string; ellipsis?: boolean }> = []
+    try {
+      if (style === 'posix') {
+        const norm = path.posix.normalize(src.replace(/\\/g, '/')) || '/'
+        const parts = norm.split('/').filter(Boolean)
+        out.push({ label: '/', path: '/' })
+        let acc = ''
+        for (const s of parts) { acc += '/' + s; out.push({ label: s, path: acc }) }
+      } else {
+        const norm = src.replace(/\//g, '\\')
+        const drive = /^([A-Za-z]:)\\?/.exec(norm)
+        if (drive) {
+          const root = drive[1] + '\\'
+          out.push({ label: drive[1], path: root })
+          let acc = drive[1]
+          for (const s of norm.slice(drive[0].length).split('\\').filter(Boolean)) {
+            acc += '\\' + s
+            out.push({ label: s, path: acc })
+          }
+        } else if (norm.startsWith('\\\\')) {
+          // UNC：\\server\share\...（首段到 share 为止）
+          const parts = norm.replace(/^\\\\+/, '').split('\\').filter(Boolean)
+          if (parts.length) {
+            let acc = '\\\\' + parts[0]
+            out.push({ label: '\\\\' + parts[0], path: acc })
+            for (const s of parts.slice(1)) { acc += '\\' + s; out.push({ label: s, path: acc }) }
+          }
+        } else {
+          out.push({ label: norm, path: norm })
+        }
+      }
+    } catch {
+      out.length = 0
+    }
+
+    // ★ 2026-11-05 二次修正：这里**不再按段数硬折叠**（原 `> 5` 段 → 首段 + … + 末三段）。
+    //   折叠多少只取决于地址栏真实宽度，由文件面板 `_fitCrumbs()` 量出来决定：
+    //   窄面板 2 段也可能放不下，宽面板 8 段也放得下，按段数是拍脑袋。
+    //   缓存命中的数组会被复用（父组件大量 getter 每轮 CD 都会取），别原地改它。
+    const result = out
+    // 简单容量控制：面包屑 key 数随导航增长，超过 128 条整体清空（命中率优先，不追求 LRU）
+    if (this._crumbsCache.size > 128) this._crumbsCache.clear()
+    this._crumbsCache.set(key, result)
+    return result
+  }
+
+  get localPathCrumbs() { return this._buildPathCrumbs(this.localPath, this._localPathStyle()) }
+  get remotePathCrumbs() { return this._buildPathCrumbs(this.remotePath, 'posix') }
+  get rlPathCrumbs() { return this._buildPathCrumbs(this._rlPath, os.platform() === 'win32' ? 'win' : 'posix') }
+
+  /** 点击面包屑节点：统一走「地址栏回车」那条通道，避免第二套导航语义 */
+  onPathCrumbClick(side: 'local' | 'remote' | 'rl', target: string): void {
+    if (!target) return
+    if (side === 'rl') { void this._rlGo(target); return }
+    void this._goToPathInput(side, target)
+  }
+
+  /** 连接符「›」下拉：当前展开的层级 / 位置 / 子文件夹 */
+  _sepMenu: {
+    side: 'local' | 'remote' | 'rl'
+    dir: string
+    x: number
+    y: number
+    items: Array<{ name: string; path: string }>
+    loading: boolean
+    /** 目录项超过上限被截断时为「被截掉的条数」，模板据此显示一行提示（0/undefined = 未截断） */
+    truncated?: number
+  } | null = null
+  private _sepMenuCleanup: (() => void) | null = null
+  /**
+   * ★ 2026-11-05（用户实测「点连接符列文件夹明显比直接进目录慢」）：
+   *   子目录列表缓存，key = `<side>|<dir>`。
+   *   - 命中即**先渲染**（菜单立刻有内容），随后后台 readdir 刷新 —— 目录刚变过也能纠正；
+   *   - 本地 readdir 本身只要 0.2ms，慢的是「菜单打开 → CD → 再 CD」这条链路，
+   *     缓存把其中「等 I/O 才能出第一帧」的那一轮彻底省掉。
+   */
+  private _subdirCache = new Map<string, { items: Array<{ name: string; path: string }>; at: number }>()
+  private readonly _SUBDIR_CACHE_TTL = 60 * 1000
+  private readonly _SUBDIR_CACHE_MAX = 120
+  /** 单次下拉最多渲染的目录项：网络盘/大目录上千项会拖慢整块面板的变更检测 */
+  private readonly _SEP_MENU_MAX_ITEMS = 400
+
+  onPathSepClick(side: 'local' | 'remote' | 'rl', ev: { path: string; event: MouseEvent }): void {
+    void this.openPathSepMenu(side, ev)
+  }
+
+  /**
+   * ★ 2026-11-05（用户反馈「点 › 列文件夹明显比直接进目录慢」）：
+   *   鼠标停到 › 上就预读这一层的子目录（120ms 防抖，避免划过一排连接符时狂读盘）。
+   *   人手从移动到点击通常超过 120ms ⇒ 点击时 `_getSubdirCache` 已命中，菜单一次渲染到位，
+   *   不再出现「先一帧空白/加载中 → 再一帧列表」的双轮变更检测。
+   */
+  private _sepPrefetchTimer: ReturnType<typeof setTimeout> | null = null
+
+  onPathSepHover(side: 'local' | 'remote' | 'rl', ev: { path: string; event?: MouseEvent }): void {
+    const dir = ev?.path
+    if (!dir) return
+    // 已缓存，或菜单正开着这一层 → 不用再读
+    if (this._getSubdirCache(side, dir)) return
+    if (this._sepMenu && this._sepMenu.side === side && this._sepMenu.dir === dir) return
+    if (this._sepPrefetchTimer) clearTimeout(this._sepPrefetchTimer)
+    this._sepPrefetchTimer = setTimeout(() => {
+      this._sepPrefetchTimer = null
+      void this._prefetchSubdirs(side, dir)
+    }, 120)
+  }
+
+  /** 预读结果只进缓存（不碰菜单：用户可能已经移开鼠标或点了别的层级） */
+  private async _prefetchSubdirs(side: 'local' | 'remote' | 'rl', dir: string): Promise<void> {
+    if (this._destroyed || this._getSubdirCache(side, dir)) return
+    const items = await this._listSubdirs(side, dir)
+    if (this._destroyed) return
+    const shown = items.length > this._SEP_MENU_MAX_ITEMS ? items.slice(0, this._SEP_MENU_MAX_ITEMS) : items
+    this._setSubdirCache(side, dir, shown)
+  }
+
+  private async openPathSepMenu(side: 'local' | 'remote' | 'rl', ev: { path: string; event: MouseEvent }): Promise<void> {
+    const dir = ev.path
+    if (!dir) return
+    const { x, y } = this._sepMenuAnchor(ev.event)
+    const cached = this._getSubdirCache(side, dir)
+    this.closePathSepMenu()
+    // 命中缓存 ⇒ 立刻带上内容（loading=false），不再先闪一帧「加载中」
+    this._sepMenu = { side, dir, x, y, items: cached || [], loading: !cached }
+    this._installSepMenuGuards()
+    const items = await this._listSubdirs(side, dir)
+    // 铁律 24：await 后按快照复查（期间可能被关掉或换了层级）
+    const cur = this._sepMenu
+    if (!cur || cur.side !== side || cur.dir !== dir) return
+    // 大目录（网络盘常见上千项）截断：整块面板的变更检测按绑定数计费，宁可不显示尾部
+    const shown = items.length > this._SEP_MENU_MAX_ITEMS ? items.slice(0, this._SEP_MENU_MAX_ITEMS) : items
+    const truncated = items.length - shown.length
+    this._setSubdirCache(side, dir, shown)
+    // 内容与缓存一致 ⇒ 不重设（少一轮整面板变更检测）
+    if (cached && this._sameSubdirList(cached, shown) && (cur.truncated || 0) === truncated) return
+    this._sepMenu = { ...cur, items: shown, loading: false, truncated: truncated || undefined }
+  }
+
+  /** 子目录缓存查找（过期即删；未命中返回 null） */
+  private _getSubdirCache(side: 'local' | 'remote' | 'rl', dir: string): Array<{ name: string; path: string }> | null {
+    const key = side + '|' + dir
+    const hit = this._subdirCache.get(key)
+    if (!hit) return null
+    if (Date.now() - hit.at > this._SUBDIR_CACHE_TTL) {
+      this._subdirCache.delete(key)
+      return null
+    }
+    return hit.items
+  }
+
+  private _setSubdirCache(side: 'local' | 'remote' | 'rl', dir: string, items: Array<{ name: string; path: string }>): void {
+    // 简单容量控制：超上限整体清空（命中率优先，不追求 LRU）
+    if (this._subdirCache.size > this._SUBDIR_CACHE_MAX) this._subdirCache.clear()
+    this._subdirCache.set(side + '|' + dir, { items, at: Date.now() })
+  }
+
+  /** 两份目录列表是否等价（同名同序 ⇒ 无需重设 _sepMenu） */
+  private _sameSubdirList(
+    a: Array<{ name: string; path: string }>,
+    b: Array<{ name: string; path: string }>,
+  ): boolean {
+    if (a === b) return true
+    if (!a || !b || a.length !== b.length) return false
+    for (let i = 0; i < a.length; i++) {
+      if (a[i]?.name !== b[i]?.name || a[i]?.path !== b[i]?.path) return false
+    }
+    return true
+  }
+
+  /**
+   * ★ 2026-11-05（用户诉求「路径宽度不够时把前面的节点收起来，点连接符能跳到被收起的层级」）：
+   *   「…」/ 它右边那个 › 被点击 → 直接列出**被收起的祖先节点**（不再按目录去 readdir，
+   *   这些节点是已知的，也不需要一次 I/O）。点一项即跳到该层。
+   *
+   * 与 `openPathSepMenu` 的差别只有数据来源：那边异步列子目录（有 loading 态），
+   * 这边是现成数组（loading 恒 false），所以 `dir` 留空 —— 菜单顶部那行「当前目录」只对子目录列表有意义。
+   */
+  onPathCollapsedMenu(side: 'local' | 'remote' | 'rl', ev: { items: Array<{ name: string; path: string }>; event: MouseEvent }): void {
+    const items = (ev?.items || []).filter(it => !!it?.path)
+    if (!items.length) return
+    const { x, y } = this._sepMenuAnchor(ev.event)
+    this.closePathSepMenu()
+    this._sepMenu = { side, dir: '', x, y, items, loading: false }
+    this._installSepMenuGuards()
+  }
+
+  /** 下拉定位：锚定被点元素左下；靠窗口右下边缘时上翻 / 左移，避免被裁到屏幕外 */
+  private _sepMenuAnchor(ev: MouseEvent): { x: number; y: number } {
+    const anchor = (ev?.currentTarget ?? ev?.target) as HTMLElement | null
+    let x = 8, y = 8
+    try {
+      const rect = anchor?.getBoundingClientRect()
+      if (rect) { x = Math.round(rect.left); y = Math.round(rect.bottom + 4) }
+    } catch { /* ignore */ }
+    // 尺寸按内容估，取保守值
+    try {
+      x = Math.max(8, Math.min(x, window.innerWidth - 300))
+      if (y > window.innerHeight - 220) y = Math.max(8, y - 260)
+    } catch { /* ignore */ }
+    return { x, y }
+  }
+
+  /** 列出某层级的子文件夹（远程走 SFTP readdir，本地走 fs.readdir） */
+  private async _listSubdirs(side: 'local' | 'remote' | 'rl', dir: string): Promise<Array<{ name: string; path: string }>> {
+    try {
+      // 左栏端点为远程时（槽位 local + 端点 remote）走左栏的第二会话
+      const remoteSftp = side === 'remote'
+        ? this.sftpSession
+        : (side === 'local' && this._leftKind === 'remote' ? this._leftSftpSession : null)
+      if (remoteSftp) {
+        // ★ 2026-11-05：死通道上 readdir 可能**永不 resolve** ⇒ 下拉会一直停在「连接中」
+        //   （用户实测：菜单里只剩「连接中」）。加超时兜底，超时按「列不出来」处理。
+        const list: any[] = await this._withTimeout(remoteSftp.readdir(dir), 8000, 'readdir')
+        return (list || [])
+          .filter(e => e && e.isDirectory && e.name !== '.' && e.name !== '..')
+          .map(e => ({ name: e.name, path: e.fullPath || path.posix.join(dir, e.name) }))
+          .sort((a, b) => a.name.localeCompare(b.name))
+      }
+      const dirents = await fs.readdir(dir, { withFileTypes: true })
+      return dirents
+        .filter(d => d.isDirectory())
+        .map(d => ({ name: d.name, path: path.join(dir, d.name) }))
+        .sort((a, b) => a.name.localeCompare(b.name))
+    } catch (e) {
+      log.warn('list subdirs failed', e)
+      return []
+    }
+  }
+
+  /** Promise 超时兜底：到点 resolve(null)，避免死通道把 UI 卡在 loading 态 */
+  private _withTimeout<T>(p: Promise<T>, ms: number, tag: string): Promise<T | null> {
+    return new Promise<T | null>(resolve => {
+      let done = false
+      const timer = setTimeout(() => {
+        if (done) return
+        done = true
+        log.warn(`[SFTP+] ${tag} timeout after ${ms}ms`)
+        resolve(null)
+      }, ms)
+      Promise.resolve(p).then(
+        v => { if (!done) { done = true; clearTimeout(timer); resolve(v) } },
+        e => { if (!done) { done = true; clearTimeout(timer); resolve(null as any) } },
+      )
+    })
+  }
+
+  chooseSepMenuItem(item: { name: string; path: string }): void {
+    const menu = this._sepMenu
+    this.closePathSepMenu()
+    if (!menu || !item) return
+    this.onPathCrumbClick(menu.side, item.path)
+  }
+
+  trackBySepItem = (_: number, it: { path: string }): string => it.path
+
+  /** 点外部 / Esc / 尺寸变化 → 关闭下拉（只挂一次，关闭时统一摘除） */
+  private _installSepMenuGuards(): void {
+    if (this._sepMenuCleanup) return
+    const onDown = (e: MouseEvent): void => {
+      if ((e.target as HTMLElement)?.closest?.('.path-sep-menu')) return
+      this.closePathSepMenu()
+    }
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') this.closePathSepMenu()
+    }
+    const onResize = (): void => this.closePathSepMenu()
+    /**
+     * ★ 2026-11-05（用户实测「一滚轮/一拖滚动条，下拉就没了」）：
+     *   原来 scroll 一律关闭。但 capture 阶段也会收到**菜单自己**的 scroll（菜单本身就是
+     *   `max-height + overflow-y: auto` 的滚动容器，滚轮和拖滚动条都落在这里），
+     *   于是列表一滚就自我关闭 —— 这是本次 bug 的根因。
+     *   菜单是 fixed 定位，自身滚动不改变它的位置，无需关闭；只有**外部**滚动
+     *   （面板列表 / 页面）才需要关，因为 fixed 菜单不会跟着锚点走。
+     */
+    const onScroll = (e: Event): void => {
+      const t = e.target as HTMLElement | null
+      if (t && typeof (t as any).closest === 'function' && (t as HTMLElement).closest('.path-sep-menu')) return
+      this.closePathSepMenu()
+    }
+    document.addEventListener('mousedown', onDown, true)
+    document.addEventListener('keydown', onKey, true)
+    window.addEventListener('resize', onResize)
+    document.addEventListener('scroll', onScroll, true)
+    this._sepMenuCleanup = () => {
+      document.removeEventListener('mousedown', onDown, true)
+      document.removeEventListener('keydown', onKey, true)
+      window.removeEventListener('resize', onResize)
+      document.removeEventListener('scroll', onScroll, true)
+      this._sepMenuCleanup = null
+    }
+  }
+
+  closePathSepMenu(): void {
+    try { this._sepMenuCleanup?.() } catch { /* ignore */ }
+    this._sepMenuCleanup = null
+    if (this._sepMenu) this._sepMenu = null
+  }
+
+
   private normalizeLocalPath(p: string): string {
     // ★ issue #27 P0：左栏远程端点 → POSIX 语义（与 normalizeRemotePath 同规则）
     if (this._leftKind === 'remote') {
@@ -7428,6 +8147,23 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
   }
 
   // ========== 远程文件 ==========
+  /**
+   * ★ 2026-11-15 审计修复（A4，修改人：DD1024z，修改时间：2026-11-15）：
+   *   恶意/被控服务端可以在 readdir 里返回 `..`、含 `/` 或不可见 bidi 控制符的条目名。
+   *   这类条目一旦进入列表，用户「看起来是普通文件」选中后删除/剪切，实际操作会落到
+   *   面板当前目录之外（删除链路直接使用 fullPath）。这里在列表入口统一丢弃。
+   */
+  private _filterUnsafeRemoteEntries<T extends { name?: string }>(list: T[] | null | undefined, side: 'remote' | 'left'): T[] {
+    const out: T[] = []
+    let dropped = 0
+    for (const it of (list || [])) {
+      if (isUnsafeRemoteEntryName(String((it as any)?.name ?? ''))) { dropped++; continue }
+      out.push(it)
+    }
+    if (dropped) log.warn(`[SFTP+] dropped ${dropped} unsafe remote entr${dropped === 1 ? 'y' : 'ies'} in ${side} listing`)
+    return out
+  }
+
   async refreshRemote(): Promise<boolean> {
     // ★ 2026-09-29 issue #25：实现搬到 _refreshRemoteInternal，带上「是否已自愈重试过」标志，
     //   使「通道已死 → 静默换通道 → 重试一次」不会递归成无限重试。
@@ -7435,7 +8171,12 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
   }
 
   private async _refreshRemoteInternal(retriedAfterReopen: boolean): Promise<boolean> {
-    if (!this.connected || !this.sftpSession) return false
+    if (!this.connected || !this.sftpSession) {
+      // ★ 2026-10-30 P2-5 修复：通道未就绪时重置"通道死"标记，避免旧值影响
+      //   connect/reconnect 后的路径回退判断（_lastRemoteListDead 残留上一次会话的值）。
+      this._lastRemoteListDead = false
+      return false
+    }
     const refreshGen = ++this._remoteRefreshGen
     this.remotePathInput = this.remotePath
     if (!this.remotePath || typeof this.remotePath !== 'string') {
@@ -7462,7 +8203,8 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       this._dropSelection('remote')
     }
     try {
-      const entries = await this.sftpSession.readdir(snapshotPath)
+      // ★ 2026-11-15 审计修复（A4）：入口即过滤危险条目名（详见 _filterUnsafeRemoteEntries）
+      const entries = this._filterUnsafeRemoteEntries(await this.sftpSession.readdir(snapshotPath), 'remote')
       if (refreshGen !== this._remoteRefreshGen || snapshotPath !== this.remotePath) return true
       if (this._remoteLoadingTimer) {
         clearTimeout(this._remoteLoadingTimer)
@@ -8651,6 +9393,11 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
   /** trackBy 函数：避免 *ngFor 每次变更检测重建所有 DOM 节点 */
   trackLocalEntryBy(_index: number, item: LocalEntry): string { return item.fullPath }
   trackRemoteEntryBy(_index: number, item: SFTPFile): string { return item.fullPath }
+  /** ★ 2026-10-30 P3 修复（SF-41）：顶栏按钮按 id 跟踪。
+   *  `topBarInlineItems` / `topBarMenuItems` 都是 getter，每次变更检测返回**新数组**；
+   *  缺 trackBy 时 Angular 按对象标识比对 ⇒ 每次都重建整排按钮（SVG + 事件绑定全部重挂），
+   *  传输进度每 200ms 一次 CD 就会出现可见的按钮闪烁。 */
+  trackTopBarItemBy(_index: number, id: string): string { return id }
 
   /**
    * 需要预计算显示串的数据列（不含 name，name 走模板独立绑定）。
@@ -9020,6 +9767,20 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       const keys = normalizePanelHotkeyKeys((h as any).keys ?? (h as any).key, HOTKEY_CLEARED)
       def[a] = { keys, enabled: (h as any).enabled !== false }
     }
+    // ★ 2026-11-05 迁移：老配置把「查看」「编辑」分成两个动作（viewFile/editFile），
+    //   现合并为 openFile。只有新键**完全没配**时才继承旧绑定（优先 editFile），
+    //   否则用户在新版里显式解绑（keys: [] / enabled: false）会被旧值复活。
+    //   ⚠ 这里刻意用 cfgh 下标取值，而不是「cfg 转型后点属性」的写法：
+    //   check-config-wiring 会把那种写法当成**顶层配置键**扫进 orphan 检查
+    //   （脚本不剔注释，连注释里写一遍都会误报 k 这个键），进而中断构建。
+    const cfgh = cfg as Record<string, any>
+    if (!cfgh['openFile']) {
+      const legacy = cfgh['editFile'] ?? cfgh['viewFile']
+      if (legacy && typeof legacy === 'object') {
+        const keys = normalizePanelHotkeyKeys(legacy.keys ?? legacy.key, HOTKEY_CLEARED)
+        if (keys.length) def.openFile = { keys, enabled: legacy.enabled !== false }
+      }
+    }
     return def
   }
 
@@ -9060,7 +9821,7 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     return false
   }
 
-  /** 统一的「打开」逻辑：目录进入；文件 Ctrl/Cmd+点击=系统打开，否则查看 */
+  /** 统一的「打开」逻辑：目录进入；文件 Ctrl/Cmd+点击=系统打开，否则按类型进编辑器/查看器（★ 2026-11-05 与右键「打开」同源） */
   private async _activateEntry(pane: 'local' | 'remote', entry: any, event?: MouseEvent): Promise<void> {
     let isDir = !!entry?.isDirectory || this.isDirByMode(entry?.mode)
     // ★ 2026-08-24 修复：远程 symlink 指向目录时，readdir 为 lstat 语义（isDirectory=false、
@@ -9094,7 +9855,9 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
         void this._openRemoteInSystem(entry, this._leftSftpSession)
         return
       }
-      void this._viewRemoteFile(entry, this._leftSftpSession)
+      // ★ 2026-11-05：双击与右键「打开」同源 —— 按类型决定进编辑器还是查看器
+      if (this.openShouldEdit(entry.name)) void this._editRemoteFile(entry, this._leftSftpSession)
+      else void this._viewRemoteFile(entry, this._leftSftpSession)
       return
     }
     if (openInSystem) {
@@ -9118,8 +9881,10 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
         this._openPathInSystem(entry.linkTarget, { waitForModRelease: true })
         return
       }
-      void this._viewLocalFile(entry)
+      if (this.openShouldEdit(entry.name)) void this._editLocalFile(entry)
+      else void this._viewLocalFile(entry)
     }
+    else if (this.openShouldEdit(entry.name)) void this._editRemoteFile(entry)
     else void this._viewRemoteFile(entry)
   }
 
@@ -9131,6 +9896,11 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       //   落在目录行即误入目录。抑制判定前置：命中则整个点击作废（守卫只此一处调用，
       //   未命中时 selectLocal 内部的二次调用恒为 false，无重复消费问题）。
       if (this._rubberBand.shouldSuppressEntryClick(entry.fullPath)) return
+      // ★ 2026-11-15 修复（修改人：DD1024z）：单击打开模式下 Ctrl/⌘/Shift 是**选择修饰键**，
+      //   原实现无条件继续 _activateEntry ⇒ Ctrl+点选文件会顺带把文件甩到系统默认程序打开
+      //   （_activateEntry 把 Ctrl 当成「在系统中打开」）、Shift+点选会把文件塞进查看器/编辑器，
+      //   选中语义被破坏。此处代之以「只选中、不激活」；需要系统打开走右键菜单或双击。
+      if (event.ctrlKey || event.metaKey || event.shiftKey) { this.selectLocal(entry, event, idx); return }
       this.selectLocal(entry, event, idx)
       void this._activateEntry('local', entry, event)
       return
@@ -9222,6 +9992,9 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     if (this._openOnClick === 'single') {
       // ★ 2026-10-13 P1 修复：同 onLocalClick——框选松手的落点 click 不得触发激活
       if (this._rubberBand.shouldSuppressEntryClick(entry.fullPath)) return
+      // ★ 2026-11-15 修复（修改人：DD1024z）：同 onLocalClick —— 单击打开模式下
+      //   Ctrl/⌘/Shift 只做选中，不得顺带打开文件。
+      if (event.ctrlKey || event.metaKey || event.shiftKey) { this.selectRemote(entry, event, idx); return }
       this.selectRemote(entry, event, idx)
       void this._activateEntry('remote', entry, event)
       return
@@ -9434,11 +10207,11 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       case 'newFile': this.ctxNewFile(); break
       case 'rename': this.ctxRename(); break
       case 'delete': this.ctxDelete(); break
+      case 'openFile': void this.ctxOpenFile(); break
       case 'openLocal': this.ctxOpenLocal(); break
-      case 'viewFile': void this.ctxViewFile(); break
-      case 'editFile': void this.ctxEditFile(); break
       case 'upload': void this.ctxUpload(); break
       case 'download': void this.ctxDownload(); break
+      case 'downloadTo': void this.ctxDownloadTo(); break
       // ★ 2026-10-20：两端端点同类（本机↔本机 / 远程↔远程）——没有上/下方向
       case 'transfer': void this.ctxTransfer(); break
       case 'revealInExplorer': this.ctxRevealInExplorer(); break
@@ -9454,11 +10227,22 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     }
   }
 
+  /**
+   * ★ 2026-11-15（用户反馈，修改人：DD1024z，修改时间：2026-11-15）：
+   *   分组视图按「分组列表」呈现、不画列边框（见 scss 的 has-groups 规则），
+   *   所以当前右键的这一栏一旦处于分组状态，表头菜单里的「列边框」就该置灰，
+   *   否则用户点了开关却看不到任何变化。pane 取值与 onHeaderContextMenu 一致：local/remote/rl。
+   */
+  get headerColBordersDisabled(): boolean {
+    const pane = this.contextMenuPane
+    const mode = pane === 'local' ? this.localGroupBy : pane === 'rl' ? this.rlGroupBy : this.remoteGroupBy
+    return mode !== 'none'
+  }
+
   onHeaderMenuAction(action: HeaderMenuAction): void {
     if (action === 'adjustCol') { this.adjustColumnWidth(); return }
     if (action === 'adjustAllCols') { this.adjustAllColumnsWidth(); return }
-    if (action === 'togglePinFolders') { this.togglePinFolders(this.contextMenuPane); return }
-    // ★ 2026-10-19 续八：rl 的隐藏文件开关走 _rlShowHidden（独立字段），不能归到 showHiddenLocal
+    if (action === 'togglePinFolders') { this.togglePinFolders(this.contextMenuPane); return }    // ★ 2026-10-19 续八：rl 的隐藏文件开关走 _rlShowHidden（独立字段），不能归到 showHiddenLocal
     if (action === 'toggleHidden' && this.contextMenuPane === 'rl') {
       this._rlShowHidden = !this._rlShowHidden
       try { localStorage.setItem(`${SftpFloatingPanel.TABLE_SETTINGS_KEY}.showHiddenRl`, JSON.stringify(this._rlShowHidden)) } catch {}
@@ -9471,6 +10255,8 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     if (action === 'toggleHidden') { this._toggleHidden(this.contextMenuPane); return }
     if (action === 'toggleColBorders') { this.toggleColBorders(); return }
     if (action === 'toggleZebra') { this.toggleZebra(); return }
+    if (action === 'toggleFullRowSelection') { this.toggleFullRowSelection(); return }
+    if (action === 'toggleHeaderBottomBorder') { this.toggleHeaderBottomBorder(); return }
     if (action.startsWith('toggleCol:')) {
       this.toggleColumn(action.slice('toggleCol:'.length), this.contextMenuPane)
     }
@@ -9583,6 +10369,100 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     //   否则「拖起后又松开取消」会把某一行永久留在高亮态）
     this._clearDropFolderHint()
     this._fileDnd.onEntryDragEnd(() => this._clearCustomDragPreview())
+    // ★ 2026-11-19（修改人：DD1024z）：一次 HTML5 拖拽的生命周期到此结束，右键取消的布防/状态一并复位
+    this._resetDragCancel()
+  }
+
+  // ========== 拖拽期间按鼠标右键 = 取消本次拖拽（★ 2026-11-19，修改人：DD1024z） ==========
+  //
+  // 用户需求：拖拽文件的过程中按鼠标右键，应当**取消当前拖拽**（松开时不再发生复制/移动/下载）。
+  //
+  // 实现边界（读代码前先看这三条，避免误判「没生效」）：
+  //  ① 只覆盖 **HTML5 拖拽会话**：面板内两栏互拖、以及非 Alt 的「拖出到系统」（Chromium DownloadURL）。
+  //     Alt+拖出的原生 CF_HDROP（os-drag-out 的 startDrag）在拖拽期间冻结渲染线程，渲染侧
+  //     收不到任何输入，右键无从介入 —— 那条通道只能靠 OS 的 Esc 取消。
+  //  ② Chromium **没有**中止进行中拖拽的 API（drop 之前 dataTransfer 已被锁死）。因此「取消」=
+  //     effectAllowed 置 none + 自家 dragover 一律 dropEffect='none' + 自家 drop 处理器直接 no-op
+  //     + 撤销已登记的 DownloadURL token（让系统落手时端点回 404，不在磁盘留半成品）。
+  //  ③ 判定来源取「右键」可观测到的全部信号：document 捕获期的 `contextmenu`（主），
+  //     以及 `dragover` 上的 `buttons & 2`（个别平台/主题下不派发 contextmenu 时的兜底）。
+  private _dragCancelArmed = false
+  private _dragCancelRequested = false
+  /** 本次拖拽的 dataTransfer（dragstart 时抓取），取消时用它把 effectAllowed 置 none */
+  private _dragCancelDataTransfer: DataTransfer | null = null
+  /** 本次拖拽登记的 DragDownloadURL 原始串，取消时据此撤销 token */
+  private _dragDownloadValue: string | null = null
+  private _dragCancelDocListeners: Array<{ type: string; fn: EventListener; capture: boolean }> = []
+  /** 兜底看门狗：dragend 因列表重绘等意外不收时，30s 后自动摘掉 document 级监听，避免永久吞全局右键菜单 */
+  private _dragCancelWatchdog: ReturnType<typeof setTimeout> | null = null
+
+  /** 在 HTML5 dragstart 末端调用：布防右键取消（原生 CF_HDROP 通道不要调用） */
+  private _armDragCancel(dt: DataTransfer | null): void {
+    this._disarmDragCancelListeners()
+    this._dragCancelRequested = false
+    this._dragCancelDataTransfer = dt
+    if (this._dragCancelWatchdog) { clearTimeout(this._dragCancelWatchdog); this._dragCancelWatchdog = null }
+    this._dragCancelWatchdog = setTimeout(() => { this._dragCancelWatchdog = null; this._resetDragCancel() }, 30000)
+    if (this._dragCancelArmed) return
+    this._dragCancelArmed = true
+    const onContextMenu: EventListener = (e: Event) => {
+      // 拖拽期间的右键菜单不是用户想要的菜单，而是「取消」手势
+      e.preventDefault()
+      e.stopPropagation()
+      this._requestDragCancel()
+    }
+    const onDragOver: EventListener = (e: Event) => {
+      const de = e as DragEvent
+      // buttons 位掩码：1=左键、2=右键、4=中键。拖拽中左键恒按下，出现右键位即视为取消
+      if (((de.buttons ?? 0) & 2) === 2) {
+        e.preventDefault()
+        this._requestDragCancel()
+      }
+    }
+    this._dragCancelDocListeners = [
+      { type: 'contextmenu', fn: onContextMenu, capture: true },
+      { type: 'dragover', fn: onDragOver, capture: true },
+    ]
+    for (const l of this._dragCancelDocListeners) document.addEventListener(l.type, l.fn, l.capture)
+  }
+
+  private _disarmDragCancelListeners(): void {
+    if (!this._dragCancelDocListeners.length) { this._dragCancelArmed = false; return }
+    for (const l of this._dragCancelDocListeners) document.removeEventListener(l.type, l.fn, l.capture)
+    this._dragCancelDocListeners = []
+    this._dragCancelArmed = false
+  }
+
+  /** 右键取消：撤掉所有副作用，并让后续 dragover/drop 一律无效 */
+  private _requestDragCancel(): void {
+    if (!this._dragCancelArmed || this._dragCancelRequested) return
+    this._dragCancelRequested = true
+    this._disarmDragCancelListeners()
+    if (this._dragCancelWatchdog) { clearTimeout(this._dragCancelWatchdog); this._dragCancelWatchdog = null }
+    // 拖拽起手就排队的远程预缓存下载、自定义拖拽预览、落点提示 —— 立即撤掉
+    this._cancelRemoteDragCache()
+    this._clearCustomDragPreview()
+    this._clearDropFolderHint()
+    // 撤销 DownloadURL 的登记（拖出到系统时系统落手会 GET 该 token；撤掉后端点回 404）
+    try { revokeDragDownload(this._dragDownloadValue) } catch { /* ignore */ }
+    this._dragDownloadValue = null
+    try { if (this._dragCancelDataTransfer) this._dragCancelDataTransfer.effectAllowed = 'none' } catch { /* 拖拽中可能已锁定 */ }
+    // 面板内的「可投放」高亮同样要撤掉（cancel 后已经拒绝一切投放）
+    this._fileDnd.reset()
+    this._safeDetect()
+    // 可见反馈：拖拽会话由系统持有，JS 无法立即收回（与 Esc 的差别只在「手势仍在」），
+    // 所以必须给一条明确提示，否则用户会以为右键没生效。★ 2026-11-19（修改人：DD1024z）
+    try { this.showToast(this.i18n.t('notify.dragCanceled') || 'Drag cancelled', 3000) } catch { /* ignore */ }
+    log.info('[SFTP+] drag: 右键取消本次拖拽')
+  }
+
+  /** 复位取消状态（dragend / drop / 销毁时调用；幂等） */
+  private _resetDragCancel(): void {
+    this._disarmDragCancelListeners()
+    if (this._dragCancelWatchdog) { clearTimeout(this._dragCancelWatchdog); this._dragCancelWatchdog = null }
+    this._dragCancelRequested = false
+    this._dragCancelDataTransfer = null
+    this._dragDownloadValue = null
   }
 
   private _customDragPreviewEl: HTMLElement | null = null
@@ -9594,10 +10474,36 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
    */
   private static readonly DRAG_CACHE_MAX_BYTES = 4 * 1024 * 1024
   private static readonly DRAG_CACHE_DELAY_MS = 450
+  /**
+   * ★ 2026-11-09（DeepSeek-V4.1-Flash）：Alt+拖拽 拖出到系统时，远程文件允许的**按需下载**上限。
+   *   与 DRAG_CACHE_MAX_BYTES（预缓存上限 4MB，纯机会主义）分开：
+   *   预缓存是「顺手下一份」，超了直接放弃；这里是用户明确要求的拖出，上限放宽，
+   *   但仍要封顶 —— 拖出是一次性复制，临时目录里的副本不会自动回收。
+   */
+  private static readonly DRAG_OUT_MAX_BYTES = 512 * 1024 * 1024
+  /**
+   * ★ 2026-11-09（DeepSeek-V4.1-Flash）：发起原生拖拽的**下一轮任务**延迟。
+   *   ⛔ 顺序是命门：`preventDefault()` 必须在前（让 Blink 放弃自己的拖拽会话），`startDrag`
+   *      在后；最初版本把两者写反 ⇒ 两套拖拽抢同一会话，Windows 光标恒为「禁止」。
+   *   ⚠ 二次修正：原先留 30ms。Electron 官方示例是 `preventDefault()` 后立刻
+   *      `ipcRenderer.send`（主进程下一轮消息循环就 startDrag），30ms 内 Blink 已完成
+   *      dragstart 收尾并释放鼠标捕获，晚起的 DoDragDrop 虽能正常阻塞（blockedMs 有值）
+   *      却拿不到有效拖拽源数据 ⇒ 目标窗口持续显示禁止光标、松手不落文件。
+   *      收敛到 0ms：仍是下一轮任务（不与 Blink 同步栈抢会话），又贴近官方时序。
+   */
+  private static readonly DRAG_OUT_START_DELAY_MS = 0
   private _dragCacheTimer: ReturnType<typeof setTimeout> | null = null
   private _dragCacheGen = 0
   private _dragCacheTransfers: Array<{ cancel: () => void | Promise<void> }> = []
   private _dragCacheInFlight = new Set<string>()
+  /**
+   * ★ 2026-11-09（DeepSeek-V4.1-Flash）：Alt+拖拽 专用代次与取消列表 —— **刻意不复用** _dragCacheGen：
+   *   拖出时我们会 `preventDefault()` 掉 HTML5 拖拽，Chromium 仍然会补发一次 `dragend`，
+   *   而 `onEntryDragEnd` → `_cancelRemoteDragCache()` 会把代次 +1 并取消全部 transfer，
+   *   于是「正在为拖出而下载」的那份会被自己刚取消掉（用户看到的就是「转了半天没反应」）。
+   */
+  private _dragOutGen = 0
+  private _dragOutTransfers: Array<{ cancel: () => void | Promise<void> }> = []
 
   private _clearCustomDragPreview(): void {
     if (this._customDragPreviewEl) {
@@ -9625,7 +10531,10 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     this._cancelRemoteDragCache()
     const eligible = entries.filter(e =>
       !e.isDirectory
-      && (e.size ?? 0) > 0
+      // ★ 2026-11-09：0 字节文件同样要预缓存。原 `> 0` 把空文件永远排除，
+      //   Alt 多选拖出时 `_isDragOutCached` 对空文件恒不命中 ⇒ 每次都退化成
+      //   「先下载、再拖一次」，用户看到的却是「按了 Alt 还是给我一个 ZIP」。
+      && (e.size ?? 0) >= 0
       && (e.size ?? 0) <= SftpFloatingPanel.DRAG_CACHE_MAX_BYTES,
     )
     if (!eligible.length) return
@@ -9712,6 +10621,12 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
   }
 
   onDragOver(ev: DragEvent, targetPane: 'local' | 'remote'): void {
+    // ★ 2026-11-19（修改人：DD1024z）：已被右键取消的拖拽 —— 光标一律「禁止」，落点提示不再更新
+    if (this._dragCancelRequested) {
+      ev.preventDefault()
+      if (ev.dataTransfer) ev.dataTransfer.dropEffect = 'none'
+      return
+    }
     this._fileDnd.onDragOver(ev, targetPane)
     // ★ 2026-10-27（Deepseek-V4.1-Flash）：关掉「只投放到当前目录」时，把指针下的文件夹行标出来
     this._updateDropFolderHint(ev)
@@ -9736,27 +10651,18 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     if (this._leftKind === 'remote') { this._onDragStartLeftRemote(ev, entry as unknown as SFTPFile); return }
     const src = this._resolveDragSource(ev, entry, this.selectedLocal)
     if (!src) return
+    // ★ 2026-11-09：拖出到系统走 Chromium DownloadURL（无需 Alt，落到松手所在目录）；
+    //   多选默认打成一个 ZIP；Alt + 多选则优先走原生 CF_HDROP，一次落 N 个真实文件。
+    if (src.length > 1 && ev.altKey && this._nativeDragOutLocal(ev, src)) return
+    const dlReady = this._setDragDownloadUrl(ev, src, 'local')
+    if (!dlReady && this._nativeDragOutLocal(ev, src)) return
     this._setCustomDragPreview(ev, src.map(e => ({ name: e.name, isDirectory: e.isDirectory })))
     const cur = path.resolve(this.localPath)
     this._fileDnd.setDragSource('local', src.every(e => path.resolve(path.dirname(e.fullPath)) === cur))
     const p: DragPayload = { kind: 'local-paths', paths: src.map(e => ({ fullPath: e.linkTarget || e.fullPath, name: e.name, isDirectory: e.isDirectory })), srcPane: 'left' }
     ev.dataTransfer?.setData('application/x-sftp-plus', JSON.stringify(p))
-
-    // 本地文件真实存在于磁盘，设置 OS 拖拽数据（FilePath + text/uri-list）以支持拖到桌面/资源管理器
-    const uriList: string[] = []
-    for (const e of src) {
-      try {
-        const file = new File([''], e.name)
-        ;(file as any).path = e.fullPath
-        ev.dataTransfer?.items.add(file)
-        uriList.push(encodeURI(`file:///${e.fullPath.replace(/\\/g, '/')}`))
-      } catch { /* 跳过无法添加的文件 */ }
-    }
-    if (uriList.length) {
-      ev.dataTransfer?.setData('text/uri-list', uriList.join('\r\n'))
-      ev.dataTransfer!.dropEffect = 'copy'
-      ev.dataTransfer!.effectAllowed = 'copy'
-    }
+    // ★ 2026-11-19（修改人：DD1024z）：HTML5 拖拽会话建立，布防「右键取消」
+    this._armDragCancel(ev.dataTransfer ?? null)
   }
 
   /**
@@ -9764,13 +10670,17 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
    *
    * 语义与 onDragStartRemote 一致（条目是 SFTP 远端条目），差别只在 srcPane='left'，
    * 让接收方能正确判定「跨栏拖放」（左远端 → 右本地/右远端）。
-   * 刻意**不设置 OS 文件数据**：本侧没有右栏那样的临时缓存，设了会拖出无效的 .url 快捷方式，
-   * 所以这类拖拽只在面板内部生效（这与拖到桌面的 ENOENT 相比是明确的降级，优于静默失败）。
+   * ★ 2026-11-09：系统拖出改走 Chromium DownloadURL（内容由 HTTP 端点延迟提供），
+   *   不再依赖「右栏专属的临时缓存」，左栏远程端点也能拖到桌面/资源管理器。
    */
   private _onDragStartLeftRemote(ev: DragEvent, entry: SFTPFile): void {
     const sel = this.selectedLocal as unknown as SFTPFile[]
     const src = this._resolveDragSource(ev, entry as any, sel as any) as unknown as SFTPFile[] | null
     if (!src || !src.length) return
+    // ★ 2026-11-09：左栏远程端点同样走 DownloadURL（无需 Alt）；Alt + 多选优先原生多文件
+    if (src.length > 1 && ev.altKey && this._nativeDragOutRemote(ev, src)) return
+    const dlReady = this._setDragDownloadUrl(ev, src, 'remote')
+    if (!dlReady && this._nativeDragOutRemote(ev, src)) return
     this._setCustomDragPreview(ev, src.map(e => ({ name: e.name, isDirectory: e.isDirectory })))
     this._fileDnd.setDragSource('remote', false)
     const p: DragPayload = {
@@ -9786,54 +10696,28 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       srcPane: 'left',
     }
     try { ev.dataTransfer?.setData('application/x-sftp-plus', JSON.stringify(p)) } catch {}
+    // ★ 2026-11-19（修改人：DD1024z）：同 onDragStartRemote —— 布防「右键取消」
+    this._armDragCancel(ev.dataTransfer ?? null)
   }
 
   onDragStartRemote(ev: DragEvent, entry: SFTPFile): void {
     if (!this.connected) return
     const src = this._resolveDragSource(ev, entry, this.selectedRemote)
     if (!src) return
+    // ★ 2026-11-09：拖出到系统改走 Chromium DownloadURL —— Windows 会在松手所在目录
+    //   建占位文件并把内容下载进去（远程文件在真正落手时才开始拉），无需 Alt、无需预缓存。
+    //   Alt + 多选优先原生 CF_HDROP（多文件不打包）。
+    if (src.length > 1 && ev.altKey && this._nativeDragOutRemote(ev, src)) return
+    const dlReady = this._setDragDownloadUrl(ev, src, 'remote')
+    if (!dlReady && this._nativeDragOutRemote(ev, src)) return
     this._setCustomDragPreview(ev, src.map(e => ({ name: e.name, isDirectory: e.isDirectory })))
     const cur = this._normRemoteDir(this.remotePath)
     this._fileDnd.setDragSource('remote', src.every(e => this._normRemoteDir(path.posix.dirname(e.fullPath)) === cur))
     log.info('[dragstart] remote modified:', src.map(e => ({ name: e.name, modified: e.modified, modifiedMs: e.modified?.getTime?.() })))
     const p: DragPayload = { kind: 'remote-paths', paths: src.map(e => ({ remotePath: e.fullPath, name: e.name, isDirectory: e.isDirectory, size: e.size, mode: e.mode, modified: e.modified?.getTime?.() })), srcPane: 'right' }
     ev.dataTransfer?.setData('application/x-sftp-plus', JSON.stringify(p))
-
-    // 同步检查临时缓存：只在实际文件已缓存时设置 OS 拖拽数据，否则不设置
-    // 避免生成无效的 .url 快捷方式文件
-    const tmpDir = path.join(os.tmpdir(), 'sftp-plus-dragout')
-    const uriList: string[] = []
-    for (const e of src) {
-      const tmpPath = path.join(tmpDir, e.name)
-      try {
-        const st = fsSync.statSync(tmpPath)
-        if (e.isDirectory) {
-          if (st.isDirectory() && fsSync.statSync(path.join(tmpPath, '.sftp-cache-done'))) {
-            try { const file = new File([''], e.name); (file as any).path = tmpPath; ev.dataTransfer?.items.add(file) } catch {}
-            uriList.push(`file:///${tmpPath.replace(/\\/g, '/')}`)
-          }
-        } else if (st.size === (e.size ?? 0)) {
-          try { const file = new File([''], e.name); (file as any).path = tmpPath; ev.dataTransfer?.items.add(file) } catch {}
-          uriList.push(`file:///${tmpPath.replace(/\\/g, '/')}`)
-        }
-      } catch { /* 缓存未命中 */ }
-    }
-
-    // 全部缓存命中时通知 OS 这是一次文件拖拽；部分命中时不设置，避免产生不完整的拖拽
-    if (uriList.length > 0 && uriList.length === src.length) {
-      ev.dataTransfer?.setData('text/uri-list', uriList.join('\r\n'))
-      ev.dataTransfer!.dropEffect = 'copy'
-      ev.dataTransfer!.effectAllowed = 'copy'
-      return
-    }
-
-    // 缓存部分/全部未命中：不设置 OS 拖拽数据，避免生成快捷方式
-    // 保留 application/x-sftp-plus 供面板间内部拖拽（本地↔远程），此功能不受缓存影响
-    // 仅对小文件延迟预缓存（供下次拖出桌面）；大文件/目录绝不在 dragstart 拉全量。
-    // 快速拖回取消时由 dragend 中止定时器与下载，避免占满 SFTP/SSH 通道。
-    if (uriList.length < src.length) {
-      this._scheduleRemoteDragCache(src)
-    }
+    // ★ 2026-11-19（修改人：DD1024z）：布防「右键取消」（仅 HTML5 会话；Alt 原生通道已在上方 return）
+    this._armDragCancel(ev.dataTransfer ?? null)
   }
 
   /** 拖拽源解析：检查选中状态、清理框选、返回实际拖拽条目列表；返回 null 表示已取消拖拽 */
@@ -9853,15 +10737,18 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
    */
   private async _cacheRemoteFilesForDrag(entries: SFTPFile[], gen: number): Promise<void> {
     if (!this.sftpSession || gen !== this._dragCacheGen) return
-    const tmpDir = path.join(os.tmpdir(), 'sftp-plus-dragout')
-    await fs.mkdir(tmpDir, { recursive: true }).catch(() => {})
+    await fs.mkdir(this._dragOutCacheDir(), { recursive: true }).catch(() => {})
     if (gen !== this._dragCacheGen) return
 
     for (const entry of entries) {
       if (gen !== this._dragCacheGen || !this.sftpSession) return
       // ★ 2026-09-20 N2 审计修复：统一用 safeEntryName 净化远程文件名（与全库一致，防 . / .. / 穿越 / 控制字符）
-      const safeName = safeEntryName(entry.name)
-      if (!safeName || safeName === '.' || safeName === '..') continue
+      // ★ 2026-10-30 P1 修复（SF-02）：拖出缓存**落本机临时目录**，safeEntryName 对 Windows 非法字符
+      //   返回 null 后必须走 localEntryName 全角转写，否则 `a:b.txt` 这类远端合法名会被静默跳过
+      //   （表现为「拖到桌面没反应/少文件」）。
+      // ★ 2026-11-09：净化规则已抽到 _dragOutCachePath（读侧同源，修两侧文件名对不上）。
+      const tmpPath = this._dragOutCachePath(entry)
+      if (!tmpPath) continue
       if (entry.isDirectory) continue
       if ((entry.size ?? 0) > SftpFloatingPanel.DRAG_CACHE_MAX_BYTES) continue
 
@@ -9869,7 +10756,6 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       if (this._dragCacheInFlight.has(flightKey)) continue
       this._dragCacheInFlight.add(flightKey)
       try {
-        const tmpPath = path.join(tmpDir, safeName)
         const cached = await fs.stat(tmpPath).then(s => s.size === (entry.size ?? 0)).catch(() => false)
         if (cached || gen !== this._dragCacheGen) continue
 
@@ -9886,6 +10772,8 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
             this._dragCacheTransfers.push(dl)
           },
         })
+        // ★ 2026-11-15（B2）：登记为本面板产物，销毁时按清单清理
+        this._dragOutOwnedFiles.add(tmpPath)
       } catch {
         /* 跳过失败项 */
       } finally {
@@ -9901,7 +10789,522 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     }
   }
 
+  // ========== 拖出到系统：Chromium DownloadURL（issue #30 主通道） ==========
+  //
+  // 与下面「Alt + 原生 startDrag」那一套的区别：
+  //   DownloadURL 不碰主进程、不冻结渲染线程、不需要按任何修饰键，而且 Windows 上
+  //   Chromium 会把下载直接落到「松手所在目录」——这正是文件管理器该有的行为。
+  //   原生 startDrag 只在 DownloadURL 没能准备出来（本机服务端口未就绪）时作为兜底。
+
+  /**
+   * 给一次 HTML5 拖拽挂上 `DownloadURL` 数据。
+   * ⚠ 必须在 dragstart 处理器里**同步**调用：setData 过后就改不了拖拽数据了。
+   * @returns true = 已挂好（此时不要再走原生 startDrag 那条路）
+   */
+  private _setDragDownloadUrl(
+    ev: DragEvent,
+    entries: Array<{ name: string; fullPath?: string; linkTarget?: string; size?: number; isDirectory?: boolean }>,
+    kind: 'local' | 'remote',
+  ): boolean {
+    if (!this._dragOutToSystem || !ev.dataTransfer || !entries.length) return false
+    // ⛔ Chromium 的 `DropData::download_metadata` 是**单个** std::optional（见
+    //   web_contents_view_aura.cc::PrepareDragForDownload）⇒ DownloadURL 一次拖拽只能落一个文件。
+    //   ⇒ 多选时把全部文件打包成一个 ZIP 交给同一条已验证通道：落手位置不变、内容不丢。
+    //   目录不参与（递归整棵子树的下载代价与取消语义都不可控，请走右键「下载」）。
+    const files = entries.filter(e => !e.isDirectory)
+    if (!files.length) return false
+    const one = files[0]
+    const name = safeEntryName(one.name) ?? localEntryName(one.name)
+    if (!name) return false
+    const many = files.length > 1
+    // ★ 2026-11-09（DeepSeek-V4.1-Flash）：Chromium 的 GenerateSafeFileName 会给 Windows
+    //   保留名（desktop.ini / thumbs.db / con…）强制前置 `_`。先把最终落盘名算出来，
+    //   让 DownloadURL 三段数据、URL、Content-Disposition 与落盘名一致（也避免二次加下划线），
+    //   并提前告知用户，不再出现「拖出来莫名多一个下划线」。详见 predictLandingFileName。
+    const archiveBase = name.replace(/\.[^.]+$/, '') || name
+    const landing = predictLandingFileName(many ? `${archiveBase} (+${files.length - 1}).zip` : name)
+
+    let open: () => Promise<Readable>
+    if (!many && kind === 'local') {
+      const p = one.linkTarget || one.fullPath
+      if (!p) return false
+      open = async () => fsSync.createReadStream(p)
+    } else if (!many) {
+      const entry = one as SFTPFile
+      open = async () => fsSync.createReadStream(await this._ensureRemoteDragDownload(entry))
+    } else {
+      // 惰性工厂：Readable 第一次 _read 才执行 ⇒ HTTP 200 头先发出，远程文件落手后才逐个下载，
+      // 下载管理器不会因为「等 open() 很久还没收到响应头」而超时。
+      open = async () => createZipStoreStream(async () => {
+        const members: ZipStoreMember[] = []
+        const used = new Set<string>()
+        for (const e of files) {
+          const memberName = safeEntryName(e.name) ?? localEntryName(e.name)
+          if (!memberName) continue
+          // 同名条目（跨栏同名 / 转写后撞名）在归档内加序号，避免互相覆盖
+          let unique = memberName
+          const dot = memberName.lastIndexOf('.')
+          for (let i = 2; used.has(unique.toLowerCase()); i++) {
+            unique = dot > 0
+              ? `${memberName.slice(0, dot)} (${i})${memberName.slice(dot)}`
+              : `${memberName} (${i})`
+          }
+          let p: string
+          if (kind === 'local') {
+            p = e.linkTarget || e.fullPath || ''
+            if (!p) continue
+            try { if (!fsSync.statSync(p).isFile()) continue } catch { continue }
+          } else {
+            try {
+              p = await this._ensureRemoteDragDownload(e as SFTPFile)
+            } catch (err) {
+              log.warn('[SFTP+] drag-download: 打包成员下载失败 ' + memberName + '：' + (err as Error)?.message)
+              continue
+            }
+          }
+          used.add(unique.toLowerCase())
+          members.push({ name: unique, filePath: p })
+        }
+        if (!members.length) throw new Error('no readable files to pack')
+        log.info('[SFTP+] drag-download: zip members=' + members.length + ' selected=' + entries.length)
+        return members
+      })
+    }
+
+    // ★ 2026-11-09：拖出到系统走 Chromium DownloadURL，**完全绕开了常规传输队列**
+    //   （右键下载 / 面板内拖放 / 粘贴 / 协调器都会写 transferLog），所以传输记录里长期是 0 条。
+    //   这里用「系统真的来 GET 才算开始、流正常结束才算成功」补齐；⛔ dragstart 不能算开始 ——
+    //   用户拖起来又放回面板时不会有任何 GET，那样会写一条永远 pending 的幽灵记录。
+    //   ⛔ 落盘目录拿不到：Chromium 先把文件下载到自家的 chrome_drag* 临时目录，再交给资源管理器
+    //   复制/移动到松手处；源端只提供 CF_HDROP，收不到目标路径（web_contents_view_aura.cc 的
+    //   PrepareDragForDownload 注释亦明确「无法知道目标应用何时用完临时文件」）。故目标路径写成
+    //   「<拖放目录>/文件名」：尖括号是**占位符**、不是真实目录，一眼可辨；要真实完整路径
+    //   请用右键「下载到指定目录」。
+    //   ⛔ 多选按「一个源文件一条」拆开（拖 N 个文件就该有 N 条记录）。打包只改变落盘文件数，
+    //   不改变记录条数；对话框文件名列由 displayName 给出，避免 N 行全是同一个 ZIP 名。
+    const srcPaths = files.map(e => kind === 'remote'
+      ? (e.fullPath || e.name)
+      : (e.linkTarget || e.fullPath || e.name))
+    // 占位目录走 i18n（24 语言各自本地化），只替换目录段；⛔ 不得拼成看起来真实的绝对路径
+    const landingDisplay = `${this.i18n.t('log.dragOutNote')}/${landing}`
+    const logBases: Omit<TransferLogEntry, 'id' | 'timestamp' | 'success'>[] = files.map((e, i) => {
+      const src = srcPaths[i]
+      const memberName = safeEntryName(e.name) ?? localEntryName(e.name)
+      const isLocalCopy = kind === 'local'
+      const base: Omit<TransferLogEntry, 'id' | 'timestamp' | 'success'> = {
+        operation: isLocalCopy ? 'local-copy' : 'download',
+        localPath: isLocalCopy ? src : landingDisplay,
+        remotePath: isLocalCopy ? landingDisplay : src,
+        displayName: memberName,
+        size: e.size ?? 0,
+        profileName: this.profile?.name || undefined,
+      }
+      // local-copy 在对话框里读的是 srcPath/dstPath，不是 localPath/remotePath（不填会空白）
+      if (isLocalCopy) {
+        base.srcPath = src
+        base.dstPath = landingDisplay
+        base.srcHostLabel = this.i18n.t('pane.local')
+        base.dstHostLabel = this.i18n.t('pane.local')
+      }
+      return base
+    })
+    let logIds: string[] = []
+    let logStart = 0
+    const startLog = (): void => {
+      if (logIds.length) return
+      logStart = Date.now()
+      try {
+        logIds = logBases.map(b => this.transferLog.add({
+          ...b, success: true, duration: 0, startTime: logStart, pending: true,
+        }).id)
+      } catch (e) {
+        log.warn('[SFTP+] drag-download: 传输记录起始写入失败：' + (e as Error)?.message)
+      }
+    }
+    const endLog = (r: { ok: boolean; bytes: number; error?: string }): void => {
+      const patch = {
+        success: r.ok,
+        pending: false,
+        duration: logStart ? Date.now() - logStart : 0,
+        endTime: Date.now(),
+        ...(r.ok ? {} : { error: r.error || 'download interrupted', failReason: 'error' as const }),
+        // 单文件用真实写出字节数；多选打包保留各文件原大小，不把整个 ZIP 的字节数重复记到 N 条上
+        ...(many ? {} : { size: r.bytes }),
+      }
+      try {
+        if (logIds.length) {
+          for (const id of logIds) this.transferLog.update(id, patch)
+        } else {
+          for (const b of logBases) this.transferLog.add({ ...b, ...patch, startTime: logStart || Date.now() })
+        }
+      } catch (e) {
+        log.warn('[SFTP+] drag-download: 传输记录结算写入失败：' + (e as Error)?.message)
+      }
+    }
+
+    const value = registerDragDownload({
+      filename: landing,
+      size: many ? undefined : one.size,
+      mime: many ? 'application/zip' : 'application/octet-stream',
+      open,
+      onServeStart: startLog,
+      onServeEnd: endLog,
+    })
+    if (!value) return false
+    try {
+      ev.dataTransfer.setData('DownloadURL', value)
+      // ★ 2026-11-19（修改人：DD1024z）：记下本次登记串，拖拽被右键取消时据此撤销 token
+      this._dragDownloadValue = value
+      ev.dataTransfer.effectAllowed = 'copy'
+      log.info('[SFTP+] drag-download: prepared name=' + name + ' landing=' + landing
+        + ' kind=' + kind + ' selected=' + entries.length + ' pack=' + (many ? 'zip' : 'single'))
+      if (many) {
+        // 明确告诉用户「不打包」的那条路：Chromium 一次拖拽只能落一个文件，
+        // 要 N 个独立文件必须走主进程 CF_HDROP（Alt 手势），不能默默丢一个 ZIP 了事。
+        this.showToast(
+          this.i18n.t('notify.dragOutPacked', { count: files.length })
+          + ' · ' + this.i18n.t('notify.dragOutMultiAltHint', { count: files.length }),
+          7600,
+        )
+      } else if (landing !== name) {
+        this.showToast(this.i18n.t('notify.dragOutRenamed') + ' ' + landing, 5200)
+      }
+      return true
+    } catch (e) {
+      log.warn('[SFTP+] drag-download: setData 失败：' + (e as Error)?.message)
+      return false
+    }
+  }
+
+  /** 同一远端文件的并发拖出只下一次（临时缓存按 fullPath 哈希分名，避免同名互相覆盖） */
+  private _dragDownloadFlights = new Map<string, Promise<string>>()
+
+  /**
+   * ★ 2026-11-15 审计修复（B2，修改人：DD1024z，修改时间：2026-11-15）：
+   *   本面板「自己产生」的拖出临时文件清单。销毁时只删这些，不再 `rm -rf` 整个
+   *   `os.tmpdir()/sftp-plus-dragout` —— 那是**进程级共享**目录（DownloadURL 缓存在
+   *   `.../http`），删它会打断其它面板正在被 Chromium 读取的拖出（用户看到 0 字节/失败）。
+   */
+  private _dragOutOwnedFiles = new Set<string>()
+
+  /**
+   * 远程文件的内容源：Chromium 来 GET 时才真正下载（此时用户已经把文件拖到目标位置），
+   * 命中缓存则直接复用；下载走 `downloadRemoteFile` 的同一条通道（进度/取消/分块都一致）。
+   */
+  private _ensureRemoteDragDownload(entry: SFTPFile): Promise<string> {
+    const name = safeEntryName(entry.name) ?? localEntryName(entry.name)
+    const key = createHash('sha1').update(entry.fullPath).digest('hex').slice(0, 16)
+    const dir = path.join(os.tmpdir(), OS_DRAG_OUT_TMP_DIR, 'http')
+    const tmpPath = path.join(dir, key + '-' + name)
+    try {
+      const st = fsSync.statSync(tmpPath)
+      if (entry.size === undefined || st.size === entry.size) return Promise.resolve(tmpPath)
+    } catch { /* 未缓存 */ }
+
+    const flying = this._dragDownloadFlights.get(tmpPath)
+    if (flying) return flying
+    const task = (async () => {
+      await fs.mkdir(dir, { recursive: true }).catch(() => {})
+      const ok = await downloadRemoteFile(this._byteTransferCtx(), entry.fullPath, tmpPath, undefined, entry.size)
+      const st = fsSync.statSync(tmpPath)
+      if (entry.size !== undefined && st.size !== entry.size) {
+        throw new Error('size mismatch: got ' + st.size + ' expected ' + entry.size)
+      }
+      this._dragOutOwnedFiles.add(tmpPath)
+      log.info('[SFTP+] drag-download: cached ok=' + ok + ' bytes=' + st.size + ' ' + entry.fullPath)
+      return tmpPath
+    })().finally(() => this._dragDownloadFlights.delete(tmpPath))
+    this._dragDownloadFlights.set(tmpPath, task)
+    return task
+  }
+
+  // ========== Alt + 原生 startDrag：兜底通道（仅当 DownloadURL 未就绪） ==========
+  //
+  // 为什么需要这一整块：
+  //   面板里的「拖到桌面/资源管理器」过去靠 `new File([''], name)` + `file.path = fullPath`
+  //   设置 OS 拖拽数据，而 **Electron 32 起渲染进程的 File 对象已没有 path**（`webUtils.getPathForFile`
+  //   只对「从系统拖进来」有效）⇒ Chromium 拿不到真实磁盘路径，既写不出 CF_HDROP，也不会真的复制文件。
+  //   唯一可行通道是主进程 `webContents.startDrag()`，它同步阻塞（拖拽期间渲染线程冻结），
+  //   所以只能挂在 **Alt** 这个显式手势上，普通拖拽保持面板内互拖不变。
+
+  /** 拖出缓存目录（与 os-drag-out 模块的常量同源） */
+  private _dragOutCacheDir(): string {
+    return path.join(os.tmpdir(), OS_DRAG_OUT_TMP_DIR)
+  }
+
+  /**
+   * 条目在本机临时目录里的缓存路径。
+   * ⛔ 远程文件名落本机必须净化：`safeEntryName` 对 Windows 非法字符（`:` `*` `?` …）返回 null，
+   *    此时走 `localEntryName` 全角转写 —— 读侧/写侧必须用**同一个**函数，否则永远「缓存未命中」。
+   * ★ 2026-11-15 审计修复（B2 配套）：文件名前再加 fullPath 哈希前缀。原先只按 name 分名，
+   *   不同连接/不同目录下的**同名同大小**文件会命中同一份缓存 —— Alt 拖出时把 A 文件的内容
+   *   当成 B 交出去（跨主机同名文件尤其容易发生）。加了哈希后语义变为「一份内容一个文件」。
+   */
+  private _dragOutCachePath(entry: { name: string; fullPath?: string }): string | null {
+    const safeName = safeEntryName(entry.name) ?? localEntryName(entry.name)
+    if (!safeName || safeName === '.' || safeName === '..') return null
+    const key = entry.fullPath
+      ? createHash('sha1').update(entry.fullPath).digest('hex').slice(0, 16) + '-'
+      : ''
+    return path.join(this._dragOutCacheDir(), key + safeName)
+  }
+
+  /** 缓存命中：大小一致即视为同一份（沿用原预缓存口径，未引入 mtime 判定以免远端时钟偏差导致恒不命中） */
+  private _isDragOutCached(tmpPath: string, size: number | undefined): boolean {
+    try { return fsSync.statSync(tmpPath).size === (size ?? 0) } catch { return false }
+  }
+
+  /**
+   * 本地条目的 Alt+拖拽：文件/目录都直接有真实磁盘路径，可以同步发起原生拖拽。
+   * @returns true = 已由本方法接管（调用方必须立即 return，不要再设置内部拖拽数据）
+   */
+  private _nativeDragOutLocal(ev: DragEvent, entries: LocalEntry[]): boolean {
+    if (!ev.altKey || !this._dragOutToSystem || !entries.length) return false
+    // 原生通道不可用（宿主未开 remote 等）⇒ 不要接管，让 DownloadURL（多选为 ZIP）兜底
+    if (!isOsDragOutAvailable()) return false
+    const paths: string[] = []
+    for (const e of entries) {
+      // 快捷方式/符号链接拖出去，语义上应是「那个目标」而不是 .lnk 本身
+      const p = e.linkTarget || e.fullPath
+      try {
+        fsSync.statSync(p)
+        paths.push(p)
+      } catch { /* 列表已过期（文件被删/被移走）⇒ 跳过 */ }
+    }
+    if (!paths.length) {
+      ev.preventDefault()
+      this.showToast(this.i18n.t('notify.dragOutMissing'), 3600)
+      return true
+    }
+    return this._startNativeDragOut(
+      ev, paths, this._dragOutLabel(entries), entries.length === 1 && entries[0].isDirectory,
+      { kind: 'local', sources: paths, sizes: paths.map(() => undefined) },
+    )
+  }
+
+  /**
+   * 远程条目的 Alt+拖拽：必须先把远端文件落到本机临时目录，再交给主进程。
+   *   ① 已缓存 ⇒ 同步发起（手势仍然有效，体验最好）
+   *   ② 未缓存 ⇒ 本次 HTML5 拖拽作废，后台下载完成后自动补一次原生拖拽
+   *      （下载期间用户若已松手，原生拖拽会立即空转结束 —— 文件已落缓存，再拖一次即可）
+   * ⛔ 目录不支持：拖出目录意味着整棵子树递归下载，代价与取消语义都不可控，明确拒绝并提示走右键下载。
+   * @returns true = 已由本方法接管
+   */
+  private _nativeDragOutRemote(ev: DragEvent, entries: SFTPFile[]): boolean {
+    if (!ev.altKey || !this._dragOutToSystem || !entries.length) return false
+    // 原生通道不可用 ⇒ 不要白白下载一遍再起不了拖拽，直接回落 DownloadURL（多选为 ZIP）
+    if (!isOsDragOutAvailable()) return false
+    if (entries.some(e => e.isDirectory)) {
+      ev.preventDefault()
+      this.showToast(this.i18n.t('notify.dragOutDirUnsupported'), 4600)
+      return true
+    }
+    if (entries.some(e => (e.size ?? 0) > SftpFloatingPanel.DRAG_OUT_MAX_BYTES)) {
+      ev.preventDefault()
+      this.showToast(this.i18n.t('notify.dragOutTooLarge', {
+        size: SftpFloatingPanel.DRAG_OUT_MAX_BYTES / (1024 * 1024),
+      }), 5200)
+      return true
+    }
+    const paths: string[] = []
+    for (const e of entries) {
+      const tmpPath = this._dragOutCachePath(e)
+      if (!tmpPath || !this._isDragOutCached(tmpPath, e.size)) { paths.length = 0; break }
+      paths.push(tmpPath)
+    }
+    if (paths.length && paths.length === entries.length) {
+      return this._startNativeDragOut(
+        ev, paths, this._dragOutLabel(entries), false,
+        { kind: 'remote', sources: entries.map(e => e.fullPath), sizes: entries.map(e => e.size) },
+      )
+    }
+    // ★ 2026-11-09：缓存未命中时**不要掐掉本次拖拽**。
+    //   原实现 preventDefault + 后台下载 + 「再拖一次」⇒ 用户按了 Alt 却什么都没落下，
+    //   以为手势失效（而且 `_scheduleRemoteDragCache` 从来没有调用点，缓存永远不命中）。
+    //   改为：本次继续走 DownloadURL（至少落一个明确的结果），后台把 N 份独立文件备好
+    //   并提示「按住 Alt 再拖一次」；第二次 dragstart 同步命中缓存 ⇒ 一次落 N 个真实文件。
+    void this._dragOutRemoteAsync(entries, true)
+    return false
+  }
+
+  /**
+   * 记下「用户是否还按着鼠标」：远程文件要先下载，等下载完再起拖拽时，
+   * 鼠标一旦松开，Windows 就再也起不了 DoDragDrop（只能等用户重新拖一次）。
+   */
+  private _watchDragOutPointer(): void {
+    this._dragOutPointerDown = true
+    const onUp = (): void => {
+      this._dragOutPointerDown = false
+      window.removeEventListener('mouseup', onUp, true)
+      window.removeEventListener('blur', onUp, true)
+    }
+    window.addEventListener('mouseup', onUp, true)
+    window.addEventListener('blur', onUp, true)
+  }
+
+  /** 拖拽预览/拖拽图标上的文案：单个用文件名，多个用「N 个项目」 */
+  private _dragOutLabel(entries: Array<{ name: string }>): string {
+    if (entries.length === 1) return entries[0].name
+    return this.i18n.t('notify.dragOutManyItems', { count: entries.length })
+  }
+
+  /**
+   * 发起原生拖拽并把 HTML5 拖拽取消掉。
+   *
+   * ⛔ 顺序是这条链路的命门（2026-11-09 用户实测「光标一直禁止」后定位）：
+   *   Blink 派发完 dragstart 后会**立刻用 HTML5 的数据进入 OS 拖拽循环**。若我们在同一个任务里
+   *   同步调用主进程 `startDrag`（DoDragDrop），两套拖拽抢同一个拖拽会话 —— 结果**原生日志显示成功**
+   *   （`startDrag ok`）、屏幕上也能看到我们画的拖拽图标，但目标窗口始终收不到 DragEnter，
+   *   光标恒为「禁止」，松手不落文件。
+   *   ⇒ 必须先 `preventDefault()` 让 Blink 放弃它自己的拖拽，再把 `startDrag` 推到**下一轮任务**。
+   *   这与 Electron 官方 native-file-drag-drop 示例的「preventDefault → 异步 IPC → startDrag」同序。
+   */
+  private _startNativeDragOut(
+    ev: DragEvent, paths: string[], label: string, isDirectory: boolean,
+    logMeta?: { kind: 'local' | 'remote'; sources: string[]; sizes: Array<number | undefined> },
+  ): boolean {
+    ev.preventDefault()
+    // 已经取消掉 HTML5 拖拽 ⇒ 别再设置 dataTransfer / setDragImage（设了也不会有拖拽）
+    const iconPath = buildDragOutIcon(label, isDirectory)
+    const list = paths.slice()
+    // ★ 2026-11-09（Hy4）：原生 CF_HDROP 通道同样绕开传输队列 ⇒ 按「一个文件一条」补记录。
+    //   ⚠ 语义边界：startDrag 只保证「N 个真实文件已交给系统拖放」，资源管理器是否接受、
+    //   最终落到哪个目录，源端都拿不到（CF_HDROP 由源提供、目标端不回告）。故路径里带
+    //   「<拖放目录>/文件名」占位写法而不是伪造目录；终态 success 表示「已交出」而非「已落盘」，
+    //   禁止光标那类场景请以磁盘实际结果 + log.txt 的 blockedMs 为准。
+    const hint = this.i18n.t('log.dragOutNote')
+    let logIds: string[] = []
+    if (logMeta && logMeta.sources.length === list.length) {
+      try {
+        logIds = list.map((p, i) => this.transferLog.add({
+          operation: logMeta.kind === 'remote' ? 'download' : 'local-copy',
+          localPath: logMeta.kind === 'remote' ? `${hint}/${path.basename(p)}` : logMeta.sources[i],
+          remotePath: logMeta.kind === 'remote' ? logMeta.sources[i] : `${hint}/${path.basename(p)}`,
+          ...(logMeta.kind === 'local' ? {
+            srcPath: logMeta.sources[i],
+            dstPath: `${hint}/${path.basename(p)}`,
+            srcHostLabel: this.i18n.t('pane.local'),
+            dstHostLabel: this.i18n.t('pane.local'),
+          } : {}),
+          displayName: path.basename(logMeta.sources[i]),
+          profileName: this.profile?.name || undefined,
+          success: true,
+          size: logMeta.sizes[i] ?? 0,
+          duration: 0,
+          startTime: Date.now(),
+          pending: true,
+        }).id)
+      } catch (e) {
+        log.warn('[SFTP+] dragout: 传输记录起始写入失败：' + (e as Error)?.message)
+      }
+    }
+    setTimeout(() => {
+      const startedAt = Date.now()
+      const ok = startNativeDragOut(list, iconPath || '')
+      // blockedMs ≈ 用户拖拽时长：只有「几十毫秒就返回」才说明 DoDragDrop 没真的接管
+      const blockedMs = Date.now() - startedAt
+      log.info('[SFTP+] dragout: startDrag ok=' + ok + ' count=' + list.length + ' blockedMs=' + blockedMs
+        + ' records=' + logIds.length)
+      for (const id of logIds) {
+        this.transferLog.update(id, {
+          pending: false,
+          success: ok,
+          duration: blockedMs,
+          endTime: Date.now(),
+          ...(ok ? {} : { error: 'startDrag unavailable', failReason: 'error' as const }),
+        })
+      }
+      if (!ok) this.showToast(this.i18n.t('notify.dragOutUnavailable'), 4600)
+    }, SftpFloatingPanel.DRAG_OUT_START_DELAY_MS)
+    this._resetFileDragState()
+    return true
+  }
+
+  /** 中止「为拖出而做的下载」：面板销毁 / 新的拖出开始时调用 */
+  private _cancelDragOutTransfers(): void {
+    this._dragOutGen++
+    const pending = this._dragOutTransfers.splice(0)
+    for (const t of pending) {
+      try { void Promise.resolve(t.cancel()).catch(() => {}) } catch { /* ignore */ }
+    }
+  }
+
+  /**
+   * 为 Alt+拖拽 按需下载远程文件，完成后自动补一次原生拖拽。
+   * 与 `_cacheRemoteFilesForDrag` 的区别：走独立的代次/取消列表（见 `_dragOutGen` 注释），
+   * 并且上限用 DRAG_OUT_MAX_BYTES 而不是预缓存的 4MB。
+   * prepareOnly=true：只备料并提示「再按 Alt 拖一次」，不发起原生拖拽 —— 本次 HTML5 拖拽
+   *   让给 DownloadURL 落一个明确结果，避免用户按了 Alt 却空手（见 _nativeDragOutRemote）。
+   */
+  private async _dragOutRemoteAsync(entries: SFTPFile[], prepareOnly = false): Promise<void> {
+    this._cancelDragOutTransfers()
+    // 顺手停掉可能还在跑的「预缓存」下载，避免两条链路同时写同一个临时文件
+    this._cancelRemoteDragCache()
+    const gen = this._dragOutGen
+    if (!this.sftpSession) {
+      this.showToast(this.i18n.t('notify.dragOutUnavailable'), 4600)
+      return
+    }
+    const label = this._dragOutLabel(entries)
+    this.showToast(this.i18n.t('notify.dragOutPreparing', { name: label }), 5200)
+    await fs.mkdir(this._dragOutCacheDir(), { recursive: true }).catch(() => {})
+
+    const paths: string[] = []
+    for (const entry of entries) {
+      if (gen !== this._dragOutGen || !this.sftpSession) return
+      const tmpPath = this._dragOutCachePath(entry)
+      if (!tmpPath) continue
+      if (this._isDragOutCached(tmpPath, entry.size)) { paths.push(tmpPath); continue }
+      try {
+        // 独立 cancel ref，不占用文件夹传输的共享 _cancelRef
+        const dragOutCancelRef: { current: { cancel?: () => void | Promise<void> } | null } = { current: null }
+        const ctx = this._byteTransferCtx(dragOutCancelRef)
+        await downloadRemoteFile(ctx, entry.fullPath, tmpPath, undefined, entry.size, {
+          exposeCancel: true,
+          onTransfer: (dl) => {
+            if (gen !== this._dragOutGen) { void dl.cancel(); return }
+            this._dragOutTransfers.push(dl)
+          },
+        })
+        if (this._isDragOutCached(tmpPath, entry.size)) paths.push(tmpPath)
+      } catch (e) {
+        log.warn('[SFTP+] dragout: 拖出下载失败 ' + entry.fullPath + '：' + (e as Error)?.message)
+      }
+    }
+    this._dragOutTransfers = []
+    if (gen !== this._dragOutGen) return
+    if (paths.length !== entries.length) {
+      this.showToast(this.i18n.t('notify.dragOutFailed'), 5200)
+      return
+    }
+    // 只备料、不发起原生拖拽：本次 HTML5 拖拽仍由 DownloadURL 落一个明确结果，
+    // 提示用户再按 Alt 拖一次即可一次落 N 个独立文件（第二次同步命中缓存）。
+    if (prepareOnly) {
+      this.showToast(
+        this.i18n.t('notify.dragOutReady') + ' · '
+        + this.i18n.t('notify.dragOutMultiAltHint', { count: entries.length }),
+        9000,
+      )
+      return
+    }
+    // 下载期间用户很可能已经松手：此时鼠标键已抬起，DoDragDrop 起不来。
+    // 文件已落到临时缓存 ⇒ 提示再拖一次即可（第二次走同步通道，秒出）。
+    if (!this._dragOutPointerDown) {
+      this.showToast(this.i18n.t('notify.dragOutReady'), 5200)
+      return
+    }
+    const iconPath = buildDragOutIcon(label, false)
+    const startedAt = Date.now()
+    const ok = startNativeDragOut(paths, iconPath || '')
+    log.info('[SFTP+] dragout(async): startDrag ok=' + ok + ' blockedMs=' + (Date.now() - startedAt))
+    if (!ok) {
+      this.showToast(this.i18n.t('notify.dragOutUnavailable'), 4600)
+    }
+  }
+
   async onDrop(ev: DragEvent, targetPane: 'local' | 'remote'): Promise<void> {
+    // ★ 2026-11-19（修改人：DD1024z）：右键取消过的拖拽，落手不得产生任何复制/移动/下载
+    if (this._dragCancelRequested) { this._resetDragCancel(); this._clearDropFolderHint(); return }
     this._clearDropFolderHint()
     // ★ 2026-10-27（Deepseek-V4.1-Flash）：跨栏 / 外部拖入才受「只投放到当前目录」约束 ——
     //   同栏内拖到子文件夹是文件管理器的通用手势（复制进该目录），不归这个开关管。
@@ -9911,6 +11314,9 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     // ★ issue #27 P3：targetPane 与物理栏一一对应（'local'=左栏、'remote'=右栏），
     //   供跨栏同目录拖放绕过「同目录无操作」早退（右栏本地面板走 onDropRl 单独传 'right'）
     await this._fileDropRuntime.onDrop(ev, targetPane, destDir, targetPane === 'local' ? 'left' : 'right')
+    // ★ 2026-11-19（修改人：DD1024z）：落手即本次拖拽结束 —— 收掉右键取消的布防
+    //   （dragend 在「drop 后列表刷新把源行重绘掉」时可能不来，不能只靠它）
+    this._resetDragCancel()
   }
 
   /** 读拖拽源栏（仅在 drop 事件里可靠：dragover 阶段浏览器对 dataTransfer 处于保护模式，读出来是空串） */
@@ -10797,17 +12203,18 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     const sel = this._paneSelection(pane)
     if (a === 'details' || a === 'copyPath') return sel.length > 0
     if (a === 'openLocal') return (pane === 'local' || pane === 'rl') && sel.length === 1
-    if (a === 'viewFile' || a === 'editFile') {
+    if (a === 'openFile') {
       if (sel.length !== 1) return false
       const e = sel[0]
-      return a === 'viewFile' ? this.canViewEntry(e) : this.canEditEntry(e)
+      // 能看或能编即视为可打开（与菜单 hasOpen 同口径）
+      return this.canViewEntry(e) || this.canEditEntry(e)
     }
     return true
   }
 
   /** 需要写入 contextMenuEntry 再分发的菜单热键 */
   private static readonly _CTX_HOTKEYS_NEED_ENTRY: ReadonlySet<string> = new Set([
-    'openLocal', 'viewFile', 'editFile', 'details', 'copyPath',
+    'openLocal', 'openFile', 'details', 'copyPath',
   ])
 
   /** 与 onWindowKeyDown 相同的命中条件，但不执行动作（供捕获阶段判断是否要抢走 Tabby） */
@@ -11728,7 +13135,15 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     if (!rawVal || !tp && !rp) return
 
     // chmod 不走文件名净化
-    const val = mode === 'remote-chmod' ? rawVal : (safeEntryName(rawVal) || '')
+    // ★ 2026-10-30 P1 修复（SF-02 配套）：按**目标语义**选净化规则。
+    //   safeEntryName 自本日起在 win32 上额外拒绝 `<>:"|?*`（原先会让 `a:b.txt` 落到 NTFS
+    //   数据流、显示 0 字节）。但 remote-mkdir/remote-touch/remote-rename 的目标是 POSIX
+    //   远端，这些字符完全合法 —— 一律套 Windows 规则会让 Windows 客户端用户无法在远端
+    //   创建 `report:2026.txt`。落本机（local-*）仍用严格规则。
+    const isRemoteTarget = mode.startsWith('remote-')
+    const val = mode === 'remote-chmod'
+      ? rawVal
+      : (isRemoteTarget ? safeRemoteEntryName(rawVal) : safeEntryName(rawVal)) || ''
     if (mode !== 'remote-chmod' && !val) {
       this.showToast(this.i18n.t('op.failed', { reason: 'invalid name' }) || 'Invalid name', 3000)
       return
@@ -12427,7 +13842,7 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
    *   仅选中集/当前目录/刷新槽位是独立的 _rl*。下列 getter 把 contextMenuPane 的三种取值
    *   统一收敛，菜单动作与子组件显示均复用，避免把 rl 误当远程去跑 SFTP 操作。 */
   private get _ctxIsLocalData(): boolean { return this.contextMenuPane !== 'remote' }
-  /** 子组件显示用 pane：rl 按本地套显示动作（openLocal/viewFile/editFile/reveal 等） */
+  /** 子组件显示用 pane：rl 按本地套显示动作（openFile/openLocal/reveal 等） */
   get contextMenuDisplayPane(): 'local' | 'remote' { return this._ctxIsLocalData ? 'local' : 'remote' }
   /**
    * ★ 2026-10-20：右键所在栏**连的是不是本机磁盘** —— 端点语义，与上面的「配置槽位」不是一个轴。
@@ -12864,6 +14279,57 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
   }
 
   /**
+   * 功能描述：右键「下载到指定目录…」—— 由用户在系统对话框里显式选一个本机目录，
+   *   把当前选中的远程文件逐个原样下载过去（不打包、不改名、不经过临时目录转交）。
+   *
+   * 为什么需要这个入口（与「拖出到系统」互补）：
+   *   Chromium 的 DownloadURL 把落点交给资源管理器，源端只提供 CF_HDROP、收不到目标目录，
+   *   且 `DropData::download_metadata` 是单个 optional ⇒ 一次拖拽只能落一个文件。
+   *   目录一旦由对话框明确给出，三件事同时成立：
+   *     ① 落盘是 N 个独立文件；② 每条记录的 localPath 是**真实完整路径**；
+   *     ③ 选中 N 个文件就有 N 条记录。
+   *   ⛔ 复用 `_streamDownloadOne`（与右键「下载」同一通道），进度、冲突框、去重、并发泵、
+   *      传输日志口径完全一致；不另起一套下载实现。
+   *   ⛔ 可见性由 hasDownload 把关（本栏远程、对端本机），天然避开 r2r；仍传 forceLocal，
+   *      防止「左栏槽位切远程」被 _streamDownloadOne 误判成 r2r（槽位 ≠ 端点）。
+   *
+   * @创建人：DD1024z + Hy4
+   * @创建时间：2026-11-09
+   */
+  async ctxDownloadTo(): Promise<void> {
+    this.closeContextMenu()
+    if (!this.connected || !this.sftpSession) {
+      this.showToast(this.i18n.t('notify.notConnectedDownload'))
+      return
+    }
+    const items = this.getContextSelection() as SFTPFile[]
+    if (!items.length) return
+    let dir = ''
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const remote: any = require('@electron/remote')
+      const result = await remote.dialog.showOpenDialog({
+        title: this.i18n.t('file.downloadTo'),
+        defaultPath: this._defaultDownloadPath || this.localPath || undefined,
+        properties: ['openDirectory', 'createDirectory'],
+      })
+      if (!result || result.canceled || !result.filePaths?.length) return
+      dir = String(result.filePaths[0])
+    } catch (e) {
+      log.warn('[SFTP+] downloadTo: 目录选择失败：' + (e as Error)?.message)
+      this.showToast(this.i18n.t('notify.downloadToUnavailable'), 5200)
+      return
+    }
+    if (!dir) return
+    log.info('[SFTP+] downloadTo: dir=' + dir + ' count=' + items.length)
+    await Promise.all(items.map(p => this._streamDownloadOne(p, dir, true)))
+    if (this._conflictQueue.length) this._showConflictDialog()
+    // 目标恒为本机目录 ⇒ 按文件系统刷新（不能只刷「左栏」）
+    await this._refreshLocalFsPanes()
+    this._safeDetect()
+  }
+
+  /**
    * 端点直传：把**右键所在栏**的选中项传到**另一栏**（上传/下载/传输共用）。
    *
    * ★ 2026-10-20：菜单项已按端点显示（左栏远程→「下载」、右栏本机磁盘→「上传」），但
@@ -12932,7 +14398,11 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     let ok = true
     for (const e of items) {
       // 名字净化按**落点**语义选：落到本机磁盘才套 Windows 落地规则
-      const safeName = dstEp.isLocal ? safeEntryName(e.name) : safeRemoteEntryName(e.name)
+      // ★ 2026-10-30 P1 修复（SF-02）：落本地时补 localEntryName 转写兜底，
+      //   否则 `a:b.txt` 会让 safeEntryName 返回 null ⇒ 条目被 skip（文件静默少一个）。
+      const safeName = dstEp.isLocal
+        ? (safeEntryName(e.name) ?? localEntryName(e.name))
+        : safeRemoteEntryName(e.name)
       if (!safeName) { log.warn('[ctx-transfer] skip unsafe entry name:', e.name); continue }
       const dstChild = this._epJoin(dstEp, targetDir, safeName)
       // ★ 2026-10-20：目标已存在 ⇒ 入队端点化冲突（覆盖/跳过/重命名），不再静默跳过计数
@@ -13054,14 +14524,42 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
   }> = []
 
   /**
+   * ★ 2026-11-15 审计修复（B4，修改人：DD1024z，修改时间：2026-11-15）：
+   *   `localEntryName` 把 Windows 非法字符转成全角（`a:b.txt`→`a：b.txt`），**不是单射**：
+   *   远端本来就叫 `a：b.txt` 的文件会保持原名，两者落到同一本地路径。并发守卫按 localPath
+   *   去重（transfer-adapters 的 activeDownloadTargets）⇒ 第二个被当「重复下载」跳过，
+   *   用户看到「传了一整批，本地少一个」。这里在入队前按「同目标但不同远端源」自动加序号。
+   */
+  private _dedupeDownloadLocalTarget(localDir: string, safeName: string, remotePath: string): string {
+    const taken = (cand: string): boolean => this.transfers.some(t =>
+      t.direction === 'download' && t.localPath === cand && t.remotePath !== remotePath)
+    const base = path.join(localDir, safeName)
+    if (!taken(base)) return base
+    const dot = safeName.lastIndexOf('.')
+    const stem = dot > 0 ? safeName.slice(0, dot) : safeName
+    const ext = dot > 0 ? safeName.slice(dot) : ''
+    for (let i = 2; i <= 999; i++) {
+      const cand = path.join(localDir, `${stem} (${i})${ext}`)
+      if (!taken(cand)) {
+        log.warn(`[download] local name collision auto-renamed: ${JSON.stringify(safeName)} -> ${JSON.stringify(`${stem} (${i})${ext}`)} (remote: ${remotePath})`)
+        return cand
+      }
+    }
+    return base
+  }
+
+  /**
    * 边下载边检测冲突：无冲突立即传输，有冲突入队等待用户处理。
    * ★ 2026-08-10：调用时先预注册 queued 占位条目，多选/拖拽的全部文件立即出现在
    *   传输列表中；真正开始传输时由 trackTransfer/_startFolderTransfer 认领占位条目，
    *   并发由 _downloadConcurrency 限制。
    */
-  private _streamDownloadOne(p: SFTPFile, targetLocalDir?: string): Promise<void> {
+  private _streamDownloadOne(p: SFTPFile, targetLocalDir?: string, forceLocal = false): Promise<void> {
     // ★ issue #27 P2：左栏远程端点 → 下载目标是左栏远程会话（右栏远程 → 左栏远程）
-    if (this._leftKind === 'remote') {
+    // ★ 2026-11-09（Hy4）：forceLocal 只由「下载到指定目录…」传入 —— 目录是用户在本机对话框
+    //   里选的，与左栏**槽位**是否为远程端点无关；不跳过会把本机路径当 POSIX 路径送进 r2r 通道。
+    //   ⚠ 可选尾参：其余调用点（右键下载 / controller 的 streamDownloadOne 包装）保持默认 false。
+    if (!forceLocal && this._leftKind === 'remote') {
       // r2r 通道回传的是「是否真的传成功」，本包装按旧签名吞掉（调用方不需要）
       return this._streamDownloadOneRemote(p, targetLocalDir).then(() => undefined)
     }
@@ -13080,7 +14578,8 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     }
     // 默认下载路径优先；未设置则回退当前本地目录（保证右键/拖拽/旧API 统一走默认路径）
     const localDir = (targetLocalDir?.trim()) || this._defaultDownloadPath || this.localPath
-    const localTarget = path.join(localDir, safeName)
+    // ★ 2026-11-15（B4）：同一条目重下保持同目标；不同远端源撞同一落地名时自动加序号
+    const localTarget = this._dedupeDownloadLocalTarget(localDir, safeName, p.fullPath)
     // ★ 2026-10-19 P1 修复：单文件下载补重复入队预检（目录下载 downloadRemoteDir 与上传侧
     //   早有，唯独单文件下载漏修）。同一文件短时间内两次下载会都通过冲突预检、并发双流
     //   写同一 .tmp ⇒ 交叉写坏或双失败。协调器侧同步补了槽位认领（streamDownloadOne），
@@ -13590,6 +15089,19 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
    *   缓存成字段而非每次现读配置：_updateDropFolderHint 在 dragover（每帧触发）里要用它。
    */
   private _dropToCurrentDirOnly = true
+
+  /**
+   * ★ 2026-11-09（DeepSeek-V4.1-Flash）：是否允许 `Alt + 拖拽`把条目拖出到系统（默认开）。
+   *   关掉后 Alt 与普通拖拽完全等价（面板内互拖），用于「Alt 被别的窗口管理手势占用/误触」的场景。
+   *   缺键按「开」：这是新增能力但**只由 Alt 这个显式手势触发**，不会改变任何既有拖拽行为。
+   */
+  private _dragOutToSystem = true
+  /**
+   * ★ 2026-11-09（DeepSeek-V4.1-Flash）：Alt 拖出时鼠标键是否还按着。
+   *   远程文件必须先把内容下载到临时目录，等下载完成再起原生拖拽；这期间用户松手的话，
+   *   Windows 就起不了 DoDragDrop（拖拽必须由「按下中」的鼠标键发起），只能提示再拖一次。
+   */
+  private _dragOutPointerDown = false
   /** 当前被标注为「放入此文件夹」的文件夹行（dragover 里按元素变化才动 DOM） */
   private _dropHintEl: HTMLElement | null = null
   /* ------------------------------------------------------------------ *
@@ -14027,11 +15539,16 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     const srcEp = this._paneEndpoint(this.clipboardSource)
     const dstEp = this._paneEndpoint(this.contextMenuPane)
     log.info(`Paste ${entries.length} items (${mode}) from ${srcEp?.side}/local=${srcEp?.isLocal} to ${dstEp?.side}/local=${dstEp?.isLocal}`)
-    this.clipboardEntries = []
+    // ★ 2026-10-30 P3 修复（SF-35）：剪贴板**不再在这里就清空**。
+    //   原实现在真正开始粘贴前无条件 `clipboardEntries = []`：目标端点不可用、冲突框取消、
+    //   写入失败之后剪贴板已经空了，用户必须回源栏重新选中再复制一遍（剪切更糟 —— 源还在但
+    //   剪贴板空了，得重新判断该复制还是该剪切）。现在改为「端点不可用 → 直接返回不动剪贴板」，
+    //   正常路径在确认可执行后才清空，直传失败时恢复。
     if (!srcEp || !dstEp) {
       log.warn('paste aborted: source/destination endpoint unavailable')
       return
     }
+    this.clipboardEntries = []
     const payload = entries.map(e => ({
       name: e.name,
       fullPath: (e as LocalEntry).fullPath ?? (e as SFTPFile).fullPath,
@@ -14044,7 +15561,13 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     // 任一端是「左栏远程端点」⇒ 适配器的 2 值语义表达不了（它假定 local=左栏、remote=右栏，
     // 且刷新/冲突框都只认主会话），改走端点直传（远程↔远程 / 远程↔本机磁盘 全支持）。
     if (this._needsDirectTransfer(srcEp) || this._needsDirectTransfer(dstEp)) {
-      await this._pasteDirect(payload, srcEp, dstEp, mode)
+      const ok = await this._pasteDirect(payload, srcEp, dstEp, mode)
+      // ★ 2026-10-30 P3 修复（SF-35）：直传失败（且没有把冲突交接给冲突框）时恢复剪贴板，
+      //   用户可直接再粘一次；剪切语义下源未被删除，恢复后仍是剪切状态，不会变成复制。
+      if (!ok) {
+        this.clipboardEntries = entries
+        this.clipboardMode = mode
+      }
       return
     }
 
@@ -14103,7 +15626,7 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     srcEp: PaneEndpoint,
     dstEp: PaneEndpoint,
     mode: 'copy' | 'cut',
-  ): Promise<void> {
+  ): Promise<boolean> {
     let allOk = true
     let skipped = 0
     // 远程↔远程：存在性预检交给 r2r 通道（它自己 stat 并弹冲突框），这里不能再抢先跳过
@@ -14128,7 +15651,10 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
           continue
         }
         // 名字净化按**落点**语义选：落到本机磁盘才套 Windows 落地规则
-        const safeName = dstEp.isLocal ? safeEntryName(e.name) : safeRemoteEntryName(e.name)
+        // ★ 2026-10-30 P1 修复（SF-02）：落本地补 localEntryName 转写兜底（同 ctx-transfer）
+        const safeName = dstEp.isLocal
+          ? (safeEntryName(e.name) ?? localEntryName(e.name))
+          : safeRemoteEntryName(e.name)
         if (!safeName) { log.warn('[paste] skip unsafe entry name:', e.name); continue }
         const dstChild = this._epJoin(dstEp, dstEp.dir, safeName)
         // ★ 2026-10-20 全量审计 P0：端点化粘贴缺「自我覆盖」守卫 ⇒ 同栏粘贴会截断自己。
@@ -14176,6 +15702,9 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     if (this._conflictQueue.length) this._showConflictDialog()
     if (skipped > 0) this.showToast(this.i18n.t('notify.pasteSkippedExists', { n: skipped }), 4000)
     if (!allOk) this.showToast(this.i18n.t('notify.pasteFailed'), 4000)
+    // ★ 2026-10-30 P3 修复（SF-35）：true = 全部成功，或有冲突已交接给冲突框（用户会继续处理）；
+    //   false = 确有失败 → 调用方恢复剪贴板，用户可直接重试。
+    return allOk || this._conflictQueue.length > 0
   }
 
   /** 端点内单个条目传输（四种组合分派） */
@@ -14474,7 +16003,8 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     let ok = true
     for (const it of items || []) {
       const s = it.fullPath || path.posix.join(remoteSrc, it.name)
-      const name = safeEntryName(it.name)
+      // ★ 2026-10-30 P1 修复（SF-02）：落到本机目录，Windows 非法字符走全角转写（同下载主通道）
+      const name = safeEntryName(it.name) ?? localEntryName(it.name)
       if (!name) { log.warn('[paste] skip unsafe name on download:', it.name); ok = false; continue }
       const t = path.join(localDst, name)
       if (it.isDirectory) {
@@ -15261,12 +16791,63 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     this._safeDetect()
   }
 
-  /** 还原面板为默认大小（居中 96%×94%，百分比定位 → 跟随 Tabby 窗口缩放），并清掉已保存的自定义几何 */
+  /**
+   * 还原面板为默认大小并持久化当前几何。
+   * ★ 2026-11-05（Deepseek-V4.1-Flash）：「默认」= 用户右键「设为默认面板大小」记下的几何；
+   *   没设过则是出厂 96%×94% 居中（见 _applyDefaultGeometry）。
+   */
   restoreDefaultSize(): void {
     this.topBarMenuVisible = false
     if (this.displayMode === 'workspace' || !this._hostEl) return
     this._applyDefaultGeometry()
     this._persistPanelGeometry()
+  }
+
+  /** 当前是否有用户自定义的默认大小（没有时「恢复初始面板大小」无事可做 ⇒ 菜单项置灰） */
+  get hasCustomDefaultSize(): boolean {
+    return !!this._panelGeomDefault
+  }
+
+  /**
+   * ★ 2026-11-05（Deepseek-V4.1-Flash）：把**当前**面板大小与位置记为默认。
+   *   - 最大化时存的是「还原后的真实几何」（_prevGeom），否则会记成 100% 铺满；
+   *   - 统一归一化为百分比（跟随窗口缩放与多窗口适配），换算不出百分比则回退出厂值；
+   *   - 只改「默认目标」，不动当前几何 —— 用户点完还能继续拖，拖坏了再「还原」。
+   */
+  setPanelSizeAsDefault(): void {
+    this.topBarMenuVisible = false
+    if (this.displayMode === 'workspace' || !this._hostEl) return
+    const src = (this.panelMaximized && this._prevGeom)
+      ? this._prevGeom
+      : {
+          left: this._hostEl.style.left || '',
+          top: this._hostEl.style.top || '',
+          width: this._hostEl.style.width || '',
+          height: this._hostEl.style.height || '',
+        }
+    this._panelGeomDefault = {
+      left: this._pctOr(this._toPct(src.left as string, 'x'), this._FACTORY_GEOM.left),
+      top: this._pctOr(this._toPct(src.top as string, 'y'), this._FACTORY_GEOM.top),
+      width: this._pctOr(this._toPct(src.width as string, 'w'), this._FACTORY_GEOM.width),
+      height: this._pctOr(this._toPct(src.height as string, 'h'), this._FACTORY_GEOM.height),
+    }
+    this._persistPanelGeomDefault()
+    this.showToast(this.i18n.t('notify.defaultSizeSaved'), 2600)
+  }
+
+  /**
+   * ★ 2026-11-05（Deepseek-V4.1-Flash）：恢复面板大小初始值 —— 清掉用户自定义的默认，
+   *   回到出厂 96%×94% 居中，并立即套用（否则「恢复了」但面板没动，看着像没生效）。
+   */
+  resetPanelSizeDefault(): void {
+    this.topBarMenuVisible = false
+    if (this.displayMode === 'workspace' || !this._hostEl) return
+    if (!this._panelGeomDefault) return
+    this._panelGeomDefault = null
+    this._persistPanelGeomDefault()
+    this._applyDefaultGeometry()
+    this._persistPanelGeometry()
+    this.showToast(this.i18n.t('notify.defaultSizeReset'), 2600)
   }
 
 

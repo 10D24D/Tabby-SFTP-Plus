@@ -113,6 +113,11 @@ const usedKeys = new Set()
 const constCovered = new Set(
   [...read('src/sftp/core/top-bar-items.ts').matchAll(/:\s*'(topBar\w+)'/g)].map((m) => m[1]),
 )
+// ★ 2026-10-30 P3 修复（SF-32）：用常量下标读写的键同样是「代码在用」，必须参与 orphan 检查。
+//   原先这些键只被当成「已接线」跳过，却从未进入 usedKeys ⇒ topBarDisabled 写了设置页、
+//   进了导出快照，但 config-provider 的 defaults 里根本没登记，save() 时被丢弃，
+//   而本脚本仍然报「✅ 无阻塞问题」。
+for (const k of constCovered) usedKeys.add(k)
 
 // 导出快照里出现的键（按 EXPORT_CATEGORY_FIELDS 判断所属分类的字段名）
 const exportCats = new Set()
@@ -126,7 +131,9 @@ const exportCats = new Set()
 
 // 面板读写的键（面板侧自主维护的不用管）
 const panelOnly = new Set([
-  'paneState', 'pathMemory', 'transferLogs', 'panelGeometry', 'hotkeys',
+  'paneState', 'pathMemory', 'transferLogs', 'panelGeometry',
+  // 2026-11-05：面板右键「设为默认面板大小」写入，与 panelGeometry 同类（纯面板侧维护）
+  'panelGeometryDefault', 'hotkeys',
 ])
 
 // 仅用于「旧配置兼容读取」的键：不要求设置页写入/导出，但**必须在 defaults 里**（否则读不到旧值）
@@ -156,7 +163,7 @@ for (const k of usedKeys) {
 for (const k of defaultKeys) {
   if (panelOnly.has(k) || compatOnly.has(k)) continue
   const w = wired(k)
-  if (!w.save && !/^(paneState|panelGeometry)$/.test(k)) noSave.push({ k, w })
+  if (!w.save && !/^(paneState|panelGeometry|panelGeometryDefault)$/.test(k)) noSave.push({ k, w })
   if (w.save && !w.load) writeOnly.push({ k, w })
   if (!exportCats.has(k) && !w.exportCfg && !panelOnly.has(k)) notExported.push(k)
 }
@@ -198,6 +205,10 @@ if (notExported.length) {
   console.log('')
 }
 
-const problems = fatal.length + writeOnly.length + notExported.length
-console.log(problems === 0 ? '✅ 无阻塞问题' : `❗ 共 ${fatal.length} 个致命 + ${writeOnly.length} 个只写不读 + ${notExported.length} 个未导出`)
-process.exitCode = fatal.length > 0 ? 1 : 0
+const problems = fatal.length + orphan.length + writeOnly.length + notExported.length
+console.log(problems === 0 ? '✅ 无阻塞问题' : `❗ 共 ${fatal.length} 个致命 + ${orphan.length} 个未登记 + ${writeOnly.length} 个只写不读 + ${notExported.length} 个未导出`)
+// ★ 2026-10-30 P3 修复（SF-32）：orphan（代码在用但 defaults 未登记）必须影响退出码。
+//   它和 fatal 是同一类后果（值写不进 config），只是发现路径不同：
+//   fatal 靠 interface 比对，orphan 靠「代码里出现过这个键」。原实现只把它打印成「⛔ 致命」，
+//   exitCode 却只看 fatal ⇒ 接进 prebuild 也拦不住。
+process.exitCode = fatal.length + orphan.length > 0 ? 1 : 0

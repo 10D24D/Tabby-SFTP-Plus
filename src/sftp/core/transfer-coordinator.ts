@@ -540,6 +540,10 @@ export class PanelTransferCoordinator {
    * 进度条目与传输记录。
    */
   uploadBatchToRemote(localPaths: string[], remoteDir: string, displayName: string): Promise<boolean> {
+    // ★ 2026-10-30 P3 修复（SF-39）：补 _disposed 守卫（另外三个入口都有）。
+    //   面板销毁后 _activeTransferSlots 已被清空，原实现仍能启动整批上传，
+    //   此时 host 侧组件已销毁 —— 传输进度会写进 GC 掉的 transferLog/视图，条目无人收尾。
+    if (this._disposed) return Promise.resolve(false)
     if (localPaths.length < 2) return Promise.resolve(false)
     const claimed: Array<[string, string]> = []
     for (const localPath of localPaths) {
@@ -1203,6 +1207,12 @@ export class PanelTransferRuntime {
       return
     }
     try {
+      // ★ 2026-10-30 P1-2 修复：在 entry.paused=false 之前先置 _resuming，
+      //   缩小竞态窗口。旧顺序中 paused→false 与 _resuming→true 之间存在窗口：
+      //   cancelTransfer 恰在此时机执行会误判「未在续传」而跳过取消标记，
+      //   新传输装配完成后照常跑完并 rename 落盘。
+      ;(entry as any)._resuming = true
+      ;(entry as any)._resumeCancelRequested = false
       this.host.zone.run(() => { entry.paused = false })
       this._detect()
       // ★ 2026-10-13 P1 修复（续传竞态窗口内取消失效）：下面到「新传输装配完成」之间有一系列
@@ -1212,8 +1222,6 @@ export class PanelTransferRuntime {
       //     · 新 dl/up 装配完成后没有任何取消来源 ⇒ 照常跑完并 rename 落盘。
       //   引入交接标记：_resuming 让取消方知道「正在装配、旧判据不可信」，
       //   _resumeCancelRequested 让装配完成后的第一时刻就能自取消。
-      ;(entry as any)._resuming = true
-      ;(entry as any)._resumeCancelRequested = false
       // 上传和下载必须走不同续传实现。此前这里无条件调用 _resumeWithRawRead，
       // 会把远端半成品下载回来并最终覆盖本地上传源文件。
       const direction = entry.direction as 'upload' | 'download'
@@ -1227,7 +1235,27 @@ export class PanelTransferRuntime {
       //   归一：有限且 >=0 才采用，否则保持 -1（循环读到 EOF 后由 _remoteSizeOrNegative 复核）。
       const rawSize = await Promise.resolve(entry.transfer.getSize?.())
       const totalSize = Number.isFinite(rawSize) && (rawSize as number) >= 0 ? (rawSize as number) : -1
-      const offset = entry._pauseOffset ?? 0
+      const offset0 = entry._pauseOffset ?? 0
+      let offset = offset0
+      // ★ 2026-11-15 审计修复（B5，修改人：DD1024z，修改时间：2026-11-15）：
+      //   续传点完全信任「内存里的暂停位 + `localPath.tmp` 的大小」，而 `.tmp` 是上一份内容的残片：
+      //   暂停后远端同一路径被换成**更小**的文件 → resumeOffset >= 新 fileSize 被适配器直接判
+      //   「已完成」，把旧残片 rename 成正式文件还记成功（用户拿到错内容、零提示）。
+      //   这里在装配新传输前做一次归属校验：远端大小已变（offset >= totalSize）或 `.tmp` 实际
+      //   大小与暂停位不一致（曾被别的来源写过/被截断）⇒ 丢弃残片、从头重下。
+      if (direction === 'download' && offset > 0) {
+        try {
+          const tmpStat = fsSync.statSync(tmpPath)
+          if ((totalSize >= 0 && offset >= totalSize) || tmpStat.size !== offset) {
+            log.warn(`Resume refused: stale .tmp (offset=${offset} size=${tmpStat.size} remoteSize=${totalSize}) — discard and redownload: ${entry.name}`)
+            try { fsSync.unlinkSync(tmpPath) } catch { /* ignore */ }
+            offset = 0
+          }
+        } catch (e) {
+          log.warn(`Resume refused: .tmp unusable (${tmpPath}) — redownload: ${entry.name}`, e)
+          offset = 0
+        }
+      }
       const info = direction === 'upload'
         ? await this._resumeTransfer(entry, 'upload', remotePath, localPath, offset)
         : await this._resumeWithRawRead(entry, remotePath, tmpPath, localPath, mode, totalSize, offset)
@@ -1251,7 +1279,7 @@ export class PanelTransferRuntime {
           const r = typeof entry.transfer.cancel === 'function' ? entry.transfer.cancel()
             : typeof entry.transfer.destroy === 'function' ? entry.transfer.destroy()
             : undefined
-          void Promise.resolve(r).catch(() => { /* ignore */ })
+          void Promise.resolve(r).catch((e: unknown) => { log.warn('cancelTransfer: cancel failed during resume handoff', e) })
         } catch { /* ignore */ }
         this._cleanupPausedDownloadTmp(entry, true)
         void this._cleanupPausedUploadTmp(entry, true)
@@ -1299,7 +1327,8 @@ export class PanelTransferRuntime {
           const r = typeof t.transfer.cancel === 'function' ? t.transfer.cancel()
             : typeof t.transfer.destroy === 'function' ? t.transfer.destroy()
             : undefined
-          void Promise.resolve(r).catch(() => { /* 清理阶段失败可忽略 */ })
+          // ★ 2026-10-30 P1-5 修复：静默吞掉 cancel/destroy 失败会掩盖关键错误。
+          void Promise.resolve(r).catch((e: unknown) => { log.warn('clearTransfers: cancel/destroy failed during cleanup', e) })
         } catch { /* ignore */ }
       }
       // ★ 2026-07-25 B12：批量清理时同样处理暂停态下载的孤儿 .tmp
@@ -1313,6 +1342,10 @@ export class PanelTransferRuntime {
     //   entry 与 transfer 适配器闭包（强引用 → GC 无法回收）
     this._transferMeta.clear()
     this._trackedTransferCount = 0
+    // ★ 2026-10-30 P3 修复（SF-38）：一并清掉排队取消键。
+    //   这些键含**完整本地/远端路径**字符串，原先只在 recordQueuedCancel 里按 TTL 顺带清理，
+    //   dispose / clearTransfers 都不清 ⇒ 随面板生命周期一直滞留（面板反复开关也回收不掉）。
+    this._queuedCancelKeys.clear()
     this._stopTransferTimer()
   }
 
@@ -1321,6 +1354,8 @@ export class PanelTransferRuntime {
     // ★ 2026-09-20 P2-1 审计修复：销毁时一并释放强引用元数据（此前只停定时器）
     this._transferMeta.clear()
     this._trackedTransferCount = 0
+    // ★ 2026-10-30 P3 修复（SF-38）：同 clearTransfers，取消键含完整路径，销毁时必须释放
+    this._queuedCancelKeys.clear()
     this._stopTransferTimer()
   }
 
@@ -1477,7 +1512,16 @@ export class PanelTransferRuntime {
         //   判定规则：paused + cancelled 且未 complete/failed ⇒ 这是暂停自停流，留在列表等
         //   resume，不收尾、不记失败；其余终态（含 paused 但底层已 complete/failed）照常收尾。
         const pausedSelfCancelled = isPaused && termCancelled && !termFailed && !termComplete
-        if (!pausedSelfCancelled && (termComplete || termCancelled || termFailed || entry.percent >= 100)) {
+        // ★ 2026-10-30 P1 修复（SF-18）：成功只认传输对象终态，**不再看进度百分比**。
+        //
+        //   原条件里的 `|| entry.percent >= 100` 会在「最后一块刚写完、还没 rename / 还没做
+        //   完整性校验」时就把条目收尾：此刻适配器若在 rename 或 size 校验处失败（Windows 目标
+        //   被占用可稳定复现），条目已经被移除、日志已写成功，失败再也无处上报 ——
+        //   用户看到「传输成功」而目标文件是半截或被改名失败留在 .tmp。
+        //
+        //   终态由适配器负责置位（成功/失败/取消都会置，未知大小的下载也在收尾处显式 _markComplete），
+        //   真出现「一直不置终态」的异常路径时仍由上方 15 分钟 stall 兜底记失败。
+        if (!pausedSelfCancelled && (termComplete || termCancelled || termFailed)) {
           // 兜底：若速率窗口未触发（极快传输 <500ms 完成），用总平均速度填充，避免最后仍显示 '--'
           if (!entry.speed && done > 0) {
             const dur = Math.max(1, now - meta.startTime)

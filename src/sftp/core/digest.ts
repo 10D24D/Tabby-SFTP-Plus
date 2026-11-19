@@ -162,8 +162,25 @@ export class ContentDigestService implements ContentDigestPort {
     })
   }
 
+  /**
+   * ★ 2026-10-30 P2 修复（SF-17）：远程摘要的缓存 / 去重键必须带**连接标识**。
+   *
+   *   原键是 `'R|' + remotePath`（只含路径），命中条件只有 size+mtime：
+   *   两台机器上同名路径、同大小、同 mtime（rsync 镜像 / 同镜像部署非常常见）时，
+   *   会直接复用**另一台机器**的摘要 ⇒ 判「内容相同」⇒ 自动跳过传输。
+   *   用户看到「已跳过」、日志也写跳过，但目标文件其实没传（内容还是旧版本）。
+   *   本地侧不需要：本机只有一个文件系统。
+   */
+  private _remoteScopeKey(ssh: any): string {
+    if (!ssh) return '∅'
+    const p = ssh.profile ?? ssh
+    return String(p?.id ?? p?.name ?? ssh?.id ?? '∅')
+  }
+
   async remoteDigest(remotePath: string, size?: number, mtime?: number, session?: any): Promise<string | null> {
-    return this._withDedupe('R|' + remotePath, async () => {
+    const sshForScope = session ?? this.getSshSession()
+    const cacheKey = `R|${this._remoteScopeKey(sshForScope)}|${remotePath}`
+    return this._withDedupe(cacheKey, async () => {
       try {
         const ssh = session ?? this.getSshSession()
         if (!ssh) {
@@ -192,7 +209,7 @@ export class ContentDigestService implements ContentDigestPort {
         //   文件被改写（大小恰好不变）也照旧返回旧摘要 ⇒ 上层判定「内容相同」⇒ 跳过传输。
         //   宁可多跑一次远端 hash，也不返回可能陈旧的摘要。
         const version = mtime == null ? null : `${size ?? '?'}:${mtime}`
-        const hit = version == null ? undefined : this.cache.get('R|' + remotePath)
+        const hit = version == null ? undefined : this.cache.get(cacheKey)
         if (hit && hit.key === version) return hit.digest
 
         const cmd = this.remoteBin === 'openssl'
@@ -207,7 +224,7 @@ export class ContentDigestService implements ContentDigestPort {
           log.warn('[digest] remote digest output parse failed for', remotePath, 'bin:', this.remoteBin, 'output:', out?.slice(0, 200))
           return null
         }
-        if (version != null) this._put('R|' + remotePath, version, digest)
+        if (version != null) this._put(cacheKey, version, digest)
         return digest
       } catch (e) {
         log.warn('[digest] remote digest failed:', remotePath, e)

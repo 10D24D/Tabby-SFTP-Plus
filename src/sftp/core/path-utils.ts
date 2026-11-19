@@ -413,6 +413,17 @@ export function safeEntryName(name: string): string | null {
   if (process.platform === 'win32') {
     if (WIN_RESERVED_NAME.test(base)) return null
     if (/[. ]$/.test(base)) return null
+    // ★ 2026-10-30 P1 修复（SF-02）：补拦 Windows 非法字符。
+    //
+    //   原实现只查保留名与尾随点空格，`a:b.txt` / `a*b.txt` / `a?b.txt` / `a"b` / `a|b`
+    //   原样放行 ⇒ 调用方 `safeEntryName(...) ?? localEntryName(...)` 的转写分支**永远轮不到**：
+    //     · `:` 在 NTFS 上是**备用数据流**：落地后资源管理器只看到 0 字节的 `a`，
+    //       真实内容挂在 `a` 的 `b.txt` 流上 ⇒ 用户以为「下下来了但文件是空的」；
+    //     · `*` `?` `"` `<` `>` `|` 直接 EINVAL，下载/粘贴整体失败。
+    //
+    //   这里返回 null 是**有意**的：让调用方走 localEntryName 的全角转写（视觉可辨、可落地），
+    //   而不是把非法名硬塞给 fs。纯远端场景仍走 safeRemoteEntryName（不套 Windows 规则）。
+    if (/[<>:"|?*]/.test(base)) return null
   }
   return base
 }
@@ -490,7 +501,14 @@ export function localEntryName(name: string): string {
  * 返回净化后的绝对/规范化子路径；非法时返回 null。
  */
 export function safeJoinUnder(parent: string, name: string, posix = false): string | null {
-  const safe = safeEntryName(name)
+  // ★ 2026-10-30 P1 修复（SF-02 配套）：**按目标语义选净化规则**。
+  //   safeEntryName 自 2026-10-30 起在 win32 上额外拒绝 `<>:"|?*`（原先会把 `a:b.txt`
+  //   当 NTFS 数据流写坏）。而本函数的 posix=true 分支用于**远端重命名/新建**（POSIX 上
+  //   这些字符完全合法），若也套 Windows 规则，会在 Windows 客户端上把远端合法名
+  //   （`report:2026.txt`）判成非法、重命名直接失败 —— 那是新引入的回归。
+  //   故：落本机磁盘（posix=false）用 safeEntryName（严格），落远端（posix=true）用
+  //   safeRemoteEntryName（只拦控制字符与路径穿越，与全库远端口径一致）。
+  const safe = posix ? safeRemoteEntryName(name) : safeEntryName(name)
   if (!safe) return null
   const joinFn = posix ? path.posix.join : path.join
   const resolveFn = posix ? path.posix.resolve : path.resolve

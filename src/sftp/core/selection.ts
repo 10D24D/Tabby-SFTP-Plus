@@ -41,14 +41,22 @@ export function computeSelection<T extends { fullPath: string }>(
   selectedPaths: Set<string>,
   displayOrder?: readonly string[] | null,
 ): { selection: T[]; lastIndex: number } {
-  if (event.ctrlKey || event.metaKey) {
-    const sel = selectedPaths.has(entry.fullPath)
-      ? current.filter(e => e.fullPath !== entry.fullPath)
-      : [...current, entry]
-    return { selection: sel, lastIndex: idx }
-  }
-  if (event.shiftKey && lastIndex !== null) {
-    const set = new Map(current.map(e => [e.fullPath, e]))
+  const additive = event.ctrlKey || event.metaKey
+  // ★ 2026-11-15 修复（修改人：DD1024z）——Shift/Ctrl 选中语义三条偏差：
+  //   ① Ctrl/⌘+Shift 原被下面的 Ctrl 分支先截走 ⇒ 退化为单项 toggle，区间选不出来。
+  //      现由 Shift 分支优先处理，additive 为真时「追加区间」。
+  //   ② 纯 Shift 区间原以 current 预填充 ⇒ 区间「叠加」在旧选中上，与资源管理器
+  //      「Shift+点击 = 用锚点到点击项的区间**替换**选中」不一致（残留的旧选中项会被
+  //      随后的 Delete/上传等批量操作误伤）。现改为纯 Shift 替换、Ctrl+Shift 追加。
+  //   ③ lastIndex === null（首次点击 / 刷新·排序·过滤·点分组头后锚点已清空）时原实现
+  //      跳过 Shift 分支落到「点击已选中项」判断：只有 1 项被选中时该分支返回 []
+  //      ⇒ Shift+点一下就把选中清空（状态栏 0 项，用户以为键卡了）。现按普通单选收口。
+  if (event.shiftKey) {
+    if (lastIndex === null) return { selection: [entry], lastIndex: idx }
+    // ★ 2026-11-15（修改人：DD1024z）加固：锚点下标越界（列表已缩短但锚点未及时失效）
+    //   时按「无锚点」处理，避免拿陈旧下标到新列表切片选出一段无关条目。
+    if (lastIndex < 0 || lastIndex >= list.length) return { selection: [entry], lastIndex: idx }
+    const set = additive ? new Map(current.map(e => [e.fullPath, e])) : new Map<string, T>()
     if (displayOrder && displayOrder.length) {
       // 分组模式：按显示序取 [锚点 … 终点] 区间（锚点由 lastIndex 在 list 中解析）
       const anchor = lastIndex >= 0 && lastIndex < list.length ? list[lastIndex] : undefined
@@ -68,6 +76,13 @@ export function computeSelection<T extends { fullPath: string }>(
     const [f, t] = lastIndex < idx ? [lastIndex, idx] : [idx, lastIndex]
     list.slice(f, t + 1).forEach(e => set.set(e.fullPath, e))
     return { selection: Array.from(set.values()), lastIndex }
+  }
+  if (additive) {
+    // Ctrl/⌘+点击：按选中集做增/删（落点即新的 Shift 锚点）
+    const sel = selectedPaths.has(entry.fullPath)
+      ? current.filter(e => e.fullPath !== entry.fullPath)
+      : [...current, entry]
+    return { selection: sel, lastIndex: idx }
   }
   if (selectedPaths.has(entry.fullPath)) {
     return {

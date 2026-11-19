@@ -4,8 +4,15 @@
  *   完全参照 tabby-sftp-ui-next 的已验证实现模式
  * 创建人：DD1024z + Claude
  * 创建时间：2026-06-21
- * @修改人：DD1024z + Step-5-Preview
- * @修改时间：2026-10-19 — P2-28 修复（两项）：① 工具栏按钮注入失败不再「20 次后永久放弃」：
+ * @修改人：DD1024z + Deepseek-V4.1-Flash
+ * @修改时间：2026-11-04 — 支持本地终端（Tabby local profile：Clink / cmd / PowerShell）：
+ *              原先入口两处都只认 SSH —— ① 注入按钮判 `profile.type === 'ssh' || options.host`，
+ *              本地 profile（type='local'、无 host）不注入；② openFloatingPanel / openWorkspaceTab
+ *              开头 `if (!sshSession) return`，即便有入口也打不开。
+ *              现改为「SSH 或本地」都算受支持终端：本地终端没有 SFTP 通道，但面板的本地栏本来
+ *              就是 Node fs 直读（`_listLocalEntries`），因此按「纯本地文件浏览器」打开，右栏仍可
+ *              通过连接标识切到其它标签页已建立的 SSH 会话（本地↔远程）。
+ * 2026-10-19 — P2-28 修复（两项）：① 工具栏按钮注入失败不再「20 次后永久放弃」：
  *              轮询超限也（只要能定位到工具栏容器）挂上 MutationObserver，工具栏因
  *              session.open / reconnect 重建时仍能补注入，不必重启 Tabby；成功/失败共用
  *              watchToolbar()，避免两份重复逻辑。
@@ -78,6 +85,61 @@ function ensureToolbarBtnStateStyle(): void {
     document.head.appendChild(style)
   } catch { /* ignore */ }
 }
+
+/**
+ * 本地终端工具栏槽样式（一次性注入）。
+ * ★ 2026-11-04 修复：tabby-local 的标签模板（baseTerminalTab.component.pug）里**没有**
+ *   `<terminal-toolbar>` —— 宿主只为 ssh / serial / telnet 挂载该组件（见各自 xxxTab.component.pug
+ *   首行 `terminal-toolbar([tab]='this')`）。因此本地终端里按 `.terminal-toolbar` 必然落空，
+ *   旧代码回退成 `host`（tab 根元素）、把按钮 append 到最末尾 ⇒ 按钮出现在**终端内容区左下角**，
+ *   深色背景下只是一小块灰字，等于「没有入口」。这里自建一个与宿主同款（绝对定位、40px 高、
+ *   覆盖在 tab 顶部）的槽位来承载按钮。
+ */
+let _localToolbarStyleInjected = false
+function ensureLocalToolbarStyle(): void {
+  if (_localToolbarStyleInjected) return
+  _localToolbarStyleInjected = true
+  try {
+    if (document.querySelector('style[data-sftp-plus="local-toolbar"]')) return
+    const style = document.createElement('style')
+    style.setAttribute('data-sftp-plus', 'local-toolbar')
+    style.textContent = `
+      /* 与宿主 terminal-toolbar 对齐：绝对定位铺满 tab 顶部 40px、右侧对齐、不拦截终端点击 */
+      .sftp-plus-local-toolbar {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 40px;
+        box-sizing: border-box;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        padding: 5px 15px;
+        z-index: 4;
+        pointer-events: none;
+      }
+      /* 按钮保持 Bootstrap btn-link 原样（无自绘底色/圆角），与 SSH 终端的工具栏按钮同观感 */
+      .sftp-plus-local-toolbar > button {
+        pointer-events: auto;
+      }
+      /*
+       * ★ 关键：宿主只有 toolbar-pinned 时才用 .terminal-toolbar-spacer 占位 40px，
+       *   把终端内容推下去（baseTerminalTab.component.scss:55）。本地终端没有 toolbar，
+       *   若只加覆盖层，按钮就会直接压在终端第一行文字上 —— 与 SSH 那條空带子的观感完全不同。
+       *   这里常驻一条同高的占位带，复刻 pinned 布局。
+       */
+      .sftp-plus-local-toolbar-spacer {
+        flex: 0 0 40px;
+        height: 40px;
+        width: 100%;
+        pointer-events: none;
+      }
+    `
+    document.head.appendChild(style)
+  } catch { /* ignore */ }
+}
+
 /**
  * 跨插件共享的浮动层置顶计数器。
  * SFTP+ 与 QuickCmd+ 共用 window.__tabbyFloatZ，保证"最后打开 / 获得焦点的面板"始终在最上层，
@@ -164,11 +226,11 @@ export class SftpTerminalDecorator extends TerminalDecorator {
     }
   }
 
-  /** 切换当前 SSH 标签的 SFTP+ 面板（forceTerminal 来自工具栏按钮，绑定具体 tab） */
+  /** 切换当前标签的 SFTP+ 面板（forceTerminal 来自工具栏按钮，绑定具体 tab） */
   togglePanelForActiveTerminal(forceTerminal?: any): void {
-    const terminal = forceTerminal ?? this._getActiveSshTerminal()
+    const terminal = forceTerminal ?? this._getActiveSupportedTerminal()
     if (!terminal) {
-      this.notifications.error('SFTP+', 'No active SSH session')
+      this.notifications.error('SFTP+', 'No active SSH or local terminal')
       return
     }
 
@@ -194,6 +256,16 @@ export class SftpTerminalDecorator extends TerminalDecorator {
     this.openFloatingPanel(terminal)
   }
 
+  /**
+   * 是否为「本地终端」（Tabby 内置 local profile：Clink / cmd / PowerShell 等）。
+   * 这类标签没有 SSH 会话，但面板的本地栏是 Node fs 直读，可直接当本地文件浏览器用。
+   */
+  private _isLocalTerminal(tab: any): boolean {
+    const profile = tab?.profile ?? tab?._profile ?? null
+    if (!profile) return false
+    return profile.type === 'local'
+  }
+
   private _isSshTerminal(tab: any): boolean {
     if (!tab) return false
     if (tab.sshSession || tab._sshSession) return true
@@ -204,10 +276,18 @@ export class SftpTerminalDecorator extends TerminalDecorator {
     return false
   }
 
+  /** 受支持终端：SSH（提供 SFTP 通道）或本地（纯本地文件浏览） */
+  private _isSupportedTerminal(tab: any): boolean {
+    return this._isSshTerminal(tab) || this._isLocalTerminal(tab)
+  }
+
   private _collectLeafTabs(): any[] {
     const out: any[] = []
+    const visited = new Set<any>()
     const visit = (tab: any): void => {
       if (!tab) return
+      if (visited.has(tab)) return
+      visited.add(tab)
       if (tab.root?.getAllTabs) {
         for (const child of tab.root.getAllTabs()) visit(child)
         return
@@ -222,11 +302,18 @@ export class SftpTerminalDecorator extends TerminalDecorator {
     return out
   }
 
-  private _getActiveSshTerminal(): any | null {
+  /**
+   * 取当前可用的终端：优先 SSH，其次本地。
+   * ★ 2026-11-04：原为 `_getActiveSshTerminal`（只找 SSH）。本地终端标签（Clink/cmd）下
+   *   快捷键取不到任何终端 ⇒ 直接弹「No active SSH session」。现按「受支持终端」查找，
+   *   但**仍然优先返回 SSH**：一个分屏里同时有 SSH 与本地时，SFTP+ 的默认语义还是远程文件。
+   */
+  private _getActiveSupportedTerminal(): any | null {
     try {
       const leaves = this._collectLeafTabs()
-      // 1) 当前有焦点的 SSH 标签
-      const focused = leaves.find(t => t?.hasFocus && this._isSshTerminal(t))
+      // 1) 当前有焦点的受支持标签（SSH 优先：同一分屏里两者都有焦点标记时取 SSH）
+      const focused = leaves.find(t => t?.hasFocus && this._isSshTerminal(t) && t?.element?.nativeElement)
+        ?? leaves.find(t => t?.hasFocus && this._isSupportedTerminal(t) && t?.element?.nativeElement)
       if (focused?.element?.nativeElement) return focused
 
       // 2) activeTab / SplitTab 聚焦子标签
@@ -238,11 +325,13 @@ export class SftpTerminalDecorator extends TerminalDecorator {
       if (tab?.root && typeof tab.getFocusedTab === 'function') {
         tab = tab.getFocusedTab() ?? tab
       }
-      if (this._isSshTerminal(tab) && tab?.element?.nativeElement) return tab
+      if (this._isSupportedTerminal(tab) && tab?.element?.nativeElement) return tab
 
-      // 3) 回退：任意已挂载 DOM 的 SSH 标签（单标签场景）
+      // 3) 回退：任意已挂载 DOM 的受支持标签（单标签场景；SSH 优先）
       const anySsh = leaves.find(t => this._isSshTerminal(t) && t?.element?.nativeElement)
-      return anySsh || null
+      if (anySsh) return anySsh
+      const anySupported = leaves.find(t => this._isSupportedTerminal(t) && t?.element?.nativeElement)
+      return anySupported || null
     } catch {
       return null
     }
@@ -294,16 +383,28 @@ export class SftpTerminalDecorator extends TerminalDecorator {
           host.querySelector('.terminal-toolbar') ??
           host.querySelector('terminal-toolbar') ??
           host.querySelector('.btn-toolbar')
-        return (toolbar as HTMLElement) ?? host
+        if (toolbar) return toolbar as HTMLElement
+
+        // ★ 2026-11-04 修复：本地终端**没有**宿主工具栏（tabby-local 模板不含 terminal-toolbar），
+        //   旧代码在这里 `?? host` 兜底 ⇒ 按钮被 append 到 tab 根元素最末尾，
+        //   实际渲染在终端内容区左下角（深色背景上一小块灰字），用户视角就是「没有入口」。
+        //   现在本地终端改为自建顶部工具栏槽；SSH 找不到工具栏则返回 null 等下一轮轮询
+        //   （避免在 SSH 上多出一个按钮）。
+        const profile = terminal?.profile ?? (terminal as any)?._profile ?? null
+        const isLocalProfile = profile?.type === 'local' && !profile?.options?.host
+        if (isLocalProfile) return this._ensureLocalToolbar(host as HTMLElement)
+        return null
       } catch { return null }
     }
 
     const tryInsert = (): boolean => {
       try {
-        // 仅 SSH 连接的 tab 显示 SFTP+ 按钮（检查 profile 而非 session 状态，避免断开后消失）
+        // SSH 与**本地**终端的 tab 都显示 SFTP+ 按钮（检查 profile 而非 session 状态，
+        // 避免断开后消失）。本地 profile（type='local'）没有 host，旧判据会把它整类挡掉。
         const profile = terminal?.profile ?? (terminal as any)?._profile ?? null
         const isSSH = !!(profile?.options?.host) || profile?.type === 'ssh'
-        if (!isSSH) return false
+        const isLocal = profile?.type === 'local'
+        if (!isSSH && !isLocal) return false
 
         const container = findToolbar()
         if (!container) return false
@@ -350,22 +451,34 @@ export class SftpTerminalDecorator extends TerminalDecorator {
         btn.addEventListener('click', (ev: MouseEvent) => {
           ev.preventDefault()
           ev.stopPropagation()
-          // 验证 SSH 会话是否仍处于连接状态
-          const ssh = terminal?.sshSession ?? (terminal as any)?._sshSession ?? terminal?._session ?? null
-          if (!ssh) {
-            this.notifications.error('SFTP+', 'SSH 连接已断开，请先重新连接终端')
-            return
-          }
-          if (ssh.closed$ && typeof ssh.closed$.subscribe === 'function' && ssh.open === false) {
-            this.notifications.error('SFTP+', 'SSH 连接已断开，请先重新连接终端')
-            return
-          }
-          // SSH 正常连接中，确保按钮恢复可用状态（处理 reconnect 后 _session 已恢复但按钮仍 disabled 的场景）
-          if (btn.disabled) {
-            btn.disabled = false
-            btn.style.opacity = ''
-            btn.style.cursor = ''
-            btn.title = 'SFTP+'
+          // ★ 2026-11-04：本地终端没有 SSH 会话，跳过整段会话状态校验。
+          //   ⛔ 不能沿用下面的 `terminal._session` 兜底：本地 pty session 也存在，会被误当成
+          //   SSH 会话传给面板（面板随即拿它去开 SFTP 通道而失败）。
+          if (isSSH) {
+            // 验证 SSH 会话是否仍处于连接状态
+            const ssh = terminal?.sshSession ?? (terminal as any)?._sshSession ?? terminal?._session ?? null
+            if (!ssh) {
+              this.notifications.error('SFTP+', 'SSH connection is closed, please reconnect the terminal first')
+              return
+            }
+            // ★ 2026-10-30 P2 修复（SF-25）：改成只认 `open === false`。
+            //
+            //   原条件 `ssh.closed$ && typeof ssh.closed$.subscribe === 'function' && ssh.open === false`
+            //   里 `closed$` 是宿主的**不存在的属性**（SSHSession 只有 willDestroy$ / open），
+            //   取到 undefined ⇒ `&&` 在第一步就短路 ⇒ `open === false` **永不参与求值** ⇒
+            //   整段断线守卫是死代码：断线后按钮不禁用、点它也没提示（面板随后打开失败）。
+            //   这里改用宿主真实存在的 open 字段（reconnect 后会自动变回 true，下方恢复逻辑仍生效）。
+            if (ssh.open === false) {
+              this.notifications.error('SFTP+', 'SSH connection is closed, please reconnect the terminal first')
+              return
+            }
+            // SSH 正常连接中，确保按钮恢复可用状态（处理 reconnect 后 _session 已恢复但按钮仍 disabled 的场景）
+            if (btn.disabled) {
+              btn.disabled = false
+              btn.style.opacity = ''
+              btn.style.cursor = ''
+              btn.title = 'SFTP+'
+            }
           }
           if (this._openInNewTabByDefault()) {
             this.openWorkspaceTab(terminal)
@@ -454,6 +567,23 @@ export class SftpTerminalDecorator extends TerminalDecorator {
       })
       obs.observe(container, { childList: true, subtree: true })
       this.subscribeUntilDetached(terminal, { unsubscribe: () => obs.disconnect() })
+
+      // ★ 2026-11-04：本地终端的工具栏槽是我们自建的（宿主没有 terminal-toolbar），
+      //   它挂在 tab 根元素下。tab 根内容被重建（session 重开 / 视图重挂）时整个槽会脱离文档，
+      //   而观察槽自身捕捉不到「自己被移走」⇒ 再盯一层父节点（只观察直接子节点，
+      //   不递归到终端内容，避免终端输出高频触发）。
+      if (container.hasAttribute('data-sftp-plus-local-toolbar')) {
+        const parent = container.parentElement
+        if (parent) {
+          const parentObs = new MutationObserver(() => {
+            if (container.isConnected) return
+            parentObs.disconnect()
+            if (tryInsert()) watchToolbar()
+          })
+          parentObs.observe(parent, { childList: true })
+          this.subscribeUntilDetached(terminal, { unsubscribe: () => parentObs.disconnect() })
+        }
+      }
     }
 
     // try a few times while the view is settling and SSH session establishes
@@ -490,6 +620,29 @@ export class SftpTerminalDecorator extends TerminalDecorator {
   override detach(terminal: any): void {
     try {
       const hostEl = this._resolveHostEl(terminal)
+      // ★ 2026-10-30 P2 修复（SF-26）：把这个终端注入过的工具栏容器从 _toolbars 里摘掉。
+      //
+      //   原实现 `_toolbars` 只在 `_liveToolbars()` 被调用时按 `isConnected === false` 剪枝，
+      //   而那条路径只在「启用隐藏原生按钮」时才走到；默认配置下 detach() 从不删除 ⇒
+      //   每开关一个 SSH 标签就永久持有一棵已脱离文档的 DOM 树（含其子节点与我们的按钮），
+      //   长会话里内存单调增长。detach 是唯一能确定「该终端的工具栏不再需要」的时机。
+      if (hostEl) {
+        try {
+          const tb =
+            hostEl.querySelector('.terminal-toolbar') ??
+            hostEl.querySelector('terminal-toolbar') ??
+            hostEl.querySelector('.btn-toolbar') ??
+            hostEl
+          if (tb) this._toolbars.delete(tb as ParentNode)
+        } catch { /* ignore */ }
+      }
+      // ★ 2026-11-04：本地终端的工具栏槽是自建的（挂在 tab 根元素下，hostEl 是终端前端元素，
+      //   上面那段 querySelector 找不到它），单独摘掉，否则 _toolbars 会持有已脱离文档的节点。
+      try {
+        const tabRoot = terminal?.element?.nativeElement as HTMLElement | null
+        const localSlot = tabRoot?.querySelector?.(':scope > .sftp-plus-local-toolbar')
+        if (localSlot) this._toolbars.delete(localSlot)
+      } catch { /* ignore */ }
       const cmpRef = hostEl ? (hostEl as any).__sftpPlusCmpRef : null
       if (hostEl && cmpRef) {
         this.zone.run(() => {
@@ -719,6 +872,12 @@ export class SftpTerminalDecorator extends TerminalDecorator {
   /** 服务销毁时清理定时器 */
   ngOnDestroy(): void {
     this._clearHideNativeTimers()
+    // ★ 2026-10-30 P1-1 修复：_hideObserver 在组件生命周期中从未 disconnect，
+    //   会导致 MutationObserver 持续持有 DOM 引用，引发内存泄漏。
+    if (this._hideObserver) {
+      this._hideObserver.disconnect()
+      this._hideObserver = null
+    }
   }
 
   /**
@@ -798,6 +957,41 @@ export class SftpTerminalDecorator extends TerminalDecorator {
     return frontendEl || fallbackEl
   }
 
+  /**
+   * 为本地终端（profile.type === 'local'）创建 / 复用自建工具栏槽。
+   * 宿主只为 ssh / serial / telnet 挂 `terminal-toolbar`，本地终端没有该元素，
+   * 见 terminal-decorator.ts 顶部 2026-11-04 说明。
+   */
+  private _ensureLocalToolbar(host: HTMLElement): HTMLElement | null {
+    try {
+      ensureLocalToolbarStyle()
+      // 清掉旧实现残留在 tab 根元素上（终端内容区末尾）的按钮，避免同一 tab 出现两个入口
+      host.querySelectorAll(':scope > [data-tabby-sftp-plus-button="1"]').forEach(el => { try { el.remove() } catch { /* ignore */ } })
+      // 定位上下文兜底：宿主 :host 已是 position: relative，这里只在异常情况下补
+      try {
+        if (getComputedStyle(host).position === 'static') host.style.position = 'relative'
+      } catch { /* ignore */ }
+      // ★ 占位带：复刻宿主 toolbar-pinned 时的 .terminal-toolbar-spacer（高 40px），
+      //   让终端内容从带子下方开始 —— 否则按钮会压在终端第一行文字上。
+      let spacer = host.querySelector(':scope > .sftp-plus-local-toolbar-spacer') as HTMLElement | null
+      if (!spacer) {
+        spacer = document.createElement('div')
+        spacer.className = 'sftp-plus-local-toolbar-spacer'
+        spacer.setAttribute('data-sftp-plus-local-toolbar-spacer', '1')
+        host.insertBefore(spacer, host.firstChild)
+      }
+      const existing = host.querySelector(':scope > .sftp-plus-local-toolbar') as HTMLElement | null
+      if (existing) return existing
+      const div = document.createElement('div')
+      div.className = 'sftp-plus-local-toolbar'
+      div.setAttribute('data-sftp-plus-local-toolbar', '1')
+      host.insertBefore(div, spacer.nextSibling)
+      return div
+    } catch {
+      return null
+    }
+  }
+
   private openFloatingPanel(terminal: any): void {
     // ★ 拆分终端修复（B17-2）：把 overlay 挂到 document.body + position: fixed，但
     // 尺寸/位置严格贴合当前 terminal pane 的 getBoundingClientRect()。这样所有面板
@@ -823,14 +1017,19 @@ export class SftpTerminalDecorator extends TerminalDecorator {
     }
 
     // 从 terminal 获取 SSH 会话
-    const sshSession =
-      terminal?.sshSession ??
-      (terminal as any)?._sshSession ??
-      terminal?._session ??
-      null
+    // ★ 2026-11-04：本地终端（profile.type='local'）**没有** SSH 会话 —— 但它的 pty 会话
+    //   挂在 `terminal._session` 上，会被下面这串 `??` 兜底误取成「SSH 会话」传给面板，
+    //   面板随后拿它 openFromSSHSession 必然失败。故先按 profile 判定本地，再决定是否取。
     const profile = terminal?.profile ?? terminal?._profile ?? null
+    const isLocalProfile = profile?.type === 'local' && !profile?.options?.host
+    const sshSession = isLocalProfile
+      ? null
+      : (terminal?.sshSession ??
+        (terminal as any)?._sshSession ??
+        terminal?._session ??
+        null)
 
-    if (!sshSession) {
+    if (!sshSession && !isLocalProfile) {
       this.notifications.error('SFTP+', 'No active SSH session found on this tab')
       return
     }
@@ -1042,9 +1241,13 @@ export class SftpTerminalDecorator extends TerminalDecorator {
   }
 
   private openWorkspaceTab(terminal: any): void {
-    const sshSession = terminal?.sshSession ?? (terminal as any)?._sshSession ?? terminal?._session ?? null
+    // ★ 2026-11-04：同 openFloatingPanel —— 本地终端的 pty 会话不能当 SSH 会话传下去
     const profile = terminal?.profile ?? terminal?._profile ?? null
-    if (!sshSession) {
+    const isLocalProfile = profile?.type === 'local' && !profile?.options?.host
+    const sshSession = isLocalProfile
+      ? null
+      : (terminal?.sshSession ?? (terminal as any)?._sshSession ?? terminal?._session ?? null)
+    if (!sshSession && !isLocalProfile) {
       this.notifications.error('SFTP+', 'No active SSH session found on this tab')
       return
     }

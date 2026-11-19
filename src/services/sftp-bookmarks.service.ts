@@ -123,11 +123,22 @@ export class SftpBookmarksService {
     this._loaded = true
     this._loadTombstones()
     // 优先从 Tabby 配置加载
+    // ★ 2026-10-30 P1 修复（SF-04）：判定「配置里有没有真书签」，而不是「有没有 bookmarks 这个键」。
+    //
+    //   defaults 里声明了 `bookmarks: []`，于是宿主的 ConfigProxy 一定会有该键 ⇒
+    //   `'bookmarks' in cfg` **恒为真**，下面 localStorage 兜底与旧版迁移全是死代码：
+    //     · 从「书签只存 localStorage」的旧版本升级 → 配置里是空数组 → 直接 return →
+    //       **用户历史书签全部不可见**（数据还在 localStorage，但再也读不出来）；
+    //     · 磁盘满/配置写入被拒时 save() 写的 localStorage 兜底，下次启动同样读不回来。
+    //   现改为「非空数组才认」：空数组视为「配置侧没有数据」，回落 localStorage，
+    //   读到内容后立即回写配置（一次性迁移，之后以配置为准）。
+    let migratedFromLocal = false
     if (this.configService?.store) {
       try {
         const cfg = this.configService.store['tabby-sftp-plus']
-        if (cfg && 'bookmarks' in cfg) {
-          this.bookmarks = [...cfg.bookmarks].filter(b => b?.id && !this._tombstones.includes(b.id))
+        const cfgList = cfg && Array.isArray(cfg.bookmarks) ? cfg.bookmarks : null
+        if (cfgList && cfgList.length > 0) {
+          this.bookmarks = cfgList.filter(b => b?.id && !this._tombstones.includes(b.id))
           return
         }
       } catch {}
@@ -140,9 +151,15 @@ export class SftpBookmarksService {
         this.bookmarks = (Array.isArray(parsed) ? parsed : []).filter(
           (b: Bookmark) => b?.id && !this._tombstones.includes(b.id),
         )
+        migratedFromLocal = this.bookmarks.length > 0
       }
     } catch {
       this.bookmarks = []
+    }
+    // 从 localStorage 迁回来的数据立即写回配置，避免每次启动都走兜底、并在配置保存失败时反复漂移
+    if (migratedFromLocal) {
+      log.info('[bookmarks] migrated', this.bookmarks.length, 'bookmarks from localStorage to config')
+      this.save()
     }
   }
 
@@ -154,6 +171,12 @@ export class SftpBookmarksService {
         if (target) {
           // ★ 2026-08-10 修复 #7：按 id 合并后再写，保留其它实例/窗口新增的条目
           // ★ 2026-08-26 H11：合并时跳过 tombstone，防止已删书签复活
+          // ★ 2026-10-30 P2 修复（SF-07）：合并前**重读** tombstone。
+          //   原实现用本实例构造时加载的快照（此后不再更新）：面板 A 与面板 B 各持一份服务实例，
+          //   A 删掉书签（tombstone 写在 A 的 localStorage 与 A 的内存里），B 之后任何一次
+          //   save() 合并时都认为那条还在 ⇒ 把已删书签**原样写回配置**，用户看到「删了又回来」。
+          //   MAX_TOMBSTONES 拦不住，因为 A 的 tombstone 根本不在 B 的集合里。
+          this._loadTombstones()
           const deleted = new Set(this._tombstones)
           const stored: Bookmark[] = Array.isArray(target.bookmarks) ? target.bookmarks : []
           const merged = new Map<string, Bookmark>(

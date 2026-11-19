@@ -540,14 +540,22 @@ export abstract class SftpPanelBookmarkController extends SftpPanelViewerControl
       this._bmResizeCleanup = null
       document.removeEventListener('mousemove', onMove)
       document.removeEventListener('mouseup', onUp)
+      document.removeEventListener('pointercancel', onUp)
+      window.removeEventListener('blur', onUp)
       this._persistBookmarkPopupSize(side)
     }
     // 监听挂在 document：拖动过程中鼠标离开边框/面板也不会中断（与表头拖拽同一手法）
     document.addEventListener('mousemove', onMove)
     document.addEventListener('mouseup', onUp)
+    // ★ 2026-10-30 P2 修复（SF-22）：窗口外松手收不到 mouseup ⇒ 尺寸不落盘、监听泄漏。
+    //   pointercancel + window blur 兜底收尾（与表头拖拽 / 列宽拖拽同口径）。
+    document.addEventListener('pointercancel', onUp)
+    window.addEventListener('blur', onUp)
     this._bmResizeCleanup = () => {
       document.removeEventListener('mousemove', onMove)
       document.removeEventListener('mouseup', onUp)
+      document.removeEventListener('pointercancel', onUp)
+      window.removeEventListener('blur', onUp)
     }
   }
 

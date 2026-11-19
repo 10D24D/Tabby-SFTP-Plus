@@ -9,8 +9,12 @@
  * 迁移时机：首次注入（构造函数）时自动执行，保留旧 key 不删。
  * 双读逻辑：get() 时新路径无值则回退旧 key。
  *
- * @修改人：DD1024z + Hy4 preview
- * @修改时间：2026-10-20 — P2-24 修复：_migrateIfNeeded 的「已迁移」判定原为一条
+ * @修改人：DD1024z + Deepseek-V4.1-Flash
+ * @修改时间：2026-11-05 — 新增 `listSlotPaths(basePath, field)`：枚举某容器下「带指定叶子字段」
+ *              的子项完整路径（如 `paneState/perTab/<slot>/layoutMode`），供设置页
+ *              「清除各标签页的独立布局」使用 —— `root` 是私有 getter，遍历收口在本服务里，
+ *              调用方只拿可直接交给 `remove()` 的路径数组。
+ *              2026-10-20 — P2-24 修复：_migrateIfNeeded 的「已迁移」判定原为一条
  *              2026-10-20 全量审计：root getter 校验配置段形态（非空普通对象），非法时重建 {}，
  *                修手改 config.yaml 置 null 后构造期崩溃。
  *              `typeof layout === 'object' && typeof perHost === 'object' ⇒ 跳过全部`，
@@ -167,6 +171,26 @@ export class SftpConfigService {
     this.flush()
   }
 
+  /**
+   * 列出某个容器路径下「含指定叶子字段」的全部子项路径。
+   *
+   * ★ 2026-11-05（Deepseek-V4.1-Flash）：布局模式改成按标签页分槽后，设置页需要
+   *   「清除所有标签页的独立布局」——这要求能枚举 `paneState/perTab/<slot>/layoutMode`。
+   *   遍历交给本服务做（`root` 是私有 getter），调用方只拿到路径数组。
+   *
+   * 返回形如 `['paneState/perTab/root%40host%3A22/layoutMode', ...]`；容器不存在返回 []。
+   */
+  listSlotPaths(basePath: string, field: string): string[] {
+    const parent = this._getByPath(this.root, basePath)
+    if (!parent || typeof parent !== 'object' || Array.isArray(parent)) return []
+    return Object.keys(parent)
+      .filter((k) => {
+        const slot = parent[k]
+        return !!slot && typeof slot === 'object' && !Array.isArray(slot) && slot[field] !== undefined
+      })
+      .map((k) => `${basePath}/${k}/${field}`)
+  }
+
   // ── 自动迁移 ──
 
   private _migrateIfNeeded(): void {
@@ -203,13 +227,26 @@ export class SftpConfigService {
   /** 清理迁移后的旧扁平 key，避免旧数据残留 */
   private _cleanupOldKeys(paneState: Record<string, any>): void {
     // perHost 旧 key
-    const hostKeys = Object.keys(paneState).filter(k => k.startsWith('sftp-plus-path-mode.'))
-    for (const key of hostKeys) {
-      const host = key.substring('sftp-plus-path-mode.'.length)
-      delete paneState[`sftp-plus-path-mode.${host}`]
-      delete paneState[`sftp-plus-path-mem.${host}`]
-      delete paneState[`sftp-plus-saved-local-path.${host}`]
-      delete paneState[`sftp-plus-saved-remote-path.${host}`]
+    // ★ 2026-10-30 P2 修复（SF-28）：**只删已确认迁移成功的那一个字段**。
+    //   原实现按主机整组删：只要 `sftp-plus-path-mode.{host}` 存在，就把该主机的
+    //   pathMode / rememberPath / savedLocalPath / savedRemotePath 四个旧键全删。
+    //   而 _migratePerHost 的判据是「perHost/{host} 整对象已存在就跳过」——
+    //   面板先写过该主机的 savedRemotePath 时，pathMode 根本没被迁移，随后旧键被删 ⇒
+    //   该主机的路径模式永久回落默认 off，旧值已从 config.yaml 消失（不可逆）。
+    const perHostOldKeys: Array<[string, string]> = [
+      ['sftp-plus-path-mode.', 'pathMode'],
+      ['sftp-plus-path-mem.', 'rememberPath'],
+      ['sftp-plus-saved-local-path.', 'savedLocalPath'],
+      ['sftp-plus-saved-remote-path.', 'savedRemotePath'],
+    ]
+    for (const [prefix, field] of perHostOldKeys) {
+      for (const key of Object.keys(paneState).filter(k => k.startsWith(prefix))) {
+        const host = key.substring(prefix.length)
+        // 新路径已有值 = 该字段确实迁过了 → 才允许删旧键；否则保留，下次启动还能再迁
+        if (this._getByPath(this.root, `paneState/perHost/${host}/${field}`) !== undefined) {
+          delete paneState[key]
+        }
+      }
     }
     // layout 旧 key
     delete paneState['sftp-plus-layout-mode']
@@ -232,14 +269,21 @@ export class SftpConfigService {
       // ★ 2026-10-19 P2-24：该主机已迁到 paneState/perHost/{host} 则不再回填——
       //   本函数会在「perHost 已迁过但旧 key 仍在」的存量配置上被补跑，此时用户在面板里
       //   改过的路径模式不能被旧扁平 key 覆盖回去。
-      if (this._getByPath(this.root, `paneState/perHost/${host}`) !== undefined) continue
-      this._setByPath(this.root, `paneState/perHost/${host}/pathMode`, src[`sftp-plus-path-mode.${host}`])
-      if (`sftp-plus-path-mem.${host}` in src)
-        this._setByPath(this.root, `paneState/perHost/${host}/rememberPath`, src[`sftp-plus-path-mem.${host}`])
-      if (`sftp-plus-saved-local-path.${host}` in src)
-        this._setByPath(this.root, `paneState/perHost/${host}/savedLocalPath`, src[`sftp-plus-saved-local-path.${host}`])
-      if (`sftp-plus-saved-remote-path.${host}` in src)
-        this._setByPath(this.root, `paneState/perHost/${host}/savedRemotePath`, src[`sftp-plus-saved-remote-path.${host}`])
+      // ★ 2026-10-30 P2 修复（SF-28）：判据从「整主机对象是否存在」改为**逐字段**判。
+      //   原判据只要 perHost/{host} 有任何字段（例如面板写过的 savedRemotePath）就整主机跳过，
+      //   导致 pathMode 永远不迁；而 _cleanupOldKeys 随后又把旧键删了 ⇒ 不可逆丢配置。
+      const perHostFields: Array<[string, string]> = [
+        ['pathMode', `sftp-plus-path-mode.${host}`],
+        ['rememberPath', `sftp-plus-path-mem.${host}`],
+        ['savedLocalPath', `sftp-plus-saved-local-path.${host}`],
+        ['savedRemotePath', `sftp-plus-saved-remote-path.${host}`],
+      ]
+      for (const [field, oldKey] of perHostFields) {
+        if (!(oldKey in src)) continue
+        const newPath = `paneState/perHost/${host}/${field}`
+        if (this._getByPath(this.root, newPath) !== undefined) continue
+        this._setByPath(this.root, newPath, src[oldKey])
+      }
     }
   }
 
@@ -331,11 +375,33 @@ export class SftpConfigService {
 
   // ── 工具 ──
 
+  /**
+   * ★ 2026-11-15 审计修复（B3，修改人：DD1024z，修改时间：2026-11-15）：
+   *   点路径的段名来自 `paneState/perHost/{host}` 里的 host（连接配置可被外部写入），
+   *   原先裸用 `part in cur` / `cur[part]`：host 为 `__proto__` 时下钻到 Object.prototype、
+   *   末段赋值会**全局污染** Object.prototype；host 为 `toString`/`valueOf` 时把配置对象的
+   *   同名方法覆盖成 `{}`，后续隐式转字符串会抛 "Cannot convert object to primitive value"。
+   *   与设置导入侧（已屏蔽 __proto__/constructor）保持同一口径：只走自有属性、关键字拒绝。
+   */
+  private static readonly PATH_RESERVED_KEYS = new Set([
+    '__proto__', 'constructor', 'prototype',
+    // ★ 2026-11-15（B3 补口）：这些名字在 `cfg.perHost[host]` 上是不存在的自有属性，
+    //   一旦被当段名写入就会在字典对象上盖掉同名方法（`String(dict)` 直接抛 TypeError）。
+    //   真实主机名不会长这样，拒绝写入即可。
+    'toString', 'valueOf', 'hasOwnProperty', 'isPrototypeOf', 'propertyIsEnumerable', 'toLocaleString',
+  ])
+
+  private _hasOwn(obj: any, key: string): boolean {
+    return obj != null && typeof obj === 'object' && Object.prototype.hasOwnProperty.call(obj, key)
+  }
+
   private _getByPath(obj: any, path: string): any {
     const parts = path.split('/')
     let cur = obj
     for (const part of parts) {
       if (cur == null || typeof cur !== 'object') return undefined
+      if (SftpConfigService.PATH_RESERVED_KEYS.has(part)) return undefined
+      if (!this._hasOwn(cur, part)) return undefined
       cur = cur[part]
     }
     return cur
@@ -343,10 +409,16 @@ export class SftpConfigService {
 
   private _setByPath(obj: any, path: string, value: any): void {
     const parts = path.split('/')
+    for (const p of parts) {
+      if (SftpConfigService.PATH_RESERVED_KEYS.has(p)) {
+        log.warn('SftpConfigService._setByPath refused reserved key:', path)
+        return
+      }
+    }
     let cur = obj
     for (let i = 0; i < parts.length - 1; i++) {
       const part = parts[i]
-      if (!(part in cur) || cur[part] == null || typeof cur[part] !== 'object') {
+      if (!this._hasOwn(cur, part) || cur[part] == null || typeof cur[part] !== 'object') {
         cur[part] = {}
       }
       cur = cur[part]
@@ -373,6 +445,9 @@ export class SftpConfigService {
     let cur = obj
     for (let i = 0; i < parts.length - 1; i++) {
       if (cur == null || typeof cur !== 'object') return null
+      // ★ 2026-11-15（B3）：只走自有属性，避免读到原型链上的同名成员
+      if (SftpConfigService.PATH_RESERVED_KEYS.has(parts[i])) return null
+      if (!this._hasOwn(cur, parts[i])) return null
       cur = cur[parts[i]]
     }
     return cur

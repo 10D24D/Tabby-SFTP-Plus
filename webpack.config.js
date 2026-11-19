@@ -72,8 +72,13 @@ module.exports = {
     'crypto',
     'net',
     'stream',
+    'http',
     'readline',
     'electron',
+    // ★ 2026-11-09（DeepSeek-V4.1-Flash）：拖出到系统要走主进程 webContents.startDrag，
+    //   只能经 @electron/remote 调用（渲染进程拿不到 File.path）。该包由宿主提供
+    //   （tabby-electron 自身也 require 它），必须外置，否则 webpack 会去插件 node_modules 找而报错。
+    '@electron/remote',
     /^rxjs/,
     /^@angular/,
     /^tabby-/,

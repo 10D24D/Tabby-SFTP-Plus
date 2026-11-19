@@ -177,6 +177,7 @@
  */
 
 import { spawn } from 'child_process'
+import { randomBytes } from 'crypto'
 import { existsSync } from 'fs'
 import * as fs from 'fs/promises'
 import * as os from 'os'
@@ -447,6 +448,8 @@ interface LocalTarResult {
   code: number | null
   /** tar 的诊断输出（错误信息全走 stderr），已限长 */
   output: string
+  /** ★ 2026-11-15 审计修复（A2）：仅在 captureStdout 时填充（归档成员清单预扫描要用 stdout） */
+  stdout?: string
 }
 
 /**
@@ -455,20 +458,29 @@ interface LocalTarResult {
  * ★ 必须**持续消费**管道 —— tar 的警告足以填满 ~64KB 管道缓冲，子进程会阻塞在 write 上永不退出
  *   （2026-09-21 修过同类挂死）。此处边到边读、只保留前 LOCAL_TAR_OUTPUT_MAX 字符。
  */
-function runLocalTar(args: string[]): Promise<LocalTarResult> {
+function runLocalTar(args: string[], opts?: { captureStdout?: boolean }): Promise<LocalTarResult> {
   return new Promise((resolve) => {
     let settled = false
     const chunks: string[] = []
+    const outChunks: string[] = []
     let len = 0
+    let outLen = 0
     const done = (r: LocalTarResult) => { if (!settled) { settled = true; resolve(r) } }
     const take = (buf: Buffer) => {
       if (len >= LOCAL_TAR_OUTPUT_MAX) return
       const keep = buf.toString('utf8').slice(0, LOCAL_TAR_OUTPUT_MAX - len)
       if (keep) { chunks.push(keep); len += keep.length }
     }
+    const takeOut = (buf: Buffer) => {
+      if (outLen >= LOCAL_TAR_OUTPUT_MAX) return
+      const keep = buf.toString('utf8').slice(0, LOCAL_TAR_OUTPUT_MAX - outLen)
+      if (keep) { outChunks.push(keep); outLen += keep.length }
+    }
     const text = () => chunks.join('').trim()
     try {
-      const child = spawn(resolveLocalTarCmd(), args, { stdio: ['ignore', 'ignore', 'pipe'] })
+      const captureStdout = opts?.captureStdout === true
+      const child = spawn(resolveLocalTarCmd(), args, { stdio: ['ignore', captureStdout ? 'pipe' : 'ignore', 'pipe'] })
+      child.stdout?.on('data', takeOut)
       child.stderr?.on('data', take)
       // ★ 2026-10-12 P2 修复：超时定时器句柄原先**未保存** —— 进程正常 close 后
       //   这个 timer 仍留在 Node 事件循环里到点触发（done 有 settled 守卫所以不会
@@ -478,7 +490,10 @@ function runLocalTar(args: string[]): Promise<LocalTarResult> {
       let timer: ReturnType<typeof setTimeout> | null = null
       const clearTimer = () => { if (timer !== null) { clearTimeout(timer); timer = null } }
       child.on('error', (e) => { clearTimer(); done({ ok: false, code: null, output: `spawn failed: ${(e as Error)?.message ?? e}` }) })
-      child.on('close', (code) => { clearTimer(); done({ ok: code === 0, code, output: text() }) })
+      child.on('close', (code) => {
+        clearTimer()
+        done({ ok: code === 0, code, output: text(), stdout: opts?.captureStdout ? outChunks.join('') : undefined })
+      })
       timer = setTimeout(() => {
         try { child.kill() } catch { /* ignore */ }
         const tail = text()
@@ -627,11 +642,17 @@ async function cleanupStaging(root: string | null, subDir: string | null): Promi
  *
  * 原为纯 `randomUUID()`（36 位），用户看到 `.sftp-plus-tar-<uuid>.tar` 根本不知道对应哪个目录，
  * 尤其失败残留在源目录里时无从判断该不该删。现改为
- * `<目录名>.sftp-plus-<kind>-<6位随机>`：前段自解释，后段短随机保证同名目录并发/重入
+ * `<目录名>.sftp-plus-<kind>-<随机后缀>`：前段自解释，后段随机保证同名目录并发/重入
  * （重复下载同一目录）时互不踩踏。适用于远端 tar 包/解包目录与本地 tar 包。
+ *
+ * ★ 2026-11-15 审计修复（B6，修改人：DD1024z，修改时间：2026-11-15）：
+ *   原后缀是 `Math.random()` 6 位 base36（≈31bit，且 Mersenne Twister 可从少量样本外推），
+ *   而远端临时名落在**用户可写目录**里 —— 共享可写目录（/tmp 类挂载、多用户同目录）上
+ *   其他本地用户可预置同名软链，`tar cf`/`mkdir -p` 会跟随软链把内容写到其指向的文件/目录。
+ *   改为 crypto 12 位十六进制（48bit，不可预测），并保留「前缀可读」的原有可读性。
  */
 function makeTempName(baseName: string, kind: string): string {
-  return `${sanitizeNameSegment(baseName)}.sftp-plus-${kind}-${Math.random().toString(36).slice(2, 8)}`
+  return `${sanitizeNameSegment(baseName)}.sftp-plus-${kind}-${randomBytes(6).toString('hex')}`
 }
 
 /**
@@ -767,6 +788,51 @@ function buildRemoteUploadBatchLanding(opts: {
   )
 }
 
+/**
+ * 归档成员名的越界特征：绝对 POSIX 路径、UNC/盘符绝对路径、任一段 `..`。
+ * ★ 2026-11-15 审计修复（A2，修改人：DD1024z，修改时间：2026-11-15）：本机解包前的成员预扫描，
+ *   与远端 `remoteTarGuard` 同一语义（远端只查名字，这里额外查软链成员类型）。
+ *   ⚠ 与远端的差别：远端查不出成员类型，本地能查；因为本机 `tar -xf` 才是真正落盘的一侧。
+ */
+const TAR_UNSAFE_MEMBER_NAME = /(^\/)|(^\\\\)|(^[A-Za-z]:[\\/])|((^|\/)\.\.($|\/))/
+
+async function preScanLocalTar(
+  tarFile: string,
+  flavor: LocalTarFlavor,
+): Promise<{ ok: boolean; detail?: string }> {
+  const withForce = (listFlag: string): string[] =>
+    flavor === 'gnu' ? ['--force-local', listFlag, tarFile] : [listFlag, tarFile]
+  const tryList = async (listFlag: string): Promise<LocalTarResult> => {
+    let r = await runLocalTar(withForce(listFlag), { captureStdout: true })
+    // GNU 与非 GNU 的 `-f <盘符路径>` 解析差异：失败时换另一种前缀再试一次
+    if (!r.ok && flavor !== 'gnu') r = await runLocalTar(['--force-local', listFlag, tarFile], { captureStdout: true })
+    return r
+  }
+
+  // ① 名字：列不出清单（损坏/空包/无权限）一律拒绝 —— 无法验证 ⇒ 不放行
+  const names = await tryList('-tf')
+  if (!names.ok) return { ok: false, detail: `tar -tf failed: ${names.output.slice(0, 200)}` }
+  const lines = String(names.stdout ?? '').split(/\r?\n/).filter(l => l.length > 0)
+  if (!lines.length) return { ok: false, detail: 'empty archive listing' }
+  for (const line of lines) {
+    if (TAR_UNSAFE_MEMBER_NAME.test(line)) return { ok: false, detail: `unsafe member name: ${line.slice(0, 200)}` }
+  }
+
+  // ② 类型：拒绝软链成员（穿越写入的经典原语）。`-tv` 每行首字符是类型标志（l=符号链接）。
+  //    `-tv` 失败不阻断（个别实现/怪格式），软链仍由解包后的 assertExtractedUnderRoot 兜底。
+  //    ★ 2026-11-15（A2 补口）：硬链接成员同样拒绝 —— 归档里先建 h→/etc/passwd，再写同名成员，
+  //    就能在沙箱外改到原文件（叫「通过链接写穿」），这一步与软链是同一原语。
+  const verbose = await tryList('-tvf')
+  if (verbose.ok) {
+    for (const line of String(verbose.stdout ?? '').split(/\r?\n/)) {
+      if (!line) continue
+      if (line[0] === 'l') return { ok: false, detail: `archive contains symlink member: ${line.slice(0, 200)}` }
+      if (line[0] === 'h') return { ok: false, detail: `archive contains hardlink member: ${line.slice(0, 200)}` }
+    }
+  }
+  return { ok: true }
+}
+
 /** 解包结果：成功，或带「哪一步失败 + 为什么」的失败（供 _decline 产出可解释的用户提示） */
 type ExtractOutcome = { ok: true } | { ok: false; code: TarFailureCode; detail: string }
 
@@ -787,20 +853,39 @@ async function extractTarSafely(
   }
   try {
     const flavor = await detectLocalTarFlavor()
+    // ★ 2026-11-15 审计修复（A2，修改人：DD1024z，修改时间：2026-11-15）：
+    //   原实现直接 `tar -xf` 进沙箱、解完才 assertExtractedUnderRoot —— 校验是**事后**的，
+    //   恶意/被控服务端可用「先解出软链、再经软链写入」的成员序列，在检查发生前把内容写到
+    //   沙箱之外（安全性完全押在本机 tar 有无内置 symlink 保护）。远端链路有 remoteTarGuard，
+    //   本地链路缺对等闸门，这里补上：解包前先扫成员名（绝对路径/`..`段）与软链成员类型。
+    const prescan = await preScanLocalTar(tarFile, flavor)
+    if (!prescan.ok) {
+      log.warn('tar channel: archive pre-scan refused: ' + String(prescan.detail))
+      return {
+        ok: false,
+        code: 'localExtractFailed',
+        detail: `archive pre-scan refused (${String(prescan.detail)}): ${localDest}`,
+      }
+    }
     // ★ 2026-09-29（二）：按本机 tar 方言给参数 —— 不再「先试一个必然不被支持的选项」白跑一次子进程。
     //   原实现的首选参数带 `--no-absolute-filenames`，而 Windows 自带 bsdtar **不认**它（本机实测 exit 1），
     //   导致每次解包都要多起一个进程、多一条误导性 stderr。
-    //   注：绝对路径逃逸由下面的 assertExtractedUnderRoot（沙箱遍历校验）兜底，比 tar 的该选项更严。
+    //   注：绝对路径逃逸由上面的预扫描 + 下面的 assertExtractedUnderRoot 双重兜底。
+    //   ★ 2026-11-15（A2）：首选参数再补「不恢复属主/权限」（root 下解包时 tar 会照归档还原 uid/gid
+    //    与 setuid 位）。GNU 的 `--no-same-permissions` bsdtar 不认，故按方言分开给；严格参数失败时
+    //    仍会落到下面的基础参数（与改动前行为一致，不会把原本能解的包变成失败）。
     const base = ['-xf', tarFile, '-C', sandbox]
     const charSetRetry = ['--options', 'hdrcharset=UTF-8', '-xf', tarFile, '-C', sandbox]
     const forceLocalRetry = ['-xf', tarFile, '-C', sandbox, '--force-local']
+    const strictGnu = ['--no-same-owner', '--no-same-permissions', '--force-local', '-xf', tarFile, '-C', sandbox]
+    const strictBsd = ['--no-same-owner', '-xf', tarFile, '-C', sandbox]
     const attempts: string[][] =
       flavor === 'gnu'
         // GNU tar：`--force-local` 告诉它「文件名里的冒号不是主机名」，否则 `-f D:\...` 被当远程归档
-        ? [forceLocalRetry, base]
+        ? [strictGnu, forceLocalRetry, base]
         : flavor === 'bsd'
           // bsdtar/libarchive：基础参数即可；失败再用头字符集指定救「远端未用 pax 格式」的包
-          ? [base, charSetRetry]
+          ? [strictBsd, base, charSetRetry]
           : [base, forceLocalRetry, charSetRetry]
 
     let extracted = false
@@ -1575,6 +1660,17 @@ export class TarChannel {
 
     const parent = path.posix.dirname(remoteSrc)
     const base = path.posix.basename(remoteSrc)
+    // ★ 2026-10-30 P1 修复（SF-10）：**本地落点名必须用调用方传入的 name**，不能用远端原名。
+    //
+    //   调用方（transfer-ops）已经按「落本地」规则算好了名字（`safeEntryName ?? localEntryName`，
+    //   例如远端目录 `a:b` → `a：b`）并把结果作为 `name` 传进来，本通道却在这里又按远端
+    //   `path.posix.basename(remoteSrc)` 重算了一遍，`name` 只用于显示：
+    //     · Windows 上按 `a:b` 解包 → 建不出该目录 → `localExtractFailed` → **整包（可能几百 MB）
+    //       白传一遍**才回退逐文件；`tarOnly` 模式则直接判失败（用户选了「仅 TAR」就完全下不来）；
+    //     · 进度条条目的 localPath 也与实际落点不一致。
+    //   `name` 为空或明显未净化时仍退回远端原名（保持旧行为，不引入新的失败面）。
+    const requestedBase = typeof name === 'string' ? name.trim() : ''
+    const localBase = requestedBase && !/[\\/:*?"<>|\x00-\x1f]/.test(requestedBase) ? requestedBase : base
     // ★ 2026-09-26：先判断「打包是否划算」——用户的「有时候 SFTP 更快、有时候打包更慢」
     //   根因就是通道选择没看规模：本通道单流、逐文件通道 3 路并发（见 tarWorthwhile）。
     //   此时**还没创建进度条目**，返回 fallback 后调用方直接走逐文件通道，不需要 discard。
@@ -1657,7 +1753,7 @@ export class TarChannel {
     const realSize = await this.deps.scanRemoteSize(remoteSrc).catch(() => 0)
     const displayTotal = realSize > 0 ? realSize : tarSize
     const disp = (b: number) => displayTotal === tarSize ? b : Math.round(b * displayTotal / tarSize)
-    const ctx = folder.start(name, 'download', remoteSrc, path.join(localDest, base), displayTotal, 1)
+    const ctx = folder.start(name, 'download', remoteSrc, path.join(localDest, localBase), displayTotal, 1)
     // ★ 2026-09-29：与上传对称 —— 显式标记由打包通道接管（见上传路径同类说明）
     folder.markChannelMode?.(ctx, 'tar')
     if (realSize > 0) folder.updateLogSize?.(ctx, realSize)
@@ -1694,7 +1790,7 @@ export class TarChannel {
       //    ★ 2026-09-26：mergeIntoExisting 时目标本就存在，改为合并覆盖进目标目录）
       // ★ 2026-09-29（二）：解包失败带**具体原因与 tar 的真实 stderr**（原实现只返回 false，
       //   用户只能看到笼统的「打包或解包失败」，无法判断是远端打包失败还是本地解包失败）
-      const extracted = await extractTarSafely(tarFile, localDest, base, stagingRoot, mergeIntoExisting)
+      const extracted = await extractTarSafely(tarFile, localDest, localBase, stagingRoot, mergeIntoExisting)
       if (extracted.ok === false) {
         return this._decline(mode, name, extracted.code, extracted.detail, folder, ctx)
       }
@@ -1702,7 +1798,7 @@ export class TarChannel {
       //   ★ 2026-09-26：合并模式跳过 —— 此时目标目录里含用户原有的文件，扫出来的总大小
       //   会把它们算进去，记录里的体积凭空变大
       if (!(realSize > 0) && !mergeIntoExisting) {
-        const extractedSize = await this.deps.scanLocalSize(path.join(localDest, base)).catch(() => 0)
+        const extractedSize = await this.deps.scanLocalSize(path.join(localDest, localBase)).catch(() => 0)
         if (extractedSize > 0) folder.updateLogSize?.(ctx, extractedSize)
       }
       folder.updateProgress(ctx, displayTotal, name, 1, displayTotal)

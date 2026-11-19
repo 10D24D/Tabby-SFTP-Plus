@@ -101,6 +101,10 @@ export class PanelRubberBand {
   private _rbCachedRemoteEntries: Array<SFTPFile | LocalEntry> | null = null
   private _rbPathToIndex = new Map<string, number>()
   private _rbInitialSelectedIndices: Set<number> | null = null
+  /** ★ 2026-11-15 修复（修改人：DD1024z）：Ctrl 追加框选时「框选前的完整选中条目」快照。
+   *  原实现只按 DOM 行序号重建选中集（_rbElPaths[i]）⇒ 收拾前已选中、但**当前不在 DOM**
+   *  的行（折叠分组里的条目、被过滤隐藏的条目）会在第一帧同步时被静默丢弃。 */
+  private _rbInitialSelectedEntries: Array<LocalEntry | SFTPFile> | null = null
   private _rbLiveSelectedIndices = new Set<number>()
   private _rbFrameId: number | null = null
 
@@ -477,6 +481,7 @@ export class PanelRubberBand {
     this._rbCachedRemoteEntries = null
     this._rbPathToIndex.clear()
     this._rbInitialSelectedIndices = null
+    this._rbInitialSelectedEntries = null
     this._rbLiveSelectedIndices = new Set()
   }
 
@@ -553,11 +558,30 @@ export class PanelRubberBand {
   private _rbSnapshotInitialSelection(): void {
     const pane = this.rubberBand.pane
     const selected = pane === 'local' ? this.host.selectedLocal : this.host.getRightPaneSelection()
+    this._rbInitialSelectedEntries = selected.slice() as Array<LocalEntry | SFTPFile>
     this._rbInitialSelectedIndices = new Set<number>()
     for (const e of selected) {
       const idx = this._rbPathToIndex.get(e.fullPath)
       if (idx !== undefined) this._rbInitialSelectedIndices.add(idx)
     }
+  }
+
+  /** ★ 2026-11-15（修改人：DD1024z）：把「框选前已选中、但当前不在 DOM 里」的条目补回选中集。
+   *  仅 Ctrl 追加态生效；替换态本来就要清空，不补。 */
+  private _rbAppendOffDomBaseline<T extends { fullPath: string }>(picked: T[]): T[] {
+    if (!this._rbCtrlHeld) return picked
+    const base = this._rbInitialSelectedEntries
+    if (!base || !base.length) return picked
+    const have = new Set(picked.map(e => e.fullPath))
+    const extra: T[] = []
+    for (const e of base as unknown as T[]) {
+      if (!e || !e.fullPath) continue
+      if (this._rbPathToIndex.has(e.fullPath)) continue
+      if (have.has(e.fullPath)) continue
+      have.add(e.fullPath)
+      extra.push(e)
+    }
+    return extra.length ? [...picked, ...extra] : picked
   }
 
   /** 激活框选：创建框选矩形 DOM */
@@ -707,17 +731,19 @@ export class PanelRubberBand {
     const sorted = [...indices].sort((a, b) => a - b)
     if (rb.pane === 'local' && this._rbCachedLocalEntries) {
       const byPath = new Map(this.host.getFilteredLocalEntries().map(e => [e.fullPath, e]))
-      this.host.selectedLocal = sorted
+      const picked = sorted
         .map(i => this._rbElPaths[i])
         .map(p => (p ? byPath.get(p) : null))
         .filter(Boolean) as LocalEntry[]
+      this.host.selectedLocal = this._rbAppendOffDomBaseline(picked)
     } else if (rb.pane === 'remote' && this._rbCachedRemoteEntries) {
       // ★ 2026-10-18：右栏端点槽路由（rl 时写 _rlSelected 并同步路径集）
       const byPath = new Map(this.host.getRightPaneFilteredEntries().map((e): [string, SFTPFile | LocalEntry] => [e.fullPath, e]))
-      this.host.setRightPaneSelection(sorted
+      const picked = sorted
         .map(i => this._rbElPaths[i])
         .map(p => (p ? byPath.get(p) : null))
-        .filter(Boolean) as Array<SFTPFile | LocalEntry>)
+        .filter(Boolean) as Array<SFTPFile | LocalEntry>
+      this.host.setRightPaneSelection(this._rbAppendOffDomBaseline(picked))
     }
   }
 

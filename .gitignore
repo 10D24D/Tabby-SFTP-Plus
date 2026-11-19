@@ -10,3 +10,10 @@ test.js
 
 # 本地工作草稿与探针（不入库）
 .workbuddy/
+
+# 本地审计报告与发布说明草稿（仅本地留存，不入库）
+docs/AUDIT-*.md
+docs/RELEASE-NOTES-*.md
+
+# 一次性临时脚本（不入库）
+scripts/_temp-*.mjs

@@ -3,8 +3,14 @@
  * 功能描述：本地/远程文件列表面板，负责路径栏、工具栏、文件列表渲染与交互
  * @创建人：DD1024z + Hy3
  * @创建时间：2026-07-29
- * @修改人：DD1024z + Deepseek-V4.1-Flash
- * @修改时间：2026-10-24 — .pane-list 加 tabindex="-1"：把列表滚动区移出 Tab 序列
+ * @修改人：DD1024z + Hy4 Flash
+ * @修改时间：2026-11-18 — 修「编辑路径时输入框不聚焦、光标不在末尾」：原 onEditRequest 聚焦后
+ *              调 el.select()（全选整条路径，光标不在末尾），且 setTimeout(0) 等 ngIf 创建 input
+ *              时序不可靠；改为 setSelectionRange(len,len) + _pendingPathFocus 在 ngAfterViewChecked
+ *              里兑现（setTimeout 兜底）。blur / Esc / 销毁时清标志，避免延后抢焦点。
+ *              2026-11-05 — 路径面包屑的连接符 › 原先 title 写死成一个「▾」字符（悬停只弹一个符号，
+ *             看着像乱码），改为说明点击行为的文案 pane.sepMenuTitle（24 语言）。
+ *             2026-10-24 — .pane-list 加 tabindex="-1"：把列表滚动区移出 Tab 序列
  *             （Chromium 132+ 自动给可滚动容器隐式 tabindex，按 Tab 会画出橙色 UA 焦点环）。
  *             2026-10-20 — 新增 connLost 输入：连接断开且列表为空时显示「连接已断开」，
  *             不再落到 hasError 分支误报「无法访问（权限不足或路径不存在）」（用户截图为证）。
@@ -60,7 +66,7 @@
  *              2026-08-24
  */
 
-import { Component, ElementRef, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges } from '@angular/core'
+import { Component, ElementRef, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core'
 import * as path from 'path'
 import * as fs from 'fs'
 
@@ -89,14 +95,44 @@ export type PaneSortAction = { col: string }
             (click)="onPaneLabelClick($event)">{{ labelIcon }} {{ paneLabel }}<span
               *ngIf="labelClickable" class="pane-label-caret" [class.is-open]="labelActive"
               aria-hidden="true">▾</span></span>
-          <div *ngIf="item === 'path'" class="pane-path">
-            <!-- ★ 2026-10-20（Deepseek-V4.1-Flash）：正在建立连接时地址栏留空 ——
-                 此刻 pathModel 是「上一个端点的占位路径」（左栏切远程时是本机目录），
-                 显示出来会让用户以为已经在那儿了（与顶栏「连接中 <目标>」自相矛盾）。 -->
-            <input #pathInputEl class="path-input" [class.path-input--focused]="pathFocused"
+          <div *ngIf="item === 'path'" class="pane-path" #panePathEl>
+            <!-- ★ 2026-11-05（Deepseek-V4.1-Flash）：地址栏改成「面包屑 + 按需编辑」两态。
+                 - 节点可点 → 跳到该层；节点之间的 › 可点 → 展开该节点下的文件夹；
+                 - 点击节点/连接符以外的空白 → 切成输入框（pathEditing）；
+                 - 尾部固定一个 ✎ 按钮：路径段多到把整条塞满时仍然有地方点，不依赖「空白」；
+                 - 段数过多时由父组件折叠成「首段 … 末三段」，保证节点永远能被点到。
+                 正在建立连接时仍然留空（见下方 pathPending 说明）。 -->
+            <div *ngIf="!pathEditing" class="path-crumbs" #crumbsEl
+              [class.path-crumbs--disabled]="pathDisabled || pathPending"
+              [title]="pathDisabled || pathPending ? null : pathInput"
+              (mousedown)="$event.stopPropagation()"
+              (click)="onCrumbsAreaClick($event)">
+              <!-- 节点条：正常按内容排布；宽度不够时**由组件把前段收进「…」**（见 _fitCrumbs），
+                   所以这里不再依赖 CSS 裁切 —— 裁切只会把左边的节点切成半个字，还点不到。 -->
+              <span class="path-crumb-strip">
+                <ng-container *ngFor="let c of visibleCrumbs; let i = index; trackBy: trackByCrumb">
+                  <span class="path-crumb" [class.path-crumb--ellipsis]="c.ellipsis"
+                    (click)="onCrumbClick(c, $event)">{{ c.label }}</span>
+                  <!-- 「…」后面那个 › 与普通连接符同款，但点开的是**被收起的祖先层级**列表。
+                       ★ 2026-11-05：原先把这个连接符的 title 写死成一个「▾」字符，
+                       鼠标悬停只弹出一个字符，看着像乱码；改为说明点击行为的文案（本层的子文件夹）。 -->
+                  <span *ngIf="i < visibleCrumbs.length - 1" class="path-sep"
+                    (mouseenter)="onSepHover(c, $event)"
+                    (click)="onSepClick(c, $event)" [title]="labels.sepTitle">›</span>
+                </ng-container>
+              </span>
+              <span class="path-tail"></span>
+              <button type="button" class="path-edit-btn" [title]="labels.editPath"
+                [disabled]="pathDisabled || pathPending"
+                (click)="onEditRequest($event)">
+                <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11.5 2.5l2 2L5 13l-2.5.5L3 11l8.5-8.5z"/></svg>
+              </button>
+            </div>
+            <input #pathInputEl *ngIf="pathEditing" class="path-input" [class.path-input--focused]="pathFocused"
               [ngModel]="pathPending ? '' : pathModel"
               (ngModelChange)="onPathModelChange($event)"
               (keyup.enter)="pathEnter.emit()"
+              (keyup.escape)="onPathEscape()"
               (focus)="onPathFocus()"
               (blur)="onPathBlur()"
               (mousedown)="$event.stopPropagation()"
@@ -312,6 +348,13 @@ export class SftpFilePaneComponent {
   @Output() labelClick = new EventEmitter<MouseEvent>()
   @Input() listClass = 'local-pane'
   @Input() pathInput = ''
+  /**
+   * ★ 2026-11-05（Deepseek-V4.1-Flash）：路径面包屑。
+   *   由**父组件**按端点风格（Windows 盘符 / POSIX 根）解析并折叠后传入 ——
+   *   展示组件不去猜端点（`isLocal` 是槽位语义，左栏切远程时它仍是 true，铁律「槽位 ≠ 端点」）。
+   *   空数组 = 无路径（未连接 / 正在连接），此时只渲染尾部编辑按钮。
+   */
+  @Input() pathCrumbs: Array<{ label: string; path: string; ellipsis?: boolean }> = []
   @Input() pathDisabled = false
   @Input() refreshDisabled = false
   @Input() canBack = false
@@ -431,7 +474,13 @@ export class SftpFilePaneComponent {
       try {
         const files = fs.readdirSync(dir)
         for (const f of files) {
-          if (typeof f === 'string' && f.toLowerCase().endsWith('.svg')) set.add(f)
+          if (typeof f !== 'string' || !f.toLowerCase().endsWith('.svg')) continue
+          // ★ 2026-11-15 审计修复（C3，修改人：DD1024z，修改时间：2026-11-15）：
+          //   下行会拼成 `file://` + path.join(dir, name)。readdir 正常不会返回含分隔符的名，
+          //   但图标目录/规则名都可能被外部配置写坏（导入备份、手改 config.yaml），
+          //   这里只接受纯 basename，杜绝 `../` 拼到目录外再被 <img> 读走。
+          if (/[\\/]/.test(f) || f === '.' || f === '..' || /\.\./.test(f)) continue
+          set.add(f)
         }
       } catch { /* 目录不可读则保持空集，所有自定义规则失效，回退内置/emoji */ }
     }
@@ -543,6 +592,21 @@ export class SftpFilePaneComponent {
   @Output() pathInputChange = new EventEmitter<string>()
   @Output() pathEnter = new EventEmitter<void>()
   @Output() pathBlur = new EventEmitter<void>()
+  /** 点击面包屑节点（跳转到该层）；ellipsis 节点不发此事件，改为弹出被收起的祖先列表 */
+  @Output() pathCrumbClick = new EventEmitter<{ path: string; event: MouseEvent }>()
+  /** 点击节点之间的 ›（由父组件列出该节点下的文件夹并弹下拉） */
+  @Output() pathSepClick = new EventEmitter<{ path: string; event: MouseEvent }>()
+  /**
+   * ★ 2026-11-05（用户反馈「点 › 列文件夹比直接进目录慢」）：
+   *   鼠标停在 › 上就通知父组件**预读**该层子目录（父组件 120ms 防抖后再读）。
+   *   人手点到连接符通常已停留超过防抖窗口 ⇒ 点击时命中缓存，菜单一次渲染到位。
+   */
+  @Output() pathSepHover = new EventEmitter<{ path: string; event: MouseEvent }>()
+  /**
+   * ★ 2026-11-05（用户诉求「路径宽度不够时把前面的节点收起来，点连接符能跳到被收起的层级」）：
+   *   点了「…」（或被收起层级右侧那个 ›）时发出**被收起的祖先节点**，由父组件弹下拉供跳转。
+   */
+  @Output() pathCollapsedClick = new EventEmitter<{ items: Array<{ name: string; path: string }>; event: MouseEvent }>()
   @Output() nav = new EventEmitter<PaneNavAction>()
   @Output() filterPendingChange = new EventEmitter<string>()
   @Output() applyFilter = new EventEmitter<void>()
@@ -635,6 +699,30 @@ export class SftpFilePaneComponent {
   }
 
   pathFocused = false
+  /**
+   * ★ 2026-11-05：地址栏两态 —— false = 面包屑（默认），true = 输入框。
+   *   进入途径三条（都在模板里收口到 onEditRequest）：点击非节点/非连接符的空白、
+   *   点击尾部固定的 ✎、点击被折叠的「…」。
+   */
+  pathEditing = false
+  /** ★ 2026-11-18（Hy4 Flash）：待兑现的「进编辑态聚焦到末尾」请求（ngIf 创建 input 后消费） */
+  private _pendingPathFocus = false
+  @ViewChild('pathInputEl', { static: false }) pathInputRef?: ElementRef<HTMLInputElement>
+  @ViewChild('crumbsEl', { static: false }) crumbsRef?: ElementRef<HTMLElement>
+  @ViewChild('panePathEl', { static: false }) panePathRef?: ElementRef<HTMLElement>
+
+  /**
+   * ★ 2026-11-05（用户实测：`D: › Dow…` —— 明明整条地址栏空着，节点却被截断）：
+   *   面包屑不再靠 CSS 裁切，而是**按可用宽度把前段收进「…」**。
+   *   本字段 = 被收起的**前段个数**（0 = 全部显示）。渲染见 `visibleCrumbs`，计算见 `_fitCrumbs`。
+   */
+  crumbCollapse = 0
+  private _crumbFitTimer: any = null
+  private _crumbRO: any = null
+  /** visibleCrumbs 的极简缓存：同源数组 + 同折叠数 ⇒ 返回同一引用（铁律 25：避免行重复重建） */
+  private _visSrc: Array<{ label: string; path: string; ellipsis?: boolean }> | null = null
+  private _visN = -1
+  private _visOut: Array<{ label: string; path: string; ellipsis?: boolean; hidden?: Array<{ label: string; path: string }> }> = []
 
   /** 本地编辑缓冲：聚焦时与父组件的 pathInput 解耦，避免 CD 期间父级把路径
    *  重置为已提交值（如后台刷新/心跳）导致正在输入的内容被清掉、表现为"无法输入"。
@@ -648,7 +736,7 @@ export class SftpFilePaneComponent {
    * 创建人：DD1024z + Hy3
    * 创建时间：2026-07-23
    */
-  labels = { filter: '', filterApply: '', filterClear: '', noSession: '', name: '', errorAccess: '', connLost: '', pending: '', noMatch: '', empty: '', groupExpand: '', groupCollapse: '' }
+  labels = { filter: '', filterApply: '', filterClear: '', noSession: '', name: '', errorAccess: '', connLost: '', pending: '', noMatch: '', empty: '', groupExpand: '', groupCollapse: '', editPath: '', sepTitle: '' }
   private _toolbarTitles: Record<string, string> = {}
   colHeaderLabels: Record<string, string> = {}
 
@@ -668,6 +756,9 @@ export class SftpFilePaneComponent {
       empty: t('pane.empty'),
       groupExpand: t('group.expand'),
       groupCollapse: t('group.collapse'),
+      editPath: t('pane.editPath'),
+      // ★ 2026-11-05：连接符 › 的 tooltip（原先写死成一个「▾」字符）
+      sepTitle: t('pane.sepMenuTitle'),
     }
     this._toolbarTitles = {
       back: t('pane.back'), forward: t('pane.forward'), up: t('pane.up'),
@@ -691,7 +782,9 @@ export class SftpFilePaneComponent {
 
   ngOnChanges(changes: SimpleChanges): void {
     // 仅在非聚焦态同步父级 pathInput，聚焦编辑时绝不覆盖用户正在输入的内容
-    if (changes.pathInput && !this._pathFocused) {
+    // ★ 2026-11-05：编辑态（哪怕 input 还没拿到焦点）同样不覆盖 —— 否则用户点开编辑、
+    //   后台刷新恰好推来一个新 pathInput，光标下的内容会被换掉（表现为「点开就变了个路径」）。
+    if (changes.pathInput && !this._pathFocused && !this.pathEditing) {
       this.pathModel = this.pathInput
     }
     // 语言切换时父组件会重建 i18n 实例（引用变化）；列头映射函数也可能随之更新 → 重算文案缓存
@@ -709,6 +802,36 @@ export class SftpFilePaneComponent {
       || changes.disabledIconSvgs || changes.folderIconSvg) {
       this._clearIconMemo()
     }
+    // ★ 2026-11-05：路径变了 / 退出编辑态要重新按宽度决定「…」折叠几位
+    if (changes.pathCrumbs || changes.pathInput || changes.pathEditing || changes.pathPending) {
+      this._scheduleCrumbFit()
+    }
+  }
+
+  ngAfterViewInit(): void {
+    // 地址栏宽度会随「面板拖宽 / 两栏分栏比例 / 工具栏按钮增减」变化，只靠 ngOnChanges 不够
+    this._scheduleCrumbFit()
+    try {
+      const host: HTMLElement | undefined = this.panePathRef?.nativeElement
+      const RO = (window as any).ResizeObserver
+      if (host && RO) {
+        this._crumbRO = new RO(() => this._scheduleCrumbFit())
+        this._crumbRO.observe(host)
+      }
+    } catch { /* ignore */ }
+  }
+
+  /** input 由 ngIf 创建，ViewChild 要到 CD 之后才可用 —— 这里是最早的可靠兑现点 */
+  ngAfterViewChecked(): void {
+    this._flushPathFocus()
+  }
+
+  ngOnDestroy(): void {
+    if (this._crumbFitTimer !== null) { clearTimeout(this._crumbFitTimer); this._crumbFitTimer = null }
+    try { this._crumbRO?.disconnect?.() } catch { /* ignore */ }
+    this._crumbRO = null
+    // 销毁后不再抢焦点（兜底 setTimeout 可能还未兑现）
+    this._pendingPathFocus = false
   }
 
   onPathFocus(): void {
@@ -724,10 +847,214 @@ export class SftpFilePaneComponent {
   }
 
   onPathBlur(): void {
+    this._pendingPathFocus = false
+    this._pathFocused = false
+    this.pathFocused = false
+    // ★ 2026-11-05：失焦即回到面包屑，避免编辑态 input 一直占着地址栏
+    this.pathEditing = false
+    this.pathBlur.emit()
+  }
+
+  /** Esc：放弃本次输入（不提交），恢复成已提交路径并退出编辑态 */
+  onPathEscape(): void {
+    this._pendingPathFocus = false
+    this.pathModel = this.pathInput
+    this.pathEditing = false
     this._pathFocused = false
     this.pathFocused = false
     this.pathBlur.emit()
   }
+
+  /**
+   * 点击面包屑空白处 → 进入编辑态。
+   * 节点 / 连接符 / ✎ 各自的 click 已 stopPropagation，能走到这里的只有真正的空白。
+   */
+  onCrumbsAreaClick(ev: MouseEvent): void {
+    if ((ev.target as HTMLElement).closest('.path-crumb, .path-sep, .path-edit-btn')) return
+    this.onEditRequest()
+  }
+
+  /** 点击节点：跳到该层；「…」→ 弹出被收起的前段（不是进编辑态，用户明确要求可跳转） */
+  onCrumbClick(c: { label: string; path: string; ellipsis?: boolean; hidden?: Array<{ label: string; path: string }> }, ev: MouseEvent): void {
+    ev.stopPropagation()
+    if (c.ellipsis) { this._emitCollapsed(c, ev); return }
+    if (!c.path) { this.onEditRequest(); return }
+    this.pathCrumbClick.emit({ path: c.path, event: ev })
+  }
+
+  /** 鼠标停在 › 上：通知父组件预读（被收起的「…」不预读 —— 它弹的是现成祖先数组） */
+  onSepHover(c: { label: string; path: string; ellipsis?: boolean }, ev: MouseEvent): void {
+    if (c.ellipsis || !c.path) return
+    this.pathSepHover.emit({ path: c.path, event: ev })
+  }
+
+  /** 点击节点之间的 ›：交给父组件列出该节点下的文件夹；「…」后面的那个 › 列被收起的祖先 */
+  onSepClick(c: { label: string; path: string; ellipsis?: boolean; hidden?: Array<{ label: string; path: string }> }, ev: MouseEvent): void {
+    ev.stopPropagation()
+    if (c.ellipsis) { this._emitCollapsed(c, ev); return }
+    if (!c.path) return
+    this.pathSepClick.emit({ path: c.path, event: ev })
+  }
+
+  /** 「…」/其后 › 的共用出口：把被收起的祖先节点交给父组件弹下拉 */
+  private _emitCollapsed(
+    c: { hidden?: Array<{ label: string; path: string }> },
+    ev: MouseEvent,
+  ): void {
+    const items = (c.hidden || [])
+      .filter(h => !!h.path)
+      .map(h => ({ name: h.label, path: h.path }))
+    // 没有可跳的祖先（异常数据）⇒ 退回编辑态，至少还能看完整路径
+    if (!items.length) { this.onEditRequest(ev); return }
+    this.pathCollapsedClick.emit({ items, event: ev })
+  }
+
+  /**
+   * 切换到输入框并聚焦（✎ / 空白 / 「…」三个入口共用）。
+   *
+   * ★ 2026-11-18（Hy4 Flash）修：原实现聚焦后调用 el.select() —— **全选**整条路径，
+   *   光标并不在末尾（用户反馈「不会自动聚焦在路径地址后面显示光标」）。改为
+   *   setSelectionRange(len, len) 把光标精确放到路径末尾，方便接着往下改目录名。
+   *
+   *   ⚠ 时序也一并加固：input 由 ngIf 在下一轮 CD 才创建，原来 setTimeout(0) 只是
+   *   「等一拍」，拿不到 ViewChild 就静默放弃（表现为输入框出来了却没焦点，随后 blur 退回
+   *   面包屑）。现在挂 _pendingPathFocus，在 ngAfterViewChecked 里 input 一挂上就兑现，
+   *   并用 setTimeout 兜底（flag 保证只兑现一次、不会反复抢光标）。
+   */
+  onEditRequest(_ev?: MouseEvent): void {
+    if (_ev) _ev.stopPropagation()
+    if (this.pathDisabled || this.pathPending || this.pathEditing) return
+    this.pathModel = this.pathInput
+    this.pathEditing = true
+    this._pendingPathFocus = true
+    // 兜底：某些宿主时序下 AfterViewChecked 不会兑现（如面板正在整体重建），下一拍再试
+    setTimeout(() => this._flushPathFocus(), 0)
+  }
+
+  /** 兑现进入编辑态的聚焦请求：input 挂载后把光标放到路径末尾；一次性，不重复抢焦点 */
+  private _flushPathFocus(): void {
+    if (!this._pendingPathFocus) return
+    const el = this.pathInputRef?.nativeElement
+    if (!el) return
+    this._pendingPathFocus = false
+    try {
+      el.focus()
+      // ⛔ 不能用 select：那是全选，光标不会停在末尾
+      const end = el.value.length
+      el.setSelectionRange(end, end)
+    } catch { /* ignore */ }
+  }
+
+  trackByCrumb = (_: number, c: { path: string; label: string }): string => c.path || c.label
+
+  /** 实际渲染的节点：折叠时首元素是「…」，其 `hidden` 携带被收起的前段（供下拉跳转） */
+  get visibleCrumbs(): Array<{ label: string; path: string; ellipsis?: boolean; hidden?: Array<{ label: string; path: string }> }> {
+    const src = this.pathCrumbs || []
+    // 折叠数上限 = 段数 - 1（至少留一段真实路径，否则整条只剩「…」没法表示自己在哪）
+    const n = Math.max(0, Math.min(this.crumbCollapse, src.length - 1))
+    if (src === this._visSrc && n === this._visN) return this._visOut
+    this._visSrc = src
+    this._visN = n
+    this._visOut = n > 0
+      ? [
+        { label: '…', path: '', ellipsis: true, hidden: src.slice(0, n).map(c => ({ label: c.label, path: c.path })) },
+        ...src.slice(n),
+      ]
+      : src
+    return this._visOut
+  }
+
+  /** 合并同一帧内的多次触底计算（Input 变化 + ResizeObserver 常常一起到） */
+  private _scheduleCrumbFit(): void {
+    if (this._crumbFitTimer !== null) return
+    this._crumbFitTimer = setTimeout(() => {
+      this._crumbFitTimer = null
+      this._fitCrumbs()
+    }, 0)
+  }
+
+  /**
+   * 按地址栏实际可用宽度决定「前段收起几位」。
+   *
+   * ⛔ 这里刻意**不用** CSS 裁切当主机制：裁切只能把左边的节点切成半个字（`Dow…` 的根源是百分比
+   *   max-width 在按内容收缩的容器里循环变小），用户还点不到被裁掉的那几层。
+   *   现在改为：量出每段自然宽度 → 从尾部往回装 → 装不下就把最前面的收进「…」。
+   *   保留尾部空白（8px）与固定的 ✎（18px + 2px）始终可见。
+   */
+  private _fitCrumbs(): void {
+    if (this.pathEditing || this.pathPending || this.pathDisabled) {
+      if (this.crumbCollapse !== 0) this.crumbCollapse = 0
+      return
+    }
+    const crumbs = this.pathCrumbs || []
+    const box = this.crumbsRef?.nativeElement
+    if (!box || crumbs.length < 2) {
+      if (this.crumbCollapse !== 0) this.crumbCollapse = 0
+      return
+    }
+    // clientWidth 含左右内边距（6 / 4）；再预留 ✎（18 + 2 margin）与尾部最小空白 8
+    const avail = box.clientWidth - 6 - 4 - 20 - 8
+    if (avail <= 0) return
+    const m = this._measureCrumbWidths(box, crumbs)
+    if (!m) return
+    const { widths, sepW, ellW } = m
+    const sum = (arr: number[]): number => arr.reduce((a, b) => a + b, 0)
+    let k = 0
+    if (sum(widths) + sepW * (crumbs.length - 1) > avail) {
+      // 至少收 1 段：逐段尝试，直到「…」+ 剩余段 + 其间连接符装得下
+      for (k = 1; k < crumbs.length; k++) {
+        const rest = sum(widths.slice(k)) + sepW * (crumbs.length - k)
+        if (ellW + rest <= avail) break
+      }
+      if (k >= crumbs.length) k = crumbs.length - 1
+    }
+    if (k !== this.crumbCollapse) this.crumbCollapse = k
+  }
+
+  /**
+   * 量出每段节点的**自然宽度**（含内边距），以及连接符 /「…」的宽度。
+   * 用一个离屏探针（挂在同一个 `.sftp-root` 下，才能套用到同一套 CSS 与字体），量完立刻移除。
+   */
+  private _measureCrumbWidths(
+    box: HTMLElement,
+    crumbs: Array<{ label: string }>,
+  ): { widths: number[]; sepW: number; ellW: number } | null {
+    let probe: HTMLElement | null = null
+    try {
+      const doc = box.ownerDocument
+      probe = doc.createElement('div')
+      probe.style.cssText = 'position:absolute;left:-10000px;top:0;visibility:hidden;pointer-events:none;white-space:nowrap;'
+      const strip = doc.createElement('span')
+      strip.className = 'path-crumb-strip'
+      // 探针里不让条收缩：量的是「这段本来要多宽」
+      strip.style.flex = '0 0 auto'
+      strip.style.justifyContent = 'flex-start'
+      for (const c of crumbs) {
+        const el = doc.createElement('span')
+        el.className = 'path-crumb'
+        el.textContent = c.label
+        strip.appendChild(el)
+      }
+      const sepEl = doc.createElement('span')
+      sepEl.className = 'path-sep'
+      sepEl.textContent = '›'
+      const ellEl = doc.createElement('span')
+      ellEl.className = 'path-crumb'
+      ellEl.textContent = '…'
+      strip.append(sepEl, ellEl)
+      probe.appendChild(strip)
+      ;(box.parentElement || box).appendChild(probe)
+      const widths = crumbs.map((_, i) => (strip.children[i] as HTMLElement).getBoundingClientRect().width)
+      const sepW = sepEl.getBoundingClientRect().width
+      const ellW = ellEl.getBoundingClientRect().width
+      return { widths, sepW, ellW }
+    } catch {
+      return null
+    } finally {
+      try { probe?.remove() } catch { /* ignore */ }
+    }
+  }
+
 
   onPaneAreaMouseDown(event: MouseEvent): void {
     if ((event.target as HTMLElement).closest('.path-input')) return
