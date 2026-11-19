@@ -41,9 +41,6 @@ msgstr "여러 항목 삭제"
 msgid "conflict.title"
 msgstr "파일 충돌"
 
-msgid "conflict.sourceFile"
-msgstr "원본 파일"
-
 msgid "conflict.localFile"
 msgstr "로컬 파일"
 
@@ -266,6 +263,21 @@ msgstr "원격"
 msgid "pane.path"
 msgstr "경로"
 
+msgid "pane.editPath"
+msgstr "경로 편집"
+
+msgid "pane.sepMenuEmpty"
+msgstr "하위 폴더 없음"
+
+msgid "pane.sepMenuLoading"
+msgstr "불러오는 중…"
+
+msgid "pane.sepMenuTruncated"
+msgstr "{n}개 더 표시되지 않음"
+
+msgid "pane.sepMenuTitle"
+msgstr "이 폴더의 하위 폴더 표시"
+
 msgid "pane.up"
 msgstr "상위"
 
@@ -298,6 +310,21 @@ msgstr "테두리 표시"
 
 msgid "view.zebra"
 msgstr "얼룩말 무늬 표시"
+
+msgid "view.fullRowSelection"
+msgstr "전체 행 선택"
+
+msgid "view.fullRowSelectionHint"
+msgstr "켜기: 선택 강조가 행 전체에 적용됩니다. 끄기: 마지막 열까지만 적용되며 오른쪽 빈 공간은 패널 상황에 맞는 메뉴에 사용됩니다."
+
+msgid "view.headerBottomBorder"
+msgstr "헤더 아래쪽 선"
+
+msgid "view.headerBottomBorderHint"
+msgstr "수동으로 바꾸기 전까지「전체 행 선택」을 따르며, 바꾼 뒤에는 해당 설정이 유지됩니다."
+
+msgid "view.headerBorderFollow"
+msgstr "「전체 행 선택」다시 따르기"
 
 msgid "pane.hideHidden"
 msgstr "숨김 파일 숨기기"
@@ -766,6 +793,15 @@ msgstr "단일 패널"
 msgid "settings.layoutSingleSub"
 msgstr "원격 패널만"
 
+msgid "settings.layoutDefaultHint"
+msgstr "여기서 선택하는 값은 기본 레이아웃입니다. 패널 도구 모음에서 바꾼 레이아웃은 현재 탭에만 적용됩니다."
+
+msgid "settings.clearTabLayouts"
+msgstr "탭 {count}개의 개별 레이아웃 지우기"
+
+msgid "settings.layoutCleared"
+msgstr "탭 {count}개의 개별 레이아웃을 지웠습니다. 이제 기본 레이아웃을 따릅니다."
+
 msgid "settings.toolbarLayout"
 msgstr "툴바 사용자 정의"
 
@@ -970,6 +1006,9 @@ msgstr "세로 레이아웃"
 msgid "layout.mode.single"
 msgstr "단일 창(원격만)"
 
+msgid "layout.scopeThisTab"
+msgstr "{mode} · 이 탭만"
+
 msgid "notify.closeWithTransfers"
 msgstr "{count}개의 전송이 진행 중입니다. 패널을 닫으면 모든 전송이 중단됩니다. 계속할까요?"
 
@@ -1058,6 +1097,21 @@ msgstr "재연결"
 
 msgid "app.restoreDefaultSize"
 msgstr "기본 패널 크기로 복원"
+
+msgid "app.setSizeAsDefault"
+msgstr "현재 크기를 기본값으로 설정"
+
+msgid "app.resetSizeToFactory"
+msgstr "패널 초기 크기로 복원"
+
+msgid "app.defaultSizeIsFactory"
+msgstr "이미 초기 크기입니다"
+
+msgid "notify.defaultSizeSaved"
+msgstr "현재 크기를 기본값으로 저장했습니다"
+
+msgid "notify.defaultSizeReset"
+msgstr "패널 크기를 초기값으로 복원했습니다"
 
 msgid "notify.pasteFailed"
 msgstr "붙여넣기 실패"
@@ -2155,4 +2209,58 @@ msgstr "타임스탬프"
 
 msgid "settings.renameStyleRandom"
 msgstr "임의 접미사"
+
+msgid "settings.dragOutToSystem"
+msgstr "시스템으로 끌어내기 (실제 파일)"
+
+msgid "settings.dragOutToSystemDesc"
+msgstr "파일을 바탕 화면이나 탐색기로 끌어다 놓기만 하면 놓은 위치에 실제 복사본이 생깁니다. 원격 파일은 그 시점에 다운로드됩니다. 패널 안쪽 끌기는 그대로입니다."
+
+msgid "notify.dragOutManyItems"
+msgstr "{count}개 항목"
+
+msgid "notify.dragOutPreparing"
+msgstr "끌어내기 준비 중: {name}"
+
+msgid "notify.dragOutUnavailable"
+msgstr "이 환경에서는 시스템으로 끌어내기를 지원하지 않습니다."
+
+msgid "notify.dragOutDirUnsupported"
+msgstr "폴더 끌어내기는 아직 지원되지 않습니다. 다운로드를 사용하세요."
+
+msgid "notify.dragOutMissing"
+msgstr "원본 파일이 더 이상 없습니다."
+
+msgid "notify.dragOutTooLarge"
+msgstr "파일이 {size} MB를 초과합니다. 다운로드를 사용하세요."
+
+msgid "notify.dragOutFailed"
+msgstr "끌어내기 준비에 실패했습니다."
+
+msgid "notify.dragOutReady"
+msgstr "파일 준비 완료 — Alt 키를 누른 채 다시 끌어 주세요"
+
+msgid "notify.dragOutRenamed"
+msgstr "Windows 예약 이름 — 앞에 밑줄이 추가됩니다 (내용은 그대로):"
+
+msgid "notify.dragOutPacked"
+msgstr "{count}개 파일을 ZIP 하나로 묶었습니다(폴더 제외). 압축을 풀면 모든 파일을 얻을 수 있습니다."
+
+msgid "notify.dragOutMultiAltHint"
+msgstr "Alt 키를 누른 채 끌어다 놓으면 ZIP 대신 {count}개의 개별 파일이 바로 생성됩니다."
+
+msgid "log.dragOutNote"
+msgstr "<놓은 폴더>"
+
+msgid "file.downloadTo"
+msgstr "폴더로 다운로드..."
+
+msgid "notify.downloadToUnavailable"
+msgstr "폴더 선택 창을 열 수 없습니다 (remote 모듈을 사용할 수 없음)."
+
+msgid "view.colBorderGroupedHint"
+msgstr "그룹 보기에서는 열 테두리가 표시되지 않습니다. 그룹 해제 후 사용할 수 있습니다"
+
+msgid "notify.dragCanceled"
+msgstr "드래그가 취소되었습니다. 마우스 버튼을 놓으면 됩니다"
 

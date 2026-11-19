@@ -42,8 +42,6 @@ msgstr "Izbriši Multiple Items"
 
 msgid "conflict.title"
 msgstr "Sukob datoteka"
-msgid "conflict.sourceFile"
-msgstr "Izvorna datoteka"
 msgid "conflict.localFile"
 msgstr "Lokalna datoteka"
 msgid "conflict.remoteFile"
@@ -216,6 +214,21 @@ msgstr "Udaljeno"
 msgid "pane.path"
 msgstr "Putanja"
 msgid "pane.up"
+msgid "pane.editPath"
+msgstr "Uredi putanju"
+
+msgid "pane.sepMenuEmpty"
+msgstr "Nema podmapa"
+
+msgid "pane.sepMenuLoading"
+msgstr "Učitavanje…"
+
+msgid "pane.sepMenuTruncated"
+msgstr "Još {n} nije prikazano"
+
+msgid "pane.sepMenuTitle"
+msgstr "Prikaži podmape ove mape"
+
 msgstr "Gore"
 msgid "pane.home"
 msgstr "Početna"
@@ -240,6 +253,21 @@ msgstr "Prikaži rub"
 msgid "view.zebra"
 msgstr "Prikaži zebra trake"
 msgid "pane.hideHidden"
+msgid "view.fullRowSelection"
+msgstr "Odabir cijelog retka"
+
+msgid "view.fullRowSelectionHint"
+msgstr "Uklj.: isticanje obuhvaća cijeli redak. Isklj.: završava na zadnjem stupcu, a prazan prostor desno ostaje za kontekstni izbornik ploče."
+
+msgid "view.headerBottomBorder"
+msgstr "Donja crta zaglavlja"
+
+msgid "view.headerBottomBorderHint"
+msgstr "Prati „Odabir cijelog retka" dok ga ručno ne promijenite; zatim se vaš odabir zadržava."
+
+msgid "view.headerBorderFollow"
+msgstr "Ponovno prati „Odabir cijelog retka""
+
 msgstr "Sakrij skrivene datoteke"
 msgid "pane.sortByName"
 msgstr "Razvrstaj po nazivu"
@@ -605,6 +633,15 @@ msgstr "Jedan panel"
 msgid "settings.layoutSingleSub"
 msgstr "Samo udaljeni panel"
 msgid "settings.toolbarLayout"
+msgid "settings.layoutDefaultHint"
+msgstr "Ovo je zadani raspored. Rasporedi promijenjeni na alatnoj traci ploče vrijede samo za trenutačnu karticu."
+
+msgid "settings.clearTabLayouts"
+msgstr "Očisti raspored za {count} karticu/e"
+
+msgid "settings.layoutCleared"
+msgstr "Očišćen je vlastiti raspored za {count} karticu/e; sada slijede zadani."
+
 msgstr "Prilagodi alatnu traku"
 msgid "settings.customToolbar"
 msgstr "Prilagodi alatnu traku"
@@ -756,6 +793,9 @@ msgstr "Okomiti raspored"
 msgid "layout.mode.single"
 msgstr "Jedan panel (samo udaljeno)"
 
+msgid "layout.scopeThisTab"
+msgstr "{mode} · samo ova kartica"
+
 msgid "notify.closeWithTransfers"
 msgstr "{count} prijenos(a) u tijeku. Zatvaranje panela prekinut će sve prijenose. Nastavi?"
 
@@ -844,6 +884,21 @@ msgstr "Ponovno poveži"
 
 msgid "app.restoreDefaultSize"
 msgstr "Vrati zadaniu veličinu panela"
+
+msgid "app.setSizeAsDefault"
+msgstr "Postavi trenutnu veličinu kao zadanu"
+
+msgid "app.resetSizeToFactory"
+msgstr "Vrati početnu veličinu ploče"
+
+msgid "app.defaultSizeIsFactory"
+msgstr "Već je početna veličina"
+
+msgid "notify.defaultSizeSaved"
+msgstr "Trenutna veličina postavljena kao zadana"
+
+msgid "notify.defaultSizeReset"
+msgstr "Veličina ploče vraćena na početnu"
 
 msgid "notify.pasteFailed"
 msgstr "Zalijepi nije uspjelo"
@@ -1941,4 +1996,58 @@ msgstr "Vremenska oznaka"
 
 msgid "settings.renameStyleRandom"
 msgstr "Slučajni sufiks"
+
+msgid "settings.dragOutToSystem"
+msgstr "Povlačenje u sustav (prava datoteka)"
+
+msgid "settings.dragOutToSystemDesc"
+msgstr "Samo povucite datoteku na radnu površinu ili u Explorer da biste na mjestu ispuštanja dobili pravu kopiju; udaljene datoteke se tada preuzimaju. Povlačenje unutar panela ostaje nepromijenjeno."
+
+msgid "notify.dragOutManyItems"
+msgstr "{count} stavki"
+
+msgid "notify.dragOutPreparing"
+msgstr "Priprema za povlačenje: {name}"
+
+msgid "notify.dragOutUnavailable"
+msgstr "Ovo okruženje ne podržava povlačenje u sustav."
+
+msgid "notify.dragOutDirUnsupported"
+msgstr "Povlačenje mapa još nije podržano. Upotrijebite Preuzmi."
+
+msgid "notify.dragOutMissing"
+msgstr "Izvorna datoteka više ne postoji."
+
+msgid "notify.dragOutTooLarge"
+msgstr "Datoteka je veća od {size} MB. Upotrijebite Preuzmi."
+
+msgid "notify.dragOutFailed"
+msgstr "Priprema za povlačenje nije uspjela."
+
+msgid "notify.dragOutReady"
+msgstr "Datoteka je spremna — držite Alt i ponovno povucite"
+
+msgid "notify.dragOutRenamed"
+msgstr "Rezervirano Windows ime — dodaje se podvlaka (sadržaj je netaknut):"
+
+msgid "notify.dragOutPacked"
+msgstr "{count} datoteka je zapakirano u jedan ZIP (mape su isključene). Raspakirajte za sve datoteke."
+
+msgid "notify.dragOutMultiAltHint"
+msgstr "Držite Alt tijekom povlačenja da biste ispustili {count} zasebnih datoteka umjesto jednog ZIP-a."
+
+msgid "log.dragOutNote"
+msgstr "<Odredišna mapa>"
+
+msgid "file.downloadTo"
+msgstr "Preuzmi u mapu..."
+
+msgid "notify.downloadToUnavailable"
+msgstr "Nije moguće otvoriti odabir mape (remote modul nije dostupan)."
+
+msgid "view.colBorderGroupedHint"
+msgstr "Obrubi stupaca skriveni su u grupiranom prikazu; poništite grupiranje da biste ih omogućili"
+
+msgid "notify.dragCanceled"
+msgstr "Povlačenje je otkazano; samo otpustite tipku miša"
 

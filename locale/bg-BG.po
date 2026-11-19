@@ -42,8 +42,6 @@ msgstr "Изтрий Multiple Items"
 
 msgid "conflict.title"
 msgstr "Конфликт на файлове"
-msgid "conflict.sourceFile"
-msgstr "Изходен файл"
 msgid "conflict.localFile"
 msgstr "Локален файл"
 msgid "conflict.remoteFile"
@@ -216,6 +214,21 @@ msgstr "Отдалечено"
 msgid "pane.path"
 msgstr "Път"
 msgid "pane.up"
+msgid "pane.editPath"
+msgstr "Редактиране на пътя"
+
+msgid "pane.sepMenuEmpty"
+msgstr "Няма подпапки"
+
+msgid "pane.sepMenuLoading"
+msgstr "Зареждане…"
+
+msgid "pane.sepMenuTruncated"
+msgstr "Още {n} не са показани"
+
+msgid "pane.sepMenuTitle"
+msgstr "Показване на подпапките в тази папка"
+
 msgstr "Нагоре"
 msgid "pane.home"
 msgstr "Начало"
@@ -240,6 +253,21 @@ msgstr "Покажи рамка"
 msgid "view.zebra"
 msgstr "Покажи зебрасти ленти"
 msgid "pane.hideHidden"
+msgid "view.fullRowSelection"
+msgstr "Избиране на целия ред"
+
+msgid "view.fullRowSelectionHint"
+msgstr "Вкл.: выделяването покрива целия ред. Изкл.: спира до последната колона, а празното пространство вдясно остава за менюто на панела."
+
+msgid "view.headerBottomBorder"
+msgstr "Долна линия на заглавката"
+
+msgid "view.headerBottomBorderHint"
+msgstr "По подразбиране следва „Избиране на целия ред"; след ръчна промяна изборът се запазва."
+
+msgid "view.headerBorderFollow"
+msgstr "Отново следвай „Избиране на целия ред""
+
 msgstr "Скрий скритите файлове"
 msgid "pane.sortByName"
 msgstr "Сортирай по име"
@@ -605,6 +633,15 @@ msgstr "Единичен панел"
 msgid "settings.layoutSingleSub"
 msgstr "Само отдалечен панел"
 msgid "settings.toolbarLayout"
+msgid "settings.layoutDefaultHint"
+msgstr "Това е оформлението по подразбиране. Промените от лентата на панела важат само за текущия раздел."
+
+msgid "settings.clearTabLayouts"
+msgstr "Изчисти оформлението на {count} раздела"
+
+msgid "settings.layoutCleared"
+msgstr "Изчистено е собственото оформление на {count} раздела; вече следват оформлението по подразбиране."
+
 msgstr "Персонализирай лентата"
 msgid "settings.customToolbar"
 msgstr "Персонализирай лентата"
@@ -756,6 +793,9 @@ msgstr "Вертикален изглед"
 msgid "layout.mode.single"
 msgstr "Единичен панел (само отдалечен)"
 
+msgid "layout.scopeThisTab"
+msgstr "{mode} · само този раздел"
+
 msgid "notify.closeWithTransfers"
 msgstr "{count} прехвърляне(я) в ход. Затварянето на панела ще прекъсне всички прехвърляния. Продължить?"
 
@@ -844,6 +884,21 @@ msgstr "Повторно свързване"
 
 msgid "app.restoreDefaultSize"
 msgstr "Възстанови стандартния размер на панела"
+
+msgid "app.setSizeAsDefault"
+msgstr "Задай текущия размер като по подразбиране"
+
+msgid "app.resetSizeToFactory"
+msgstr "Върни началния размер на панела"
+
+msgid "app.defaultSizeIsFactory"
+msgstr "Вече е с начален размер"
+
+msgid "notify.defaultSizeSaved"
+msgstr "Текущият размер е зададен по подразбиране"
+
+msgid "notify.defaultSizeReset"
+msgstr "Размерът на панела е върнат към началния"
 
 msgid "notify.pasteFailed"
 msgstr "Поставянето неуспешно"
@@ -1941,4 +1996,58 @@ msgstr "С времеви печат"
 
 msgid "settings.renameStyleRandom"
 msgstr "Случаен наставка"
+
+msgid "settings.dragOutToSystem"
+msgstr "Плъзгане към системата (реален файл)"
+
+msgid "settings.dragOutToSystemDesc"
+msgstr "Просто плъзнете файл към работния плот или Проводника, за да получите истинско копие на мястото на пускане; отдалечените файлове се изтеглят тогава. Плъзгането вътре в панела не се променя."
+
+msgid "notify.dragOutManyItems"
+msgstr "{count} елемента"
+
+msgid "notify.dragOutPreparing"
+msgstr "Подготовка за плъзгане: {name}"
+
+msgid "notify.dragOutUnavailable"
+msgstr "Тази среда не поддържа плъзгане към системата."
+
+msgid "notify.dragOutDirUnsupported"
+msgstr "Плъзгането на папки все още не се поддържа. Използвайте Изтегляне."
+
+msgid "notify.dragOutMissing"
+msgstr "Изходният файл вече не съществува."
+
+msgid "notify.dragOutTooLarge"
+msgstr "Файлът е по-голям от {size} MB. Използвайте Изтегляне."
+
+msgid "notify.dragOutFailed"
+msgstr "Подготовката за плъзгане е неуспешна."
+
+msgid "notify.dragOutReady"
+msgstr "Файлът е готов — задръжте Alt и плъзнете отново"
+
+msgid "notify.dragOutRenamed"
+msgstr "Запазено име в Windows — ще се добави долна черта (съдържанието е непокътнато):"
+
+msgid "notify.dragOutPacked"
+msgstr "{count} файла са опаковани в един ZIP (папките са изключени). Разархивирайте, за да получите всички файлове."
+
+msgid "notify.dragOutMultiAltHint"
+msgstr "Задръжте Alt при влачене, за да пуснете {count} отделни файла вместо един ZIP."
+
+msgid "log.dragOutNote"
+msgstr "<Папка за пускане>"
+
+msgid "file.downloadTo"
+msgstr "Изтегляне в папка..."
+
+msgid "notify.downloadToUnavailable"
+msgstr "Не може да се отвори изборът на папка (remote модулът не е наличен)."
+
+msgid "view.colBorderGroupedHint"
+msgstr "При групиран изглед рамките на колоните не се показват; премахнете групирането, за да ги включите"
+
+msgid "notify.dragCanceled"
+msgstr "Плъзгането е отменено; просто отпуснете бутона на мишката"
 

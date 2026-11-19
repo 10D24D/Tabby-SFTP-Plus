@@ -43,9 +43,6 @@ msgstr "Birden Fazla Öğeyi Sil"
 msgid "conflict.title"
 msgstr "Dosya Çakışması"
 
-msgid "conflict.sourceFile"
-msgstr "Kaynak Dosya"
-
 msgid "conflict.localFile"
 msgstr "Yerel Dosya"
 
@@ -266,6 +263,21 @@ msgstr "Uzak"
 msgid "pane.path"
 msgstr "Yol"
 
+msgid "pane.editPath"
+msgstr "Yolu düzenle"
+
+msgid "pane.sepMenuEmpty"
+msgstr "Alt klasör yok"
+
+msgid "pane.sepMenuLoading"
+msgstr "Yükleniyor…"
+
+msgid "pane.sepMenuTruncated"
+msgstr "{n} tane daha gösterilmiyor"
+
+msgid "pane.sepMenuTitle"
+msgstr "Bu klasördeki alt klasörleri göster"
+
 msgid "pane.up"
 msgstr "Yukarı Git"
 
@@ -298,6 +310,21 @@ msgstr "Sınırı göster"
 
 msgid "view.zebra"
 msgstr "Zebra çizgilerini göster"
+
+msgid "view.fullRowSelection"
+msgstr "Tüm satırı seçme"
+
+msgid "view.fullRowSelectionHint"
+msgstr "Açık: seçim vurgusu tüm satırı kaplar. Kapalı: son sütunda biter, sağdaki boş alan panelin bağlam menüsü için kalır."
+
+msgid "view.headerBottomBorder"
+msgstr "Başlık alt çizgisi"
+
+msgid "view.headerBottomBorderHint"
+msgstr "Siz manuel olarak değiştirene kadar „Tüm satırı seçme" seçeneğini izler; sonrasında seçiminiz korunur."
+
+msgid "view.headerBorderFollow"
+msgstr "Yeniden „Tüm satırı seçme" seçeneğini izle"
 
 msgid "pane.hideHidden"
 msgstr "Gizli Dosyaları Gizle"
@@ -772,6 +799,15 @@ msgstr "Tek Panel"
 msgid "settings.layoutSingleSub"
 msgstr "Sadece uzak panel"
 
+msgid "settings.layoutDefaultHint"
+msgstr "Bu, varsayılan düzendir. Panel araç çubuğundan değiştirilen düzenler yalnızca geçerli sekme için geçerlidir."
+
+msgid "settings.clearTabLayouts"
+msgstr "{count} sekmenin özel düzenini temizle"
+
+msgid "settings.layoutCleared"
+msgstr "{count} sekmenin özel düzeni temizlendi; artık varsayılanı izliyorlar."
+
 msgid "settings.toolbarLayout"
 msgstr "Araç Çubuğunu Özelleştir"
 
@@ -966,6 +1002,9 @@ msgstr "Dikey Düzen"
 msgid "layout.mode.single"
 msgstr "Tek Panelli (Yalnızca Uzak)"
 
+msgid "layout.scopeThisTab"
+msgstr "{mode} · yalnızca bu sekme"
+
 msgid "notify.closeWithTransfers"
 msgstr "{count} aktarım devam ediyor. Paneli kapatmak tüm aktarımları durduracak. Devam edilsin mi?"
 
@@ -1054,6 +1093,21 @@ msgstr "Yeniden bağlan"
 
 msgid "app.restoreDefaultSize"
 msgstr "Paneli varsayılan boyuta getir"
+
+msgid "app.setSizeAsDefault"
+msgstr "Geçerli boyutu varsayılan yap"
+
+msgid "app.resetSizeToFactory"
+msgstr "Panelin başlangıç boyutuna dön"
+
+msgid "app.defaultSizeIsFactory"
+msgstr "Zaten başlangıç boyutunda"
+
+msgid "notify.defaultSizeSaved"
+msgstr "Geçerli boyut varsayılan olarak kaydedildi"
+
+msgid "notify.defaultSizeReset"
+msgstr "Panel boyutu başlangıca döndürüldü"
 
 msgid "notify.pasteFailed"
 msgstr "Yapıştırma başarısız"
@@ -2151,4 +2205,58 @@ msgstr "Zaman damgası"
 
 msgid "settings.renameStyleRandom"
 msgstr "Rastgele son ek"
+
+msgid "settings.dragOutToSystem"
+msgstr "Sisteme sürükle (gerçek dosya)"
+
+msgid "settings.dragOutToSystemDesc"
+msgstr "Bir dosyayı masaüstüne veya Dosya Gezgini ne sürüklemeniz yeterli: bıraktığınız yerde gerçek bir kopya oluşur, uzak dosyalar o anda indirilir. Panel içi sürükleme değişmez."
+
+msgid "notify.dragOutManyItems"
+msgstr "{count} öğe"
+
+msgid "notify.dragOutPreparing"
+msgstr "Sürüklemeye hazırlanıyor: {name}"
+
+msgid "notify.dragOutUnavailable"
+msgstr "Bu ortam sisteme sürüklemeyi desteklemiyor."
+
+msgid "notify.dragOutDirUnsupported"
+msgstr "Klasörleri dışa sürükleme henüz desteklenmiyor. İndir seçeneğini kullanın."
+
+msgid "notify.dragOutMissing"
+msgstr "Kaynak dosya artık mevcut değil."
+
+msgid "notify.dragOutTooLarge"
+msgstr "Dosya {size} MB sınırından büyük. İndir seçeneğini kullanın."
+
+msgid "notify.dragOutFailed"
+msgstr "Sürüklemeye hazırlık başarısız oldu."
+
+msgid "notify.dragOutReady"
+msgstr "Dosya hazır — Alt tuşunu basılı tutup yeniden sürükleyin"
+
+msgid "notify.dragOutRenamed"
+msgstr "Windows ayrılmış adı — başa alt çizgi eklenir (içerik eksiksiz):"
+
+msgid "notify.dragOutPacked"
+msgstr "{count} dosya tek bir ZIP içinde paketlendi (klasörler hariç). Tüm dosyalar için arşivi açın."
+
+msgid "notify.dragOutMultiAltHint"
+msgstr "Sürüklerken Alt tuşunu basılı tutarak tek ZIP yerine {count} ayrı dosya bırakabilirsiniz."
+
+msgid "log.dragOutNote"
+msgstr "<Bırakma klasörü>"
+
+msgid "file.downloadTo"
+msgstr "Klasöre indir..."
+
+msgid "notify.downloadToUnavailable"
+msgstr "Klasör seçici açılamadı (remote modülü kullanılamıyor)."
+
+msgid "view.colBorderGroupedHint"
+msgstr "Gruplanmış görünümde sütun kenarlıkları gizlenir; etkinleştirmek için gruplamayı kaldırın"
+
+msgid "notify.dragCanceled"
+msgstr "Sürükleme iptal edildi; fare düğmesini bırakmanız yeterli"
 

@@ -42,8 +42,6 @@ msgstr "Izbriši Multiple Items"
 
 msgid "conflict.title"
 msgstr "Sukob datoteka"
-msgid "conflict.sourceFile"
-msgstr "Izvorna datoteka"
 msgid "conflict.localFile"
 msgstr "Lokalna datoteka"
 msgid "conflict.remoteFile"
@@ -216,6 +214,21 @@ msgstr "Udaljeno"
 msgid "pane.path"
 msgstr "Putanja"
 msgid "pane.up"
+msgid "pane.editPath"
+msgstr "Uredi putanju"
+
+msgid "pane.sepMenuEmpty"
+msgstr "Nema podfoldera"
+
+msgid "pane.sepMenuLoading"
+msgstr "Učitavanje…"
+
+msgid "pane.sepMenuTruncated"
+msgstr "Još {n} nije prikazano"
+
+msgid "pane.sepMenuTitle"
+msgstr "Prikaži podmape ove mape"
+
 msgstr "Gore"
 msgid "pane.home"
 msgstr "Početna"
@@ -239,6 +252,21 @@ msgstr "Prikaži ivicu"
 msgid "view.zebra"
 msgstr "Prikaži zebra trake"
 msgid "pane.hideHidden"
+msgid "view.fullRowSelection"
+msgstr "Izbor celog reda"
+
+msgid "view.fullRowSelectionHint"
+msgstr "Uklj.: isticanje obuhvata ceo red. Isklj.: završava se na poslednjoj koloni, a prazan prostor desno ostaje za kontekstni meni panela."
+
+msgid "view.headerBottomBorder"
+msgstr "Donja linija zaglavlja"
+
+msgid "view.headerBottomBorderHint"
+msgstr "Prati „Izbor celog reda" dok ga ručno ne promenite; zatim se vaš izbor zadržava."
+
+msgid "view.headerBorderFollow"
+msgstr "Ponovo prati „Izbor celog reda""
+
 msgstr "Sakrij skrivene datoteke"
 msgid "pane.sortByName"
 msgstr "Razvrstaj po nazivu"
@@ -604,6 +632,15 @@ msgstr "Jedan panel"
 msgid "settings.layoutSingleSub"
 msgstr "Samo udaljeni panel"
 msgid "settings.toolbarLayout"
+msgid "settings.layoutDefaultHint"
+msgstr "Ovo je podrazumevani raspored. Rasporedi promenjeni na traci panela važe samo za trenutnu karticu."
+
+msgid "settings.clearTabLayouts"
+msgstr "Očisti raspored za {count} karticu/e"
+
+msgid "settings.layoutCleared"
+msgstr "Očišćen je sopstveni raspored za {count} karticu/e; sada prate podrazumevani."
+
 msgstr "Prilagodi traku alata"
 msgid "settings.customToolbar"
 msgstr "Prilagodi traku alata"
@@ -754,6 +791,9 @@ msgstr "Uspravni raspored"
 msgid "layout.mode.single"
 msgstr "Jedan panel (samo udaljeno)"
 
+msgid "layout.scopeThisTab"
+msgstr "{mode} · samo ova kartica"
+
 msgid "notify.closeWithTransfers"
 msgstr "{count} prenosa u toku. Zatvaranje panela prekida sve prenose. Nastavi?"
 
@@ -842,6 +882,21 @@ msgstr "Ponovo poveži"
 
 msgid "app.restoreDefaultSize"
 msgstr "Vrati podrazumevanu veličinu panela"
+
+msgid "app.setSizeAsDefault"
+msgstr "Postavi trenutnu veličinu kao podrazumevanu"
+
+msgid "app.resetSizeToFactory"
+msgstr "Vrati početnu veličinu panela"
+
+msgid "app.defaultSizeIsFactory"
+msgstr "Već je početna veličina"
+
+msgid "notify.defaultSizeSaved"
+msgstr "Trenutna veličina sačuvana kao podrazumevana"
+
+msgid "notify.defaultSizeReset"
+msgstr "Veličina panela vraćena na početnu"
 
 msgid "notify.pasteFailed"
 msgstr "Nalepljivanje nije uspelo"
@@ -1939,4 +1994,58 @@ msgstr "Vremenska oznaka"
 
 msgid "settings.renameStyleRandom"
 msgstr "Slučajni sufiks"
+
+msgid "settings.dragOutToSystem"
+msgstr "Prevlačenje u sistem (prava datoteka)"
+
+msgid "settings.dragOutToSystemDesc"
+msgstr "Samo prevucite datoteku na radnu površinu ili u Explorer da biste na mestu ispuštanja dobili pravu kopiju; udaljene datoteke se tada preuzimaju. Prevlačenje unutar panela ostaje nepromenjeno."
+
+msgid "notify.dragOutManyItems"
+msgstr "{count} stavki"
+
+msgid "notify.dragOutPreparing"
+msgstr "Priprema za prevlačenje: {name}"
+
+msgid "notify.dragOutUnavailable"
+msgstr "Ovo okruženje ne podržava prevlačenje u sistem."
+
+msgid "notify.dragOutDirUnsupported"
+msgstr "Prevlačenje foldera još nije podržano. Koristite Preuzmi."
+
+msgid "notify.dragOutMissing"
+msgstr "Izvorna datoteka više ne postoji."
+
+msgid "notify.dragOutTooLarge"
+msgstr "Datoteka je veća od {size} MB. Koristite Preuzmi."
+
+msgid "notify.dragOutFailed"
+msgstr "Priprema za prevlačenje nije uspela."
+
+msgid "notify.dragOutReady"
+msgstr "Datoteka je spremna — držite Alt i ponovo prevucite"
+
+msgid "notify.dragOutRenamed"
+msgstr "Rezervisano Windows ime — dodaje se donja crta (sadržaj je netaknut):"
+
+msgid "notify.dragOutPacked"
+msgstr "{count} datoteka je upakovano u jedan ZIP (folderi su isključeni). Raspakujte da biste dobili sve datoteke."
+
+msgid "notify.dragOutMultiAltHint"
+msgstr "Držite Alt tokom prevlačenja da biste spustili {count} odvojenih fajlova umesto jednog ZIP-a."
+
+msgid "log.dragOutNote"
+msgstr "<Odredišna fascikla>"
+
+msgid "file.downloadTo"
+msgstr "Preuzmi u fasciklu..."
+
+msgid "notify.downloadToUnavailable"
+msgstr "Nije moguće otvoriti izbor fascikle (remote modul nije dostupan)."
+
+msgid "view.colBorderGroupedHint"
+msgstr "Ivice kolona su skrivene u grupisanom prikazu; poništite grupisanje da biste ih uključili"
+
+msgid "notify.dragCanceled"
+msgstr "Prevlačenje je otkazano; samo otpustite dugme miša"
 

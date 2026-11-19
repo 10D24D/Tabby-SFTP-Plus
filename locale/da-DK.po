@@ -40,9 +40,6 @@ msgstr "Slet Flere Elementer"
 msgid "conflict.title"
 msgstr "Filkonflikt"
 
-msgid "conflict.sourceFile"
-msgstr "Kildefil"
-
 msgid "conflict.localFile"
 msgstr "Lokal Fil"
 
@@ -260,6 +257,21 @@ msgstr "Fjernt"
 msgid "pane.path"
 msgstr "Sti"
 
+msgid "pane.editPath"
+msgstr "Rediger sti"
+
+msgid "pane.sepMenuEmpty"
+msgstr "Ingen undermapper"
+
+msgid "pane.sepMenuLoading"
+msgstr "Indlæser…"
+
+msgid "pane.sepMenuTruncated"
+msgstr "{n} mere ikke vist"
+
+msgid "pane.sepMenuTitle"
+msgstr "Vis undermapper i denne mappe"
+
 msgid "pane.up"
 msgstr "Gå Op"
 
@@ -292,6 +304,21 @@ msgstr "Vis kant"
 
 msgid "view.zebra"
 msgstr "Vis zebra-striber"
+
+msgid "view.fullRowSelection"
+msgstr "Markér hele rækken"
+
+msgid "view.fullRowSelectionHint"
+msgstr "Til: markeringen dækker hele rækken. Fra: den stopper ved sidste kolonne, og det tomme område til højre bruges til panelets genvejsmenu."
+
+msgid "view.headerBottomBorder"
+msgstr "Understregning af tabelhoved"
+
+msgid "view.headerBottomBorderHint"
+msgstr "Følger „Markér hele rækken", indtil du ændrer det manuelt; derefter fastholdes dit valg."
+
+msgid "view.headerBorderFollow"
+msgstr "Følg igen „Markér hele rækken""
 
 msgid "pane.hideHidden"
 msgstr "Skjul Skjulte Filer"
@@ -758,6 +785,15 @@ msgstr "Enkelt Panel"
 msgid "settings.layoutSingleSub"
 msgstr "Kun fjernpanel"
 
+msgid "settings.layoutDefaultHint"
+msgstr "Dette er standardlayoutet. Ændringer i panelets værktøjslinje gælder kun for den aktuelle fane."
+
+msgid "settings.clearTabLayouts"
+msgstr "Ryd layout for {count} fane(r)"
+
+msgid "settings.layoutCleared"
+msgstr "Eget layout for {count} fane(r) er ryddet; de følger nu standarden."
+
 msgid "settings.toolbarLayout"
 msgstr "Tilpas Toolbar"
 
@@ -922,7 +958,7 @@ msgid "settings.dataCleared"
 msgstr "Alle data ryddet"
 
 msgid "conflict.sourceFile"
-msgstr "Kildfil"
+msgstr "Kildefil"
 
 msgid "conflict.targetFileExists"
 msgstr "Målfil (findes)"
@@ -944,6 +980,9 @@ msgstr "Vertikalt layout"
 
 msgid "layout.mode.single"
 msgstr "Enkelt rude (kun fjern)"
+
+msgid "layout.scopeThisTab"
+msgstr "{mode} · kun denne fane"
 
 msgid "notify.closeWithTransfers"
 msgstr "{count} overførsel(er) i gang. Lukning af panelet afbryder alle overførsler. Fortsæt?"
@@ -1033,6 +1072,21 @@ msgstr "Genopret forbindelse"
 
 msgid "app.restoreDefaultSize"
 msgstr "Gendan standardpanelstørrelse"
+
+msgid "app.setSizeAsDefault"
+msgstr "Sæt aktuel størrelse som standard"
+
+msgid "app.resetSizeToFactory"
+msgstr "Gendan oprindelig panelstørrelse"
+
+msgid "app.defaultSizeIsFactory"
+msgstr "Allerede i oprindelig størrelse"
+
+msgid "notify.defaultSizeSaved"
+msgstr "Aktuel størrelse er sat som standard"
+
+msgid "notify.defaultSizeReset"
+msgstr "Panelstørrelse gendannet til oprindelig"
 
 msgid "notify.pasteFailed"
 msgstr "Indsætning mislykkedes"
@@ -2130,4 +2184,58 @@ msgstr "Tidsstempel"
 
 msgid "settings.renameStyleRandom"
 msgstr "Tilfældig endelse"
+
+msgid "settings.dragOutToSystem"
+msgstr "Træk ud til systemet (rigtig fil)"
+
+msgid "settings.dragOutToSystemDesc"
+msgstr "Træk blot en fil til skrivebordet eller Stifinder for at få en rigtig kopi dér, hvor du slipper; fjernfiler hentes først på det tidspunkt. Træk inde i panelet er uændret."
+
+msgid "notify.dragOutManyItems"
+msgstr "{count} elementer"
+
+msgid "notify.dragOutPreparing"
+msgstr "Forbereder træk ud: {name}"
+
+msgid "notify.dragOutUnavailable"
+msgstr "Dette miljø understøtter ikke træk ud til systemet."
+
+msgid "notify.dragOutDirUnsupported"
+msgstr "Det er endnu ikke muligt at trække mapper ud. Brug Download."
+
+msgid "notify.dragOutMissing"
+msgstr "Kildefilen findes ikke længere."
+
+msgid "notify.dragOutTooLarge"
+msgstr "Filen er større end {size} MB. Brug Download."
+
+msgid "notify.dragOutFailed"
+msgstr "Kunne ikke forberede træk ud."
+
+msgid "notify.dragOutReady"
+msgstr "Filen er klar — hold Alt nede og træk igen"
+
+msgid "notify.dragOutRenamed"
+msgstr "Reserveret Windows-navn — der tilføjes et underscore (indholdet er intakt):"
+
+msgid "notify.dragOutPacked"
+msgstr "{count} filer er pakket i én ZIP (mapper er udeladt). Udpak den for at få alle filer."
+
+msgid "notify.dragOutMultiAltHint"
+msgstr "Hold Alt nede under træk for at slippe {count} separate filer i stedet for én ZIP."
+
+msgid "log.dragOutNote"
+msgstr "<Droppemappe>"
+
+msgid "file.downloadTo"
+msgstr "Download til mappe..."
+
+msgid "notify.downloadToUnavailable"
+msgstr "Mappevælgeren kunne ikke åbnes (remote-modulet er ikke tilgængeligt)."
+
+msgid "view.colBorderGroupedHint"
+msgstr "Kollegrænser vises ikke i grupperet visning; fjern grupperingen for at slå det til"
+
+msgid "notify.dragCanceled"
+msgstr "Trækket er annulleret; slip blot museknappen"
 

@@ -41,9 +41,6 @@ msgstr "Удалить Несколько Элементов"
 msgid "conflict.title"
 msgstr "Конфликт Файлов"
 
-msgid "conflict.sourceFile"
-msgstr "Исходный Файл"
-
 msgid "conflict.localFile"
 msgstr "Локальный Файл"
 
@@ -266,6 +263,21 @@ msgstr "Удалённый"
 msgid "pane.path"
 msgstr "Путь"
 
+msgid "pane.editPath"
+msgstr "Изменить путь"
+
+msgid "pane.sepMenuEmpty"
+msgstr "Нет подпапок"
+
+msgid "pane.sepMenuLoading"
+msgstr "Загрузка…"
+
+msgid "pane.sepMenuTruncated"
+msgstr "Ещё {n} не показано"
+
+msgid "pane.sepMenuTitle"
+msgstr "Показать вложенные папки в этой папке"
+
 msgid "pane.up"
 msgstr "Вверх"
 
@@ -298,6 +310,21 @@ msgstr "Показать Границу"
 
 msgid "view.zebra"
 msgstr "Показать Зебра-полосы"
+
+msgid "view.fullRowSelection"
+msgstr "Выделение всей строки"
+
+msgid "view.fullRowSelectionHint"
+msgstr "Вкл.: подсветка занимает всю строку. Выкл.: доходит только до последнего столбца, а пустая область справа остаётся для контекстного меню панели."
+
+msgid "view.headerBottomBorder"
+msgstr "Нижняя линия заголовка"
+
+msgid "view.headerBottomBorderHint"
+msgstr "По умолчанию следует за «Выделение всей строки»; после ручного изменения выбор сохраняется."
+
+msgid "view.headerBorderFollow"
+msgstr "Снова следовать «Выделение всей строки»"
 
 msgid "pane.hideHidden"
 msgstr "Скрыть Скрытые Файлы"
@@ -766,6 +793,15 @@ msgstr "Одиночная Панель"
 msgid "settings.layoutSingleSub"
 msgstr "Только удалённая панель"
 
+msgid "settings.layoutDefaultHint"
+msgstr "Это макет по умолчанию. Макеты, переключаемые на панели инструментов, действуют только для текущей вкладки."
+
+msgid "settings.clearTabLayouts"
+msgstr "Очистить макет у {count} вкладок"
+
+msgid "settings.layoutCleared"
+msgstr "Собственный макет {count} вкладок очищен; теперь они используют макет по умолчанию."
+
 msgid "settings.toolbarLayout"
 msgstr "Настроить Панель Инструментов"
 
@@ -970,6 +1006,9 @@ msgstr "Вертикальная раскладка"
 msgid "layout.mode.single"
 msgstr "Одиночная панель (только удалённая)"
 
+msgid "layout.scopeThisTab"
+msgstr "{mode} · только эта вкладка"
+
 msgid "notify.closeWithTransfers"
 msgstr "{count} передача(и) выполняется. Закрытие панели прервёт все передачи. Продолжить?"
 
@@ -1058,6 +1097,21 @@ msgstr "Переподключить"
 
 msgid "app.restoreDefaultSize"
 msgstr "Восстановить размер панели по умолчанию"
+
+msgid "app.setSizeAsDefault"
+msgstr "Сделать текущий размер размером по умолчанию"
+
+msgid "app.resetSizeToFactory"
+msgstr "Восстановить исходный размер панели"
+
+msgid "app.defaultSizeIsFactory"
+msgstr "Уже исходный размер"
+
+msgid "notify.defaultSizeSaved"
+msgstr "Текущий размер сохранён по умолчанию"
+
+msgid "notify.defaultSizeReset"
+msgstr "Размер панели восстановлен до исходного"
 
 msgid "notify.pasteFailed"
 msgstr "Ошибка вставки"
@@ -2155,4 +2209,58 @@ msgstr "С меткой времени"
 
 msgid "settings.renameStyleRandom"
 msgstr "Случайный суффикс"
+
+msgid "settings.dragOutToSystem"
+msgstr "Перетаскивание в систему (реальный файл)"
+
+msgid "settings.dragOutToSystemDesc"
+msgstr "Просто перетащите файл на рабочий стол или в Проводник, чтобы в месте отпускания появилась настоящая копия; удалённые файлы скачиваются в этот момент. Перетаскивание внутри панели не изменилось."
+
+msgid "notify.dragOutManyItems"
+msgstr "Элементов: {count}"
+
+msgid "notify.dragOutPreparing"
+msgstr "Подготовка к перетаскиванию: {name}"
+
+msgid "notify.dragOutUnavailable"
+msgstr "Эта среда не поддерживает перетаскивание в систему."
+
+msgid "notify.dragOutDirUnsupported"
+msgstr "Перетаскивание папок пока не поддерживается. Используйте Скачать."
+
+msgid "notify.dragOutMissing"
+msgstr "Исходный файл больше не существует."
+
+msgid "notify.dragOutTooLarge"
+msgstr "Файл больше {size} МБ. Используйте Скачать."
+
+msgid "notify.dragOutFailed"
+msgstr "Не удалось подготовить перетаскивание."
+
+msgid "notify.dragOutReady"
+msgstr "Файл готов — удерживайте Alt и перетащите снова"
+
+msgid "notify.dragOutRenamed"
+msgstr "Зарезервированное имя Windows — будет добавлено подчёркивание (содержимое не изменено):"
+
+msgid "notify.dragOutPacked"
+msgstr "{count} файлов упаковано в один ZIP (папки не включены). Распакуйте, чтобы получить все файлы."
+
+msgid "notify.dragOutMultiAltHint"
+msgstr "Удерживайте Alt при перетаскивании, чтобы разместить {count} отдельных файлов вместо одного ZIP."
+
+msgid "log.dragOutNote"
+msgstr "<Папка назначения>"
+
+msgid "file.downloadTo"
+msgstr "Скачать в папку..."
+
+msgid "notify.downloadToUnavailable"
+msgstr "Не удалось открыть выбор папки (модуль remote недоступен)."
+
+msgid "view.colBorderGroupedHint"
+msgstr "В группированном виде границы столбцов скрыты; отмените группировку, чтобы включить их"
+
+msgid "notify.dragCanceled"
+msgstr "Перетаскивание отменено; просто отпустите кнопку мыши"
 

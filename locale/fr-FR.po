@@ -41,9 +41,6 @@ msgstr "Supprimer Plusieurs Éléments"
 msgid "conflict.title"
 msgstr "Conflit de Fichier"
 
-msgid "conflict.sourceFile"
-msgstr "Fichier Source"
-
 msgid "conflict.localFile"
 msgstr "Fichier Local"
 
@@ -265,6 +262,21 @@ msgstr "Distant"
 msgid "pane.path"
 msgstr "Chemin"
 
+msgid "pane.editPath"
+msgstr "Modifier le chemin"
+
+msgid "pane.sepMenuEmpty"
+msgstr "Aucun sous-dossier"
+
+msgid "pane.sepMenuLoading"
+msgstr "Chargement…"
+
+msgid "pane.sepMenuTruncated"
+msgstr "{n} de plus non affichés"
+
+msgid "pane.sepMenuTitle"
+msgstr "Afficher les sous-dossiers de ce dossier"
+
 msgid "pane.up"
 msgstr "Monter"
 
@@ -297,6 +309,21 @@ msgstr "Afficher la Bordure"
 
 msgid "view.zebra"
 msgstr "Afficher les Rayures Zèbre"
+
+msgid "view.fullRowSelection"
+msgstr "Sélection sur toute la ligne"
+
+msgid "view.fullRowSelectionHint"
+msgstr "Activé : la sélection couvre toute la ligne. Désactivé : elle s’arrête à la dernière colonne et la zone vide à droite reste disponible pour le menu contextuel du panneau."
+
+msgid "view.headerBottomBorder"
+msgstr "Bordure basse de l’en-tête"
+
+msgid "view.headerBottomBorderHint"
+msgstr "Suit «Sélection sur toute la ligne» jusqu’à modification manuelle ; votre choix est ensuite conservé."
+
+msgid "view.headerBorderFollow"
+msgstr "Suivre à nouveau «Sélection sur toute la ligne»"
 
 msgid "pane.hideHidden"
 msgstr "Masquer les Fichiers Cachés"
@@ -754,6 +781,15 @@ msgstr "Panneau Unique"
 msgid "settings.layoutSingleSub"
 msgstr "Panneau distant uniquement"
 
+msgid "settings.layoutDefaultHint"
+msgstr "Ceci est la disposition par défaut. Les dispositions changées depuis la barre du panneau ne s'appliquent qu'à l'onglet courant."
+
+msgid "settings.clearTabLayouts"
+msgstr "Effacer la disposition de {count} onglet(s)"
+
+msgid "settings.layoutCleared"
+msgstr "Disposition personnalisée effacée pour {count} onglet(s) ; ils suivent désormais la valeur par défaut."
+
 msgid "settings.toolbarLayout"
 msgstr "Personnaliser la Barre d'Outils"
 
@@ -957,6 +993,9 @@ msgstr "Disposition verticale"
 msgid "layout.mode.single"
 msgstr "Volet unique (remote uniquement)"
 
+msgid "layout.scopeThisTab"
+msgstr "{mode} · cet onglet uniquement"
+
 msgid "notify.closeWithTransfers"
 msgstr "{count} transfert(s) en cours. Fermer le panneau interrompra tous les transferts. Continuer ?"
 
@@ -1045,6 +1084,21 @@ msgstr "Reconnecter"
 
 msgid "app.restoreDefaultSize"
 msgstr "Restaurer la taille par défaut du panneau"
+
+msgid "app.setSizeAsDefault"
+msgstr "Définir la taille actuelle par défaut"
+
+msgid "app.resetSizeToFactory"
+msgstr "Rétablir la taille initiale du panneau"
+
+msgid "app.defaultSizeIsFactory"
+msgstr "Déjà à la taille initiale"
+
+msgid "notify.defaultSizeSaved"
+msgstr "Taille actuelle définie par défaut"
+
+msgid "notify.defaultSizeReset"
+msgstr "Taille du panneau rétablie à l'initiale"
 
 msgid "notify.pasteFailed"
 msgstr "Échec du collage"
@@ -2142,4 +2196,58 @@ msgstr "Horodatage"
 
 msgid "settings.renameStyleRandom"
 msgstr "Suffixe aléatoire"
+
+msgid "settings.dragOutToSystem"
+msgstr "Glisser vers le système (fichier réel)"
+
+msgid "settings.dragOutToSystemDesc"
+msgstr "Glissez simplement un fichier sur le bureau ou dans l explorateur pour obtenir une vraie copie à l endroit du dépôt ; les fichiers distants sont téléchargés à ce moment. Le glisser dans le panneau reste inchangé."
+
+msgid "notify.dragOutManyItems"
+msgstr "{count} éléments"
+
+msgid "notify.dragOutPreparing"
+msgstr "Préparation du glisser : {name}"
+
+msgid "notify.dragOutUnavailable"
+msgstr "Cet environnement ne permet pas de glisser vers le système."
+
+msgid "notify.dragOutDirUnsupported"
+msgstr "Le glisser de dossiers n'est pas encore pris en charge. Utilisez Télécharger."
+
+msgid "notify.dragOutMissing"
+msgstr "Le fichier source n'existe plus."
+
+msgid "notify.dragOutTooLarge"
+msgstr "Le fichier dépasse {size} MB. Utilisez Télécharger."
+
+msgid "notify.dragOutFailed"
+msgstr "Échec de la préparation au glisser."
+
+msgid "notify.dragOutReady"
+msgstr "Le fichier est prêt : maintenez Alt et glissez à nouveau"
+
+msgid "notify.dragOutRenamed"
+msgstr "Nom réservé par Windows — un tiret bas est ajouté (contenu intact) :"
+
+msgid "notify.dragOutPacked"
+msgstr "{count} fichiers ont été réunis dans une archive ZIP (dossiers exclus). Décompressez-la pour obtenir tous les fichiers."
+
+msgid "notify.dragOutMultiAltHint"
+msgstr "Maintenez Alt pendant le glisser pour déposer {count} fichiers séparés au lieu d'un ZIP."
+
+msgid "log.dragOutNote"
+msgstr "<Dossier de destination>"
+
+msgid "file.downloadTo"
+msgstr "Télécharger dans un dossier..."
+
+msgid "notify.downloadToUnavailable"
+msgstr "Impossible d'ouvrir le sélecteur de dossier (module remote indisponible)."
+
+msgid "view.colBorderGroupedHint"
+msgstr "Les bordures de colonnes sont masquées en vue groupée ; annulez le regroupement pour les activer"
+
+msgid "notify.dragCanceled"
+msgstr "Glisser annulé ; il suffit de relâcher le bouton de la souris"
 

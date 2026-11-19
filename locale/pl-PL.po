@@ -43,9 +43,6 @@ msgstr "Usuń Wiele Elementów"
 msgid "conflict.title"
 msgstr "Konflikt Pliku"
 
-msgid "conflict.sourceFile"
-msgstr "Plik Źródłowy"
-
 msgid "conflict.localFile"
 msgstr "Plik Lokalny"
 
@@ -265,6 +262,21 @@ msgstr "Zdalny"
 msgid "pane.path"
 msgstr "Ścieżka"
 
+msgid "pane.editPath"
+msgstr "Edytuj ścieżkę"
+
+msgid "pane.sepMenuEmpty"
+msgstr "Brak podfolderów"
+
+msgid "pane.sepMenuLoading"
+msgstr "Ładowanie…"
+
+msgid "pane.sepMenuTruncated"
+msgstr "Nie pokazano {n} więcej"
+
+msgid "pane.sepMenuTitle"
+msgstr "Pokaż podfoldery tego folderu"
+
 msgid "pane.up"
 msgstr "Idź Wyżej"
 
@@ -297,6 +309,21 @@ msgstr "Pokaż obramowanie"
 
 msgid "view.zebra"
 msgstr "Pokaż paski zebra"
+
+msgid "view.fullRowSelection"
+msgstr "Zaznaczanie całego wiersza"
+
+msgid "view.fullRowSelectionHint"
+msgstr "Wł.: wyróżnienie obejmuje cały wiersz. Wył.: kończy się na ostatniej kolumnie, a pusty obszar po prawej pozostaje dla menu kontekstowego panelu."
+
+msgid "view.headerBottomBorder"
+msgstr "Dolna krawędź nagłówka"
+
+msgid "view.headerBottomBorderHint"
+msgstr "Domyślnie podąża za „Zaznaczanie całego wiersza"; po ręcznej zmianie wybór zostaje zachowany."
+
+msgid "view.headerBorderFollow"
+msgstr "Ponownie podążaj za „Zaznaczanie całego wiersza""
 
 msgid "pane.hideHidden"
 msgstr "Ukryj Ukryte Pliki"
@@ -771,6 +798,15 @@ msgstr "Pojedynczy Panel"
 msgid "settings.layoutSingleSub"
 msgstr "Tylko panel zdalny"
 
+msgid "settings.layoutDefaultHint"
+msgstr "To jest układ domyślny. Układy przełączane na pasku panelu dotyczą tylko bieżącej karty."
+
+msgid "settings.clearTabLayouts"
+msgstr "Wyczyść układ {count} kart(y)"
+
+msgid "settings.layoutCleared"
+msgstr "Wyczyszczono własny układ {count} kart(y); teraz obowiązuje domyślny."
+
 msgid "settings.toolbarLayout"
 msgstr "Dostosuj Toolbar"
 
@@ -962,6 +998,9 @@ msgstr "Układ pionowy"
 msgid "layout.mode.single"
 msgstr "Pojedynczy panel (tylko zdalny)"
 
+msgid "layout.scopeThisTab"
+msgstr "{mode} · tylko ta karta"
+
 msgid "notify.closeWithTransfers"
 msgstr "{count} transfer(ów) w toku. Zamknięcie panelu przerwie wszystkie transfery. Kontynuować?"
 
@@ -1050,6 +1089,21 @@ msgstr "Połącz ponownie"
 
 msgid "app.restoreDefaultSize"
 msgstr "Przywróć domyślny rozmiar panelu"
+
+msgid "app.setSizeAsDefault"
+msgstr "Ustaw bieżący rozmiar jako domyślny"
+
+msgid "app.resetSizeToFactory"
+msgstr "Przywróć początkowy rozmiar panelu"
+
+msgid "app.defaultSizeIsFactory"
+msgstr "Rozmiar jest już początkowy"
+
+msgid "notify.defaultSizeSaved"
+msgstr "Bieżący rozmiar ustawiono jako domyślny"
+
+msgid "notify.defaultSizeReset"
+msgstr "Przywrócono początkowy rozmiar panelu"
 
 msgid "notify.pasteFailed"
 msgstr "Wklejanie nieudane"
@@ -2147,4 +2201,58 @@ msgstr "Znacznik czasu"
 
 msgid "settings.renameStyleRandom"
 msgstr "Losowy sufiks"
+
+msgid "settings.dragOutToSystem"
+msgstr "Przeciągnij do systemu (prawdziwy plik)"
+
+msgid "settings.dragOutToSystemDesc"
+msgstr "Wystarczy przeciągnąć plik na pulpit lub do Eksploratora, aby w miejscu upuszczenia powstała prawdziwa kopia; pliki zdalne są pobierane właśnie wtedy. Przeciąganie wewnątrz panelu pozostaje bez zmian."
+
+msgid "notify.dragOutManyItems"
+msgstr "Elementów: {count}"
+
+msgid "notify.dragOutPreparing"
+msgstr "Przygotowywanie do przeciągania: {name}"
+
+msgid "notify.dragOutUnavailable"
+msgstr "To środowisko nie obsługuje przeciągania do systemu."
+
+msgid "notify.dragOutDirUnsupported"
+msgstr "Przeciąganie folderów nie jest jeszcze obsługiwane. Użyj opcji Pobierz."
+
+msgid "notify.dragOutMissing"
+msgstr "Plik źródłowy już nie istnieje."
+
+msgid "notify.dragOutTooLarge"
+msgstr "Plik przekracza {size} MB. Użyj opcji Pobierz."
+
+msgid "notify.dragOutFailed"
+msgstr "Nie udało się przygotować przeciągania."
+
+msgid "notify.dragOutReady"
+msgstr "Plik jest gotowy — przytrzymaj Alt i przeciągnij ponownie"
+
+msgid "notify.dragOutRenamed"
+msgstr "Nazwa zarezerwowana w Windows — zostanie dodany podkreślnik (zawartość nienaruszona):"
+
+msgid "notify.dragOutPacked"
+msgstr "{count} plików spakowano do jednego ZIP (foldery pominięte). Rozpakuj, aby otrzymać wszystkie pliki."
+
+msgid "notify.dragOutMultiAltHint"
+msgstr "Przytrzymaj Alt podczas przeciągania, aby upuścić {count} osobnych plików zamiast jednego ZIP."
+
+msgid "log.dragOutNote"
+msgstr "<Folder docelowy>"
+
+msgid "file.downloadTo"
+msgstr "Pobierz do folderu..."
+
+msgid "notify.downloadToUnavailable"
+msgstr "Nie można otworzyć wyboru folderu (moduł remote niedostępny)."
+
+msgid "view.colBorderGroupedHint"
+msgstr "W widoku grupowanym obramowania kolumn są ukryte; usuń grupowanie, aby je włączyć"
+
+msgid "notify.dragCanceled"
+msgstr "Przeciąganie anulowane; wystarczy zwolnić przycisk myszy"
 

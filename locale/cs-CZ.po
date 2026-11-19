@@ -40,9 +40,6 @@ msgstr "Smazat Více Položek"
 msgid "conflict.title"
 msgstr "Konflikt Souboru"
 
-msgid "conflict.sourceFile"
-msgstr "Zdrojový Soubor"
-
 msgid "conflict.localFile"
 msgstr "Místní Soubor"
 
@@ -263,6 +260,21 @@ msgstr "Vzdálený"
 msgid "pane.path"
 msgstr "Cesta"
 
+msgid "pane.editPath"
+msgstr "Upravit cestu"
+
+msgid "pane.sepMenuEmpty"
+msgstr "Žádné podsložky"
+
+msgid "pane.sepMenuLoading"
+msgstr "Načítání…"
+
+msgid "pane.sepMenuTruncated"
+msgstr "Dalších {n} nezobrazeno"
+
+msgid "pane.sepMenuTitle"
+msgstr "Zobrazit podsložky této složky"
+
 msgid "pane.up"
 msgstr "Jít Nahoru"
 
@@ -295,6 +307,21 @@ msgstr "Zobrazit okraj"
 
 msgid "view.zebra"
 msgstr "Zobrazit zebra pruhy"
+
+msgid "view.fullRowSelection"
+msgstr "Výběr celého řádku"
+
+msgid "view.fullRowSelectionHint"
+msgstr "Zapnuto: zvýraznění přes celý řádek. Vypnuto: končí u posledního sloupce a prázdná oblast vpravo slouží pro místní nabídku panelu."
+
+msgid "view.headerBottomBorder"
+msgstr "Spodní čára záhlaví"
+
+msgid "view.headerBottomBorderHint"
+msgstr "Dokud ji ručně nezměníte, sleduje „Výběr celého řádku"; poté zůstane vaše volba."
+
+msgid "view.headerBorderFollow"
+msgstr "Znovu sledovat „Výběr celého řádku""
 
 msgid "pane.hideHidden"
 msgstr "Skrýt Skryté Soubory"
@@ -768,6 +795,15 @@ msgstr "Jednotlivý Panel"
 msgid "settings.layoutSingleSub"
 msgstr "Pouze vzdálený panel"
 
+msgid "settings.layoutDefaultHint"
+msgstr "Toto je výchozí rozvržení. Změny provedené na panelu nástrojů platí jen pro aktuální kartu."
+
+msgid "settings.clearTabLayouts"
+msgstr "Vymazat rozvržení u {count} karet"
+
+msgid "settings.layoutCleared"
+msgstr "Vlastní rozvržení u {count} karet bylo vymazáno; nyní používají výchozí."
+
 msgid "settings.toolbarLayout"
 msgstr "Přizpůsobit Panel Nástrojů"
 
@@ -959,6 +995,9 @@ msgstr "Svislé rozložení"
 msgid "layout.mode.single"
 msgstr "Jedno podokno (jen vzdálené)"
 
+msgid "layout.scopeThisTab"
+msgstr "{mode} · jen tato karta"
+
 msgid "notify.closeWithTransfers"
 msgstr "{count} přenos(ů) v běhu. Zavření panelu přeruší všechny přenosy. Pokračovat?"
 
@@ -1047,6 +1086,21 @@ msgstr "Znovu připojit"
 
 msgid "app.restoreDefaultSize"
 msgstr "Obnovit výchozí velikost panelu"
+
+msgid "app.setSizeAsDefault"
+msgstr "Nastavit aktuální velikost jako výchozí"
+
+msgid "app.resetSizeToFactory"
+msgstr "Obnovit počáteční velikost panelu"
+
+msgid "app.defaultSizeIsFactory"
+msgstr "Již je v počáteční velikosti"
+
+msgid "notify.defaultSizeSaved"
+msgstr "Aktuální velikost nastavena jako výchozí"
+
+msgid "notify.defaultSizeReset"
+msgstr "Velikost panelu obnovena na počáteční"
 
 msgid "notify.pasteFailed"
 msgstr "Vložení selhalo"
@@ -2144,4 +2198,58 @@ msgstr "S časovým razítkem"
 
 msgid "settings.renameStyleRandom"
 msgstr "Náhodná přípona"
+
+msgid "settings.dragOutToSystem"
+msgstr "Přetáhnout do systému (skutečný soubor)"
+
+msgid "settings.dragOutToSystemDesc"
+msgstr "Stačí přetáhnout soubor na plochu nebo do Průzkumníka a na místě puštění vznikne skutečná kopie; vzdálené soubory se stáhnou až tehdy. Přetahování uvnitř panelu zůstává beze změny."
+
+msgid "notify.dragOutManyItems"
+msgstr "Položek: {count}"
+
+msgid "notify.dragOutPreparing"
+msgstr "Příprava na přetažení: {name}"
+
+msgid "notify.dragOutUnavailable"
+msgstr "Toto prostředí nepodporuje přetažení do systému."
+
+msgid "notify.dragOutDirUnsupported"
+msgstr "Přetahování složek zatím není podporováno. Použijte Stáhnout."
+
+msgid "notify.dragOutMissing"
+msgstr "Zdrojový soubor už neexistuje."
+
+msgid "notify.dragOutTooLarge"
+msgstr "Soubor je větší než {size} MB. Použijte Stáhnout."
+
+msgid "notify.dragOutFailed"
+msgstr "Přípravu na přetažení se nepodařilo dokončit."
+
+msgid "notify.dragOutReady"
+msgstr "Soubor je připraven — podržte Alt a přetáhněte znovu"
+
+msgid "notify.dragOutRenamed"
+msgstr "Rezervovaný název systému Windows — přidá se podtržítko (obsah zůstává):"
+
+msgid "notify.dragOutPacked"
+msgstr "{count} souborů bylo zabaleno do jednoho ZIP (složky vynechány). Rozbalte jej pro všechny soubory."
+
+msgid "notify.dragOutMultiAltHint"
+msgstr "Při přetažení podržte Alt a místo jednoho ZIPu uložíte {count} samostatných souborů."
+
+msgid "log.dragOutNote"
+msgstr "<Cílová složka>"
+
+msgid "file.downloadTo"
+msgstr "Stáhnout do složky..."
+
+msgid "notify.downloadToUnavailable"
+msgstr "Nelze otevřít výběr složky (modul remote není dostupný)."
+
+msgid "view.colBorderGroupedHint"
+msgstr "V seskupeném zobrazení se sloupce nezobrazují; zrušte seskupení pro zapnutí"
+
+msgid "notify.dragCanceled"
+msgstr "Přetahování zrušeno; stačí uvolnit tlačítko myši"
 

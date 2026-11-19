@@ -43,9 +43,6 @@ msgstr "刪除多個專案"
 msgid "conflict.title"
 msgstr "檔案衝突"
 
-msgid "conflict.sourceFile"
-msgstr "原始檔"
-
 msgid "conflict.localFile"
 msgstr "本地檔案"
 
@@ -268,6 +265,21 @@ msgstr "遠端"
 msgid "pane.path"
 msgstr "路徑"
 
+msgid "pane.editPath"
+msgstr "編輯路徑"
+
+msgid "pane.sepMenuEmpty"
+msgstr "無子資料夾"
+
+msgid "pane.sepMenuLoading"
+msgstr "載入中…"
+
+msgid "pane.sepMenuTruncated"
+msgstr "還有 {n} 項未顯示"
+
+msgid "pane.sepMenuTitle"
+msgstr "查看此目錄下的子資料夾"
+
 msgid "pane.up"
 msgstr "返回上級"
 
@@ -300,6 +312,21 @@ msgstr "顯示邊框"
 
 msgid "view.zebra"
 msgstr "顯示斑馬紋"
+
+msgid "view.fullRowSelection"
+msgstr "整行選取"
+
+msgid "view.fullRowSelectionHint"
+msgstr "開啟後選取底色佈滿整行；關閉後只到最後一欄，右側空白可直接右鍵叫出面板選單"
+
+msgid "view.headerBottomBorder"
+msgstr "顯示表頭底線"
+
+msgid "view.headerBottomBorderHint"
+msgstr "未手動設定時跟隨「整行選取」：開啟則顯示、關閉則隱藏；手動切換後固定為你的選擇"
+
+msgid "view.headerBorderFollow"
+msgstr "恢復跟隨整行選取"
 
 msgid "pane.hideHidden"
 msgstr "不顯示隱藏檔案"
@@ -816,6 +843,15 @@ msgstr "單欄佈局"
 msgid "settings.layoutSingleSub"
 msgstr "僅顯示遠端面板"
 
+msgid "settings.layoutDefaultHint"
+msgstr "以上為預設版面。在面板頂欄切換的版面只對目前分頁生效，不會改動這裡。"
+
+msgid "settings.clearTabLayouts"
+msgstr "清除 {count} 個分頁的獨立版面"
+
+msgid "settings.layoutCleared"
+msgstr "已清除 {count} 個分頁的獨立版面，將改為跟隨預設版面。"
+
 msgid "settings.toolbarLayout"
 msgstr "定製工具欄"
 
@@ -1175,6 +1211,9 @@ msgstr "垂直佈局"
 msgid "layout.mode.single"
 msgstr "單一窗格（僅遠端）"
 
+msgid "layout.scopeThisTab"
+msgstr "{mode} · 僅目前分頁"
+
 msgid "layout.override.tooNarrow"
 msgstr "面板過窄，左右佈局空間不足，已臨時改為上下佈局"
 
@@ -1284,6 +1323,21 @@ msgstr "重新連線"
 
 msgid "app.restoreDefaultSize"
 msgstr "還原預設面板大小"
+
+msgid "app.setSizeAsDefault"
+msgstr "設為預設面板大小"
+
+msgid "app.resetSizeToFactory"
+msgstr "恢復初始面板大小"
+
+msgid "app.defaultSizeIsFactory"
+msgstr "目前已是初始大小"
+
+msgid "notify.defaultSizeSaved"
+msgstr "已將目前大小設為預設"
+
+msgid "notify.defaultSizeReset"
+msgstr "已恢復初始面板大小"
 
 msgid "notify.pasteFailed"
 msgstr "貼上失敗"
@@ -2124,4 +2178,58 @@ msgstr "時間戳記"
 
 msgid "settings.renameStyleRandom"
 msgstr "隨機後綴"
+
+msgid "settings.dragOutToSystem"
+msgstr "拖曳到系統（真實檔案）"
+
+msgid "settings.dragOutToSystemDesc"
+msgstr "直接把檔案拖到桌面或檔案總管，即可在鬆手的位置得到真實副本；遠端檔案會在落手時自動下載。面板內互拖不受影響。"
+
+msgid "notify.dragOutManyItems"
+msgstr "{count} 個項目"
+
+msgid "notify.dragOutPreparing"
+msgstr "正在準備拖曳：{name}"
+
+msgid "notify.dragOutUnavailable"
+msgstr "目前環境不支援拖曳到系統"
+
+msgid "notify.dragOutDirUnsupported"
+msgstr "暫不支援拖出資料夾，請改用「下載」"
+
+msgid "notify.dragOutMissing"
+msgstr "來源檔案已不存在"
+
+msgid "notify.dragOutTooLarge"
+msgstr "檔案超過 {size} MB，請改用「下載」"
+
+msgid "notify.dragOutFailed"
+msgstr "準備拖曳失敗"
+
+msgid "notify.dragOutReady"
+msgstr "檔案已準備好，按住 Alt 再拖曳一次即可"
+
+msgid "notify.dragOutRenamed"
+msgstr "Windows 保留名稱，儲存時會自動加上底線前綴（內容完整）:"
+
+msgid "notify.dragOutPacked"
+msgstr "已將 {count} 個檔案打包成一個 ZIP（資料夾不包含），解壓縮即可取得全部檔案"
+
+msgid "notify.dragOutMultiAltHint"
+msgstr "按住 Alt 拖曳可直接放下 {count} 個獨立檔案（不打包 ZIP）"
+
+msgid "log.dragOutNote"
+msgstr "<拖放目錄>"
+
+msgid "file.downloadTo"
+msgstr "下載到指定目錄..."
+
+msgid "notify.downloadToUnavailable"
+msgstr "無法開啟系統目錄選擇框（remote 模組不可用）"
+
+msgid "view.colBorderGroupedHint"
+msgstr "分組檢視下不顯示欄框，取消分組後可開啟"
+
+msgid "notify.dragCanceled"
+msgstr "已取消拖曳，放開滑鼠即可"
 

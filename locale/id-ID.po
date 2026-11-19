@@ -43,9 +43,6 @@ msgstr "Hapus Beberapa Item"
 msgid "conflict.title"
 msgstr "Konflik File"
 
-msgid "conflict.sourceFile"
-msgstr "File Sumber"
-
 msgid "conflict.localFile"
 msgstr "File Lokal"
 
@@ -266,6 +263,21 @@ msgstr "Jarak Jauh"
 msgid "pane.path"
 msgstr "Jalur"
 
+msgid "pane.editPath"
+msgstr "Edit jalur"
+
+msgid "pane.sepMenuEmpty"
+msgstr "Tidak ada subfolder"
+
+msgid "pane.sepMenuLoading"
+msgstr "Memuat…"
+
+msgid "pane.sepMenuTruncated"
+msgstr "{n} lainnya tidak ditampilkan"
+
+msgid "pane.sepMenuTitle"
+msgstr "Tampilkan subfolder di folder ini"
+
 msgid "pane.up"
 msgstr "Ke Atas"
 
@@ -297,6 +309,21 @@ msgstr "Tampilkan batas"
 
 msgid "view.zebra"
 msgstr "Tampilkan garis zebra"
+
+msgid "view.fullRowSelection"
+msgstr "Pilih seluruh baris"
+
+msgid "view.fullRowSelectionHint"
+msgstr "Aktif: sorotan memenuhi seluruh baris. Nonaktif: berhenti di kolom terakhir, area kosong di kanan tersedia untuk menu konteks panel."
+
+msgid "view.headerBottomBorder"
+msgstr "Garis bawah tajuk"
+
+msgid "view.headerBottomBorderHint"
+msgstr "Mengikuti „Pilih seluruh baris" sampai diubah manual; setelah itu pilihan Anda tetap disimpan."
+
+msgid "view.headerBorderFollow"
+msgstr "Ikuti lagi „Pilih seluruh baris""
 
 msgid "pane.hideHidden"
 msgstr "Sembunyikan File Tersembunyi"
@@ -766,6 +793,15 @@ msgstr "Panel Tunggal"
 msgid "settings.layoutSingleSub"
 msgstr "Hanya panel jarak jauh"
 
+msgid "settings.layoutDefaultHint"
+msgstr "Ini tata letak default. Tata letak yang diganti dari toolbar panel hanya berlaku untuk tab saat ini."
+
+msgid "settings.clearTabLayouts"
+msgstr "Hapus tata letak {count} tab"
+
+msgid "settings.layoutCleared"
+msgstr "Tata letak khusus pada {count} tab telah dihapus; kini mengikuti default."
+
 msgid "settings.toolbarLayout"
 msgstr "Sesuaikan Toolbar"
 
@@ -955,6 +991,9 @@ msgstr "Tata letak Tegak"
 msgid "layout.mode.single"
 msgstr "Satu panel (Hanya jarak jauh)"
 
+msgid "layout.scopeThisTab"
+msgstr "{mode} · hanya tab ini"
+
 msgid "notify.closeWithTransfers"
 msgstr "{count} transfer sedang berlangsung. Menutup panel akan menginterupsi semua transfer. Lanjutkan?"
 
@@ -1043,6 +1082,21 @@ msgstr "Sambungkan kembali"
 
 msgid "app.restoreDefaultSize"
 msgstr "Kembalikan ukuran panel bawaan"
+
+msgid "app.setSizeAsDefault"
+msgstr "Jadikan ukuran saat ini sebagai default"
+
+msgid "app.resetSizeToFactory"
+msgstr "Kembalikan ukuran awal panel"
+
+msgid "app.defaultSizeIsFactory"
+msgstr "Sudah pada ukuran awal"
+
+msgid "notify.defaultSizeSaved"
+msgstr "Ukuran saat ini disimpan sebagai default"
+
+msgid "notify.defaultSizeReset"
+msgstr "Ukuran panel dikembalikan ke awal"
 
 msgid "notify.pasteFailed"
 msgstr "Tempel gagal"
@@ -2140,4 +2194,58 @@ msgstr "Stempel waktu"
 
 msgid "settings.renameStyleRandom"
 msgstr "Akhiran acak"
+
+msgid "settings.dragOutToSystem"
+msgstr "Seret keluar ke sistem (berkas asli)"
+
+msgid "settings.dragOutToSystemDesc"
+msgstr "Cukup seret berkas ke desktop atau File Explorer untuk mendapat salinan asli di lokasi pelepasan; berkas jarak jauh diunduh saat itu. Seret di dalam panel tetap tidak berubah."
+
+msgid "notify.dragOutManyItems"
+msgstr "{count} item"
+
+msgid "notify.dragOutPreparing"
+msgstr "Menyiapkan seret keluar: {name}"
+
+msgid "notify.dragOutUnavailable"
+msgstr "Lingkungan ini tidak mendukung seret keluar ke sistem."
+
+msgid "notify.dragOutDirUnsupported"
+msgstr "Menyeret folder keluar belum didukung. Gunakan Unduh."
+
+msgid "notify.dragOutMissing"
+msgstr "Berkas sumber sudah tidak ada."
+
+msgid "notify.dragOutTooLarge"
+msgstr "Berkas melebihi {size} MB. Gunakan Unduh."
+
+msgid "notify.dragOutFailed"
+msgstr "Gagal menyiapkan seret keluar."
+
+msgid "notify.dragOutReady"
+msgstr "Berkas siap — tahan Alt dan seret lagi"
+
+msgid "notify.dragOutRenamed"
+msgstr "Nama khusus Windows — akan ditambahkan garis bawah (isi tetap utuh):"
+
+msgid "notify.dragOutPacked"
+msgstr "{count} berkas dikemas ke dalam satu ZIP (folder tidak disertakan). Ekstrak untuk mendapatkan semua berkas."
+
+msgid "notify.dragOutMultiAltHint"
+msgstr "Tahan Alt saat menyeret untuk menjatuhkan {count} berkas terpisah, bukan satu ZIP."
+
+msgid "log.dragOutNote"
+msgstr "<Folder tujuan>"
+
+msgid "file.downloadTo"
+msgstr "Unduh ke folder..."
+
+msgid "notify.downloadToUnavailable"
+msgstr "Tidak dapat membuka pemilih folder (modul remote tidak tersedia)."
+
+msgid "view.colBorderGroupedHint"
+msgstr "Garis kolom disembunyikan dalam tampilan berkelompok; batalkan pengelompokan untuk mengaktifkannya"
+
+msgid "notify.dragCanceled"
+msgstr "Seret dibatalkan; cukup lepaskan tombol mouse"
 

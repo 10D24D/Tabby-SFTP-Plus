@@ -41,9 +41,6 @@ msgstr "Mehrere Elemente Löschen"
 msgid "conflict.title"
 msgstr "Dateikonflikt"
 
-msgid "conflict.sourceFile"
-msgstr "Quelldatei"
-
 msgid "conflict.localFile"
 msgstr "Lokale Datei"
 
@@ -264,6 +261,21 @@ msgstr "Remote"
 msgid "pane.path"
 msgstr "Pfad"
 
+msgid "pane.editPath"
+msgstr "Pfad bearbeiten"
+
+msgid "pane.sepMenuEmpty"
+msgstr "Keine Unterordner"
+
+msgid "pane.sepMenuLoading"
+msgstr "Wird geladen…"
+
+msgid "pane.sepMenuTruncated"
+msgstr "{n} weitere nicht angezeigt"
+
+msgid "pane.sepMenuTitle"
+msgstr "Unterordner dieses Ordners anzeigen"
+
 msgid "pane.up"
 msgstr "Nach Oben"
 
@@ -296,6 +308,21 @@ msgstr "Rahmen Anzeigen"
 
 msgid "view.zebra"
 msgstr "Zebrastreifen Anzeigen"
+
+msgid "view.fullRowSelection"
+msgstr "Ganze Zeile auswählen"
+
+msgid "view.fullRowSelectionHint"
+msgstr "An: die Markierung reicht über die ganze Zeile. Aus: sie endet an der letzten Spalte, der leere Bereich rechts steht für das Kontextmenü des Panels zur Verfügung."
+
+msgid "view.headerBottomBorder"
+msgstr "Untere Linie der Kopfzeile"
+
+msgid "view.headerBottomBorderHint"
+msgstr "Folgt standardmäßig „Ganze Zeile auswählen"; nach manueller Änderung bleibt die Wahl fest."
+
+msgid "view.headerBorderFollow"
+msgstr "Wieder „Ganze Zeile auswählen" folgen"
 
 msgid "pane.hideHidden"
 msgstr "Versteckte Dateien Ausblenden"
@@ -374,9 +401,6 @@ msgstr "SFTP+ benötigt, dass Tabby cwd über OSC 1337 meldet, bevor es synchron
 
 msgid "path.cwdSetupSessionHint"
 msgstr "Nur diese Sitzung: Führen Sie den temporären Befehl unten im aktuellen Terminal aus (verloren nach Shell-Neustart)"
-
-msgid "path.cwdSetupPermanentHint"
-msgstr "Permanent: Fügen Sie das Snippet unten zum Remote-Profil hinzu und sourcen Sie es (basierend auf der erkannten Shell)"
 
 msgid "path.cwdSetupNote"
 msgstr "Abbrechen schaltet den Pfadmodus aus. Nichts wird ausgeführt oder geschrieben."
@@ -758,6 +782,15 @@ msgstr "Einzelpanel"
 msgid "settings.layoutSingleSub"
 msgstr "Nur Remote-Panel"
 
+msgid "settings.layoutDefaultHint"
+msgstr "Dies ist das Standardlayout. Änderungen über die Panel-Symbolleiste gelten nur für den aktuellen Tab."
+
+msgid "settings.clearTabLayouts"
+msgstr "Eigenes Layout von {count} Tab(s) löschen"
+
+msgid "settings.layoutCleared"
+msgstr "Eigenes Layout von {count} Tab(s) gelöscht; sie folgen jetzt dem Standard."
+
 msgid "settings.toolbarLayout"
 msgstr "Symbolleiste Anpassen"
 
@@ -962,6 +995,9 @@ msgstr "Vertikales Layout"
 msgid "layout.mode.single"
 msgstr "Einzelnes Fenster (nur Remote)"
 
+msgid "layout.scopeThisTab"
+msgstr "{mode} · nur dieser Tab"
+
 msgid "notify.closeWithTransfers"
 msgstr "{count} Übertragung(en) läuft/laufen. Das Schließen des Panels unterbricht alle Übertragungen. Fortfahren?"
 
@@ -1050,6 +1086,21 @@ msgstr "Erneut verbinden"
 
 msgid "app.restoreDefaultSize"
 msgstr "Standardpanelgröße wiederherstellen"
+
+msgid "app.setSizeAsDefault"
+msgstr "Aktuelle Größe als Standard festlegen"
+
+msgid "app.resetSizeToFactory"
+msgstr "Ursprüngliche Panelgröße wiederherstellen"
+
+msgid "app.defaultSizeIsFactory"
+msgstr "Bereits ursprüngliche Größe"
+
+msgid "notify.defaultSizeSaved"
+msgstr "Aktuelle Größe als Standard gespeichert"
+
+msgid "notify.defaultSizeReset"
+msgstr "Panelgröße auf Ursprung zurückgesetzt"
 
 msgid "notify.pasteFailed"
 msgstr "Einfügen fehlgeschlagen"
@@ -2147,4 +2198,58 @@ msgstr "Zeitstempel"
 
 msgid "settings.renameStyleRandom"
 msgstr "Zufälliges Suffix"
+
+msgid "settings.dragOutToSystem"
+msgstr "Ins System ziehen (echte Datei)"
+
+msgid "settings.dragOutToSystemDesc"
+msgstr "Einfach eine Datei auf den Desktop oder in den Explorer ziehen: Am Ablageort entsteht eine echte Kopie, entfernte Dateien werden erst dann heruntergeladen. Ziehen innerhalb des Panels bleibt unverändert."
+
+msgid "notify.dragOutManyItems"
+msgstr "{count} Elemente"
+
+msgid "notify.dragOutPreparing"
+msgstr "Wird zum Ziehen vorbereitet: {name}"
+
+msgid "notify.dragOutUnavailable"
+msgstr "Diese Umgebung unterstützt das Ziehen ins System nicht."
+
+msgid "notify.dragOutDirUnsupported"
+msgstr "Ordner können noch nicht herausgezogen werden. Bitte Herunterladen verwenden."
+
+msgid "notify.dragOutMissing"
+msgstr "Die Quelldatei existiert nicht mehr."
+
+msgid "notify.dragOutTooLarge"
+msgstr "Die Datei ist größer als {size} MB. Bitte Herunterladen verwenden."
+
+msgid "notify.dragOutFailed"
+msgstr "Vorbereiten zum Herausziehen fehlgeschlagen."
+
+msgid "notify.dragOutReady"
+msgstr "Datei ist bereit — Alt gedrückt halten und erneut ziehen"
+
+msgid "notify.dragOutRenamed"
+msgstr "Von Windows reservierter Name — ein Unterstrich wird vorangestellt (Inhalt vollständig):"
+
+msgid "notify.dragOutPacked"
+msgstr "{count} Dateien wurden in einem ZIP zusammengefasst (Ordner ausgenommen). Entpacken, um alle Dateien zu erhalten."
+
+msgid "notify.dragOutMultiAltHint"
+msgstr "Halte beim Ziehen Alt gedrückt, um {count} einzelne Dateien statt einer ZIP abzulegen."
+
+msgid "log.dragOutNote"
+msgstr "<Zielordner>"
+
+msgid "file.downloadTo"
+msgstr "In Ordner herunterladen..."
+
+msgid "notify.downloadToUnavailable"
+msgstr "Ordnerauswahl konnte nicht geöffnet werden (remote-Modul nicht verfügbar)."
+
+msgid "view.colBorderGroupedHint"
+msgstr "In der gruppierten Ansicht werden keine Spaltenrahmen angezeigt; Gruppierung aufheben, um sie zu aktivieren"
+
+msgid "notify.dragCanceled"
+msgstr "Ziehen abgebrochen; Maustaste einfach loslassen"
 

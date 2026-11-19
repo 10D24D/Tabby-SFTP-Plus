@@ -286,6 +286,21 @@ msgstr "Remote"
 msgid "pane.path"
 msgstr "Path"
 
+msgid "pane.editPath"
+msgstr "Edit path"
+
+msgid "pane.sepMenuEmpty"
+msgstr "No subfolders"
+
+msgid "pane.sepMenuLoading"
+msgstr "Loading…"
+
+msgid "pane.sepMenuTruncated"
+msgstr "{n} more not shown"
+
+msgid "pane.sepMenuTitle"
+msgstr "Show subfolders of this folder"
+
 msgid "pane.up"
 msgstr "Go Up"
 
@@ -318,6 +333,21 @@ msgstr "Show border"
 
 msgid "view.zebra"
 msgstr "Show zebra stripes"
+
+msgid "view.fullRowSelection"
+msgstr "Full-row selection"
+
+msgid "view.fullRowSelectionHint"
+msgstr "On: the selection highlight spans the whole row. Off: it stops at the last column, leaving the empty area on the right for the panel context menu."
+
+msgid "view.headerBottomBorder"
+msgstr "Header bottom border"
+
+msgid "view.headerBottomBorderHint"
+msgstr "Follows Full-row selection until you change it manually; your choice is then kept."
+
+msgid "view.headerBorderFollow"
+msgstr "Follow Full-row selection again"
 
 msgid "pane.hideHidden"
 msgstr "Hide Hidden Files"
@@ -865,6 +895,15 @@ msgstr "Single Pane"
 msgid "settings.layoutSingleSub"
 msgstr "Remote panel only"
 
+msgid "settings.layoutDefaultHint"
+msgstr "This is the default layout. Layouts switched from the panel toolbar apply to the current tab only."
+
+msgid "settings.clearTabLayouts"
+msgstr "Clear layouts of {count} tab(s)"
+
+msgid "settings.layoutCleared"
+msgstr "Cleared the custom layout of {count} tab(s); they now follow the default."
+
 msgid "settings.toolbarLayout"
 msgstr "Customize Toolbar"
 
@@ -1231,6 +1270,9 @@ msgstr "Vertical Layout"
 msgid "layout.mode.single"
 msgstr "Single Pane (Remote Only)"
 
+msgid "layout.scopeThisTab"
+msgstr "{mode} · this tab only"
+
 msgid "layout.override.tooNarrow"
 msgstr "Panel too narrow for side-by-side; temporarily using top-bottom layout"
 
@@ -1349,6 +1391,21 @@ msgstr "Reconnect"
 
 msgid "app.restoreDefaultSize"
 msgstr "Restore default panel size"
+
+msgid "app.setSizeAsDefault"
+msgstr "Set current size as default"
+
+msgid "app.resetSizeToFactory"
+msgstr "Reset to initial panel size"
+
+msgid "app.defaultSizeIsFactory"
+msgstr "Already at initial size"
+
+msgid "notify.defaultSizeSaved"
+msgstr "Current size saved as default"
+
+msgid "notify.defaultSizeReset"
+msgstr "Panel size reset to initial"
 
 msgid "notify.pasteFailed"
 msgstr "Paste failed"
@@ -2125,4 +2182,58 @@ msgstr "Timestamp"
 
 msgid "settings.renameStyleRandom"
 msgstr "Random suffix"
+
+msgid "settings.dragOutToSystem"
+msgstr "Drag out to the system (real file)"
+
+msgid "settings.dragOutToSystemDesc"
+msgstr "Just drag a file onto the desktop or File Explorer to get a real copy at the drop location; remote files are downloaded at that moment. Dragging between panes is unaffected."
+
+msgid "notify.dragOutManyItems"
+msgstr "{count} items"
+
+msgid "notify.dragOutPreparing"
+msgstr "Preparing to drag out: {name}"
+
+msgid "notify.dragOutUnavailable"
+msgstr "This environment does not support dragging out to the system."
+
+msgid "notify.dragOutDirUnsupported"
+msgstr "Dragging folders out is not supported yet. Use Download instead."
+
+msgid "notify.dragOutMissing"
+msgstr "The source file no longer exists."
+
+msgid "notify.dragOutTooLarge"
+msgstr "File is larger than {size} MB. Use Download instead."
+
+msgid "notify.dragOutFailed"
+msgstr "Failed to prepare files for dragging out."
+
+msgid "notify.dragOutReady"
+msgstr "File is ready — hold Alt and drag again"
+
+msgid "notify.dragOutRenamed"
+msgstr "Windows reserved name — an underscore prefix is added (content intact):"
+
+msgid "notify.dragOutPacked"
+msgstr "Packed {count} files into one ZIP (folders excluded). Extract it to get all files."
+
+msgid "notify.dragOutMultiAltHint"
+msgstr "Hold Alt while dragging to drop {count} separate files instead of one ZIP."
+
+msgid "log.dragOutNote"
+msgstr "<Drop folder>"
+
+msgid "file.downloadTo"
+msgstr "Download to folder..."
+
+msgid "notify.downloadToUnavailable"
+msgstr "Cannot open the folder picker (remote module unavailable)."
+
+msgid "view.colBorderGroupedHint"
+msgstr "Column borders are hidden in grouped view; ungroup to enable them"
+
+msgid "notify.dragCanceled"
+msgstr "Drag cancelled; just release the mouse button"
 

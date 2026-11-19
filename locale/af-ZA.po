@@ -42,8 +42,6 @@ msgstr "Vee Uit Multiple Items"
 
 msgid "conflict.title"
 msgstr "Lêerkonflik"
-msgid "conflict.sourceFile"
-msgstr "Bronlêer"
 msgid "conflict.localFile"
 msgstr "Plaaslike Lêer"
 msgid "conflict.remoteFile"
@@ -216,6 +214,21 @@ msgstr "Afgeleë"
 msgid "pane.path"
 msgstr "Pad"
 msgid "pane.up"
+msgid "pane.editPath"
+msgstr "Wys pad"
+
+msgid "pane.sepMenuEmpty"
+msgstr "Geen subgidse"
+
+msgid "pane.sepMenuLoading"
+msgstr "Laai…"
+
+msgid "pane.sepMenuTruncated"
+msgstr "Nog {n} nie gewys nie"
+
+msgid "pane.sepMenuTitle"
+msgstr "Wys die subgidels in hierdie gids"
+
 msgstr "Gaan Op"
 msgid "pane.home"
 msgstr "Tuis"
@@ -240,6 +253,21 @@ msgstr "Wys rand"
 msgid "view.zebra"
 msgstr "Wys zebra-strepe"
 msgid "pane.hideHidden"
+msgid "view.fullRowSelection"
+msgstr "Kies die hele ry"
+
+msgid "view.fullRowSelectionHint"
+msgstr "Aan: die keurmerk strek oor die hele ry. Af: dit stop by die laaste kolom, en die leë area regs is beskikbaar vir die paneel se kontekskieslys."
+
+msgid "view.headerBottomBorder"
+msgstr "Onderste lyn van kop"
+
+msgid "view.headerBottomBorderHint"
+msgstr "Volg "Kies die hele ry" totdat jy dit self verander; daarna bly jou keuse vas."
+
+msgid "view.headerBorderFollow"
+msgstr "Volg weer "Kies die hele ry""
+
 msgstr "Verskuil Versteekte Lêers"
 msgid "pane.sortByName"
 msgstr "Sorteer op Naam"
@@ -605,6 +633,15 @@ msgstr "Enkele Paneel"
 msgid "settings.layoutSingleSub"
 msgstr "Slegs afgeleë paneel"
 msgid "settings.toolbarLayout"
+msgid "settings.layoutDefaultHint"
+msgstr "Hierdie is die verstekuitleg. Uitleg wat jy in die paneel se nutsbalk wissel, geld net vir die huidige oortjie."
+
+msgid "settings.clearTabLayouts"
+msgstr "Vee uitleg van {count} oortjie(s) uit"
+
+msgid "settings.layoutCleared"
+msgstr "{count} oortjie(s) se eie uitleg is uitgevee; hulle volg nou die verstek."
+
 msgstr "Pas Werksbalk aan"
 msgid "settings.customToolbar"
 msgstr "Pas Werksbalk aan"
@@ -756,6 +793,9 @@ msgstr "Vertikale uitleg"
 msgid "layout.mode.single"
 msgstr "Enkele paneel (slegs afgeleë)"
 
+msgid "layout.scopeThisTab"
+msgstr "{mode} · net hierdie oortjie"
+
 msgid "notify.closeWithTransfers"
 msgstr "{count} oordrag(te) besig. Sluit die paneel sal alle oordrag onderbreek. Gaan voort?"
 
@@ -844,6 +884,21 @@ msgstr "Her verbind"
 
 msgid "app.restoreDefaultSize"
 msgstr "Herstel verstekpaneelgrootte"
+
+msgid "app.setSizeAsDefault"
+msgstr "Stel huidige grootte as verstek"
+
+msgid "app.resetSizeToFactory"
+msgstr "Herstel na aanvanklike paneelgrootte"
+
+msgid "app.defaultSizeIsFactory"
+msgstr "Reeds op aanvanklike grootte"
+
+msgid "notify.defaultSizeSaved"
+msgstr "Huidige grootte as verstek gestel"
+
+msgid "notify.defaultSizeReset"
+msgstr "Paneelgrootte na aanvanklik herstel"
 
 msgid "notify.pasteFailed"
 msgstr "Plak misluk"
@@ -1941,4 +1996,58 @@ msgstr "Tydstempel"
 
 msgid "settings.renameStyleRandom"
 msgstr "Lukrake agtervoegsel"
+
+msgid "settings.dragOutToSystem"
+msgstr "Sleep uit na stelsel (egte lêer)"
+
+msgid "settings.dragOutToSystemDesc"
+msgstr "Sleep eenvoudig n lêer na die lessenaar of Verkenner om n egte kopie op die plek te kry waar jy loslaat; afgeleë lêers word eers dan afgelaai. Sleep binne die paneel bly onveranderd."
+
+msgid "notify.dragOutManyItems"
+msgstr "{count} items"
+
+msgid "notify.dragOutPreparing"
+msgstr "Berei voor om uit te sleep: {name}"
+
+msgid "notify.dragOutUnavailable"
+msgstr "Hierdie omgewing ondersteun nie sleep na die stelsel nie."
+
+msgid "notify.dragOutDirUnsupported"
+msgstr "Gidse kan nog nie uitgesleep word nie. Gebruik Laai af."
+
+msgid "notify.dragOutMissing"
+msgstr "Die bronlêer bestaan nie meer nie."
+
+msgid "notify.dragOutTooLarge"
+msgstr "Die lêer is groter as {size} MB. Gebruik Laai af."
+
+msgid "notify.dragOutFailed"
+msgstr "Kon nie voorberei om uit te sleep nie."
+
+msgid "notify.dragOutReady"
+msgstr "Lêer is gereed — hou Alt en sleep weer"
+
+msgid "notify.dragOutRenamed"
+msgstr "Windows-gereserveerde naam — 'n onderstreping word bygevoeg (inhoud ongeskonde):"
+
+msgid "notify.dragOutPacked"
+msgstr "{count} lêers is in een ZIP saamgepak (vouers uitgesluit). Pak dit uit om al die lêers te kry."
+
+msgid "notify.dragOutMultiAltHint"
+msgstr "Hou Alt in terwyl jy sleep om {count} aparte lêers in plaas van een ZIP te laat val."
+
+msgid "log.dragOutNote"
+msgstr "<Bestemmingsmap>"
+
+msgid "file.downloadTo"
+msgstr "Laai af na vouer..."
+
+msgid "notify.downloadToUnavailable"
+msgstr "Kon nie die vouerkieser open nie (remote-module nie beskikbaar nie)."
+
+msgid "view.colBorderGroupedHint"
+msgstr "Kolrandjies word nie in die gegroepeerde aansig gewys nie; ontgroepeer om dit te aktiveer"
+
+msgid "notify.dragCanceled"
+msgstr "Sleep is gekanselleer; laat net die muisknop los"
 

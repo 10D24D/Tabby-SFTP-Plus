@@ -42,8 +42,6 @@ msgstr "Ta Bort Multiple Items"
 
 msgid "conflict.title"
 msgstr "Filkonflikt"
-msgid "conflict.sourceFile"
-msgstr "Källfil"
 msgid "conflict.localFile"
 msgstr "Lokal fil"
 msgid "conflict.remoteFile"
@@ -216,6 +214,21 @@ msgstr "Fjärr"
 msgid "pane.path"
 msgstr "Sökväg"
 msgid "pane.up"
+msgid "pane.editPath"
+msgstr "Redigera sökväg"
+
+msgid "pane.sepMenuEmpty"
+msgstr "Inga undermappar"
+
+msgid "pane.sepMenuLoading"
+msgstr "Läser in…"
+
+msgid "pane.sepMenuTruncated"
+msgstr "{n} till visas inte"
+
+msgid "pane.sepMenuTitle"
+msgstr "Visa undermappar i den här mappen"
+
 msgstr "Upp"
 msgid "pane.home"
 msgstr "Hem"
@@ -240,6 +253,21 @@ msgstr "Visa kant"
 msgid "view.zebra"
 msgstr "Visa zebraränder"
 msgid "pane.hideHidden"
+msgid "view.fullRowSelection"
+msgstr "Markera hela raden"
+
+msgid "view.fullRowSelectionHint"
+msgstr "På: markeringen täcker hela raden. Av: den slutar vid sista kolumnen och det tomma utrymmet till höger används för panelens snabbmeny."
+
+msgid "view.headerBottomBorder"
+msgstr "Undre kantlinje i rubrikraden"
+
+msgid "view.headerBottomBorderHint"
+msgstr "Följer „Markera hela raden" tills du ändrar manuellt; därefter behålls ditt val."
+
+msgid "view.headerBorderFollow"
+msgstr "Följ „Markera hela raden" igen"
+
 msgstr "Dölj dolda filer"
 msgid "pane.sortByName"
 msgstr "Sortera efter namn"
@@ -605,6 +633,15 @@ msgstr "Enkel panel"
 msgid "settings.layoutSingleSub"
 msgstr "Endast fjärrpanel"
 msgid "settings.toolbarLayout"
+msgid "settings.layoutDefaultHint"
+msgstr "Det här är standardlayouten. Layouter som växlas i panelens verktygsfält gäller bara den aktuella fliken."
+
+msgid "settings.clearTabLayouts"
+msgstr "Rensa layout för {count} flik(ar)"
+
+msgid "settings.layoutCleared"
+msgstr "Egen layout för {count} flik(ar) har rensats; de följer nu standarden."
+
 msgstr "Anpassa verktygsfält"
 msgid "settings.customToolbar"
 msgstr "Anpassa verktygsfält"
@@ -755,6 +792,9 @@ msgstr "Vertikalt layout"
 msgid "layout.mode.single"
 msgstr "Enkel panel (endast fjärr)"
 
+msgid "layout.scopeThisTab"
+msgstr "{mode} · endast denna flik"
+
 msgid "notify.closeWithTransfers"
 msgstr "{count} överföring(ar) pågår. Att stänga panelen avbryter alla överföringar. Fortsätt?"
 
@@ -843,6 +883,21 @@ msgstr "Återanslut"
 
 msgid "app.restoreDefaultSize"
 msgstr "Återställ standardpanelstorlek"
+
+msgid "app.setSizeAsDefault"
+msgstr "Använd aktuell storlek som standard"
+
+msgid "app.resetSizeToFactory"
+msgstr "Återställ panelens ursprungliga storlek"
+
+msgid "app.defaultSizeIsFactory"
+msgstr "Redan i ursprunglig storlek"
+
+msgid "notify.defaultSizeSaved"
+msgstr "Aktuell storlek sparad som standard"
+
+msgid "notify.defaultSizeReset"
+msgstr "Panelstorleken återställd till ursprunglig"
 
 msgid "notify.pasteFailed"
 msgstr "Klistra in misslyckades"
@@ -1940,4 +1995,58 @@ msgstr "Tidsstämpel"
 
 msgid "settings.renameStyleRandom"
 msgstr "Slumpmässigt suffix"
+
+msgid "settings.dragOutToSystem"
+msgstr "Dra ut till systemet (riktig fil)"
+
+msgid "settings.dragOutToSystemDesc"
+msgstr "Dra helt enkelt en fil till skrivbordet eller Utforskaren för att få en riktig kopia där du släpper; fjärrfiler hämtas just då. Dragning inuti panelen är oförändrad."
+
+msgid "notify.dragOutManyItems"
+msgstr "{count} objekt"
+
+msgid "notify.dragOutPreparing"
+msgstr "Förbereder utdragning: {name}"
+
+msgid "notify.dragOutUnavailable"
+msgstr "Den här miljön stöder inte att dra ut till systemet."
+
+msgid "notify.dragOutDirUnsupported"
+msgstr "Det går ännu inte att dra ut mappar. Använd Ladda ner."
+
+msgid "notify.dragOutMissing"
+msgstr "Källfilen finns inte längre."
+
+msgid "notify.dragOutTooLarge"
+msgstr "Filen är större än {size} MB. Använd Ladda ner."
+
+msgid "notify.dragOutFailed"
+msgstr "Det gick inte att förbereda utdragningen."
+
+msgid "notify.dragOutReady"
+msgstr "Filen är klar — håll ned Alt och dra igen"
+
+msgid "notify.dragOutRenamed"
+msgstr "Reserverat Windows-namn — ett understreck läggs till (innehållet är intakt):"
+
+msgid "notify.dragOutPacked"
+msgstr "{count} filer har packats i en ZIP (mappar undantagna). Packa upp för att få alla filer."
+
+msgid "notify.dragOutMultiAltHint"
+msgstr "Håll Alt nedtryckt medan du drar för att släppa {count} separata filer i stället för en ZIP."
+
+msgid "log.dragOutNote"
+msgstr "<Släppmapp>"
+
+msgid "file.downloadTo"
+msgstr "Ladda ner till mapp..."
+
+msgid "notify.downloadToUnavailable"
+msgstr "Kunde inte öppna mappväljaren (remote-modulen är otillgänglig)."
+
+msgid "view.colBorderGroupedHint"
+msgstr "Kolumnkanter visas inte i grupperad vy; avgruppera för att aktivera dem"
+
+msgid "notify.dragCanceled"
+msgstr "Draget avbröts; släpp bara musknappen"
 

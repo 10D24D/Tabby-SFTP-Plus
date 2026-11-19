@@ -41,9 +41,6 @@ msgstr "Elimina Più Elementi"
 msgid "conflict.title"
 msgstr "Conflitto di File"
 
-msgid "conflict.sourceFile"
-msgstr "File Origine"
-
 msgid "conflict.localFile"
 msgstr "File Locale"
 
@@ -263,6 +260,21 @@ msgstr "Remoto"
 msgid "pane.path"
 msgstr "Percorso"
 
+msgid "pane.editPath"
+msgstr "Modifica percorso"
+
+msgid "pane.sepMenuEmpty"
+msgstr "Nessuna sottocartella"
+
+msgid "pane.sepMenuLoading"
+msgstr "Caricamento…"
+
+msgid "pane.sepMenuTruncated"
+msgstr "Altri {n} non mostrati"
+
+msgid "pane.sepMenuTitle"
+msgstr "Mostra le sottocartelle di questa cartella"
+
 msgid "pane.up"
 msgstr "Su"
 
@@ -294,6 +306,21 @@ msgstr "Mostra Bordo"
 
 msgid "view.zebra"
 msgstr "Mostra Strisce Zebra"
+
+msgid "view.fullRowSelection"
+msgstr "Selezione riga intera"
+
+msgid "view.fullRowSelectionHint"
+msgstr "Attivo: l’evidenziazione copre tutta la riga. Disattivo: si ferma all’ultima colonna e l’area vuota a destra resta per il menu contestuale del pannello."
+
+msgid "view.headerBottomBorder"
+msgstr "Bordo inferiore intestazione"
+
+msgid "view.headerBottomBorderHint"
+msgstr "Segue «Selezione riga intera» finché non lo modifichi manualmente; poi la scelta resta fissa."
+
+msgid "view.headerBorderFollow"
+msgstr "Segui di nuovo «Selezione riga intera»"
 
 msgid "pane.hideHidden"
 msgstr "Nascondi File Nascosti"
@@ -761,6 +788,15 @@ msgstr "Pannello Singolo"
 msgid "settings.layoutSingleSub"
 msgstr "Solo pannello remoto"
 
+msgid "settings.layoutDefaultHint"
+msgstr "Questo è il layout predefinito. I layout cambiati dalla barra del pannello valgono solo per la scheda corrente."
+
+msgid "settings.clearTabLayouts"
+msgstr "Cancella il layout di {count} scheda/e"
+
+msgid "settings.layoutCleared"
+msgstr "Layout personalizzato cancellato per {count} scheda/e; ora seguono il predefinito."
+
 msgid "settings.toolbarLayout"
 msgstr "Personalizza Barra degli Strumenti"
 
@@ -963,6 +999,9 @@ msgstr "Layout verticale"
 msgid "layout.mode.single"
 msgstr "Pannello singolo (solo remoto)"
 
+msgid "layout.scopeThisTab"
+msgstr "{mode} · solo questa scheda"
+
 msgid "notify.closeWithTransfers"
 msgstr "{count} trasferimento/i in corso. Chiudere il pannello interromperà tutti i trasferimenti. Continuare?"
 
@@ -1051,6 +1090,21 @@ msgstr "Riconnetti"
 
 msgid "app.restoreDefaultSize"
 msgstr "Ripristina dimensione predefinita del pannello"
+
+msgid "app.setSizeAsDefault"
+msgstr "Imposta la dimensione attuale come predefinita"
+
+msgid "app.resetSizeToFactory"
+msgstr "Ripristina la dimensione iniziale del pannello"
+
+msgid "app.defaultSizeIsFactory"
+msgstr "Già alla dimensione iniziale"
+
+msgid "notify.defaultSizeSaved"
+msgstr "Dimensione attuale salvata come predefinita"
+
+msgid "notify.defaultSizeReset"
+msgstr "Dimensione del pannello ripristinata all'iniziale"
 
 msgid "notify.pasteFailed"
 msgstr "Incolla fallito"
@@ -2148,4 +2202,58 @@ msgstr "Data e ora"
 
 msgid "settings.renameStyleRandom"
 msgstr "Suffisso casuale"
+
+msgid "settings.dragOutToSystem"
+msgstr "Trascina nel sistema (file reale)"
+
+msgid "settings.dragOutToSystemDesc"
+msgstr "Basta trascinare un file sul desktop o in Esplora file per ottenere una copia reale nel punto di rilascio; i file remoti vengono scaricati in quel momento. Il trascinamento nel pannello resta invariato."
+
+msgid "notify.dragOutManyItems"
+msgstr "{count} elementi"
+
+msgid "notify.dragOutPreparing"
+msgstr "Preparazione al trascinamento: {name}"
+
+msgid "notify.dragOutUnavailable"
+msgstr "Questo ambiente non supporta il trascinamento nel sistema."
+
+msgid "notify.dragOutDirUnsupported"
+msgstr "Il trascinamento delle cartelle non è ancora supportato. Usa Scarica."
+
+msgid "notify.dragOutMissing"
+msgstr "Il file di origine non esiste più."
+
+msgid "notify.dragOutTooLarge"
+msgstr "Il file supera {size} MB. Usa Scarica."
+
+msgid "notify.dragOutFailed"
+msgstr "Preparazione al trascinamento non riuscita."
+
+msgid "notify.dragOutReady"
+msgstr "File pronto: tieni premuto Alt e trascina di nuovo"
+
+msgid "notify.dragOutRenamed"
+msgstr "Nome riservato di Windows — verrà aggiunto un trattino basso (contenuto integro):"
+
+msgid "notify.dragOutPacked"
+msgstr "{count} file sono stati racchiusi in un unico ZIP (cartelle escluse). Estrarlo per ottenere tutti i file."
+
+msgid "notify.dragOutMultiAltHint"
+msgstr "Tieni premuto Alt durante il trascinamento per rilasciare {count} file separati invece di uno ZIP."
+
+msgid "log.dragOutNote"
+msgstr "<Cartella di destinazione>"
+
+msgid "file.downloadTo"
+msgstr "Scarica nella cartella..."
+
+msgid "notify.downloadToUnavailable"
+msgstr "Impossibile aprire la selezione cartella (modulo remote non disponibile)."
+
+msgid "view.colBorderGroupedHint"
+msgstr "I bordi delle colonne sono nascosti nella vista raggruppata; annulla il raggruppamento per attivarli"
+
+msgid "notify.dragCanceled"
+msgstr "Trascinamento annullato; basta rilasciare il pulsante del mouse"
 

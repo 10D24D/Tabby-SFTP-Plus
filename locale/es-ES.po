@@ -41,9 +41,6 @@ msgstr "Eliminar Múltiples Elementos"
 msgid "conflict.title"
 msgstr "Conflicto de Archivo"
 
-msgid "conflict.sourceFile"
-msgstr "Archivo Origen"
-
 msgid "conflict.localFile"
 msgstr "Archivo Local"
 
@@ -263,6 +260,21 @@ msgstr "Remoto"
 msgid "pane.path"
 msgstr "Ruta"
 
+msgid "pane.editPath"
+msgstr "Editar ruta"
+
+msgid "pane.sepMenuEmpty"
+msgstr "Sin subcarpetas"
+
+msgid "pane.sepMenuLoading"
+msgstr "Cargando…"
+
+msgid "pane.sepMenuTruncated"
+msgstr "{n} más sin mostrar"
+
+msgid "pane.sepMenuTitle"
+msgstr "Mostrar las subcarpetas de esta carpeta"
+
 msgid "pane.up"
 msgstr "Subir"
 
@@ -295,6 +307,21 @@ msgstr "Mostrar Borde"
 
 msgid "view.zebra"
 msgstr "Mostrar Rayas de Cebra"
+
+msgid "view.fullRowSelection"
+msgstr "Selección de fila completa"
+
+msgid "view.fullRowSelectionHint"
+msgstr "Activado: el resaltado cubre toda la fila. Desactivado: termina en la última columna y el espacio vacío de la derecha queda para el menú contextual del panel."
+
+msgid "view.headerBottomBorder"
+msgstr "Borde inferior de cabecera"
+
+msgid "view.headerBottomBorderHint"
+msgstr "Sigue «Selección de fila completa» hasta que lo cambies manualmente; después se conserva tu elección."
+
+msgid "view.headerBorderFollow"
+msgstr "Volver a seguir «Selección de fila completa»"
 
 msgid "pane.hideHidden"
 msgstr "Ocultar Archivos Ocultos"
@@ -758,6 +785,15 @@ msgstr "Panel Único"
 msgid "settings.layoutSingleSub"
 msgstr "Solo panel remoto"
 
+msgid "settings.layoutDefaultHint"
+msgstr "Este es el diseño predeterminado. Los diseños cambiados desde la barra del panel solo afectan a la pestaña actual."
+
+msgid "settings.clearTabLayouts"
+msgstr "Borrar el diseño de {count} pestaña(s)"
+
+msgid "settings.layoutCleared"
+msgstr "Se borró el diseño propio de {count} pestaña(s); ahora siguen el predeterminado."
+
 msgid "settings.toolbarLayout"
 msgstr "Personalizar Barra de Herramientas"
 
@@ -962,6 +998,9 @@ msgstr "Diseño vertical"
 msgid "layout.mode.single"
 msgstr "Panel único (solo remoto)"
 
+msgid "layout.scopeThisTab"
+msgstr "{mode} · solo esta pestaña"
+
 msgid "notify.closeWithTransfers"
 msgstr "{count} transferencia(s) en curso. Cerrar el panel interrumpirá todas las transferencias. ¿Continuar?"
 
@@ -1050,6 +1089,21 @@ msgstr "Reconectar"
 
 msgid "app.restoreDefaultSize"
 msgstr "Restaurar el tamaño predeterminado del panel"
+
+msgid "app.setSizeAsDefault"
+msgstr "Usar el tamaño actual como predeterminado"
+
+msgid "app.resetSizeToFactory"
+msgstr "Restaurar el tamaño inicial del panel"
+
+msgid "app.defaultSizeIsFactory"
+msgstr "Ya está en el tamaño inicial"
+
+msgid "notify.defaultSizeSaved"
+msgstr "Tamaño actual guardado como predeterminado"
+
+msgid "notify.defaultSizeReset"
+msgstr "Tamaño del panel restaurado al inicial"
 
 msgid "notify.pasteFailed"
 msgstr "Error al pegar"
@@ -2147,4 +2201,58 @@ msgstr "Marca de tiempo"
 
 msgid "settings.renameStyleRandom"
 msgstr "Sufijo aleatorio"
+
+msgid "settings.dragOutToSystem"
+msgstr "Arrastrar al sistema (archivo real)"
+
+msgid "settings.dragOutToSystemDesc"
+msgstr "Basta con arrastrar un archivo al escritorio o al Explorador para obtener una copia real en el lugar donde se suelta; los archivos remotos se descargan en ese momento. Arrastrar dentro del panel no cambia."
+
+msgid "notify.dragOutManyItems"
+msgstr "{count} elementos"
+
+msgid "notify.dragOutPreparing"
+msgstr "Preparando para arrastrar: {name}"
+
+msgid "notify.dragOutUnavailable"
+msgstr "Este entorno no admite arrastrar al sistema."
+
+msgid "notify.dragOutDirUnsupported"
+msgstr "Aún no se pueden arrastrar carpetas. Usa Descargar."
+
+msgid "notify.dragOutMissing"
+msgstr "El archivo de origen ya no existe."
+
+msgid "notify.dragOutTooLarge"
+msgstr "El archivo supera {size} MB. Usa Descargar."
+
+msgid "notify.dragOutFailed"
+msgstr "No se pudo preparar el arrastre."
+
+msgid "notify.dragOutReady"
+msgstr "El archivo está listo: mantén Alt y arrastra de nuevo"
+
+msgid "notify.dragOutRenamed"
+msgstr "Nombre reservado de Windows: se añade un guion bajo (el contenido está intacto):"
+
+msgid "notify.dragOutPacked"
+msgstr "Se han empaquetado {count} archivos en un ZIP (carpetas excluidas). Extráigalo para obtener todos los archivos."
+
+msgid "notify.dragOutMultiAltHint"
+msgstr "Mantén Alt al arrastrar para soltar {count} archivos separados en lugar de un ZIP."
+
+msgid "log.dragOutNote"
+msgstr "<Carpeta de destino>"
+
+msgid "file.downloadTo"
+msgstr "Descargar a carpeta..."
+
+msgid "notify.downloadToUnavailable"
+msgstr "No se puede abrir el selector de carpeta (módulo remote no disponible)."
+
+msgid "view.colBorderGroupedHint"
+msgstr "Los bordes de columna se ocultan en la vista agrupada; desagrupa para activarlos"
+
+msgid "notify.dragCanceled"
+msgstr "Arrastre cancelado; solo suelta el botón del ratón"
 

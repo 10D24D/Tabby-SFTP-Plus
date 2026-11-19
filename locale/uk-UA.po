@@ -42,8 +42,6 @@ msgstr "Видалити Multiple Items"
 
 msgid "conflict.title"
 msgstr "Конфлікт файлів"
-msgid "conflict.sourceFile"
-msgstr "Вихідний файл"
 msgid "conflict.localFile"
 msgstr "Локальний файл"
 msgid "conflict.remoteFile"
@@ -216,6 +214,21 @@ msgstr "Віддалений"
 msgid "pane.path"
 msgstr "Шлях"
 msgid "pane.up"
+msgid "pane.editPath"
+msgstr "Змінити шлях"
+
+msgid "pane.sepMenuEmpty"
+msgstr "Немає підпапок"
+
+msgid "pane.sepMenuLoading"
+msgstr "Завантаження…"
+
+msgid "pane.sepMenuTruncated"
+msgstr "Ще {n} не показано"
+
+msgid "pane.sepMenuTitle"
+msgstr "Показати вкладені папки цієї папки"
+
 msgstr "Вгору"
 msgid "pane.home"
 msgstr "Дім"
@@ -240,6 +253,21 @@ msgstr "Показати межу"
 msgid "view.zebra"
 msgstr "Показати зеброві смуги"
 msgid "pane.hideHidden"
+msgid "view.fullRowSelection"
+msgstr "Виділення цілого рядка"
+
+msgid "view.fullRowSelectionHint"
+msgstr "Увімк.: підсвічування займає весь рядок. Вимк.: доходить лише до останнього стовпця, а порожня область праворуч лишається для контекстного меню панелі."
+
+msgid "view.headerBottomBorder"
+msgstr "Нижня лінія заголовка"
+
+msgid "view.headerBottomBorderHint"
+msgstr "Типово слідує за «Виділення цілого рядка»; після ручної зміни вибір зберігається."
+
+msgid "view.headerBorderFollow"
+msgstr "Знову слідувати «Виділення цілого рядка»"
+
 msgstr "Сховати приховані файли"
 msgid "pane.sortByName"
 msgstr "Сортувати за назвою"
@@ -605,6 +633,15 @@ msgstr "Одна панель"
 msgid "settings.layoutSingleSub"
 msgstr "Лише віддалена панель"
 msgid "settings.toolbarLayout"
+msgid "settings.layoutDefaultHint"
+msgstr "Це макет за замовчуванням. Макети, які перемикаються на панелі інструментів, діють лише для поточної вкладки."
+
+msgid "settings.clearTabLayouts"
+msgstr "Очистити макет у {count} вкладок"
+
+msgid "settings.layoutCleared"
+msgstr "Власний макет {count} вкладок очищено; тепер вони використовують типовий."
+
 msgstr "Налаштувати панель"
 msgid "settings.customToolbar"
 msgstr "Налаштувати панель"
@@ -756,6 +793,9 @@ msgstr "Вертикальний макет"
 msgid "layout.mode.single"
 msgstr "Один панель (лише віддалений)"
 
+msgid "layout.scopeThisTab"
+msgstr "{mode} · лише ця вкладка"
+
 msgid "notify.closeWithTransfers"
 msgstr "{count} передача(і) триває. Закриття панелі перерве всі передачі. Продовжити?"
 
@@ -844,6 +884,21 @@ msgstr "Перепідключити"
 
 msgid "app.restoreDefaultSize"
 msgstr "Відновити типовий розмір панелі"
+
+msgid "app.setSizeAsDefault"
+msgstr "Зробити поточний розмір типовим"
+
+msgid "app.resetSizeToFactory"
+msgstr "Відновити початковий розмір панелі"
+
+msgid "app.defaultSizeIsFactory"
+msgstr "Уже початковий розмір"
+
+msgid "notify.defaultSizeSaved"
+msgstr "Поточний розмір збережено як типовий"
+
+msgid "notify.defaultSizeReset"
+msgstr "Розмір панелі відновлено до початкового"
 
 msgid "notify.pasteFailed"
 msgstr "Помилка вставлення"
@@ -1941,4 +1996,58 @@ msgstr "З міткою часу"
 
 msgid "settings.renameStyleRandom"
 msgstr "Випадковий суфікс"
+
+msgid "settings.dragOutToSystem"
+msgstr "Перетягування в систему (реальний файл)"
+
+msgid "settings.dragOutToSystemDesc"
+msgstr "Просто перетягніть файл на робочий стіл або до Провідника, щоб у місці відпускання зявилася справжня копія; віддалені файли завантажуються саме тоді. Перетягування всередині панелі не змінилося."
+
+msgid "notify.dragOutManyItems"
+msgstr "Елементів: {count}"
+
+msgid "notify.dragOutPreparing"
+msgstr "Підготовка до перетягування: {name}"
+
+msgid "notify.dragOutUnavailable"
+msgstr "Це середовище не підтримує перетягування в систему."
+
+msgid "notify.dragOutDirUnsupported"
+msgstr "Перетягування тек поки не підтримується. Скористайтеся Завантажити."
+
+msgid "notify.dragOutMissing"
+msgstr "Вихідний файл більше не існує."
+
+msgid "notify.dragOutTooLarge"
+msgstr "Файл перевищує {size} МБ. Скористайтеся Завантажити."
+
+msgid "notify.dragOutFailed"
+msgstr "Не вдалося підготувати перетягування."
+
+msgid "notify.dragOutReady"
+msgstr "Файл готовий — утримуйте Alt і перетягніть ще раз"
+
+msgid "notify.dragOutRenamed"
+msgstr "Зарезервована назва Windows — буде додано підкреслення (вміст не змінено):"
+
+msgid "notify.dragOutPacked"
+msgstr "{count} файлів упаковано в один ZIP (папки не включено). Розпакуйте, щоб отримати всі файли."
+
+msgid "notify.dragOutMultiAltHint"
+msgstr "Утримуйте Alt під час перетягування, щоб розмістити {count} окремих файлів замість одного ZIP."
+
+msgid "log.dragOutNote"
+msgstr "<Папка призначення>"
+
+msgid "file.downloadTo"
+msgstr "Завантажити в папку..."
+
+msgid "notify.downloadToUnavailable"
+msgstr "Не вдалося відкрити вибір папки (модуль remote недоступний)."
+
+msgid "view.colBorderGroupedHint"
+msgstr "У групованому вигляді межі стовпців приховано; скасуйте групування, щоб увімкнути їх"
+
+msgid "notify.dragCanceled"
+msgstr "Перетягування скасовано; просто відпустіть кнопку миші"
 

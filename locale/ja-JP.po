@@ -43,9 +43,6 @@ msgstr "複数アイテムを削除"
 msgid "conflict.title"
 msgstr "ファイル競合"
 
-msgid "conflict.sourceFile"
-msgstr "ソースファイル"
-
 msgid "conflict.localFile"
 msgstr "ローカルファイル"
 
@@ -268,6 +265,21 @@ msgstr "リモート"
 msgid "pane.path"
 msgstr "パス"
 
+msgid "pane.editPath"
+msgstr "パスを編集"
+
+msgid "pane.sepMenuEmpty"
+msgstr "サブフォルダーなし"
+
+msgid "pane.sepMenuLoading"
+msgstr "読み込み中…"
+
+msgid "pane.sepMenuTruncated"
+msgstr "残り {n} 件は非表示"
+
+msgid "pane.sepMenuTitle"
+msgstr "このフォルダー内のサブフォルダーを表示"
+
 msgid "pane.up"
 msgstr "上へ"
 
@@ -300,6 +312,21 @@ msgstr "枠線を表示"
 
 msgid "view.zebra"
 msgstr "ゼブラストライプを表示"
+
+msgid "view.fullRowSelection"
+msgstr "行全体を選択"
+
+msgid "view.fullRowSelectionHint"
+msgstr "オン：選択のハイライトが行全体に広がります。オフ：最後の列までとなり、右側の空白はパネルのコンテキストメニューに使えます。"
+
+msgid "view.headerBottomBorder"
+msgstr "表頭の下線"
+
+msgid "view.headerBottomBorderHint"
+msgstr "手動で変更するまで「行全体を選択」に追従します。変更後はその設定が保持されます。"
+
+msgid "view.headerBorderFollow"
+msgstr "「行全体を選択」に再び追従"
 
 msgid "pane.hideHidden"
 msgstr "隠しファイルを非表示"
@@ -776,6 +803,15 @@ msgstr "シングルパネル"
 msgid "settings.layoutSingleSub"
 msgstr "リモートパネルのみ"
 
+msgid "settings.layoutDefaultHint"
+msgstr "ここで選ぶのは既定のレイアウトです。パネルのツールバーで切り替えたレイアウトは現在のタブにのみ適用されます。"
+
+msgid "settings.clearTabLayouts"
+msgstr "{count} 個のタブの個別レイアウトを消去"
+
+msgid "settings.layoutCleared"
+msgstr "{count} 個のタブの個別レイアウトを消去しました。既定のレイアウトに従います。"
+
 msgid "settings.toolbarLayout"
 msgstr "ツールバーをカスタマイズ"
 
@@ -971,6 +1007,9 @@ msgstr "縦向レイアウト"
 msgid "layout.mode.single"
 msgstr "単一ペイン（リモートのみ）"
 
+msgid "layout.scopeThisTab"
+msgstr "{mode} · このタブのみ"
+
 msgid "notify.closeWithTransfers"
 msgstr "{count} 件の転送が進行中です。パネルを閉じるとすべての転送が中断されます。続行しますか？"
 
@@ -1059,6 +1098,21 @@ msgstr "再接続"
 
 msgid "app.restoreDefaultSize"
 msgstr "パネルの既定サイズに戻す"
+
+msgid "app.setSizeAsDefault"
+msgstr "現在のサイズを既定値に設定"
+
+msgid "app.resetSizeToFactory"
+msgstr "パネルの初期サイズに戻す"
+
+msgid "app.defaultSizeIsFactory"
+msgstr "すでに初期サイズです"
+
+msgid "notify.defaultSizeSaved"
+msgstr "現在のサイズを既定値に設定しました"
+
+msgid "notify.defaultSizeReset"
+msgstr "パネルサイズを初期値に戻しました"
 
 msgid "notify.pasteFailed"
 msgstr "貼り付け失敗"
@@ -2156,4 +2210,58 @@ msgstr "タイムスタンプ"
 
 msgid "settings.renameStyleRandom"
 msgstr "ランダム接尾辞"
+
+msgid "settings.dragOutToSystem"
+msgstr "システムへドラッグ（実ファイル）"
+
+msgid "settings.dragOutToSystemDesc"
+msgstr "ファイルをデスクトップやエクスプローラーへドラッグするだけで、離した場所に実体のコピーが保存されます。リモートファイルはその時点でダウンロードされます。パネル内のドラッグは従来どおりです。"
+
+msgid "notify.dragOutManyItems"
+msgstr "{count} 項目"
+
+msgid "notify.dragOutPreparing"
+msgstr "ドラッグの準備中: {name}"
+
+msgid "notify.dragOutUnavailable"
+msgstr "この環境ではシステムへのドラッグに対応していません。"
+
+msgid "notify.dragOutDirUnsupported"
+msgstr "フォルダのドラッグは未対応です。「ダウンロード」をご利用ください。"
+
+msgid "notify.dragOutMissing"
+msgstr "元のファイルが存在しません。"
+
+msgid "notify.dragOutTooLarge"
+msgstr "ファイルが {size} MB を超えています。「ダウンロード」をご利用ください。"
+
+msgid "notify.dragOutFailed"
+msgstr "ドラッグの準備に失敗しました。"
+
+msgid "notify.dragOutReady"
+msgstr "ファイルの準備ができました。Alt キーを押しながらもう一度ドラッグしてください"
+
+msgid "notify.dragOutRenamed"
+msgstr "Windows の予約名のため、先頭にアンダースコアが付きます（内容は完全です）:"
+
+msgid "notify.dragOutPacked"
+msgstr "{count} 個のファイルを 1 つの ZIP にまとめました（フォルダーは対象外）。展開すると全ファイルが取得できます。"
+
+msgid "notify.dragOutMultiAltHint"
+msgstr "Alt を押しながらドラッグすると、ZIP ではなく {count} 個の個別ファイルをそのまま配置できます。"
+
+msgid "log.dragOutNote"
+msgstr "<ドロップ先フォルダー>"
+
+msgid "file.downloadTo"
+msgstr "フォルダーにダウンロード..."
+
+msgid "notify.downloadToUnavailable"
+msgstr "フォルダー選択を開けません（remote モジュールが利用できません）。"
+
+msgid "view.colBorderGroupedHint"
+msgstr "グループ表示では列の罫線は表示されません。グループ解除すると有効になります"
+
+msgid "notify.dragCanceled"
+msgstr "ドラッグをキャンセルしました。マウスボタンを離してください"
 

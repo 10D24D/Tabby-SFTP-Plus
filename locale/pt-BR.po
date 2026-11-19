@@ -41,9 +41,6 @@ msgstr "Excluir Múltiplos Itens"
 msgid "conflict.title"
 msgstr "Conflito de Arquivo"
 
-msgid "conflict.sourceFile"
-msgstr "Arquivo Origem"
-
 msgid "conflict.localFile"
 msgstr "Arquivo Local"
 
@@ -265,6 +262,21 @@ msgstr "Remoto"
 msgid "pane.path"
 msgstr "Caminho"
 
+msgid "pane.editPath"
+msgstr "Editar caminho"
+
+msgid "pane.sepMenuEmpty"
+msgstr "Nenhuma subpasta"
+
+msgid "pane.sepMenuLoading"
+msgstr "Carregando…"
+
+msgid "pane.sepMenuTruncated"
+msgstr "Mais {n} não exibidos"
+
+msgid "pane.sepMenuTitle"
+msgstr "Mostrar as subpastas desta pasta"
+
 msgid "pane.up"
 msgstr "Subir"
 
@@ -297,6 +309,21 @@ msgstr "Mostrar Borda"
 
 msgid "view.zebra"
 msgstr "Mostrar Listras de Zebra"
+
+msgid "view.fullRowSelection"
+msgstr "Seleção de linha inteira"
+
+msgid "view.fullRowSelectionHint"
+msgstr "Ativado: o destaque cobre a linha inteira. Desativado: termina na última coluna e a área vazia à direita fica livre para o menu de contexto do painel."
+
+msgid "view.headerBottomBorder"
+msgstr "Borda inferior do cabeçalho"
+
+msgid "view.headerBottomBorderHint"
+msgstr "Segue «Seleção de linha inteira» até você alterar manualmente; depois a escolha é mantida."
+
+msgid "view.headerBorderFollow"
+msgstr "Voltar a seguir «Seleção de linha inteira»"
 
 msgid "pane.hideHidden"
 msgstr "Ocultar Arquivos Ocultos"
@@ -759,6 +786,15 @@ msgstr "Painel nico"
 msgid "settings.layoutSingleSub"
 msgstr "Apenas painel remoto"
 
+msgid "settings.layoutDefaultHint"
+msgstr "Este é o layout padrão. Os layouts alternados na barra do painel valem apenas para a aba atual."
+
+msgid "settings.clearTabLayouts"
+msgstr "Limpar o layout de {count} aba(s)"
+
+msgid "settings.layoutCleared"
+msgstr "O layout próprio de {count} aba(s) foi limpo; agora seguem o padrão."
+
 msgid "settings.toolbarLayout"
 msgstr "Personalizar Barra de Ferramentas"
 
@@ -962,6 +998,9 @@ msgstr "Layout vertical"
 msgid "layout.mode.single"
 msgstr "Painel único (somente remoto)"
 
+msgid "layout.scopeThisTab"
+msgstr "{mode} · somente esta aba"
+
 msgid "notify.closeWithTransfers"
 msgstr "{count} transferência(s) em andamento. Fechar o painel interromperá todas as transferências. Continuar?"
 
@@ -1050,6 +1089,21 @@ msgstr "Reconectar"
 
 msgid "app.restoreDefaultSize"
 msgstr "Restaurar o tamanho padrão do painel"
+
+msgid "app.setSizeAsDefault"
+msgstr "Definir o tamanho atual como padrão"
+
+msgid "app.resetSizeToFactory"
+msgstr "Restaurar o tamanho inicial do painel"
+
+msgid "app.defaultSizeIsFactory"
+msgstr "Já está no tamanho inicial"
+
+msgid "notify.defaultSizeSaved"
+msgstr "Tamanho atual definido como padrão"
+
+msgid "notify.defaultSizeReset"
+msgstr "Tamanho do painel restaurado ao inicial"
 
 msgid "notify.pasteFailed"
 msgstr "Falha ao colar"
@@ -2147,4 +2201,58 @@ msgstr "Data e hora"
 
 msgid "settings.renameStyleRandom"
 msgstr "Sufixo aleatório"
+
+msgid "settings.dragOutToSystem"
+msgstr "Arrastar para o sistema (arquivo real)"
+
+msgid "settings.dragOutToSystemDesc"
+msgstr "Basta arrastar um arquivo para a área de trabalho ou o Explorador para obter uma cópia real no local onde soltar; arquivos remotos são baixados nesse momento. Arrastar dentro do painel não muda."
+
+msgid "notify.dragOutManyItems"
+msgstr "{count} itens"
+
+msgid "notify.dragOutPreparing"
+msgstr "Preparando para arrastar: {name}"
+
+msgid "notify.dragOutUnavailable"
+msgstr "Este ambiente não suporta arrastar para o sistema."
+
+msgid "notify.dragOutDirUnsupported"
+msgstr "Ainda não é possível arrastar pastas. Use Baixar."
+
+msgid "notify.dragOutMissing"
+msgstr "O arquivo de origem não existe mais."
+
+msgid "notify.dragOutTooLarge"
+msgstr "O arquivo é maior que {size} MB. Use Baixar."
+
+msgid "notify.dragOutFailed"
+msgstr "Falha ao preparar o arraste."
+
+msgid "notify.dragOutReady"
+msgstr "Arquivo pronto — segure Alt e arraste novamente"
+
+msgid "notify.dragOutRenamed"
+msgstr "Nome reservado do Windows — um sublinhado será adicionado (conteúdo intacto):"
+
+msgid "notify.dragOutPacked"
+msgstr "{count} arquivos foram empacotados em um único ZIP (pastas excluídas). Extraia para obter todos os arquivos."
+
+msgid "notify.dragOutMultiAltHint"
+msgstr "Mantenha Alt ao arrastar para soltar {count} arquivos separados em vez de um ZIP."
+
+msgid "log.dragOutNote"
+msgstr "<Pasta de destino>"
+
+msgid "file.downloadTo"
+msgstr "Baixar para pasta..."
+
+msgid "notify.downloadToUnavailable"
+msgstr "Não foi possível abrir o seletor de pasta (módulo remote indisponível)."
+
+msgid "view.colBorderGroupedHint"
+msgstr "As bordas das colunas ficam ocultas na visualização agrupada; desagrupe para ativá-las"
+
+msgid "notify.dragCanceled"
+msgstr "Arrasto cancelado; basta soltar o botão do mouse"
 

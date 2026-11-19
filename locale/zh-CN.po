@@ -43,9 +43,6 @@ msgstr "删除多个项目"
 msgid "conflict.title"
 msgstr "文件冲突"
 
-msgid "conflict.sourceFile"
-msgstr "源文件"
-
 msgid "conflict.localFile"
 msgstr "本地文件"
 
@@ -286,6 +283,21 @@ msgstr "远程"
 msgid "pane.path"
 msgstr "路径"
 
+msgid "pane.editPath"
+msgstr "编辑路径"
+
+msgid "pane.sepMenuEmpty"
+msgstr "无子文件夹"
+
+msgid "pane.sepMenuLoading"
+msgstr "加载中…"
+
+msgid "pane.sepMenuTruncated"
+msgstr "还有 {n} 项未显示"
+
+msgid "pane.sepMenuTitle"
+msgstr "查看该目录下的子文件夹"
+
 msgid "pane.up"
 msgstr "返回上级"
 
@@ -318,6 +330,21 @@ msgstr "显示边框"
 
 msgid "view.zebra"
 msgstr "显示斑马纹"
+
+msgid "view.fullRowSelection"
+msgstr "整行选中"
+
+msgid "view.fullRowSelectionHint"
+msgstr "开启后选中底色铺满整行；关闭后只到最后一列，右侧空白可直接右键呼出面板菜单"
+
+msgid "view.headerBottomBorder"
+msgstr "显示表头底边线"
+
+msgid "view.headerBottomBorderHint"
+msgstr "未手动设置时跟随「整行选中」：整行选中开启则显示、关闭则隐藏；手动切换后固定为你的选择"
+
+msgid "view.headerBorderFollow"
+msgstr "恢复跟随整行选中"
 
 msgid "pane.hideHidden"
 msgstr "不显示隐藏文件"
@@ -863,6 +890,15 @@ msgstr "单栏布局"
 msgid "settings.layoutSingleSub"
 msgstr "仅显示远程面板"
 
+msgid "settings.layoutDefaultHint"
+msgstr "以上为默认布局。在面板顶栏切换的布局只对当前标签页生效，不会改动这里。"
+
+msgid "settings.clearTabLayouts"
+msgstr "清除 {count} 个标签页的独立布局"
+
+msgid "settings.layoutCleared"
+msgstr "已清除 {count} 个标签页的独立布局，将改为跟随默认布局。"
+
 msgid "settings.toolbarLayout"
 msgstr "定制工具栏"
 
@@ -1227,6 +1263,9 @@ msgstr "上下布局"
 msgid "layout.mode.single"
 msgstr "单栏布局（仅远程）"
 
+msgid "layout.scopeThisTab"
+msgstr "{mode} · 仅当前标签页"
+
 msgid "layout.override.tooNarrow"
 msgstr "面板过窄，左右布局空间不足，已临时改为上下布局"
 
@@ -1345,6 +1384,21 @@ msgstr "重连"
 
 msgid "app.restoreDefaultSize"
 msgstr "还原默认面板大小"
+
+msgid "app.setSizeAsDefault"
+msgstr "设为默认面板大小"
+
+msgid "app.resetSizeToFactory"
+msgstr "恢复初始面板大小"
+
+msgid "app.defaultSizeIsFactory"
+msgstr "当前已是初始大小"
+
+msgid "notify.defaultSizeSaved"
+msgstr "已将当前大小设为默认"
+
+msgid "notify.defaultSizeReset"
+msgstr "已恢复初始面板大小"
 
 msgid "notify.pasteFailed"
 msgstr "粘贴失败"
@@ -2128,4 +2182,58 @@ msgstr "时间戳"
 
 msgid "settings.renameStyleRandom"
 msgstr "随机后缀"
+
+msgid "settings.dragOutToSystem"
+msgstr "拖出到系统（真实文件）"
+
+msgid "settings.dragOutToSystemDesc"
+msgstr "直接把文件拖到桌面或资源管理器，即可在松手的位置得到真实副本；远程文件会在落手时自动下载。面板内互拖不受影响。"
+
+msgid "notify.dragOutManyItems"
+msgstr "{count} 个项目"
+
+msgid "notify.dragOutPreparing"
+msgstr "正在准备拖出：{name}"
+
+msgid "notify.dragOutUnavailable"
+msgstr "当前环境不支持拖出到系统"
+
+msgid "notify.dragOutDirUnsupported"
+msgstr "暂不支持拖出文件夹，请改用「下载」"
+
+msgid "notify.dragOutMissing"
+msgstr "源文件已不存在"
+
+msgid "notify.dragOutTooLarge"
+msgstr "文件超过 {size} MB，请改用「下载」"
+
+msgid "notify.dragOutFailed"
+msgstr "准备拖出失败"
+
+msgid "notify.dragOutReady"
+msgstr "文件已准备好，按住 Alt 再拖一次即可"
+
+msgid "notify.dragOutRenamed"
+msgstr "Windows 保留名，落盘时会自动加下划线前缀（内容完整）:"
+
+msgid "notify.dragOutPacked"
+msgstr "已把 {count} 个文件打包成一个 ZIP（目录不参与），解压即可得到全部文件"
+
+msgid "notify.dragOutMultiAltHint"
+msgstr "按住 Alt 拖拽可直接落下 {count} 个独立文件（不打包 ZIP）"
+
+msgid "log.dragOutNote"
+msgstr "<拖放目录>"
+
+msgid "file.downloadTo"
+msgstr "下载到指定目录..."
+
+msgid "notify.downloadToUnavailable"
+msgstr "无法打开系统目录选择框（remote 模块不可用）"
+
+msgid "view.colBorderGroupedHint"
+msgstr "分组视图下不显示列边框，取消分组后可开启"
+
+msgid "notify.dragCanceled"
+msgstr "已取消拖拽，松开鼠标即可"
 
