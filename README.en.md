@@ -4,6 +4,8 @@
 
 [![Version](https://img.shields.io/github/package-json/v/10D24D/Tabby-SFTP-Plus?style=for-the-badge&label=Version&color=7B68EE)](https://github.com/10D24D/Tabby-SFTP-Plus)
 [![Stars](https://img.shields.io/github/stars/10D24D/Tabby-SFTP-Plus?style=for-the-badge&label=Stars&color=orange)](https://github.com/10D24D/Tabby-SFTP-Plus/stargazers)
+[![Downloads](https://img.shields.io/npm/d18m/tabby-sftp-plus?style=for-the-badge&label=Downloads&color=blue)](https://www.npmjs.com/package/tabby-sftp-plus)
+[![Downloads per month](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.npmjs.org%2Fdownloads%2Fpoint%2Flast-month%2Ftabby-sftp-plus&query=%24.downloads&label=Monthly&style=for-the-badge&color=teal)](https://www.npmjs.com/package/tabby-sftp-plus)
 [![License](https://img.shields.io/github/license/10D24D/Tabby-SFTP-Plus?style=for-the-badge&label=License&color=green)](https://github.com/10D24D/Tabby-SFTP-Plus)
 
 SFTP+ is a plugin for [Tabby Terminal](https://tabby.sh/) that adds a **dual-pane SFTP file manager** right inside your SSH terminal tabs. Each pane can host the **local disk** or **any remote connection**, giving local↔remote, local↔local, remote↔remote and remote↔local setups. Features include **drag-and-drop transfers**, **bookmark system**, **path memory**, transfer logs, file conflict handling, permission editing, and more — all without leaving the terminal.
@@ -18,7 +20,7 @@ SFTP+ is a plugin for [Tabby Terminal](https://tabby.sh/) that adds a **dual-pan
 | **🔗 Connection Management** | The **connection picker** in the title bar switches either pane's endpoint in place: it lists open SSH tabs and unopened configured connections, each with a disconnect action (without affecting the panel's own tab) and a "current / other pane / not opened" marker; open it from the connection title or the pane's endpoint badge; the title-bar connection name toggles between "user@host" and the **alias** (falls back to user@host when no alias); reconnect happens in-place and in the background within the existing tab — no focus steal, the list shows "Waiting for <connection>" while disconnected, and returns to the last directory on recovery |
 | **👁️ View / Edit** | Built-in text/image viewer and text editor (local + remote); extra editable extensions or allow-all-types (binaries still protected); image navigation (prev/next in same directory); copy / copy selection; text context menus for copy, cut, paste, and select-all; view-as-text; open or edit in the system default app; **virtualized line rendering** for large text (big logs scroll smoothly), **toggleable line numbers**, three viewer caret shapes (block / beam / underline, matching Tabby's terminal values); saving over a remote file changed by another program asks for confirmation first |
 | **🎨 File Icons** | Built-in colored SVG file/folder icons; overlay badge for symlinks / shortcuts; customize extension mappings, icon directory, disabled built-in icons, and folder icon |
-| **🔄 Drag & Drop** | Drag across panes to upload/download; recursive folder transfer; drag from OS Explorer/Desktop into either pane |
+| **🔄 Drag & Drop** | Drag across panes to upload/download; recursive folder transfer; drag from OS Explorer/Desktop into either pane; drag files out to the desktop/Explorer to save real copies at the drop location; multi-select is packed into one ZIP, or hold Alt to drag out separate files |
 | **⬆️ Context Transfer** | Upload or download decided by the actual endpoints; a direct "transfer" when both panes are the same kind (multi-select batch) |
 | **⚡ High-Speed Transfer** | Intra-directory file-level parallelism (1-10 concurrent, adjustable); tar channel for massive small-file directories (pack → single-file transfer → unpack), greatly reducing round trips; **five selectable channel modes** (Smart / SFTP only / TAR only / Prefer SFTP / Prefer TAR); **multi-selecting entries under one parent directory can pack them into a single archive**; batch delete via SSH `rm -rf` / `fs.rm(recursive)` |
 | **🔖 Bookmark System** | **Global** bookmarks (visible in any tab) + **scoped** bookmarks (visible only in tabs of the same connection — local tabs included); group by scope or flatten and mix, with draggable group order; sort by **drag order / usage / name**; one click to **locate the bookmark for the current path**; the popup is resizable (double-click a handle to reset) and can be **pinned open** (stays put — clicks elsewhere won't close it / close on select, both panes can keep their popup open at once, and it re-anchors to its own pane on resize at the size you dragged), and a bookmark can carry a **linked path** that moves the other pane along |
@@ -26,7 +28,7 @@ SFTP+ is a plugin for [Tabby Terminal](https://tabby.sh/) that adds a **dual-pan
 | **⚡ Transfer Control** | Progress bars (with percentage), pause/resume/cancel, resume support, real-time speed, **estimated time remaining**; outside TAR-only mode the tar channel falls back to the regular file-by-file transfer on failure; the transfer log tags transfers (⇄ SFTP / 📦 tar packing / file count); **a missing target directory is pre-flighted** (create / use current directory / cancel); submitting the same transfer twice is intercepted with a notice |
 | **⚠️ File Conflict** | Visual diff on conflict (shows upload⬆/download⬇ direction), with overwrite/skip/rename options (**rename numbers duplicates by default**, or use timestamps / random suffixes) and batch processing; merge-overwrite has its own progress panel; content digests can be shown in the dialog, identical files can auto-skip, and differing digests are marked ≠ |
 | **🔐 Permission Editor** | Remote chmod via 3×3 checkbox matrix with octal preview; unreadable permissions and failed changes are now reported instead of failing silently |
-| **📌 Context Menus** | Upload/download, view/edit, new/rename/delete, copy/cut/paste, refresh, select all/invert; text viewer/editor context menus; <br />Header: column visibility, fit widths, borders & zebra stripes; menu items can also be disabled, not just reordered |
+| **📌 Context Menus** | Upload/download, view/edit, new/rename/delete, copy/cut/paste, refresh, select all/invert; text viewer/editor context menus; <br />Header: column visibility, fit widths, borders, zebra stripes, full-row selection & header bottom border; menu items can also be disabled, not just reordered |
 | **🔍 Filter & Sort** | Keyword filter, multi-column sorting (click headers), configurable visible columns; **Group** (None / Name / Date modified / Type / Size) splits the list into collapsible groups with expand-all / collapse-all, ↑/↓ stops on group headers and clicking a header selects the whole group; with focus on a file list, type a name prefix to jump to the match (Explorer-style; IME such as Chinese is supported); an absolute path typed into the address bar navigates there and highlights a trailing file |
 | **🧭 Path Mode** | Four modes: `off` / `remember` / `sync` (sync with terminal) / `mirror` (both panes locked to one directory, available when both are local or both remote); configurable default |
 | **🎨 Theme System** | 7 presets + custom colors, supports following the Tabby system theme |
@@ -62,6 +64,21 @@ SFTP+ is a plugin for [Tabby Terminal](https://tabby.sh/) that adds a **dual-pan
 
 ---
 
+## 🖱️ Dragging Out to the OS: Notes & Limitations
+
+Dragging a file from a pane onto the desktop or File Explorer gives you a real copy **at the drop location** (remote files are downloaded when you let go). This channel is implemented by the browser drag-download mechanism, so a few things are worth noting:
+
+| Item | Details |
+|------|---------|
+| **Actual drop directory is unavailable** | The browser first writes the file to its own temporary folder, and File Explorer then copies it to the drop location. As the drag source, SFTP+ supplies the file content but **never receives the target path**. Transfer log entries (and exported JSON) therefore show the target as `<Drop folder>/filename`, where `<Drop folder>` is a **placeholder**, not a real directory |
+| **Need a real full path** | Use right-click **"Download to folder..."**: the folder comes from a system picker, so the log stores the real full path; multiple files land as separate files, one log entry each |
+| **Multi-select drag out** | Packed into one ZIP by default (all content preserved, just extract it); hold **Alt** while dragging to attempt dropping several separate files. Whether that works depends on the OS accepting the drag |
+| **Windows reserved names** | Names such as `desktop.ini`, `thumbs.db` and `con` are given a leading underscore by the browser (for example `_desktop.ini`). A notice is shown before the drag; the original name cannot be kept |
+
+> These limitations apply only to dragging out to the OS. Dragging between panes and right-click upload/download always log real paths.
+
+---
+
 ## 📏 File Size Limits
 
 | Operation | Limit |
@@ -83,8 +100,8 @@ Navigate to Tabby Settings → "SFTP+" in the left sidebar:
 | **Language** | Follow System / Chinese / English |
 | **Theme** | Auto / Dark / Light / Blue / Green / Purple / Red / Custom |
 | **Custom Colors** | Independently set primary, background, text, and border colors |
-| **Layout** | Adaptive (auto-switches based on panel width) / Horizontal / Vertical |
-| **Table Style** | Show borders, show zebra stripes |
+| **Layout** | Adaptive (auto-switches based on panel width) / Horizontal / Vertical. This is the **default layout**; layouts switched from the panel toolbar apply to the **current tab only** and won't change this setting |
+| **Table Style** | Show borders, show zebra stripes, full-row selection (when off, the highlight stops at the last column and the empty area on the right opens the panel context menu, while the header stays full-width so its right side opens the header menu), and header bottom border (follows full-row selection by default; can be overridden and reset to follow in Settings) |
 | **Upload/Download Concurrency** | Intra-directory file-level concurrency (1-10), takes effect immediately |
 | **Transfer Channel Mode** | How folder transfers pick a route — five options: **Smart** (route by file count and size, default) / **SFTP only** (always file by file, no packing probe) / **TAR only** (always pack; fails hard with a reason when unavailable) / **Prefer SFTP** / **Prefer TAR**. The old "Tar Packing Acceleration" and "Fast Mode" toggles migrate into this setting automatically |
 | **Default Upload/Download Paths** | Configure separate upload and download target directories; empty values use the current pane directory |
@@ -114,7 +131,7 @@ Path: Settings → Data Backup → Export / Import
 
 ## 📜 Changelog
 
-Latest version: **v3.1.0** (2026-10-28) — [Full changelog](CHANGELOG.en.md)
+Latest version: **v3.2.0** (2026-11-19) — [Full changelog](CHANGELOG.en.md)
 
 ---
 

@@ -4,6 +4,47 @@ All notable changes to **tabby-sftp-plus** will be documented in this file.
 
 **[中文](https://github.com/10D24D/Tabby-SFTP-Plus/blob/main/CHANGELOG.md) | English**
 
+## [3.2.0] — 2026-11-19
+
+### ✨ Added
+
+- **Path breadcrumbs** — The address bar now shows a clickable trail of path levels: click a level to jump there, or click the “›” between levels to pop up that folder’s subfolders and jump straight in. When the path is too long the leading levels collapse into “…”, which lists the hidden ancestors when clicked. Click empty space or the pencil at the end to type a path instead; leaving the field returns to breadcrumbs.
+- **Drag files out to the system** — Drop a file on the desktop or File Explorer and get a real copy right where you let go; remote files are downloaded on drop. A single selection lands one file, multiple selections are packed into one archive, and holding Alt lands them as separate files. Inter-pane dragging is unaffected, and it can be turned off in Settings.
+- **Download to folder** — Right-click selected files and pick a local folder to save them as separate files, with the full path visible in the transfer log.
+- **Cancel a drag with the right mouse button** — Changed your mind mid-drag? Press the right button to cancel: releasing copies nothing, moves nothing and lands nothing on the system, and the UI tells you it is cancelled. (The Alt+drag system-level multi-file channel still uses Esc.)
+- **Full-row selection and header underline** — Settings ▸ Table gains two switches: turning “Full-row selection” (on by default) off keeps the highlight to the last column and lets you right-click the empty area for the pane menu; the header bottom border follows full-row selection by default, freezes once you toggle it manually, and can be reset to follow again.
+- **Remember the panel size** — The header menu can save the current pane size as the default or restore the factory size, so you no longer drag it every time.
+
+### 🎨 Improved
+
+- **Layout is per tab** — Switching layout from the pane header now affects only the current tab instead of everything; Settings states that the values there are the default and offers one-click clearing of per-tab layouts.
+- **Clearer transfer log** — Drag-outs are logged per file, with the destination shown as “Drop folder / filename”.
+- **Cleaner grouped view** — Grouped lists no longer draw duplicated column dividers, so a group reads as one block; ungrouping brings the borders back.
+- **The “Column borders” toggle is greyed out while grouped, with the reason on hover** — The toggle is unavailable in grouped view and a tooltip explains why (24 languages), so it no longer looks broken.
+
+### 🐛 Fixed
+
+- **Ctrl / Shift multi-select now behaves like Explorer** — Seven issues fixed at once: Shift no longer drags unrelated files into the selection, Ctrl+Shift can select a range, losing the selection anchor no longer clears everything, the right pane picks ranges in on-screen order after grouping, modifier clicks no longer open files, Ctrl+click on a group header no longer drops other groups, and selections inside collapsed groups survive rubber-band appends.
+- **Closing a panel no longer deletes other panels’ drag-out temp files** — Files with the same name but different sources no longer stand in for each other, so what you hand over matches what you picked.
+- **Batch downloads no longer land fewer files when names collide** — Numbers are added automatically, so the count matches your selection.
+- **More reliable resume** — A partial file that does not match the pause point is discarded and re-downloaded instead of producing a broken file.
+- **Timestamp renames no longer overwrite files just transferred in the same batch** — Collisions step aside automatically.
+- **“Write current path permanently” no longer reports false success** — Unsupported shells such as fish / csh now fail honestly and sync is turned off.
+- **More robust with unusual names and paths** — Odd characters in reported remote paths are cleaned up, and custom icon names are confined to the icon directory.
+
+### 🔒 Security
+
+- **The download service is local-only** — Other websites can no longer read files you drag out or download.
+- **Archives are inspected before extraction** — Out-of-bounds paths, symlinks and hardlinks are rejected, so a malicious archive cannot write outside the target folder.
+- **Imported settings backups are validated** — Paths, colors and icon names are checked against an allowlist, so a malicious backup cannot change your UI or paths.
+- **Recursive delete and the file list gained dangerous-name protection** — System folders are not deleted by accident, and oddly named entries are no longer treated as ordinary files.
+
+### 🔧 Technical / Build
+
+- New build-time check on setting wiring, so a switch can no longer exist without taking effect.
+- 24 language packs synced (541 keys verified).
+- Version bumped to **3.2.0**.
+
 ## [3.1.0] — 2026-10-28
 
 ### ✨ Added
