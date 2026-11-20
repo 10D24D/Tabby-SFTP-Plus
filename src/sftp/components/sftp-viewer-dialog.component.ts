@@ -152,7 +152,8 @@ function hasSelectionInside(root: HTMLElement | null | undefined): boolean {
            (keydown)="onOverlayKeydown($event)">
       <div class="dialog file-dialog-shell" [class.is-maximized]="maximized">
         <div class="dialog-title">
-          <span class="file-dialog-title">{{ i18n.t('file.view') }} — {{ fileName }}</span>
+          <!-- ★ 2026-11-20（Deepseek-V4.1-Flash）：标题同样只留文件名，去掉「查看 — 」前缀（与编辑窗一致） -->
+          <span class="file-dialog-title">{{ fileName }}</span>
           <div class="file-dialog-window-btns">
             <button type="button" class="file-dialog-win-btn"
               (click)="toggleMaximize()"
@@ -160,9 +161,11 @@ function hasSelectionInside(root: HTMLElement | null | undefined): boolean {
               <svg *ngIf="!maximized" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4">
                 <rect x="1.5" y="1.5" width="9" height="9" rx="0.5"/>
               </svg>
-              <svg *ngIf="maximized" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4">
-                <rect x="3.5" y="1.5" width="7" height="7" rx="0.5"/>
-                <path d="M1.5 3.5h6.5v6.5H1.5z"/>
+              <!-- ★ 2026-11-20（Deepseek-V4.1-Flash）：还原字形与编辑窗 / 主面板统一为「整方 + 右上角凸片」，
+                   外框 1.5→10.5 与 □ 完全同框（9 格），中心同为 (6,6)，来回切换不跳动。 -->
+              <svg *ngIf="maximized" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round">
+                <rect x="1.5" y="3.75" width="6.75" height="6.75" rx="0.6"/>
+                <path d="M3.75 1.5H10.5V8.25"/>
               </svg>
             </button>
             <button type="button" class="file-dialog-win-btn"

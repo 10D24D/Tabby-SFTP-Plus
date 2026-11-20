@@ -96,8 +96,11 @@ function textareaSelectedText(ta?: ElementRef<HTMLTextAreaElement>): string {
         [class.has-external-dirty]="externalEditPrompt">
         <div class="dialog-title">
           <div class="file-dialog-title-wrap">
+            <!-- ★ 2026-11-20（Deepseek-V4.1-Flash）：标题只留文件名。
+                 编辑窗本身就能查看与修改，再冠一个「编辑 — 」纯属噪音（用户要求去掉）。
+                 ⚠ 未保存标记（*）保留，它是唯一的「有改动」提示。 -->
             <span class="file-dialog-title">
-              {{ i18n.t('file.edit') }} — {{ fileName }}<span
+              {{ fileName }}<span
                 class="editor-dirty"
                 *ngIf="dirty"
                 [attr.title]="i18n.t('editor.unsaved')"> *</span>
@@ -111,9 +114,13 @@ function textareaSelectedText(ta?: ElementRef<HTMLTextAreaElement>): string {
               <svg *ngIf="!maximized" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4">
                 <rect x="1.5" y="1.5" width="9" height="9" rx="0.5"/>
               </svg>
-              <svg *ngIf="maximized" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4">
-                <rect x="3.5" y="1.5" width="7" height="7" rx="0.5"/>
-                <path d="M1.5 3.5h6.5v6.5H1.5z"/>
+              <!-- ★ 2026-11-20（Deepseek-V4.1-Flash）：还原改用「整方 + 右上角凸片」（只画后框上边与右边），
+                   与主面板 tbIconMaximize 同一套写法；两个完整方框叠画会在前框内部多出一段交叉线。
+                   尺寸与 □ 严格同框：外框 1.5→10.5（9 格），前框 6.75（= 9 × 75%）、错位 2.25（= 9 × 25%），
+                   □ 与还原切换时几何包围盒完全重合，不会出现视觉跳动。 -->
+              <svg *ngIf="maximized" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round">
+                <rect x="1.5" y="3.75" width="6.75" height="6.75" rx="0.6"/>
+                <path d="M3.75 1.5H10.5V8.25"/>
               </svg>
             </button>
             <button type="button" class="file-dialog-win-btn"

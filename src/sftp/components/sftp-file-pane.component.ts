@@ -128,15 +128,31 @@ export type PaneSortAction = { col: string }
                 <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11.5 2.5l2 2L5 13l-2.5.5L3 11l8.5-8.5z"/></svg>
               </button>
             </div>
-            <input #pathInputEl *ngIf="pathEditing" class="path-input" [class.path-input--focused]="pathFocused"
-              [ngModel]="pathPending ? '' : pathModel"
-              (ngModelChange)="onPathModelChange($event)"
-              (keyup.enter)="pathEnter.emit()"
-              (keyup.escape)="onPathEscape()"
-              (focus)="onPathFocus()"
-              (blur)="onPathBlur()"
-              (mousedown)="$event.stopPropagation()"
-              [disabled]="pathDisabled || pathPending" />
+            <!-- ★ 2026-11-20（Deepseek-V4.1-Flash）：编辑态 = 输入框 + **框内右侧**的「×」清空按钮
+                 （用户要求：清空图标要在路径输入框内部右侧，像浏览器地址栏那样，不是框外独立按钮）。
+                 实现：外层 .path-input-wrap 相对定位撑满剩余宽度，输入框留出 padding-right 给按钮让位，
+                 × 绝对定位贴在框内右端；mousedown 里 preventDefault 保住输入框焦点，
+                 否则按钮一点就先触发 input 的 blur → 退出编辑态、按钮被 ngIf 摘掉，点不到。
+                 ★ 二次修正（用户反馈「× 和面包屑态的 ✎ 位置对不上、图标大小不一致」）：
+                   两者都改成 18×18 按钮盒 + 11px/path-16 的 1.5 描边字形，
+                   且 × 贴住行右端 1px（✎ 是 18px 贴在行右端）⇒ 两个态图标中心只差 1px，视觉上同一条竖线。 -->
+            <div *ngIf="pathEditing" class="path-input-wrap">
+              <input #pathInputEl class="path-input" [class.path-input--focused]="pathFocused"
+                [ngModel]="pathPending ? '' : pathModel"
+                (ngModelChange)="onPathModelChange($event)"
+                (keyup.enter)="pathEnter.emit()"
+                (keyup.escape)="onPathEscape()"
+                (focus)="onPathFocus()"
+                (blur)="onPathBlur()"
+                (mousedown)="$event.stopPropagation()"
+                [disabled]="pathDisabled || pathPending" />
+              <button *ngIf="!pathPending" type="button" class="path-clear-btn"
+                [title]="labels.filterClear" [disabled]="pathDisabled"
+                (mousedown)="$event.preventDefault(); $event.stopPropagation()"
+                (click)="onPathClear($event)">
+                <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4.2 4.2l7.6 7.6M11.8 4.2l-7.6 7.6"/></svg>
+              </button>
+            </div>
           </div>
           <button *ngIf="isToolbarItem(item)"
             (click)="onToolbarAction(item, $event)"
@@ -165,11 +181,15 @@ export type PaneSortAction = { col: string }
           placeholder="{{ labels.filter }}"
           (keyup.enter)="applyFilter.emit()"
           (keyup.escape)="clearFilter.emit()" />
+        <!-- ★ 2026-11-20（Deepseek-V4.1-Flash）：✓ / × 原本就是 SVG，但两条 path 的**包围盒不同**
+             （✓ 10×8、× 8×8，同画在 16 格 / 12px 画布上），视觉上一个偏扁宽、一个偏方大；
+             这里把两者统一成同一字面（9.2×7.6 与 7.6×7.6、同 stroke 2、同 13px 画布），
+             再配合 .pane-filters 的 align-items:center，图标才和输入框同一水平线。 -->
         <button class="filter-btn filter-confirm" (click)="applyFilter.emit()" title="{{ labels.filterApply }}">
-          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8l3.5 4L13 4"/></svg>
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3.4 8.4l3.4 3.4L12.6 4.2"/></svg>
         </button>
         <button class="filter-btn filter-clear" (click)="clearFilter.emit()" title="{{ labels.filterClear }}">
-          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4.2 4.2l7.6 7.6M11.8 4.2l-7.6 7.6"/></svg>
         </button>
       </div>
       <div class="pane-list-wrap" [class.pane-drag-over]="dragOver">
@@ -844,6 +864,22 @@ export class SftpFilePaneComponent {
   onPathModelChange(v: string): void {
     this.pathModel = v
     this.pathInputChange.emit(v)
+  }
+
+  /**
+   * ★ 2026-11-20（Deepseek-V4.1-Flash）：清空地址栏输入（编辑态右侧 ×）。
+   *   只清输入内容、不退出编辑态：清完把光标放回输入框，用户可以直接重输新路径。
+   *   创建人：DD1024z（Deepseek-V4.1-Flash） 创建时间：2026-11-20
+   */
+  onPathClear(ev?: MouseEvent): void {
+    if (ev) ev.stopPropagation()
+    if (this.pathDisabled || this.pathPending) return
+    this.pathModel = ''
+    this.pathInputChange.emit('')
+    const el = this.pathInputRef?.nativeElement
+    if (el) {
+      try { el.focus(); el.setSelectionRange(0, 0) } catch { /* ignore */ }
+    }
   }
 
   onPathBlur(): void {

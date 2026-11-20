@@ -690,6 +690,11 @@ export const SFTP_PANEL_STYLES = `
       cursor: pointer; font-size: 15px; border-radius: 4px;
       line-height: 1;
     }
+    /* ★ 2026-11-20（Deepseek-V4.1-Flash）：✕ 从文字字形改成 tbIconClose 的 SVG（与最小化/最大化/还原同一套 16 格），
+       这里补上尺寸与块级盒，否则 svg 会按 100% 撑开、和相邻按钮对不齐。 */
+    .sftp-root .btn-close svg {
+      width: 16px; height: 16px; display: block; flex-shrink: 0;
+    }
     .sftp-root .btn-close:hover { background: rgba(244,67,54,0.12); color: #f44336; }
 
     /* ===== 标题栏右键菜单：面板大小（还原默认 / 设为默认 / 恢复初始） ===== */
@@ -881,8 +886,24 @@ export const SFTP_PANEL_STYLES = `
     .sftp-root .pane-label--clickable:hover .pane-label-caret { opacity: 1; }
     .sftp-root .pane-label-caret.is-open { transform: rotate(180deg); opacity: 1; color: var(--_primary); }
     .sftp-root .pane-path { display: flex; gap: 4px; min-width: 0; overflow: hidden; flex: 1 1 auto; }
+    /* ★ 2026-11-20（Deepseek-V4.1-Flash）：编辑态输入框容器 —— 把「×」清空按钮定位在**框内右侧**。
+       ★ 对齐口径（按用户截图校准）：✎ 在面包屑盒内、右侧 padding 4px + 1px 边框 ⇒ 其中心距盒右边界 14px；
+         所以 × 也取 18×18 盒 + right:5px（输入框 1px 边框内再让 4px）⇒ 中心同样 14px，两个态图标落在同一条竖线。 */
+    .sftp-root .path-input-wrap {
+      position: relative; display: flex; align-items: center;
+      flex: 1 1 auto; min-width: 40px;
+    }
+    .sftp-root .path-clear-btn {
+      position: absolute; right: 5px; top: 50%; transform: translateY(-50%);
+      display: flex; align-items: center; justify-content: center;
+      width: 18px; height: 18px; padding: 0;
+      border: none; border-radius: 3px; background: transparent;
+      color: var(--_text); opacity: 0.55; cursor: pointer; line-height: 1;
+    }
+    .sftp-root .path-clear-btn:hover { opacity: 1; background: var(--_hover); }
+    .sftp-root .path-clear-btn:disabled { opacity: 0.3; cursor: default; background: transparent; }
     .sftp-root .path-input {
-      flex: 1; min-width: 40px; padding: 3px 6px; border-radius: 4px;
+      flex: 1; min-width: 40px; padding: 3px 25px 3px 6px; border-radius: 4px;
       border: 1px solid var(--_border);
       background: var(--input-bg, var(--_input-bg));
       color: var(--_text); font-size: 1em;
@@ -1113,6 +1134,9 @@ export const SFTP_PANEL_STYLES = `
       left: 0; right: 0;
       z-index: 10;
       display: flex;
+      /* ★ 2026-11-20（Deepseek-V4.1-Flash）：显式垂直居中 —— 原先没写 align-items，
+         默认 stretch 下 22px 的 ✓/× 按钮与更高的输入框**顶端对齐**（用户实测截图）。 */
+      align-items: center;
       padding: 6px 10px;
       background: var(--_content);
       border: 1px solid var(--_border);
@@ -2313,6 +2337,10 @@ export const FILE_DIALOG_SHARED_STYLES = `
     background: var(--_content); border: 1px solid var(--_border);
     box-shadow: 0 2px 8px rgba(0,0,0,0.25);
     z-index: 5;
+    /* ★ 2026-11-20（Deepseek-V4.1-Flash）：图片上的翻页条固定半透明（用户要求别太抢眼），
+       鼠标悬停**也不再恢复不透明** —— 只高亮被 hover 的那颗箭头（箭头自己的 :hover 规则管），
+       免得一移上去整块就变实心、压在照片上很突兀。 */
+    opacity: 0.72;
   }
   .image-nav-btn {
     width: 30px; height: 30px; padding: 0;
