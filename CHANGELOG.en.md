@@ -4,6 +4,22 @@ All notable changes to **tabby-sftp-plus** will be documented in this file.
 
 **[中文](https://github.com/10D24D/Tabby-SFTP-Plus/blob/main/CHANGELOG.md) | English**
 
+## [3.2.1] — 2026-11-20
+
+### 🐛 Fixed
+
+- **Back / Forward no longer skips a level or gets stuck** — Three causes fixed together: after restoring the last path, the first jump now leaves a usable Back entry (previously the stack held only the folder you just entered); clicking a breadcrumb level now goes straight to that folder as a whole, instead of landing on its parent first, entering the target and leaving an extra level behind; re-entering the same folder no longer adds duplicate entries, so Back does not sit in place and Forward does not light up for nothing.
+
+### ✨ Added
+
+- **Address bar clear button** — A × on the right inside the path field clears the text without leaving edit mode; the caret stays in the field so you can retype right away.
+
+### 🎨 Improved
+
+- **Consistent icon shapes** — Maximize and restore now share one shape set (a whole square plus a tab in the top-right corner) across the main panel and both file dialogs, so the square does not jump in size when toggling; the breadcrumb ✎ and the field × sit on the same vertical line at the same size; the filter bar ✓ / × share one glyph and center vertically with the field; the panel’s close button is now an SVG from the same family as minimize / maximize.
+- **Cleaner dialog titles** — The editor and viewer windows show only the file name, without the “Edit — ” / “View — ” prefix (the unsaved * marker stays).
+- **Quieter image viewer pager** — Fixed at 0.72 opacity; hovering no longer turns the whole bar solid, only the hovered arrow highlights.
+
 ## [3.2.0] — 2026-11-19
 
 ### ✨ Added

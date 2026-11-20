@@ -132,7 +132,7 @@ SFTP+ 是 [Tabby Terminal](https://tabby.sh/) 的插件，为 SSH 终端标签�
 
 ## 📜 版本历史
 
-最新版本 **v3.2.0**（2026-11-19）— [完整更新日志](CHANGELOG.md)
+最新版本 **v3.2.1**（2026-11-20）— [完整更新日志](CHANGELOG.md)
 
 ---
 
