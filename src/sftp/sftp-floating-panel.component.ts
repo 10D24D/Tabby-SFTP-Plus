@@ -2894,6 +2894,8 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     const t = path.resolve(target)
     if (!t) return
     if (t === this._rlPath) { this._rlPathInput = this._rlPath; return }
+    // ★ 2026-11-20（Deepseek-V4.1-Flash）：历史为空（路径是恢复/直接赋值来的）时先补一条「当前位置」
+    if (!ignorePush) this._rlNav.seed(this._rlPath)
     this._rlNav.push(t, ignorePush)
     this._rlPath = t
     this._rlPathInput = t
@@ -2919,14 +2921,24 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     const leaf = path.basename(eff)
     const navDir = path.dirname(eff)
     void (async () => {
-      if (navDir !== this._rlPath) await this._rlNavigateTo(navDir, false)
+      // ★ 2026-11-20（Deepseek-V4.1-Flash）：记录父目录是否真的进过历史栈 —— 只有进过才该被目标目录替换，
+      //   否则本来就在父目录（历史里已有它）时替换会把它抹掉。
+      let parentPushed = false
+      if (navDir !== this._rlPath) { await this._rlNavigateTo(navDir, false); parentPushed = true }
       else await this._rlRefresh()
       // 父目录列表就绪后定位末段（对齐 _afterLocateCheck 的三态语义）
       const list = this.getFilteredRlEntries()
       const entry = list && list.length ? list.find(e => e.name === leaf) : null
       if (!entry) return
       if (entry.isDirectory) {
-        if (eff !== this._rlPath) await this._rlNavigateTo(eff, false)
+        if (eff !== this._rlPath) {
+          if (parentPushed) {
+            this._rlNav.amendTop(this._rlPath, eff)
+            await this._rlNavigateTo(eff, true)
+          } else {
+            await this._rlNavigateTo(eff, false)
+          }
+        }
         return
       }
       this._rlLocateEntry(entry)
@@ -7883,7 +7895,14 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
   onPathCrumbClick(side: 'local' | 'remote' | 'rl', target: string): void {
     if (!target) return
     if (side === 'rl') { void this._rlGo(target); return }
-    void this._goToPathInput(side, target)
+    // ★ 2026-11-20（Deepseek-V4.1-Flash）：面包屑点的一定是目录，补上尾分隔符走「整段当目录」分支。
+    //   否则会落进 issue #26 的「父目录 + 末段」两段式：先跳父目录、再判末段是目录跳进去，
+    //   历史栈多一条父目录（用户实测：单栏点完 test 退不回去、双栏第一次后退少一级）。
+    //   顺带避开「本地列表有过滤词时末段找不到、停在父目录」的问题。
+    const posix = side === 'remote' || (side === 'local' && this._leftKind === 'remote')
+    const sep = posix ? '/' : (os.platform() === 'win32' ? '\\' : '/')
+    const dir = /[\\/]$/.test(target) ? target : target + sep
+    void this._goToPathInput(side, dir)
   }
 
   /** 连接符「›」下拉：当前展开的层级 / 位置 / 子文件夹 */
@@ -8280,7 +8299,18 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
    * 将路径加入导航历史（后退/前进用）
    */
   protected _pushRemoteNav(newPath: string): void {
+    // ★ 2026-11-20（Deepseek-V4.1-Flash）：同上，远程栏首跳前补 history[0]
+    if (!this._ignoreNavPush) this._remoteNav.seed(this.remotePath)
     this._remoteNav.push(newPath, this._ignoreNavPush)
+  }
+
+  /**
+   * 把栈顶的 oldPath 就地换成 newPath（两段式导航找出「末段其实是目录」时用，避免历史多一条父目录）
+   * 创建人：DD1024z（Deepseek-V4.1-Flash） 创建时间：2026-11-20
+   */
+  private _amendRemoteNav(oldPath: string, newPath: string): void {
+    if (this._ignoreNavPush) return
+    this._remoteNav.amendTop(oldPath, newPath)
   }
 
   /** 后退 */
@@ -8332,14 +8362,15 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
     const { navDir, leaf } = this._splitPathForLocate(input, side)
     const curPath = side === 'local' ? this.localPath : this.remotePath
     const target = side === 'local' ? this.normalizeLocalPath(navDir || curPath) : this.normalizeRemotePath(navDir || '/')
-    if (target !== curPath) {
+    const parentPushed = target !== curPath
+    if (parentPushed) {
       if (side === 'local') { this._pushLocalNav(target); this.localPath = target; this.localPathInput = target; this.saveCurrentPath() }
       else { this._pushRemoteNav(target); this.remotePath = target; this.remotePathInput = target; this.saveCurrentPath() }
     }
     // 先跳到「父目录」并刷新列表（即使 target === curPath 也要刷新，确保列表是最新的、能定位到 leaf）
     if (side === 'local') await this.refreshLocal()
     else await this.refreshRemote()
-    if (leaf) this._afterLocateCheck(side, input, leaf)
+    if (leaf) this._afterLocateCheck(side, input, leaf, parentPushed)
   }
 
   /**
@@ -8375,7 +8406,7 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
    *   - 末段是文件 ⇒ 高亮定位（选中 + 滚动居中 + 闪烁）；
    *   - 末段不存在 ⇒ 仅停留在父目录。
    */
-  private _afterLocateCheck(side: 'local' | 'remote', fullRaw: string, leaf: string): void {
+  private _afterLocateCheck(side: 'local' | 'remote', fullRaw: string, leaf: string, parentPushed = true): void {
     const list = side === 'local' ? this.getFilteredLocalEntries() : this.getFilteredRemoteEntries()
     if (!list || !list.length) return
     const entry = list.find(e => e.name === leaf)
@@ -8384,8 +8415,17 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
       const curPath = side === 'local' ? this.localPath : this.remotePath
       const fullDir = side === 'local' ? this.normalizeLocalPath(fullRaw || curPath) : this.normalizeRemotePath(fullRaw || '/')
       if (fullDir && fullDir !== curPath) {
-        if (side === 'local') { this._pushLocalNav(fullDir); this.localPath = fullDir; this.localPathInput = fullDir; this.saveCurrentPath(); void this.refreshLocal() }
-        else { this._pushRemoteNav(fullDir); this.remotePath = fullDir; this.remotePathInput = fullDir; this.saveCurrentPath(); void this.refreshRemote() }
+        // ★ 2026-11-20（Deepseek-V4.1-Flash）：末段是目录时，父目录只是「两段式导航」的中间过渡，
+        //   不能真进历史栈 —— 否则后退会先退到父目录（用户实测「第一次后退少一级」）。
+        //   原实现是再 push 一条目标目录，历史栈因此变成 [旧目录, 父目录, 目标目录]。
+        //   parentPushed=false（本来就在父目录、没 push 过）时，照常 push 目标目录。
+        if (side === 'local') {
+          if (parentPushed) this._amendLocalNav(curPath, fullDir); else this._pushLocalNav(fullDir)
+          this.localPath = fullDir; this.localPathInput = fullDir; this.saveCurrentPath(); void this.refreshLocal()
+        } else {
+          if (parentPushed) this._amendRemoteNav(curPath, fullDir); else this._pushRemoteNav(fullDir)
+          this.remotePath = fullDir; this.remotePathInput = fullDir; this.saveCurrentPath(); void this.refreshRemote()
+        }
       }
       return
     }
@@ -8462,7 +8502,18 @@ export class SftpFloatingPanel extends SftpPanelBookmarkController implements On
    * 将本地路径加入导航历史（后退/前进用）
    */
   protected _pushLocalNav(newPath: string): void {
+    // ★ 2026-11-20（Deepseek-V4.1-Flash）：同 _rlNavigateTo —— 首跳前把恢复来的当前目录补成 history[0]
+    if (!this._ignoreLocalNavPush) this._localNav.seed(this.localPath)
     this._localNav.push(newPath, this._ignoreLocalNavPush)
+  }
+
+  /**
+   * 把栈顶的 oldPath 就地换成 newPath（同 _amendRemoteNav，本地栏用）
+   * 创建人：DD1024z（Deepseek-V4.1-Flash） 创建时间：2026-11-20
+   */
+  private _amendLocalNav(oldPath: string, newPath: string): void {
+    if (this._ignoreLocalNavPush) return
+    this._localNav.amendTop(oldPath, newPath)
   }
 
   /** 后退 */

@@ -124,6 +124,10 @@ export class PaneNavHistory {
 
   push(newPath: string, ignorePush: boolean): void {
     if (ignorePush) return
+    // ★ 2026-11-20（Deepseek-V4.1-Flash）：同一目录重复进入不产生新纪录。
+    //   否则「后退」会停在原地（路径没变、列表不刷新），而「前进」又亮起来 —— 两个按钮空转。
+    //   创建人：DD1024z（Deepseek-V4.1-Flash） 创建时间：2026-11-20
+    if (this._index >= 0 && this._history[this._index] === newPath) return
     if (this._index < this._history.length - 1) {
       this._history = this._history.slice(0, this._index + 1)
     }
@@ -132,6 +136,32 @@ export class PaneNavHistory {
       this._history.shift()
     }
     this._index = this._history.length - 1
+  }
+
+  /**
+   * 用 newPath 就地替换栈顶（oldPath 必须仍是栈顶才生效）。
+   * 场景：地址栏「父目录 + 末段」两段式导航，末段其实是目录时，
+   * 父目录只是中间过渡，不该在后退历史里留下一条。
+   * 创建人：DD1024z（Deepseek-V4.1-Flash） 创建时间：2026-11-20
+   */
+  amendTop(oldPath: string, newPath: string): void {
+    if (this._index < 0 || this._index >= this._history.length) return
+    if (this._history[this._index] !== oldPath) return
+    if (oldPath === newPath) return
+    this._history[this._index] = newPath
+  }
+
+  /**
+   * 历史为空时，把「当前所在目录」补成第 0 条。
+   * 场景：重启/恢复上次路径时路径是直接赋值进来的、从没 push 过，
+   * 于是「第一次跳转」后栈里只有一条，后退必然不可用（用户实测「单栏点一下面包屑就退不回去」）。
+   * 创建人：DD1024z（Deepseek-V4.1-Flash） 创建时间：2026-11-20
+   */
+  seed(currentPath: string): void {
+    if (this._index >= 0) return
+    if (!currentPath) return
+    this._history = [currentPath]
+    this._index = 0
   }
 
   back(): string | null {
